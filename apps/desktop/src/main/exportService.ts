@@ -4,8 +4,8 @@ import { buildExportCommand, calculateExportPercent, createPartialOutputPath, pa
 
 export function startExport(request: ExportRequest, onProgress: (progress: ExportProgress) => void, ffmpegExecutable = 'ffmpeg'): { cancel: () => void; done: Promise<void> } {
   const partialOutput = createPartialOutputPath(request.output);
-  const child: ChildProcess = spawn(ffmpegExecutable, buildExportCommand({ ...request, output: partialOutput }), { stdio: ['ignore', 'ignore', 'pipe'] });
-  child.stderr?.on('data', (data) => String(data).split(/\r?\n/).forEach((line) => {
+  const child: ChildProcess = spawn(ffmpegExecutable, buildExportCommand({ ...request, output: partialOutput }), { stdio: ['ignore', 'pipe', 'pipe'] });
+  child.stdout?.on('data', (data) => String(data).split(/\r?\n/).forEach((line) => {
     const progress = parseFfmpegProgress(line);
     const percent = progress.timeMs === undefined || request.durationMs === undefined ? undefined : calculateExportPercent(progress.timeMs, request.durationMs);
     onProgress(percent === undefined ? progress : { ...progress, percent });

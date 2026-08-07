@@ -30,7 +30,7 @@ export function buildExportCommand(request: ExportRequest): string[] {
   } else {
     args.push('-c:v', 'libx265', '-pix_fmt', 'yuv420p', '-tag:v', 'hvc1', '-c:a', 'aac', '-crf', String(request.crf ?? 22));
   }
-  args.push(request.output);
+  args.push('-progress', 'pipe:1', '-nostats', request.output);
   return args;
 }
 
@@ -58,6 +58,8 @@ export function parseFfmpegProgress(line: string): ExportProgress {
     const [hours, minutes, seconds] = time[1].split(':').map(Number);
     if ([hours, minutes, seconds].every(Number.isFinite)) result.timeMs = Math.round((hours * 3600 + minutes * 60 + seconds) * 1000);
   }
+  const outTimeMs = line.match(/^out_time_ms=(\d+)$/);
+  if (outTimeMs) result.timeMs = Math.round(Number(outTimeMs[1]) / 1000);
   const speed = line.match(/speed=\s*(\S+)/); if (speed) result.speed = speed[1];
   return result;
 }

@@ -74,6 +74,13 @@ it('parses FFmpeg elapsed time in milliseconds', () => {
   });
 });
 
+it('uses FFmpeg structured progress output', () => {
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false });
+
+  expect(command).toEqual(expect.arrayContaining(['-progress', 'pipe:1', '-nostats']));
+  expect(parseFfmpegProgress('out_time_ms=75500000')).toMatchObject({ timeMs: 75500 });
+});
+
 it('caps in-progress percentages before FFmpeg completion', () => {
   expect(calculateExportPercent(5000, 10000)).toBe(50);
   expect(calculateExportPercent(10000, 10000)).toBe(99);
