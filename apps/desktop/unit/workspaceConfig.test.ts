@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { loadWorkspaceRoot, saveWorkspaceRoot } from '../src/main/workspaceConfig.js';
+import { validateWorkspaceRoot } from '../src/main/workspace.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -12,6 +13,11 @@ afterEach(async () => {
 });
 
 describe('workspace configuration', () => {
+  it('rejects empty and relative workspace roots', () => {
+    expect(() => validateWorkspaceRoot('   ')).toThrow('workspace root must not be empty');
+    expect(() => validateWorkspaceRoot('projects')).toThrow('workspace root must be absolute');
+  });
+
   it('persists and reloads the selected root', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'ai-video-workspace-config-'));
     temporaryDirectories.push(directory);
