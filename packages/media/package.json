@@ -1,0 +1,1 @@
+{"name":"@ai-video/media","private":true,"type":"module","scripts":{"typecheck":"tsc --noEmit"},"devDependencies":{"@types/node":"^22.18.0","typescript":"^5.9.2"}}
