@@ -95,6 +95,14 @@ export function resizeClip<T extends ProjectWithTracks>(
   return updateClip(project, clipId, (clip) => ({ ...clip, duration }));
 }
 
+export function setClipLayout<T extends ProjectWithTracks>(
+  project: T,
+  clipId: string,
+  layout: NonNullable<TimelineClip['layout']>,
+): T {
+  return updateClip(project, clipId, (clip) => ({ ...clip, layout }));
+}
+
 function copyId(track: Track, clipId: string): string {
   const baseId = `${clipId}-copy`;
   let id = baseId;

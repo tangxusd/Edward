@@ -6,6 +6,7 @@ import {
   deleteClip,
   moveClip,
   resizeClip,
+  setClipLayout,
   type Project,
 } from '../src/index.js';
 
@@ -65,6 +66,15 @@ describe('timeline operations', () => {
 
     expect(resized.tracks.cards.clips[0].duration).toBe(4);
     expect(project.tracks.cards.clips[0].duration).toBe(3);
+  });
+
+  it('sets a clip canvas layout without changing the input project', () => {
+    const project = createProjectWithCard();
+
+    const positioned = setClipLayout(project, 'card-1', { x: 120, y: 80, width: 320, height: 180 });
+
+    expect(positioned.tracks.cards.clips[0].layout).toEqual({ x: 120, y: 80, width: 320, height: 180 });
+    expect(project.tracks.cards.clips[0].layout).toBeUndefined();
   });
 
   it('copies a clip without changing the input project', () => {

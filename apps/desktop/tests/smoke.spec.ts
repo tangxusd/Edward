@@ -99,6 +99,34 @@ test('renders AI card clips from the project timeline in the preview canvas', as
   }
 });
 
+test('persists a dragged project card layout', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/preview-layout-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-layout-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '卡片布局', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '可移动卡片' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    const card = page.getByLabel('项目卡片 ai-cards-0');
+    const before = await card.boundingBox();
+    if (!before) throw new Error('project card is not visible');
+    await page.mouse.move(before.x + 20, before.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(before.x + 80, before.y + 50);
+    await page.mouse.up();
+    await card.click();
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.cards.clips[0]?.layout?.x;
+    }, mediaPath)).toBeGreaterThanOrEqual(120);
+  } finally {
+    await app.close();
+  }
+});
+
 test('persists subtitle style changes with the project', async () => {
   const app = await electron.launch({ args: ['.'] });
   const mediaPath = `/tmp/subtitle-style-source-${Date.now()}.mp3`;
