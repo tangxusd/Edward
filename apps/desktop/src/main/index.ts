@@ -14,6 +14,7 @@ import { readCredential, saveCredential } from './credentialStore.js';
 import { transcribe } from './transcriptionService.js';
 import { analyzeSemantics } from './semanticAnalysisService.js';
 import { checkModelAvailability } from './modelAvailabilityService.js';
+import { loadWorkspaceRoot, saveWorkspaceRoot } from './workspaceConfig.js';
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -47,13 +48,16 @@ app.whenReady().then(() => {
 });
 
 async function registerProjectIpc(): Promise<void> {
-  let workspace = await ensureWorkspace(join(app.getPath('documents'), 'AI Video Editor'));
+  const configPath = join(app.getPath('userData'), 'workspace.json');
+  const defaultRoot = join(app.getPath('documents'), 'AI Video Editor');
+  let workspace = await ensureWorkspace(await loadWorkspaceRoot(configPath, defaultRoot));
   let repository = new ProjectRepository(workspace);
   let library = new LibraryRepository(workspace);
   let models = new ModelRepository(workspace);
   const jobs = new Map<string, ReturnType<typeof startExport>>();
   ipcMain.handle('workspace:set-root', async (_event, root) => {
     workspace = await ensureWorkspace(String(root));
+    await saveWorkspaceRoot(configPath, workspace.root);
     repository = new ProjectRepository(workspace);
     library = new LibraryRepository(workspace);
     models = new ModelRepository(workspace);
