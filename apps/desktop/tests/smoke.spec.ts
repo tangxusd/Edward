@@ -145,3 +145,17 @@ test('shows AI timeline analysis controls without a project', async () => {
     await app.close();
   }
 });
+
+test('shows custom resolution inputs for manual export', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    const exportPanel = page.getByLabel('导出');
+    await exportPanel.getByLabel('分辨率').selectOption('custom');
+    await expect(exportPanel.getByLabel('自定义宽度')).toBeVisible();
+    await expect(exportPanel.getByLabel('自定义高度')).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
