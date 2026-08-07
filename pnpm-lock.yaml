@@ -13,6 +13,9 @@ importers:
       '@ai-video/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@ai-video/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       adm-zip:
         specifier: ^0.6.0
         version: 0.6.0
