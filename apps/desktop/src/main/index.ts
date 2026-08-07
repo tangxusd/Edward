@@ -13,6 +13,7 @@ import { ensureWorkspace } from './workspace.js';
 import { readCredential, saveCredential } from './credentialStore.js';
 import { transcribe } from './transcriptionService.js';
 import { analyzeSemantics } from './semanticAnalysisService.js';
+import { checkModelAvailability } from './modelAvailabilityService.js';
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -66,6 +67,11 @@ async function registerProjectIpc(): Promise<void> {
     const saved = await models.upsert(record);
     if (credentialValue) await saveCredential(saved.credentialRef, credentialValue);
     return saved;
+  });
+  ipcMain.handle('models:status', async (_event, id) => {
+    const model = (await models.list()).find((candidate) => candidate.id === String(id));
+    if (!model) return { online: false };
+    return checkModelAvailability({ baseUrl: model.baseUrl, apiKey: await readCredential(model.credentialRef) });
   });
   ipcMain.handle('analysis:generate', async (_event, projectId: string, modelId: string) => {
     const project = await repository.open(String(projectId));

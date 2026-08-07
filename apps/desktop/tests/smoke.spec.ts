@@ -152,7 +152,7 @@ test('saves a named cloud model record', async () => {
     await modelPanel.getByLabel('模型凭证').fill('secret-test-value');
     await modelPanel.getByRole('button', { name: '保存模型' }).click();
     await expect(modelPanel).toContainText(name);
-    await expect(page.getByLabel('当前模型状态')).toContainText(`${name} 在线`);
+    await expect(page.getByLabel('当前模型状态')).toContainText(`${name} 离线`);
   } finally {
     await app.close();
   }
