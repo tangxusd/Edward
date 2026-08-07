@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ModelRecord } from '../main/modelRepository.js';
 
-export function ModelSettings(): React.JSX.Element {
+export function ModelSettings({ onModelsChanged }: { onModelsChanged?: (models: ModelRecord[]) => void }): React.JSX.Element {
   const [name, setName] = useState(''); const [baseUrl, setBaseUrl] = useState(''); const [modelId, setModelId] = useState(''); const [credentialRef, setCredentialRef] = useState(''); const [credentialValue, setCredentialValue] = useState('');
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [error, setError] = useState('');
@@ -10,7 +10,7 @@ export function ModelSettings(): React.JSX.Element {
     setError('');
     try {
       const saved = await window.aiVideo.models.save({ id: `model-${crypto.randomUUID()}`, name, baseUrl, modelId, credentialRef }, credentialValue);
-      setModels((current) => [...current.filter((item) => item.id !== saved.id), saved]);
+      setModels((current) => { const next = [saved, ...current.filter((item) => item.id !== saved.id)]; onModelsChanged?.(next); return next; });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
