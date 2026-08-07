@@ -15,7 +15,7 @@ import { Timeline } from './Timeline.js';
 function App(): React.JSX.Element {
   const [project, setProject] = useState<Project>(); const [refreshToken, setRefreshToken] = useState(0);
   const created = (next: Project) => { setProject(next); setRefreshToken((value) => value + 1); };
-  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas /><Timeline project={project} /><SubtitleStylePanel /><ModelSettings /><ExportDialog /><LibraryPanel /></main>;
+  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas /><Timeline project={project} /><SubtitleStylePanel /><ModelSettings /><ExportDialog project={project} /><LibraryPanel /></main>;
 }
 
 const root = document.getElementById('root');
