@@ -8,9 +8,12 @@ export function createPartialOutputPath(output: string): string {
 
 export function buildExportCommand(request: ExportRequest): string[] {
   const args = ['-y', '-i', request.input, '-vf', `scale=${request.width}:${request.height}`];
-  if (request.transparent) args.push('-c:v', 'libx265', '-pix_fmt', 'yuva420p', '-tag:v', 'hvc1');
-  else args.push('-c:v', 'libx265', '-pix_fmt', 'yuv420p', '-tag:v', 'hvc1', '-c:a', 'aac');
-  args.push('-crf', String(request.crf ?? 22), request.output);
+  if (request.transparent) {
+    args.push('-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-c:a', 'pcm_s16le');
+  } else {
+    args.push('-c:v', 'libx265', '-pix_fmt', 'yuv420p', '-tag:v', 'hvc1', '-c:a', 'aac', '-crf', String(request.crf ?? 22));
+  }
+  args.push(request.output);
   return args;
 }
 
