@@ -4,7 +4,7 @@ import type { ModelRecord } from '../main/modelRepository.js';
 import type { ExportProgress, ExportRequest } from '@ai-video/media';
 
 export type DesktopBridge = {
-  workspace: { setRoot(root: string): Promise<string>; chooseDirectory(): Promise<string | undefined>; chooseFile(): Promise<string | undefined>; };
+  workspace: { setRoot(root: string): Promise<string>; chooseDirectory(): Promise<string | undefined>; chooseFile(): Promise<string | undefined>; getRoot(): Promise<string>; };
   projects: {
     list(): Promise<Project[]>;
     create(project: Project): Promise<Project>;

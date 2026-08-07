@@ -15,7 +15,7 @@ test('exposes only the desktop bridge', async () => {
     ).resolves.toEqual(['workspace', 'projects', 'library', 'models', 'analysis', 'export']);
     await expect(
       page.evaluate(() => Object.keys((window as unknown as Window & { aiVideo: { workspace: Record<string, unknown> } }).aiVideo.workspace)),
-    ).resolves.toEqual(['setRoot', 'chooseDirectory', 'chooseFile']);
+    ).resolves.toEqual(['setRoot', 'chooseDirectory', 'chooseFile', 'getRoot']);
     await expect(
       page.evaluate(() => (window as Window & { require?: unknown }).require),
     ).resolves.toBeUndefined();

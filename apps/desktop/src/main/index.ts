@@ -63,6 +63,7 @@ async function registerProjectIpc(): Promise<void> {
     models = new ModelRepository(workspace);
     return workspace.root;
   });
+  ipcMain.handle('workspace:get-root', () => workspace.root);
   ipcMain.handle('workspace:choose-directory', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? undefined : result.filePaths[0];
