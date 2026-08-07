@@ -51,3 +51,12 @@ export function markClipUserEdited(project: Project, clipId: string, content?: u
   }
   throw new Error(`clip not found: ${clipId}`);
 }
+
+export function setClipStyle(project: Project, clipId: string, styleId: string): Project {
+  for (const trackId of ['mainMedia', 'background', 'subtitles', 'cards', 'graphics'] as const satisfies TrackId[]) {
+    const track = project.tracks[trackId];
+    if (!track.clips.some((clip) => clip.id === clipId)) continue;
+    return { ...project, tracks: { ...project.tracks, [trackId]: { ...track, clips: track.clips.map((clip) => clip.id === clipId ? { ...clip, styleId, userEditedAt: new Date().toISOString() } : clip) } } };
+  }
+  throw new Error(`clip not found: ${clipId}`);
+}
