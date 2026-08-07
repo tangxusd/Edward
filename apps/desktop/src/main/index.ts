@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { AiPlanApplicationModeSchema, AiEditPlanSchema, ProjectSchema, applyAiPlan } from '@ai-video/domain';
@@ -53,6 +53,10 @@ async function registerProjectIpc(): Promise<void> {
   const models = new ModelRepository(workspace);
   const jobs = new Map<string, ReturnType<typeof startExport>>();
   ipcMain.handle('workspace:set-root', async (_event, root) => (await ensureWorkspace(String(root))).root);
+  ipcMain.handle('workspace:choose-directory', async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
+    return result.canceled ? undefined : result.filePaths[0];
+  });
 
   ipcMain.handle('projects:create', (_event, project) => repository.create(ProjectSchema.parse(project)));
   ipcMain.handle('projects:list', () => repository.list());
