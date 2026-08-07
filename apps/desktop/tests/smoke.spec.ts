@@ -83,6 +83,22 @@ test('renders the audio project default background in the preview canvas', async
   }
 });
 
+test('renders AI card clips from the project timeline in the preview canvas', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-card-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/preview-card-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '卡片预览', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '重点' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await expect(page.getByLabel('项目卡片 ai-cards-0')).toContainText('重点');
+  } finally {
+    await app.close();
+  }
+});
+
 test('persists subtitle style changes with the project', async () => {
   const app = await electron.launch({ args: ['.'] });
   const mediaPath = `/tmp/subtitle-style-source-${Date.now()}.mp3`;
