@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AiEditPlan, Project } from '@ai-video/domain';
+import type { AiEditPlan, AiPlanApplicationMode, Project } from '@ai-video/domain';
 import type { ExportProgress } from '@ai-video/media';
 import type { DesktopBridge } from '../shared/ipc.js';
 
@@ -20,7 +20,7 @@ const bridge: DesktopBridge = {
   models: { list: () => ipcRenderer.invoke('models:list'), save: (record, credentialValue) => ipcRenderer.invoke('models:save', record, credentialValue) },
   analysis: {
     generate: (projectId: string, modelId: string) => ipcRenderer.invoke('analysis:generate', projectId, modelId),
-    apply: (projectId: string, plan: AiEditPlan) => ipcRenderer.invoke('analysis:apply', projectId, plan),
+    apply: (projectId: string, plan: AiEditPlan, mode?: AiPlanApplicationMode) => ipcRenderer.invoke('analysis:apply', projectId, plan, mode),
   },
   export: {
     start: (request) => ipcRenderer.invoke('export:start', request),

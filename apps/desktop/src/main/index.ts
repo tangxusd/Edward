@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { AiEditPlanSchema, ProjectSchema, applyAiPlan } from '@ai-video/domain';
+import { AiPlanApplicationModeSchema, AiEditPlanSchema, ProjectSchema, applyAiPlan } from '@ai-video/domain';
 
 import { ProjectRepository } from './projectRepository.js';
 import { LibraryRepository } from './libraryRepository.js';
@@ -74,9 +74,9 @@ async function registerProjectIpc(): Promise<void> {
     const [script, transcript] = await Promise.all([readFile(project.scriptPath, 'utf8'), transcribe(project.media.path)]);
     return analyzeSemantics({ baseUrl: model.baseUrl, modelId: model.modelId, apiKey: await readCredential(model.credentialRef), script, transcript });
   });
-  ipcMain.handle('analysis:apply', async (_event, projectId: string, plan: unknown) => {
+  ipcMain.handle('analysis:apply', async (_event, projectId: string, plan: unknown, mode: unknown) => {
     const project = await repository.open(String(projectId));
-    const next = applyAiPlan(project, AiEditPlanSchema.parse(plan));
+    const next = applyAiPlan(project, AiEditPlanSchema.parse(plan), mode === undefined ? 'unmodified-only' : AiPlanApplicationModeSchema.parse(mode));
     await repository.save(next);
     return next;
   });

@@ -146,6 +146,17 @@ test('shows AI timeline analysis controls without a project', async () => {
   }
 });
 
+test('defaults AI plan application to preserve edited clips', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel('AI应用方式')).toHaveValue('unmodified-only');
+  } finally {
+    await app.close();
+  }
+});
+
 test('shows custom resolution inputs for manual export', async () => {
   const app = await electron.launch({ args: ['.'] });
 

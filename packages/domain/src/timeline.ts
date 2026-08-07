@@ -22,6 +22,8 @@ export const TimelineClipSchema = z.object({
       end: z.number().finite().nonnegative(),
     })
     .optional(),
+  aiSourceId: z.string().min(1).optional(),
+  userEditedAt: z.string().datetime().optional(),
 });
 
 export const TrackSchema = z.object({

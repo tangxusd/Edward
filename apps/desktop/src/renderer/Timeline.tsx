@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { copyClip, deleteClip, moveClip, resizeClip, type Project, type TimelineClip, type TrackId } from '@ai-video/domain';
+import { copyClip, deleteClip, markClipUserEdited, moveClip, resizeClip, type Project, type TimelineClip, type TrackId } from '@ai-video/domain';
 
 const pixelsPerSecond = 60;
 const tracks: Array<{ id: TrackId; label: string }> = [
@@ -35,7 +35,8 @@ export function Timeline({ project, onChange }: { project?: Project; onChange?: 
     const deltaSeconds = (clientX - currentActive.startX) / pixelsPerSecond;
     setDraft((current) => {
       if (!current) return current;
-      const next = currentActive.mode === 'move' ? moveClip(current, currentActive.clipId, Math.max(0, currentActive.startStart + deltaSeconds)) : resizeClip(current, currentActive.clipId, Math.max(0.1, currentActive.startDuration + deltaSeconds));
+      const changed = currentActive.mode === 'move' ? moveClip(current, currentActive.clipId, Math.max(0, currentActive.startStart + deltaSeconds)) : resizeClip(current, currentActive.clipId, Math.max(0.1, currentActive.startDuration + deltaSeconds));
+      const next = markClipUserEdited(changed, currentActive.clipId);
       draftRef.current = next;
       return next;
     });
