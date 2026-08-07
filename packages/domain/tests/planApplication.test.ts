@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyAiPlan, createProject, markClipUserEdited, type AiEditPlan } from '../src/index.js';
+import { applyAiPlan, createProject, markClipUserEdited, setClipStyle, type AiEditPlan } from '../src/index.js';
 
 const initialPlan: AiEditPlan = {
   summary: '初版',
@@ -50,5 +50,13 @@ describe('AI plan application', () => {
 
     expect(next.tracks.cards.clips).toHaveLength(1);
     expect(next.tracks.graphics.clips).toEqual([expect.objectContaining({ id: 'ai-graphics-1', content: { type: 'timeline' } })]);
+  });
+
+  it('replaces a clip style without changing the input project', () => {
+    const project = projectWithAiPlan();
+    const updated = setClipStyle(project, 'ai-cards-0', 'new-card-style');
+
+    expect(updated.tracks.cards.clips[0]).toEqual(expect.objectContaining({ styleId: 'new-card-style', userEditedAt: expect.any(String) }));
+    expect(project.tracks.cards.clips[0].styleId).toBe('card-style');
   });
 });
