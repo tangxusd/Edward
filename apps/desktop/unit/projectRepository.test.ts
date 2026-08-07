@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createProject } from '@ai-video/domain';
@@ -34,7 +34,6 @@ describe('ProjectRepository', () => {
     await repository.saveAiPlan(project.id, { summary: '第一版', clips: [] });
     await repository.saveAiPlan(project.id, { summary: '第二版', clips: [] });
 
-    const plans = await Promise.all((await readdir(join(workspace.projects, project.id, 'ai-plans'))).map(async (name) => JSON.parse(await readFile(join(workspace.projects, project.id, 'ai-plans', name), 'utf8')) as { summary: string }));
-    expect(plans.map((plan) => plan.summary).sort()).toEqual(['第一版', '第二版']);
+    expect((await repository.listAiPlans(project.id)).map((snapshot) => snapshot.plan.summary).sort()).toEqual(['第一版', '第二版']);
   });
 });

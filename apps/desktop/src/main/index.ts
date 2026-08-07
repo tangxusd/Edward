@@ -109,6 +109,7 @@ async function registerProjectIpc(): Promise<void> {
     await repository.save(next);
     return next;
   });
+  ipcMain.handle('analysis:list', (_event, projectId: string) => repository.listAiPlans(String(projectId)));
   ipcMain.handle('export:start', async (event, request: ExportRequest) => {
     const jobId = crypto.randomUUID();
     const media = await probeMedia(request.input);

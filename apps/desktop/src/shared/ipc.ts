@@ -20,6 +20,6 @@ export type DesktopBridge = {
     importStylePackage(zipPath: string): Promise<Resource>;
   };
   models: { list(): Promise<ModelRecord[]>; save(record: ModelRecord, credentialValue?: string): Promise<ModelRecord>; status(id: string): Promise<{ online: boolean }>; };
-  analysis: { generate(projectId: string, modelId: string): Promise<AiEditPlan>; apply(projectId: string, plan: AiEditPlan, mode?: AiPlanApplicationMode): Promise<Project>; };
+  analysis: { generate(projectId: string, modelId: string): Promise<AiEditPlan>; apply(projectId: string, plan: AiEditPlan, mode?: AiPlanApplicationMode): Promise<Project>; list(projectId: string): Promise<Array<{ id: string; plan: AiEditPlan }>>; };
   export: { start(request: ExportRequest): Promise<string>; cancel(jobId: string): Promise<void>; onProgress(listener: (event: { jobId: string; progress: ExportProgress }) => void): () => void; };
 };

@@ -23,6 +23,7 @@ const bridge: DesktopBridge = {
   analysis: {
     generate: (projectId: string, modelId: string) => ipcRenderer.invoke('analysis:generate', projectId, modelId),
     apply: (projectId: string, plan: AiEditPlan, mode?: AiPlanApplicationMode) => ipcRenderer.invoke('analysis:apply', projectId, plan, mode),
+    list: (projectId: string) => ipcRenderer.invoke('analysis:list', projectId),
   },
   export: {
     start: (request) => ipcRenderer.invoke('export:start', request),

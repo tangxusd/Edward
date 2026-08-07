@@ -53,6 +53,13 @@ export class ProjectRepository {
     await writeFile(join(directory, `${Date.now()}-${randomUUID()}.json`), `${JSON.stringify(AiEditPlanSchema.parse(plan), null, 2)}\n`, 'utf8');
   }
 
+  async listAiPlans(projectId: string): Promise<Array<{ id: string; plan: AiEditPlan }>> {
+    const directory = join(this.projectDirectory(projectId), 'ai-plans');
+    let names: string[];
+    try { names = await readdir(directory); } catch (error: unknown) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; }
+    return Promise.all(names.filter((name) => name.endsWith('.json')).sort().reverse().map(async (name) => ({ id: name.slice(0, -5), plan: AiEditPlanSchema.parse(JSON.parse(await readFile(join(directory, name), 'utf8'))) })));
+  }
+
   private projectDirectory(id: string): string {
     if (!id || id === '.' || id === '..' || /[\\/\0]/.test(id)) throw new Error('invalid project id');
     return join(this.workspace.projects, id);
