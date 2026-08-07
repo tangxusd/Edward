@@ -385,3 +385,16 @@ test('shows a native workspace directory picker', async () => {
     await app.close();
   }
 });
+
+test('switches project storage when changing the workspace', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const root = `/tmp/ai-video-workspace-${Date.now()}`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.evaluate((nextRoot) => window.aiVideo.workspace.setRoot(nextRoot), root);
+    await expect.poll(() => page.evaluate(() => window.aiVideo.projects.list().then((projects) => projects.length))).toBe(0);
+  } finally {
+    await app.close();
+  }
+});

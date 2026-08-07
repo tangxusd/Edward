@@ -47,12 +47,18 @@ app.whenReady().then(() => {
 });
 
 async function registerProjectIpc(): Promise<void> {
-  const workspace = await ensureWorkspace(join(app.getPath('documents'), 'AI Video Editor'));
-  const repository = new ProjectRepository(workspace);
-  const library = new LibraryRepository(workspace);
-  const models = new ModelRepository(workspace);
+  let workspace = await ensureWorkspace(join(app.getPath('documents'), 'AI Video Editor'));
+  let repository = new ProjectRepository(workspace);
+  let library = new LibraryRepository(workspace);
+  let models = new ModelRepository(workspace);
   const jobs = new Map<string, ReturnType<typeof startExport>>();
-  ipcMain.handle('workspace:set-root', async (_event, root) => (await ensureWorkspace(String(root))).root);
+  ipcMain.handle('workspace:set-root', async (_event, root) => {
+    workspace = await ensureWorkspace(String(root));
+    repository = new ProjectRepository(workspace);
+    library = new LibraryRepository(workspace);
+    models = new ModelRepository(workspace);
+    return workspace.root;
+  });
   ipcMain.handle('workspace:choose-directory', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? undefined : result.filePaths[0];
