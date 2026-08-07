@@ -8,7 +8,13 @@ export function buildExportCommand(request: ExportRequest): string[] {
   return args;
 }
 
-export type ExportProgress = { frame?: number; time?: string; speed?: string };
+export type ExportProgress = {
+  frame?: number;
+  time?: string;
+  speed?: string;
+  status?: 'completed' | 'failed';
+  error?: string;
+};
 export function parseFfmpegProgress(line: string): ExportProgress {
   const result: ExportProgress = {};
   const frame = line.match(/frame=\s*(\d+)/); if (frame) result.frame = Number(frame[1]);

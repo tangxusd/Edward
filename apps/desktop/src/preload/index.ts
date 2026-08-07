@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { Project } from '@ai-video/domain';
+import type { ExportProgress } from '@ai-video/media';
 import type { DesktopBridge } from '../shared/ipc.js';
 
 const bridge: DesktopBridge = {
@@ -17,6 +18,15 @@ const bridge: DesktopBridge = {
     importStylePackage: (zipPath) => ipcRenderer.invoke('library:import-style-package', zipPath),
   },
   models: { list: () => ipcRenderer.invoke('models:list'), save: (record) => ipcRenderer.invoke('models:save', record) },
+  export: {
+    start: (request) => ipcRenderer.invoke('export:start', request),
+    cancel: (jobId) => ipcRenderer.invoke('export:cancel', jobId),
+    onProgress: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, value: { jobId: string; progress: ExportProgress }) => listener(value);
+      ipcRenderer.on('export:progress', handler);
+      return () => ipcRenderer.removeListener('export:progress', handler);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('aiVideo', bridge);

@@ -6,6 +6,8 @@ import { ProjectRepository } from './projectRepository.js';
 import { LibraryRepository } from './libraryRepository.js';
 import { importStylePackage } from './stylePackageImporter.js';
 import { ModelRepository } from './modelRepository.js';
+import { startExport } from './exportService.js';
+import type { ExportRequest } from '@ai-video/media';
 import { ensureWorkspace } from './workspace.js';
 
 function createWindow(): BrowserWindow {
@@ -44,6 +46,7 @@ async function registerProjectIpc(): Promise<void> {
   const repository = new ProjectRepository(workspace);
   const library = new LibraryRepository(workspace);
   const models = new ModelRepository(workspace);
+  const jobs = new Map<string, ReturnType<typeof startExport>>();
   ipcMain.handle('workspace:set-root', async (_event, root) => (await ensureWorkspace(String(root))).root);
 
   ipcMain.handle('projects:create', (_event, project) => repository.create(ProjectSchema.parse(project)));
@@ -56,6 +59,14 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('library:import-style-package', (_event, zipPath) => importStylePackage(String(zipPath), workspace, library));
   ipcMain.handle('models:list', () => models.list());
   ipcMain.handle('models:save', (_event, record) => models.upsert(record));
+  ipcMain.handle('export:start', (event, request: ExportRequest) => {
+    const jobId = crypto.randomUUID();
+    const job = startExport(request, (progress) => event.sender.send('export:progress', { jobId, progress }));
+    jobs.set(jobId, job);
+    void job.done.then(() => event.sender.send('export:progress', { jobId, progress: { status: 'completed' } })).catch((error: unknown) => event.sender.send('export:progress', { jobId, progress: { status: 'failed', error: String(error) } })).finally(() => jobs.delete(jobId));
+    return jobId;
+  });
+  ipcMain.handle('export:cancel', (_event, jobId) => { jobs.get(String(jobId))?.cancel(); });
 }
 
 app.on('window-all-closed', () => {
