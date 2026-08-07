@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "test": "pnpm run build && playwright test",
+    "test": "pnpm run test:unit && pnpm run build && playwright test",
     "test:unit": "vitest run",
     "package": "pnpm run build && electron-builder"
   },
