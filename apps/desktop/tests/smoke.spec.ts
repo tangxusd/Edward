@@ -118,3 +118,17 @@ test('saves a named cloud model record', async () => {
     await app.close();
   }
 });
+
+test('reports an invalid style package import', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    const library = page.getByLabel('资源库');
+    await library.getByLabel('风格包路径').fill('/tmp/missing-style-package.zip');
+    await library.getByRole('button', { name: '导入风格包' }).click();
+    await expect(library.getByRole('alert')).toContainText('导入失败');
+  } finally {
+    await app.close();
+  }
+});
