@@ -9,6 +9,11 @@ const bridge: DesktopBridge = {
     save: (project: Project) => ipcRenderer.invoke('projects:save', project),
     archive: (id: string) => ipcRenderer.invoke('projects:archive', id),
   },
+  library: {
+    list: (type) => ipcRenderer.invoke('library:list', type),
+    toggleFavorite: (id) => ipcRenderer.invoke('library:toggle-favorite', id),
+    importStylePackage: (zipPath) => ipcRenderer.invoke('library:import-style-package', zipPath),
+  },
 };
 
 contextBridge.exposeInMainWorld('aiVideo', bridge);
