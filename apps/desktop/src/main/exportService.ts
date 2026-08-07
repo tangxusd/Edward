@@ -10,7 +10,9 @@ export function startExport(request: ExportRequest, onProgress: (progress: Expor
     const percent = progress.timeMs === undefined || request.durationMs === undefined ? undefined : calculateExportPercent(progress.timeMs, request.durationMs);
     onProgress(percent === undefined ? progress : { ...progress, percent });
   }));
-  const done = new Promise<void>((resolve, reject) => child.once('close', (code) => {
+  const done = new Promise<void>((resolve, reject) => {
+    child.once('error', (error) => reject(error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT' ? new Error('未找到 FFmpeg：请安装媒体运行时后重试') : error));
+    child.once('close', (code) => {
     void (async () => {
       if (code === 0) {
         try {
@@ -25,6 +27,7 @@ export function startExport(request: ExportRequest, onProgress: (progress: Expor
       await rm(partialOutput, { force: true });
       reject(new Error(`ffmpeg exited with ${code}`));
     })();
-  }));
+    });
+  });
   return { cancel: () => child.kill('SIGTERM'), done };
 }
