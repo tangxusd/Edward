@@ -1,4 +1,4 @@
-export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; crf?: number; durationMs?: number };
+export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; crf?: number; durationMs?: number; overlays?: Array<{ text: string; start: number; duration: number }> };
 
 export function createPartialOutputPath(output: string): string {
   const separator = Math.max(output.lastIndexOf('/'), output.lastIndexOf('\\'));
@@ -7,7 +7,13 @@ export function createPartialOutputPath(output: string): string {
 }
 
 export function buildExportCommand(request: ExportRequest): string[] {
-  const args = ['-y', '-i', request.input, '-vf', `scale=${request.width}:${request.height}`];
+  const args = ['-y', '-i', request.input];
+  if (request.overlays?.length) {
+    const filters = [`scale=${request.width}:${request.height}`, ...request.overlays.map((overlay) => `drawtext=text='${overlay.text.replace(/([\\'])/g, '\\$1')}':enable='between(t,${overlay.start},${overlay.start + overlay.duration})'`)].join(',');
+    args.push('-filter_complex', `[0:v]${filters}[v]`, '-map', '[v]', '-map', '0:a?');
+  } else {
+    args.push('-vf', `scale=${request.width}:${request.height}`);
+  }
   if (request.transparent) {
     args.push('-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-c:a', 'pcm_s16le');
   } else {

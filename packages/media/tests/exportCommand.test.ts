@@ -15,6 +15,11 @@ it('uses ProRes 4444 with an alpha-capable pixel format for transparent exports'
   ]);
 });
 
+it('renders timed text overlays in the export filter graph', () => {
+  expect(buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] })).toContain('-filter_complex');
+  expect(buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] }).join(' ')).toContain("drawtext=text='重点':enable='between(t,1,3)'");
+});
+
 it('parses FFmpeg elapsed time in milliseconds', () => {
   expect(parseFfmpegProgress('frame=  120 fps=30.0 time=00:01:15.50 speed=1.2x')).toMatchObject({
     frame: 120,
