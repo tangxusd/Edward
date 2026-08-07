@@ -1,4 +1,4 @@
-export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; crf?: number; durationMs?: number; overlays?: Array<{ text: string; start: number; duration: number; color?: string; fontSize?: number; background?: string }> };
+export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; crf?: number; durationMs?: number; overlays?: Array<{ text: string; start: number; duration: number; color?: string; fontSize?: number; background?: string; x?: number; y?: number }> };
 
 function toFfmpegColor(value: string): string {
   const rgba = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*\.?\d+)\s*\)$/i);
@@ -16,7 +16,7 @@ export function createPartialOutputPath(output: string): string {
 export function buildExportCommand(request: ExportRequest): string[] {
   const args = ['-y', '-i', request.input];
   if (request.overlays?.length) {
-    const filters = [`scale=${request.width}:${request.height}`, ...request.overlays.map((overlay) => `drawtext=text='${overlay.text.replace(/([\\'])/g, '\\$1')}':fontcolor='${overlay.color ?? '#ffffff'}':fontsize=${overlay.fontSize ?? 48}:box=1:boxcolor='${toFfmpegColor(overlay.background ?? 'black@0.55')}':x=(w-text_w)/2:y=h*0.8:enable='between(t,${overlay.start},${overlay.start + overlay.duration})'`)].join(',');
+    const filters = [`scale=${request.width}:${request.height}`, ...request.overlays.map((overlay) => `drawtext=text='${overlay.text.replace(/([\\'])/g, '\\$1')}':fontcolor='${overlay.color ?? '#ffffff'}':fontsize=${overlay.fontSize ?? 48}:box=1:boxcolor='${toFfmpegColor(overlay.background ?? 'black@0.55')}':x=${overlay.x ?? '(w-text_w)/2'}:y=${overlay.y ?? 'h*0.8'}:enable='between(t,${overlay.start},${overlay.start + overlay.duration})'`)].join(',');
     args.push('-filter_complex', `[0:v]${filters}[v]`, '-map', '[v]', '-map', '0:a?');
   } else {
     args.push('-vf', `scale=${request.width}:${request.height}`);

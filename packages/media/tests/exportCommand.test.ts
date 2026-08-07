@@ -45,6 +45,11 @@ it('converts CSS rgba text backgrounds for FFmpeg', () => {
   expect(command).toContain("boxcolor='0x000000@0.55'");
 });
 
+it('uses explicit overlay coordinates when provided', () => {
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '卡片', start: 0, duration: 1, x: 120, y: 180 }] }).join(' ');
+  expect(command).toContain('x=120:y=180');
+});
+
 it('parses FFmpeg elapsed time in milliseconds', () => {
   expect(parseFfmpegProgress('frame=  120 fps=30.0 time=00:01:15.50 speed=1.2x')).toMatchObject({
     frame: 120,
