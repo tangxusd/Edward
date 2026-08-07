@@ -15,6 +15,7 @@ export type DesktopBridge = {
   library: {
     list(type?: Resource['type']): Promise<Resource[]>;
     toggleFavorite(id: string): Promise<Resource>;
+    remove(id: string): Promise<void>;
     importStylePackage(zipPath: string): Promise<Resource>;
   };
   models: { list(): Promise<ModelRecord[]>; save(record: ModelRecord, credentialValue?: string): Promise<ModelRecord>; status(id: string): Promise<{ online: boolean }>; };

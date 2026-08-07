@@ -31,6 +31,12 @@ export class LibraryRepository {
     return updated;
   }
 
+  async remove(id: string): Promise<void> {
+    const resources = await this.readIndex();
+    if (!resources.some((resource) => resource.id === id)) throw new Error(`resource not found: ${id}`);
+    await this.writeIndex(resources.filter((resource) => resource.id !== id));
+  }
+
   private async readIndex(): Promise<Resource[]> {
     try {
       return ResourceIndexSchema.parse(JSON.parse(await readFile(this.indexPath(), 'utf8')));

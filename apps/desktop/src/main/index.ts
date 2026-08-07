@@ -61,6 +61,7 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('projects:archive', (_event, id) => repository.archive(String(id)));
   ipcMain.handle('library:list', (_event, type) => library.list(type));
   ipcMain.handle('library:toggle-favorite', (_event, id) => library.toggleFavorite(String(id)));
+  ipcMain.handle('library:remove', (_event, id) => library.remove(String(id)));
   ipcMain.handle('library:import-style-package', (_event, zipPath) => importStylePackage(String(zipPath), workspace, library));
   ipcMain.handle('models:list', () => models.list());
   ipcMain.handle('models:save', async (_event, record, credentialValue?: string) => {
