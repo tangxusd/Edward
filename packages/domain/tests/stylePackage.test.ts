@@ -7,6 +7,8 @@ describe('style package manifests', () => {
     expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', assets: ['../run.js'] })).toThrow();
     expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', assets: ['..\\run.js'] })).toThrow();
     expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', assets: ['C:\\outside.png'] })).toThrow();
+    expect(() => parseStylePackageManifest({ version: 1, id: '../outside', name: 'A', type: 'card-style', category: 'card' })).toThrow();
+    expect(() => parseStylePackageManifest({ version: 1, id: 'nested\\outside', name: 'A', type: 'card-style', category: 'card' })).toThrow();
   });
 
   it('accepts a static card style package', () => {

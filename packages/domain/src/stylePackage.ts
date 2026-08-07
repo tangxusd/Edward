@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 const ResourceTypeSchema = z.enum(['background', 'card-style', 'timeline-style', 'chart', 'style-pack']);
+const ResourceIdSchema = z.string().min(1).refine(
+  (id) => id !== '.' && id !== '..' && !/[\\/:\0]/.test(id),
+  'resource id must be a single path segment',
+);
 const AssetPathSchema = z.string().min(1).refine(
   (path) => {
     const normalized = path.replace(/\\/g, '/');
@@ -11,7 +15,7 @@ const AssetPathSchema = z.string().min(1).refine(
 
 export const StylePackageManifestSchema = z.object({
   version: z.literal(1),
-  id: z.string().min(1),
+  id: ResourceIdSchema,
   name: z.string().min(1),
   type: ResourceTypeSchema,
   category: z.string().min(1),
