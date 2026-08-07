@@ -26,6 +26,7 @@ describe('LibraryRepository.remove', () => {
       await repository.upsert({ id: 'card-2', type: 'card-style', name: '卡片', category: '强调', favorite: false, style: {}, fileHash: 'hash-2', updatedAt: new Date().toISOString() });
       const updated = await repository.updateCategory('card-2', '教程');
       expect(updated).toEqual(expect.objectContaining({ id: 'card-2', category: '教程', fileHash: 'hash-2' }));
+      await expect(repository.updateCategory('card-2', '  ')).rejects.toThrow('category must not be empty');
     } finally {
       await rm(root, { recursive: true, force: true });
     }
