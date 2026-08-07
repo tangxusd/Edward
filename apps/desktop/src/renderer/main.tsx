@@ -14,7 +14,7 @@ import { Timeline } from './Timeline.js';
 
 function App(): React.JSX.Element {
   const [project, setProject] = useState<Project>();
-  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} /><NewProjectDialog /><PreviewCanvas /><Timeline project={project} /><SubtitleStylePanel /><ModelSettings /><ExportDialog /><LibraryPanel /></main>;
+  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} /><NewProjectDialog onCreated={setProject} /><PreviewCanvas /><Timeline project={project} /><SubtitleStylePanel /><ModelSettings /><ExportDialog /><LibraryPanel /></main>;
 }
 
 const root = document.getElementById('root');
