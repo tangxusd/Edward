@@ -8,7 +8,7 @@ import { LibraryRepository } from './libraryRepository.js';
 import { importStylePackage } from './stylePackageImporter.js';
 import { ModelRepository } from './modelRepository.js';
 import { startExport } from './exportService.js';
-import type { ExportRequest } from '@ai-video/media';
+import { probeMedia, type ExportRequest } from '@ai-video/media';
 import { ensureWorkspace } from './workspace.js';
 import { readCredential, saveCredential } from './credentialStore.js';
 import { transcribe } from './transcriptionService.js';
@@ -80,9 +80,10 @@ async function registerProjectIpc(): Promise<void> {
     await repository.save(next);
     return next;
   });
-  ipcMain.handle('export:start', (event, request: ExportRequest) => {
+  ipcMain.handle('export:start', async (event, request: ExportRequest) => {
     const jobId = crypto.randomUUID();
-    const job = startExport(request, (progress) => event.sender.send('export:progress', { jobId, progress }));
+    const media = await probeMedia(request.input);
+    const job = startExport({ ...request, durationMs: media.durationMs }, (progress) => event.sender.send('export:progress', { jobId, progress }));
     jobs.set(jobId, job);
     void job.done.then(() => event.sender.send('export:progress', { jobId, progress: { status: 'completed' } })).catch((error: unknown) => event.sender.send('export:progress', { jobId, progress: { status: 'failed', error: String(error) } })).finally(() => jobs.delete(jobId));
     return jobId;
