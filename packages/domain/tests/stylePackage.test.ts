@@ -5,6 +5,8 @@ describe('style package manifests', () => {
   it('rejects executable entry points and path traversal', () => {
     expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', entryScript: 'run.js' })).toThrow();
     expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', assets: ['../run.js'] })).toThrow();
+    expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', assets: ['..\\run.js'] })).toThrow();
+    expect(() => parseStylePackageManifest({ version: 1, id: 'a', name: 'A', type: 'card-style', category: 'card', assets: ['C:\\outside.png'] })).toThrow();
   });
 
   it('accepts a static card style package', () => {

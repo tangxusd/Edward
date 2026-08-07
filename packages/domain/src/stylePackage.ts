@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 const ResourceTypeSchema = z.enum(['background', 'card-style', 'timeline-style', 'chart', 'style-pack']);
 const AssetPathSchema = z.string().min(1).refine(
-  (path) => !path.startsWith('/') && !path.split('/').includes('..'),
+  (path) => {
+    const normalized = path.replace(/\\/g, '/');
+    return !normalized.startsWith('/') && !normalized.includes(':') && !normalized.split('/').includes('..') && !normalized.includes('\0');
+  },
   'asset paths must stay inside the package',
 );
 
