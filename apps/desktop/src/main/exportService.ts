@@ -2,9 +2,9 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { rename, rm } from 'node:fs/promises';
 import { buildExportCommand, calculateExportPercent, createPartialOutputPath, parseFfmpegProgress, type ExportRequest, type ExportProgress } from '@ai-video/media';
 
-export function startExport(request: ExportRequest, onProgress: (progress: ExportProgress) => void): { cancel: () => void; done: Promise<void> } {
+export function startExport(request: ExportRequest, onProgress: (progress: ExportProgress) => void, ffmpegExecutable = 'ffmpeg'): { cancel: () => void; done: Promise<void> } {
   const partialOutput = createPartialOutputPath(request.output);
-  const child: ChildProcess = spawn('ffmpeg', buildExportCommand({ ...request, output: partialOutput }), { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child: ChildProcess = spawn(ffmpegExecutable, buildExportCommand({ ...request, output: partialOutput }), { stdio: ['ignore', 'ignore', 'pipe'] });
   child.stderr?.on('data', (data) => String(data).split(/\r?\n/).forEach((line) => {
     const progress = parseFfmpegProgress(line);
     const percent = progress.timeMs === undefined || request.durationMs === undefined ? undefined : calculateExportPercent(progress.timeMs, request.durationMs);
