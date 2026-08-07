@@ -207,6 +207,37 @@ test('persists a dragged project card layout', async () => {
   }
 });
 
+test('persists the two-card layout into project cards', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/two-card-layout-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/two-card-layout-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '双卡布局', clips: [
+      { track: 'cards', start: 0, duration: 2, content: { text: '第一张' }, styleId: 'card-style' },
+      { track: 'cards', start: 2, duration: 2, content: { text: '第二张' }, styleId: 'card-style' },
+    ] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await expect(page.getByText('已应用到时间线')).toBeVisible();
+
+    const twoCardButton = page.locator('[aria-label="卡片布局"] button').filter({ hasText: '双卡' });
+    await expect(twoCardButton).toBeVisible();
+    await twoCardButton.dispatchEvent('click');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.cards.clips.map((clip) => clip.layout);
+    }, mediaPath)).toEqual([
+      { x: 120, y: 180, width: 348, height: 180 },
+      { x: 492, y: 180, width: 348, height: 180 },
+    ]);
+  } finally {
+    await app.close();
+  }
+});
+
 test('persists subtitle style changes with the project', async () => {
   const app = await electron.launch({ args: ['.'] });
   const mediaPath = `/tmp/subtitle-style-source-${Date.now()}.mp3`;

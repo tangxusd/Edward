@@ -36,14 +36,23 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
     });
   };
 
+  const projectCards = project?.tracks.cards.clips ?? [];
+
   const setLayout = (count: 1 | 2 | 3) => {
     setCardCount(count);
+    const projectRects = distributeHorizontally(canvasBounds, count, 24);
+    if (project && projectCards.length >= count) {
+      const nextProject = projectCards.slice(0, count).reduce(
+        (current, clip, index) => markClipUserEdited(setClipLayout(current, clip.id, projectRects[index]!), clip.id),
+        project,
+      );
+      onChange?.(nextProject);
+    }
     if (count === 1) {
       updateCards((current) => ({ 'card-1': current['card-1'] ?? { x: 300, y: 180, width: 320, height: 180 } }));
       return;
     }
-    const next = distributeHorizontally(canvasBounds, count, 24);
-    updateCards(() => Object.fromEntries(next.map((rect, index) => [`card-${index + 1}`, rect])));
+    updateCards(() => Object.fromEntries(projectRects.map((rect, index) => [`card-${index + 1}`, rect])));
   };
 
   const startDrag = (event: React.MouseEvent<HTMLDivElement>, id: string) => {
@@ -120,7 +129,6 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
 
   const background = project?.tracks.background.clips[0];
   const resourceId = typeof background?.content === 'object' && background.content !== null && 'resourceId' in background.content ? String(background.content.resourceId) : undefined;
-  const projectCards = project?.tracks.cards.clips ?? [];
   const projectVisualClips = [...projectCards.map((clip) => ({ clip, kind: '卡片' })), ...(project?.tracks.graphics.clips ?? []).map((clip) => ({ clip, kind: '图形' })), ...(project?.tracks.subtitles.clips ?? []).map((clip) => ({ clip, kind: '字幕' }))];
   const projectVisualRects = projectVisualClips.map(({ clip }, index) => clip.layout ?? distributeHorizontally(canvasBounds, Math.min(3, Math.max(2, projectVisualClips.length)) as 2 | 3, 24)[index]);
   const clipText = (content: unknown): string => typeof content === 'object' && content !== null && 'text' in content ? String(content.text) : '';
