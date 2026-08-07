@@ -20,6 +20,7 @@ export async function canUseAi(cache: EntitlementCache | undefined, now: number,
   if (!cache) return false;
   try {
     const refreshed = await client.validate(cache);
+    if (refreshed.accountId !== cache.accountId || refreshed.deviceIdHash !== cache.deviceIdHash) return false;
     return canEditOffline(refreshed, now);
   } catch {
     return false;

@@ -20,4 +20,11 @@ describe('local entitlement guard', () => {
     const validate = vi.fn().mockResolvedValue({ ...activeCache, status: 'revoked' });
     await expect(canUseAi(activeCache, checkedAt + 3 * 60 * 60 * 1000, { validate })).resolves.toBe(false);
   });
+
+  it('rejects an entitlement issued for a different device', async () => {
+    const now = checkedAt + 3 * 60 * 60 * 1000;
+    const validate = vi.fn().mockResolvedValue({ ...activeCache, deviceIdHash: 'device-2', checkedAt: now, validUntil: now + 2 * 60 * 60 * 1000 });
+
+    await expect(canUseAi(activeCache, checkedAt + 3 * 60 * 60 * 1000, { validate })).resolves.toBe(false);
+  });
 });
