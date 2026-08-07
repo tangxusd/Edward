@@ -12,7 +12,8 @@
     "@ai-video/domain": "workspace:*",
     "adm-zip": "^0.6.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
