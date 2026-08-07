@@ -98,16 +98,24 @@ test('renders graphical timeline clips in the preview canvas', async () => {
 
 test('renders an AI subtitle in the preview canvas for local text editing', async () => {
   const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/preview-subtitle-source-${Date.now()}.mp3`;
 
   try {
     const page = await app.firstWindow();
     await page.getByLabel('文案文稿').fill(`/tmp/preview-subtitle-script-${Date.now()}.txt`);
-    await page.getByLabel('音频或视频').fill(`/tmp/preview-subtitle-source-${Date.now()}.mp3`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
     await page.getByRole('button', { name: '创建项目' }).click();
     await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '字幕预览', clips: [{ track: 'subtitles', start: 0, duration: 2, content: { text: '可编辑字幕' }, styleId: 'subtitle-style' }] }));
     await page.getByRole('button', { name: '应用到时间线' }).click();
     await page.getByLabel('项目字幕 ai-subtitles-0').click();
     await expect(page.getByLabel('文字内容')).toHaveValue('可编辑字幕');
+    await page.getByLabel('局部字体').fill('PingFang SC');
+    await page.getByLabel('局部字体').blur();
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      const content = project?.tracks.subtitles.clips[0]?.content as { textStyle?: { fontFamily?: string } };
+      return content.textStyle?.fontFamily;
+    }, mediaPath)).toBe('PingFang SC');
   } finally {
     await app.close();
   }
