@@ -3,6 +3,7 @@ import type { Resource } from '@ai-video/domain';
 import type { ModelRecord } from '../main/modelRepository.js';
 
 export type DesktopBridge = {
+  workspace: { setRoot(root: string): Promise<string>; };
   projects: {
     create(project: Project): Promise<Project>;
     open(id: string): Promise<Project>;

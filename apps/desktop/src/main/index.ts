@@ -44,6 +44,7 @@ async function registerProjectIpc(): Promise<void> {
   const repository = new ProjectRepository(workspace);
   const library = new LibraryRepository(workspace);
   const models = new ModelRepository(workspace);
+  ipcMain.handle('workspace:set-root', async (_event, root) => (await ensureWorkspace(String(root))).root);
 
   ipcMain.handle('projects:create', (_event, project) => repository.create(ProjectSchema.parse(project)));
   ipcMain.handle('projects:open', (_event, id) => repository.open(String(id)));

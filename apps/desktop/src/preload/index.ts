@@ -3,6 +3,7 @@ import type { Project } from '@ai-video/domain';
 import type { DesktopBridge } from '../shared/ipc.js';
 
 const bridge: DesktopBridge = {
+  workspace: { setRoot: (root) => ipcRenderer.invoke('workspace:set-root', root) },
   projects: {
     create: (project: Project) => ipcRenderer.invoke('projects:create', project),
     open: (id: string) => ipcRenderer.invoke('projects:open', id),
