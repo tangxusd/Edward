@@ -4,9 +4,9 @@ import { join } from 'node:path';
 
 export type TranscriptSegment = { start: number; end: number; text: string };
 
-export async function transcribe(mediaPath: string, onSegment?: (segment: TranscriptSegment) => void): Promise<TranscriptSegment[]> {
+export async function transcribe(mediaPath: string, onSegment?: (segment: TranscriptSegment) => void, pythonExecutable = 'python3'): Promise<TranscriptSegment[]> {
   const script = join(__dirname, '../../python/transcribe.py');
-  const process = spawn('python3', [script, mediaPath], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const process = spawn(pythonExecutable, [script, mediaPath], { stdio: ['ignore', 'pipe', 'pipe'] });
   const segments: TranscriptSegment[] = [];
   const errors: string[] = [];
   const lines = createInterface({ input: process.stdout });
