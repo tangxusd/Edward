@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { Project } from '@ai-video/domain';
+import { markClipUserEdited, type Project } from '@ai-video/domain';
 import { LibraryPanel } from './LibraryPanel.js';
 import { NewProjectDialog } from './NewProjectDialog.js';
 import { PreviewCanvas } from './PreviewCanvas.js';
@@ -18,7 +18,9 @@ function App(): React.JSX.Element {
   const saveQueue = useRef(Promise.resolve());
   const created = (next: Project) => { setProject(next); setRefreshToken((value) => value + 1); };
   const updateProject = (next: Project) => { setProject(next); saveQueue.current = saveQueue.current.catch(() => undefined).then(() => window.aiVideo.projects.save(next)); };
-  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas project={project} onChange={updateProject} onSelect={setSelectedClipId} /><aside aria-label="资源检查器">{selectedClipId ?? '未选择资源'}</aside><Timeline project={project} onChange={updateProject} onSelect={setSelectedClipId} /><SubtitleStylePanel project={project} onChange={updateProject} /><ModelSettings /><AiAnalysisPanel project={project} onApplied={updateProject} /><ExportDialog project={project} /><LibraryPanel /></main>;
+  const selected = project && selectedClipId ? Object.values(project.tracks).flatMap((track) => track.clips).find((clip) => clip.id === selectedClipId) : undefined;
+  const selectedText = typeof selected?.content === 'object' && selected.content !== null && 'text' in selected.content ? String(selected.content.text) : '';
+  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas project={project} onChange={updateProject} onSelect={setSelectedClipId} /><aside aria-label="资源检查器">{selectedClipId ?? '未选择资源'}{selected && selectedText ? <label>文字内容<textarea aria-label="文字内容" value={selectedText} onChange={(event) => project && updateProject(markClipUserEdited(project, selected.id, { ...(selected.content as object), text: event.target.value }))} /></label> : null}</aside><Timeline project={project} onChange={updateProject} onSelect={setSelectedClipId} /><SubtitleStylePanel project={project} onChange={updateProject} /><ModelSettings /><AiAnalysisPanel project={project} onApplied={updateProject} /><ExportDialog project={project} /><LibraryPanel /></main>;
 }
 
 const root = document.getElementById('root');
