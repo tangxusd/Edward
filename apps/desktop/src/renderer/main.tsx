@@ -5,6 +5,7 @@ import { NewProjectDialog } from './NewProjectDialog.js';
 import { PreviewCanvas } from './PreviewCanvas.js';
 import { SubtitleStylePanel } from './SubtitleStylePanel.js';
 import { ExportDialog } from './ExportDialog.js';
+import { ModelSettings } from './ModelSettings.js';
 
 const root = document.getElementById('root');
 
@@ -14,6 +15,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <main><h1>AI 剪视频工具</h1><NewProjectDialog /><PreviewCanvas /><SubtitleStylePanel /><ExportDialog /><LibraryPanel /></main>
+    <main><h1>AI 剪视频工具</h1><NewProjectDialog /><PreviewCanvas /><SubtitleStylePanel /><ModelSettings /><ExportDialog /><LibraryPanel /></main>
   </StrictMode>,
 );
