@@ -1,2 +1,6 @@
 ._*
 .worktrees/
+node_modules/
+out/
+test-results/
+playwright-report/
