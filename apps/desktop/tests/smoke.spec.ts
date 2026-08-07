@@ -388,12 +388,24 @@ test('shows a native workspace directory picker', async () => {
 
 test('switches project storage when changing the workspace', async () => {
   const app = await electron.launch({ args: ['.'] });
-  const root = `/tmp/ai-video-workspace-${Date.now()}`;
+  const sourceRoot = `/tmp/ai-video-workspace-source-${Date.now()}`;
+  const destinationRoot = `/tmp/ai-video-workspace-destination-${Date.now()}`;
+  const mediaPath = `/tmp/workspace-source-${Date.now()}.mp3`;
 
   try {
     const page = await app.firstWindow();
-    await page.evaluate((nextRoot) => window.aiVideo.workspace.setRoot(nextRoot), root);
-    await expect.poll(() => page.evaluate(() => window.aiVideo.projects.list().then((projects) => projects.length))).toBe(0);
+    await page.evaluate((nextRoot) => window.aiVideo.workspace.setRoot(nextRoot), sourceRoot);
+    await page.getByLabel('文案文稿').fill(`/tmp/workspace-source-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('项目列表')).toContainText(mediaPath);
+
+    const workspace = page.getByRole('region', { name: '工作目录' });
+    await workspace.getByLabel('工作目录路径').fill(destinationRoot);
+    await workspace.getByRole('button', { name: '应用' }).click();
+
+    await expect(workspace).toContainText(`已设置：${destinationRoot}`);
+    await expect(page.getByLabel('项目列表')).not.toContainText(mediaPath);
   } finally {
     await app.close();
   }
