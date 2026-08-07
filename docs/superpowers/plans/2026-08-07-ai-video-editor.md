@@ -382,13 +382,15 @@ git commit -m "feat: add project and settings workflows"
 - Consumes: `Project`, `moveClip`, `resizeClip`, `copyClip`, `deleteClip`.
 - Produces: `onSelect({ kind: 'text' | 'resource', clipId, elementId? })` and immutable project updates.
 
-- [ ] **Step 1: 写预览选择和拖拽失败测试**
+- [ ] **Step 1: 写预览选择、吸附和缩放失败测试**
 
 ```ts
 await user.click(screen.getByLabelText('卡片 card-1'));
 expect(screen.getByRole('heading', { name: '卡片资源' })).toBeVisible();
 await user.click(screen.getByLabelText('关键词文本'));
 expect(screen.getByRole('heading', { name: '文字属性' })).toBeVisible();
+expect(snapToGuides({ x: 959, y: 200 }, guides, 8)).toMatchObject({ x: 960 });
+expect(resizeWithAspectRatio(rect, 'se', { x: 220, y: 180 }, false)).toMatchObject({ width: 220, height: 123.75 });
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -397,9 +399,9 @@ Run: `pnpm --filter desktop test editorInteractions.spec.ts`
 
 Expected: FAIL because editor components are absent.
 
-- [ ] **Step 3: 实现固定轨道和直接操作**
+- [ ] **Step 3: 实现固定轨道、预览排版和直接操作**
 
-底部展示主媒体、背景、字幕、卡片和图形轨道。拖拽片段移动位置，拖拽两端调整持续时间；按钮支持添加、替换、删除和复制。选中资源外框时显示同类资源及预览；选中文字时显示内容、换行、字体、字号、颜色、文字背景和当前元素/轨道/页面/全项目范围。
+底部展示主媒体、背景、字幕、卡片和图形轨道。拖拽片段移动位置，拖拽两端调整持续时间；按钮支持添加、替换、删除和复制。预览画布中的资源有可拖拽外框和八向缩放控制点，默认锁定宽高比，按住 `Shift` 才自由缩放。`timelineMath.ts` 定义画布中心、组件边缘/中心和双卡/三卡布局的顶部、垂直中心、底部、等间距参考线；在 8 画布单位阈值内吸附。双卡/三卡中拖动一个自动布局组件时，基于画布可用区域重新分配同组组件的均匀间距；手动布局只吸附，不移动其他组件。选中资源外框时显示同类资源及预览；选中文字时显示内容、换行、字体、字号、颜色、文字背景和当前元素/轨道/页面/全项目范围。
 
 - [ ] **Step 4: 运行 UI 和端到端测试**
 
