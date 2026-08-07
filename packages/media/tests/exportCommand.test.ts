@@ -28,6 +28,12 @@ it('applies text color and size to timed overlays', () => {
   expect(command).toContain('fontsize=42');
 });
 
+it('centers timed overlays near the lower edge', () => {
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '字幕', start: 0, duration: 1 }] }).join(' ');
+  expect(command).toContain('x=(w-text_w)/2');
+  expect(command).toContain('y=h*0.8');
+});
+
 it('parses FFmpeg elapsed time in milliseconds', () => {
   expect(parseFfmpegProgress('frame=  120 fps=30.0 time=00:01:15.50 speed=1.2x')).toMatchObject({
     frame: 120,
