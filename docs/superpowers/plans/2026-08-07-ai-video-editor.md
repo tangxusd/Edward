@@ -4,7 +4,7 @@
 
 **Goal:** 构建 macOS 与 Windows 桌面 AI 剪视频工具：从文稿和单条主媒体生成可人工修订的多轨工程，并支持可复用资源、手动 HEVC 导出和订阅授权边界。
 
-**Architecture:** Electron 主进程负责安全 IPC、工作目录、任务调度和系统凭证；React 渲染进程提供项目、预览、时间线、资源库和导出界面。Python sidecar 运行 faster-whisper，FFmpeg 负责媒体探测和渲染；云端模型仅接收文稿与时间戳并返回 schema 校验后的剪辑计划。
+**Architecture:** Electron 主进程负责安全 IPC、工作目录、任务调度和本地凭证文件；React 渲染进程提供项目、预览、时间线、资源库和导出界面。Python sidecar 运行 faster-whisper，FFmpeg 负责媒体探测和渲染；云端模型仅接收文稿与时间戳并返回 schema 校验后的剪辑计划。
 
 **Tech Stack:** Electron、React、TypeScript、Vite、Vitest、Playwright、Zod、Zustand、Python、faster-whisper、FFmpeg、OpenAI-compatible HTTP API。
 
@@ -13,7 +13,7 @@
 - 支持 macOS 和 Windows；不得用平台私有能力替代另一平台的核心功能。
 - 每个项目必须有一份文稿和一条音频或视频主媒体。
 - 原始媒体不上传；本地转写，云端只做文本语义分析。
-- API Key 仅保存在系统安全凭证库，永不写入工程、日志、资源包或导出文件。
+- API Key 仅保存在本地应用数据目录的凭证文件，永不写入工程、日志、资源包或导出文件。
 - 默认画幅 16:9，支持 9:16、720p、1080p、1440p、4K 和自定义分辨率。
 - 只允许用户手动导出；普通输出为 MP4/HEVC/AAC。
 - 透明 MOV/ProRes 4444 在剪映 macOS、Windows 实测通过前不得标记为兼容。
@@ -246,7 +246,7 @@ git add packages/media apps/desktop/python apps/desktop/src/main apps/desktop/te
 git commit -m "feat: add local media analysis and transcription"
 ```
 
-## Task 6: 实现模型记录、安全凭证和 AI 剪辑计划校验
+## Task 6: 实现模型记录、本地凭证文件和 AI 剪辑计划校验
 
 **Files:**
 - Create: `packages/domain/src/aiPlan.ts`, `packages/domain/tests/aiPlan.test.ts`
@@ -271,7 +271,7 @@ Expected: FAIL because `validateAiEditPlan` is absent.
 
 - [ ] **Step 3: 实现多模型记录与 OpenAI-compatible 请求**
 
-模型记录保存 name、baseUrl、modelId 和安全凭证引用；密钥写入系统凭证库。请求仅含文稿、转写和时间戳，要求 JSON schema 响应。服务端响应先做 JSON 解析，再做 Zod 和工程边界校验；失败不改动当前时间线。
+模型记录保存 name、baseUrl、modelId 和凭证引用；密钥写入本地应用数据目录的凭证文件。请求仅含文稿、转写和时间戳，要求 JSON schema 响应。服务端响应先做 JSON 解析，再做 Zod 和工程边界校验；失败不改动当前时间线。
 
 - [ ] **Step 4: 运行测试**
 
