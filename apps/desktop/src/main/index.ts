@@ -10,7 +10,7 @@ import { ModelRepository } from './modelRepository.js';
 import { startExport } from './exportService.js';
 import type { ExportRequest } from '@ai-video/media';
 import { ensureWorkspace } from './workspace.js';
-import { readCredential } from './credentialStore.js';
+import { readCredential, saveCredential } from './credentialStore.js';
 import { transcribe } from './transcriptionService.js';
 import { analyzeSemantics } from './semanticAnalysisService.js';
 
@@ -62,7 +62,11 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('library:toggle-favorite', (_event, id) => library.toggleFavorite(String(id)));
   ipcMain.handle('library:import-style-package', (_event, zipPath) => importStylePackage(String(zipPath), workspace, library));
   ipcMain.handle('models:list', () => models.list());
-  ipcMain.handle('models:save', (_event, record) => models.upsert(record));
+  ipcMain.handle('models:save', async (_event, record, credentialValue?: string) => {
+    const saved = await models.upsert(record);
+    if (credentialValue) await saveCredential(saved.credentialRef, credentialValue);
+    return saved;
+  });
   ipcMain.handle('analysis:generate', async (_event, projectId: string, modelId: string) => {
     const project = await repository.open(String(projectId));
     const model = (await models.list()).find((candidate) => candidate.id === String(modelId));

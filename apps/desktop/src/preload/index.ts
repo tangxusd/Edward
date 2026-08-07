@@ -17,7 +17,7 @@ const bridge: DesktopBridge = {
     toggleFavorite: (id) => ipcRenderer.invoke('library:toggle-favorite', id),
     importStylePackage: (zipPath) => ipcRenderer.invoke('library:import-style-package', zipPath),
   },
-  models: { list: () => ipcRenderer.invoke('models:list'), save: (record) => ipcRenderer.invoke('models:save', record) },
+  models: { list: () => ipcRenderer.invoke('models:list'), save: (record, credentialValue) => ipcRenderer.invoke('models:save', record, credentialValue) },
   analysis: {
     generate: (projectId: string, modelId: string) => ipcRenderer.invoke('analysis:generate', projectId, modelId),
     apply: (projectId: string, plan: AiEditPlan) => ipcRenderer.invoke('analysis:apply', projectId, plan),
