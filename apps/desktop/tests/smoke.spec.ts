@@ -69,6 +69,20 @@ test('moves a timeline clip by dragging it', async () => {
   }
 });
 
+test('renders the audio project default background in the preview canvas', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/preview-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('预览背景 default-background')).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
 test('persists subtitle style changes with the project', async () => {
   const app = await electron.launch({ args: ['.'] });
   const mediaPath = `/tmp/subtitle-style-source-${Date.now()}.mp3`;

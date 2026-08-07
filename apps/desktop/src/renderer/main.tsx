@@ -18,7 +18,7 @@ function App(): React.JSX.Element {
   const saveQueue = useRef(Promise.resolve());
   const created = (next: Project) => { setProject(next); setRefreshToken((value) => value + 1); };
   const updateProject = (next: Project) => { setProject(next); saveQueue.current = saveQueue.current.catch(() => undefined).then(() => window.aiVideo.projects.save(next)); };
-  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas /><Timeline project={project} onChange={updateProject} /><SubtitleStylePanel project={project} onChange={updateProject} /><ModelSettings /><AiAnalysisPanel project={project} onApplied={updateProject} /><ExportDialog project={project} /><LibraryPanel /></main>;
+  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas project={project} /><Timeline project={project} onChange={updateProject} /><SubtitleStylePanel project={project} onChange={updateProject} /><ModelSettings /><AiAnalysisPanel project={project} onApplied={updateProject} /><ExportDialog project={project} /><LibraryPanel /></main>;
 }
 
 const root = document.getElementById('root');

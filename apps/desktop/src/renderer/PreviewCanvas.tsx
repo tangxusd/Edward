@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Project } from '@ai-video/domain';
 import { distributeHorizontally, resizeWithAspectRatio, snap, type Rect } from './timelineMath.js';
 
 type ActivePointer =
@@ -8,7 +9,7 @@ type ActivePointer =
 const canvasBounds: Rect = { x: 120, y: 180, width: 720, height: 180 };
 const cardColors = ['#4f7cff', '#24b47e', '#d9922e'];
 
-export function PreviewCanvas(): React.JSX.Element {
+export function PreviewCanvas({ project }: { project?: Project }): React.JSX.Element {
   const [cards, setCards] = useState<Record<string, Rect>>({ 'card-1': { x: 300, y: 180, width: 320, height: 180 } });
   const [cardCount, setCardCount] = useState<1 | 2 | 3>(1);
   const cardsRef = useRef(cards);
@@ -71,5 +72,7 @@ export function PreviewCanvas(): React.JSX.Element {
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', finish); };
   });
 
-  return <section ref={canvasRef} aria-label="预览画布" onMouseMove={(event) => updateAt(event.clientX, event.clientY)} onMouseUp={finish} style={{ position: 'relative', aspectRatio: '16 / 9', background: '#151923', overflow: 'hidden' }}><i aria-hidden="true" style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '1px dashed #6f86b0' }} /><i aria-hidden="true" style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px dashed #6f86b0' }} /><div role="toolbar" aria-label="卡片布局"><button onClick={() => setLayout(1)} aria-pressed={cardCount === 1}>单卡</button><button onClick={() => setLayout(2)} aria-pressed={cardCount === 2}>双卡</button><button onClick={() => setLayout(3)} aria-pressed={cardCount === 3}>三卡</button></div>{Object.entries(cards).filter(([id]) => Number(id.slice(-1)) <= cardCount).map(([id, rect], index) => <div key={id} aria-label="可拖拽卡片" onMouseDown={(event) => startDrag(event, id)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, border: `1px solid ${cardColors[index]}`, color: 'white', touchAction: 'none', userSelect: 'none' }}>卡片 {index + 1}<button aria-label="缩放卡片" onMouseDown={(event) => startResize(event, id)}>缩放</button></div>)}</section>;
+  const background = project?.tracks.background.clips[0];
+  const resourceId = typeof background?.content === 'object' && background.content !== null && 'resourceId' in background.content ? String(background.content.resourceId) : undefined;
+  return <section ref={canvasRef} aria-label="预览画布" onMouseMove={(event) => updateAt(event.clientX, event.clientY)} onMouseUp={finish} style={{ position: 'relative', aspectRatio: '16 / 9', background: '#151923', overflow: 'hidden' }}>{resourceId ? <div aria-label={`预览背景 ${resourceId}`} style={{ position: 'absolute', inset: 0, background: '#243b53' }} /> : null}<i aria-hidden="true" style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '1px dashed #6f86b0' }} /><i aria-hidden="true" style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px dashed #6f86b0' }} /><div role="toolbar" aria-label="卡片布局"><button onClick={() => setLayout(1)} aria-pressed={cardCount === 1}>单卡</button><button onClick={() => setLayout(2)} aria-pressed={cardCount === 2}>双卡</button><button onClick={() => setLayout(3)} aria-pressed={cardCount === 3}>三卡</button></div>{Object.entries(cards).filter(([id]) => Number(id.slice(-1)) <= cardCount).map(([id, rect], index) => <div key={id} aria-label="可拖拽卡片" onMouseDown={(event) => startDrag(event, id)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, border: `1px solid ${cardColors[index]}`, color: 'white', touchAction: 'none', userSelect: 'none' }}>卡片 {index + 1}<button aria-label="缩放卡片" onMouseDown={(event) => startResize(event, id)}>缩放</button></div>)}</section>;
 }
