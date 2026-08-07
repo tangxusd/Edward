@@ -4,3 +4,4 @@ export * from './timeline.js';
 export * from './stylePackage.js';
 export * from './aiPlan.js';
 export * from './planApplication.js';
+export * from './subtitleStyle.js';

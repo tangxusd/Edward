@@ -6,6 +6,7 @@ import {
   type Track,
   type TrackId,
 } from './timeline.js';
+import { SubtitleStyleSchema } from './subtitleStyle.js';
 
 export const DEFAULT_BACKGROUND_RESOURCE_ID = 'default-background';
 
@@ -20,6 +21,7 @@ export const ProjectSchema = z.object({
   }),
   defaultBackgroundResourceId: z.string().min(1),
   archivedAt: z.string().datetime().optional(),
+  subtitleStyle: SubtitleStyleSchema,
   tracks: z.object({
     mainMedia: TrackSchema,
     background: TrackSchema,
@@ -82,6 +84,7 @@ export function createProject(input: CreateProjectInput): Project {
       kind: parsed.mediaKind,
     },
     defaultBackgroundResourceId,
+    subtitleStyle: { fontFamily: 'Arial', fontSize: 48, color: '#ffffff', background: 'rgba(0,0,0,.55)' },
     tracks: {
       mainMedia: createTrack('mainMedia', [mainMediaClip]),
       background: createTrack('background', backgroundClips),
