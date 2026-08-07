@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
-import { ProjectSchema } from '@ai-video/domain';
+import { readFile } from 'node:fs/promises';
+import { AiEditPlanSchema, ProjectSchema, applyAiPlan } from '@ai-video/domain';
 
 import { ProjectRepository } from './projectRepository.js';
 import { LibraryRepository } from './libraryRepository.js';
@@ -9,6 +10,9 @@ import { ModelRepository } from './modelRepository.js';
 import { startExport } from './exportService.js';
 import type { ExportRequest } from '@ai-video/media';
 import { ensureWorkspace } from './workspace.js';
+import { readCredential } from './credentialStore.js';
+import { transcribe } from './transcriptionService.js';
+import { analyzeSemantics } from './semanticAnalysisService.js';
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -59,6 +63,19 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('library:import-style-package', (_event, zipPath) => importStylePackage(String(zipPath), workspace, library));
   ipcMain.handle('models:list', () => models.list());
   ipcMain.handle('models:save', (_event, record) => models.upsert(record));
+  ipcMain.handle('analysis:generate', async (_event, projectId: string, modelId: string) => {
+    const project = await repository.open(String(projectId));
+    const model = (await models.list()).find((candidate) => candidate.id === String(modelId));
+    if (!model) throw new Error('analysis model not found');
+    const [script, transcript] = await Promise.all([readFile(project.scriptPath, 'utf8'), transcribe(project.media.path)]);
+    return analyzeSemantics({ baseUrl: model.baseUrl, modelId: model.modelId, apiKey: await readCredential(model.credentialRef), script, transcript });
+  });
+  ipcMain.handle('analysis:apply', async (_event, projectId: string, plan: unknown) => {
+    const project = await repository.open(String(projectId));
+    const next = applyAiPlan(project, AiEditPlanSchema.parse(plan));
+    await repository.save(next);
+    return next;
+  });
   ipcMain.handle('export:start', (event, request: ExportRequest) => {
     const jobId = crypto.randomUUID();
     const job = startExport(request, (progress) => event.sender.send('export:progress', { jobId, progress }));

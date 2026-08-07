@@ -1,4 +1,4 @@
-import type { Project } from '@ai-video/domain';
+import type { AiEditPlan, Project } from '@ai-video/domain';
 import type { Resource } from '@ai-video/domain';
 import type { ModelRecord } from '../main/modelRepository.js';
 import type { ExportProgress, ExportRequest } from '@ai-video/media';
@@ -18,5 +18,6 @@ export type DesktopBridge = {
     importStylePackage(zipPath: string): Promise<Resource>;
   };
   models: { list(): Promise<ModelRecord[]>; save(record: ModelRecord): Promise<ModelRecord>; };
+  analysis: { generate(projectId: string, modelId: string): Promise<AiEditPlan>; apply(projectId: string, plan: AiEditPlan): Promise<Project>; };
   export: { start(request: ExportRequest): Promise<string>; cancel(jobId: string): Promise<void>; onProgress(listener: (event: { jobId: string; progress: ExportProgress }) => void): () => void; };
 };

@@ -12,7 +12,7 @@ test('exposes only the desktop bridge', async () => {
     ).resolves.toBeDefined();
     await expect(
       page.evaluate(() => Object.keys((window as unknown as Window & { aiVideo: { projects: unknown } }).aiVideo)),
-    ).resolves.toEqual(['workspace', 'projects', 'library', 'models', 'export']);
+    ).resolves.toEqual(['workspace', 'projects', 'library', 'models', 'analysis', 'export']);
     await expect(
       page.evaluate(() => (window as Window & { require?: unknown }).require),
     ).resolves.toBeUndefined();
@@ -128,6 +128,18 @@ test('reports an invalid style package import', async () => {
     await library.getByLabel('风格包路径').fill('/tmp/missing-style-package.zip');
     await library.getByRole('button', { name: '导入风格包' }).click();
     await expect(library.getByRole('alert')).toContainText('导入失败');
+  } finally {
+    await app.close();
+  }
+});
+
+test('shows AI timeline analysis controls without a project', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    const analysis = page.getByLabel('AI时间线分析');
+    await expect(analysis.getByRole('button', { name: '开始AI分析' })).toBeDisabled();
   } finally {
     await app.close();
   }
