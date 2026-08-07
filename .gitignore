@@ -1,5 +1,6 @@
 ._*
 .worktrees/
+__pycache__/
 node_modules/
 out/
 test-results/
