@@ -16,7 +16,7 @@
 - API Key 仅保存在系统安全凭证库，永不写入工程、日志、资源包或导出文件。
 - 默认画幅 16:9，支持 9:16、720p、1080p、1440p、4K 和自定义分辨率。
 - 只允许用户手动导出；普通输出为 MP4/HEVC/AAC。
-- 透明 MOV/HEVC + Alpha 在剪映 macOS、Windows 实测通过前不得标记为兼容。
+- 透明 MOV/ProRes 4444 在剪映 macOS、Windows 实测通过前不得标记为兼容。
 - 资源库只能从设置页导入受校验 ZIP/JSON/CSS/静态资源包，禁止执行导入包代码。
 - 每账号最多三台设备、同时一个活动会话、本地编辑离线窗口最多两小时；触发 AI 时在线校验。
 - 不实现多机位、调色、混音台、关键帧动画或复杂转场。
@@ -442,7 +442,7 @@ Expected: FAIL because export command builder is absent.
 
 - [ ] **Step 3: 实现导出预设和安全取消**
 
-导出面板提供 16:9/9:16、720p/1080p/1440p/4K/自定义宽高、高质量/均衡/紧凑、目录和文件名。普通输出使用 MP4/HEVC/AAC；透明候选输出使用 MOV/HEVC + Alpha。FFmpeg 以 `-progress pipe:1` 报告阶段、帧数、百分比、速度和 ETA；取消发送终止信号并删除精确的 partial 输出路径。
+导出面板提供 16:9/9:16、720p/1080p/1440p/4K/自定义宽高、高质量/均衡/紧凑、目录和文件名。普通输出使用 MP4/HEVC/AAC；透明输出使用 MOV/ProRes 4444。FFmpeg 以 `-progress pipe:1` 报告阶段、帧数、百分比、速度和 ETA；取消发送终止信号并删除精确的 partial 输出路径。
 
 - [ ] **Step 4: 运行导出测试和代表性渲染**
 
@@ -452,7 +452,7 @@ Expected: PASS；720p 测试工程导出到用户指定目录，取消不留下 
 
 - [ ] **Step 5: 执行剪映透明兼容性人工验收**
 
-在目标版本剪映 macOS 与 Windows 中分别导入输出 MOV，检查 Alpha、边缘、时长和音画同步，并记录版本与结果到 `docs/compatibility/jianying-hevc-alpha.md`。任一失败时，导出界面保持“实验性”标签。
+在目标版本剪映 macOS 与 Windows 中分别导入输出 MOV，检查 Alpha、边缘、时长和音画同步，并记录版本与结果到 `docs/compatibility/jianying-prores4444-alpha.md`。任一失败时，导出界面保持“实验性”标签。
 
 - [ ] **Step 6: 提交**
 
