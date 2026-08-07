@@ -47,6 +47,7 @@ export class ProjectRepository {
   }
 
   private projectDirectory(id: string): string {
+    if (!id || id === '.' || id === '..' || /[\\/\0]/.test(id)) throw new Error('invalid project id');
     return join(this.workspace.projects, id);
   }
 
