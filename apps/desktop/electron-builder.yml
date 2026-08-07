@@ -5,6 +5,7 @@ directories:
   buildResources: build
 files:
   - out/**
+  - python/**
   - package.json
 asar: false
 mac:
