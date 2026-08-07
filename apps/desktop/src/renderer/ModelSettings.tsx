@@ -5,7 +5,7 @@ export function ModelSettings({ onModelsChanged }: { onModelsChanged?: (models: 
   const [name, setName] = useState(''); const [baseUrl, setBaseUrl] = useState(''); const [modelId, setModelId] = useState(''); const [credentialRef, setCredentialRef] = useState(''); const [credentialValue, setCredentialValue] = useState('');
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [error, setError] = useState('');
-  useEffect(() => { void window.aiVideo.models.list().then(setModels); }, []);
+  useEffect(() => { let disposed = false; const reload = () => { void window.aiVideo.models.list().then((records) => { if (!disposed) setModels(records); }); }; reload(); window.addEventListener('workspace-changed', reload); return () => { disposed = true; window.removeEventListener('workspace-changed', reload); }; }, []);
   const save = async () => {
     setError('');
     try {

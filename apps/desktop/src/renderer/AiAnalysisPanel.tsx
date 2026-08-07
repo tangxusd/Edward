@@ -10,7 +10,7 @@ export function AiAnalysisPanel({ project, onApplied }: { project?: Project; onA
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { void window.aiVideo.models.list().then((records) => { setModels(records); setModelId(records[0]?.id ?? ''); }); }, []);
+  useEffect(() => { let disposed = false; const reload = () => { void window.aiVideo.models.list().then((records) => { if (!disposed) { setModels(records); setModelId(records[0]?.id ?? ''); } }); }; reload(); window.addEventListener('workspace-changed', reload); return () => { disposed = true; window.removeEventListener('workspace-changed', reload); }; }, []);
 
   const generate = async () => {
     if (!project || !modelId || busy) return;

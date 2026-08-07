@@ -17,7 +17,7 @@ export function LibraryPanel(): React.JSX.Element {
   const [importing, setImporting] = useState(false);
   const refresh = () => window.aiVideo.library.list(type === 'all' ? undefined : type).then(setResources);
   const visibleResources = resources.filter((resource) => `${resource.name} ${resource.category}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
-  useEffect(() => { void refresh(); }, [type]);
+  useEffect(() => { let disposed = false; const reload = () => { void window.aiVideo.library.list(type === 'all' ? undefined : type).then((nextResources) => { if (!disposed) setResources(nextResources); }); }; reload(); window.addEventListener('workspace-changed', reload); return () => { disposed = true; window.removeEventListener('workspace-changed', reload); }; }, [type]);
   const importPackage = async () => {
     if (!packagePath || importing) return;
     setError('');

@@ -410,3 +410,31 @@ test('switches project storage when changing the workspace', async () => {
     await app.close();
   }
 });
+
+test('reloads saved models when changing the workspace', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const sourceRoot = `/tmp/ai-video-model-workspace-source-${Date.now()}`;
+  const destinationRoot = `/tmp/ai-video-model-workspace-destination-${Date.now()}`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.evaluate((nextRoot) => window.aiVideo.workspace.setRoot(nextRoot), sourceRoot);
+    const modelSettings = page.getByLabel('模型设置');
+    await modelSettings.getByLabel('名称').fill('源目录模型');
+    await modelSettings.getByLabel('API 地址').fill('https://example.com/v1');
+    await modelSettings.getByLabel('模型', { exact: true }).fill('source-model');
+    await modelSettings.getByLabel('凭证引用').fill(`source-credential-${Date.now()}`);
+    await modelSettings.getByLabel('模型凭证').fill('test-key');
+    await modelSettings.getByRole('button', { name: '保存模型' }).click();
+    await expect(modelSettings.getByLabel('已保存模型')).toContainText('源目录模型');
+
+    const workspace = page.getByRole('region', { name: '工作目录' });
+    await workspace.getByLabel('工作目录路径').fill(destinationRoot);
+    await workspace.getByRole('button', { name: '应用' }).click();
+
+    await expect(modelSettings.getByLabel('已保存模型')).not.toContainText('源目录模型');
+    await expect(page.getByLabel('分析模型')).toContainText('暂无模型');
+  } finally {
+    await app.close();
+  }
+});
