@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "test": "pnpm run build && playwright test"
+    "test": "pnpm run build && playwright test",
+    "package": "pnpm run build && electron-builder"
   },
   "dependencies": {
-    "@ai-video/media": "workspace:*",
     "@ai-video/domain": "workspace:*",
+    "@ai-video/media": "workspace:*",
     "adm-zip": "^0.6.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -24,6 +25,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.2",
     "electron": "^37.4.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "playwright": "^1.55.0",
     "typescript": "^5.9.2",

@@ -1,0 +1,25 @@
+appId: com.aivideo.editor
+productName: AI Video Editor
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+asar: false
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.video
+win:
+  target:
+    - nsis
+    - zip
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target:
+    - AppImage
+  category: Video
