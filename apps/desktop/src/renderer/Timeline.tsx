@@ -8,7 +8,7 @@ const tracks: Array<{ id: TrackId; label: string }> = [
 
 type ActiveClip = { trackId: TrackId; clipId: string; mode: 'move' | 'resize'; startX: number; startStart: number; startDuration: number };
 
-export function Timeline({ project, onChange }: { project?: Project; onChange?: (project: Project) => void }): React.JSX.Element {
+export function Timeline({ project, onChange, onSelect }: { project?: Project; onChange?: (project: Project) => void; onSelect?: (clipId: string) => void }): React.JSX.Element {
   const [draft, setDraft] = useState(project);
   const [active, setActive] = useState<ActiveClip>();
   const activeRef = useRef<ActiveClip | undefined>(undefined);
@@ -17,6 +17,7 @@ export function Timeline({ project, onChange }: { project?: Project; onChange?: 
   useEffect(() => { draftRef.current = project; setDraft(project); }, [project]);
 
   const startClipPointer = (event: React.MouseEvent<HTMLDivElement>, trackId: TrackId, clip: TimelineClip) => {
+    onSelect?.(clip.id);
     const next = { trackId, clipId: clip.id, mode: 'move' as const, startX: event.clientX, startStart: clip.start, startDuration: Math.max(clip.duration, 0.5) };
     activeRef.current = next;
     setActive(next);
