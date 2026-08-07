@@ -374,3 +374,14 @@ test('shows custom resolution inputs for manual export', async () => {
     await app.close();
   }
 });
+
+test('shows a native workspace directory picker', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel('工作目录').getByRole('button', { name: '选择目录' })).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
