@@ -386,6 +386,20 @@ test('shows a native workspace directory picker', async () => {
   }
 });
 
+test('shows workspace validation errors in the settings panel', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    const workspace = page.getByRole('region', { name: '工作目录' });
+    await workspace.getByLabel('工作目录路径').fill('relative/workspace');
+    await workspace.getByRole('button', { name: '应用' }).click();
+    await expect(workspace.getByRole('alert')).toContainText('workspace root must be absolute');
+  } finally {
+    await app.close();
+  }
+});
+
 test('switches project storage when changing the workspace', async () => {
   const app = await electron.launch({ args: ['.'] });
   const sourceRoot = `/tmp/ai-video-workspace-source-${Date.now()}`;
