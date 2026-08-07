@@ -30,7 +30,7 @@ test('moves a timeline clip by dragging it', async () => {
     await page.getByLabel('音频或视频').fill('/tmp/source.mp3');
     await page.getByRole('button', { name: '创建项目' }).click();
 
-    const clip = page.locator('div[role="button"]').filter({ hasText: 'main-media' }).first();
+    const clip = page.getByLabel('多轨时间线').locator('div[role="button"]').filter({ hasText: 'main-media' });
     await clip.scrollIntoViewIfNeeded();
     const before = await clip.boundingBox();
     if (!before) throw new Error('timeline clip is not visible');
@@ -39,6 +39,34 @@ test('moves a timeline clip by dragging it', async () => {
     await page.mouse.move(before.x + 70, before.y + 10);
     await page.mouse.up();
 
+    await expect(clip).toHaveCSS('margin-left', '60px');
+  } finally {
+    await app.close();
+  }
+});
+
+test('undoes and redoes a manual timeline edit', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/history-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/history-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    const clip = page.getByLabel('多轨时间线').locator('div[role="button"]').filter({ hasText: 'main-media' });
+    await clip.scrollIntoViewIfNeeded();
+    const before = await clip.boundingBox();
+    if (!before) throw new Error('timeline clip is not visible');
+    await page.mouse.move(before.x + 10, before.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(before.x + 70, before.y + 10);
+    await page.mouse.up();
+    await expect(clip).toHaveCSS('margin-left', '60px');
+
+    await page.getByRole('button', { name: '撤销' }).click();
+    await expect(clip).toHaveCSS('margin-left', '0px');
+    await page.getByRole('button', { name: '重做' }).click();
     await expect(clip).toHaveCSS('margin-left', '60px');
   } finally {
     await app.close();
