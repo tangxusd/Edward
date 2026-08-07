@@ -356,6 +356,7 @@ test('shows AI timeline analysis controls without a project', async () => {
     const page = await app.firstWindow();
     const analysis = page.getByLabel('AI时间线分析');
     await expect(analysis.getByRole('button', { name: '开始AI分析' })).toBeDisabled();
+    await expect(analysis.getByLabel('已保存AI计划')).toBeDisabled();
   } finally {
     await app.close();
   }
