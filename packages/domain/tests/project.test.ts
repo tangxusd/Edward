@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createProject } from '../src/index.js';
+import { createProject, setClipStyle } from '../src/index.js';
 
 describe('createProject', () => {
   it('creates all fixed tracks and a default background for audio media', () => {
@@ -40,5 +40,13 @@ describe('createProject', () => {
     });
 
     expect(project.tracks.background.clips).toEqual([]);
+  });
+
+  it('replaces the audio default background without changing the input project', () => {
+    const project = createProject({ id: 'project-background', scriptPath: '/a.txt', mediaPath: '/a.mp3', mediaKind: 'audio' });
+    const updated = setClipStyle(project, 'default-background', 'background-2');
+
+    expect(updated.tracks.background.clips[0]).toEqual(expect.objectContaining({ styleId: 'background-2', userEditedAt: expect.any(String) }));
+    expect(project.tracks.background.clips[0].styleId).toBe('default-background');
   });
 });
