@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@ai-video/domain": "workspace:*",
+    "adm-zip": "^0.6.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "^22.18.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
