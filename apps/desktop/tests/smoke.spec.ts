@@ -6,10 +6,13 @@ test('exposes only the desktop bridge', async () => {
   try {
     const page = await app.firstWindow();
 
-    await expect(page.locator('#root')).toBeAttached();
+    await expect(page.locator('main')).toContainText('AI 剪视频工具');
     await expect(
       page.evaluate(() => (window as Window & { aiVideo?: unknown }).aiVideo),
     ).resolves.toBeDefined();
+    await expect(
+      page.evaluate(() => Object.keys((window as Window & { aiVideo: { projects: unknown } }).aiVideo)),
+    ).resolves.toEqual(['projects']);
     await expect(
       page.evaluate(() => (window as Window & { require?: unknown }).require),
     ).resolves.toBeUndefined();
