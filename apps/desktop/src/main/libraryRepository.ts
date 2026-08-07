@@ -37,6 +37,17 @@ export class LibraryRepository {
     await this.writeIndex(resources.filter((resource) => resource.id !== id));
   }
 
+  async updateCategory(id: string, category: string): Promise<Resource> {
+    const normalized = category.trim();
+    if (!normalized) throw new Error('category must not be empty');
+    const resources = await this.readIndex();
+    const resource = resources.find((candidate) => candidate.id === id);
+    if (!resource) throw new Error(`resource not found: ${id}`);
+    const updated = { ...resource, category: normalized, updatedAt: new Date().toISOString() };
+    await this.writeIndex(resources.map((candidate) => candidate.id === id ? updated : candidate));
+    return updated;
+  }
+
   private async readIndex(): Promise<Resource[]> {
     try {
       return ResourceIndexSchema.parse(JSON.parse(await readFile(this.indexPath(), 'utf8')));

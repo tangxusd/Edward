@@ -62,6 +62,7 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('library:list', (_event, type) => library.list(type));
   ipcMain.handle('library:toggle-favorite', (_event, id) => library.toggleFavorite(String(id)));
   ipcMain.handle('library:remove', (_event, id) => library.remove(String(id)));
+  ipcMain.handle('library:update-category', (_event, id, category) => library.updateCategory(String(id), String(category)));
   ipcMain.handle('library:import-style-package', (_event, zipPath) => importStylePackage(String(zipPath), workspace, library));
   ipcMain.handle('models:list', () => models.list());
   ipcMain.handle('models:save', async (_event, record, credentialValue?: string) => {

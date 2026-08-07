@@ -18,4 +18,16 @@ describe('LibraryRepository.remove', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('updates a resource category without changing its asset identity', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ai-video-library-category-'));
+    try {
+      const repository = new LibraryRepository(await ensureWorkspace(root));
+      await repository.upsert({ id: 'card-2', type: 'card-style', name: '卡片', category: '强调', favorite: false, style: {}, fileHash: 'hash-2', updatedAt: new Date().toISOString() });
+      const updated = await repository.updateCategory('card-2', '教程');
+      expect(updated).toEqual(expect.objectContaining({ id: 'card-2', category: '教程', fileHash: 'hash-2' }));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
