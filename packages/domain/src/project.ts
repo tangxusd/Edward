@@ -19,6 +19,7 @@ export const ProjectSchema = z.object({
     kind: MediaKindSchema,
   }),
   defaultBackgroundResourceId: z.string().min(1),
+  archivedAt: z.string().datetime().optional(),
   tracks: z.object({
     mainMedia: TrackSchema,
     background: TrackSchema,

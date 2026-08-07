@@ -10,6 +10,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@ai-video/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       react:
         specifier: ^19.1.0
         version: 19.2.8

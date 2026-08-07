@@ -9,6 +9,7 @@
     "test": "pnpm run build && playwright test"
   },
   "dependencies": {
+    "@ai-video/domain": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
