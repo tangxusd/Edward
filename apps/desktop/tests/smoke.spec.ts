@@ -59,6 +59,21 @@ test('renders the audio project default background in the preview canvas', async
   }
 });
 
+test('uses the selected project aspect ratio in preview', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/aspect-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/aspect-source-${Date.now()}.mp3`);
+    await page.getByLabel('项目画幅').selectOption('9:16');
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('预览画布')).toHaveCSS('aspect-ratio', '9 / 16');
+  } finally {
+    await app.close();
+  }
+});
+
 test('renders the imported video as the main preview media', async () => {
   const app = await electron.launch({ args: ['.'] });
   const mediaPath = `/tmp/preview-video-source-${Date.now()}.mp4`;
