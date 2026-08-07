@@ -43,3 +43,27 @@ test('drags preview cards while preserving the grab offset', async () => {
     await app.close();
   }
 });
+
+test('moves a timeline clip by dragging it', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill('/tmp/script.txt');
+    await page.getByLabel('音频或视频').fill('/tmp/source.mp3');
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    const clip = page.locator('div[role="button"]').filter({ hasText: 'main-media' }).first();
+    await clip.scrollIntoViewIfNeeded();
+    const before = await clip.boundingBox();
+    if (!before) throw new Error('timeline clip is not visible');
+    await page.mouse.move(before.x + 10, before.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(before.x + 70, before.y + 10);
+    await page.mouse.up();
+
+    await expect(clip).toHaveCSS('margin-left', '60px');
+  } finally {
+    await app.close();
+  }
+});
