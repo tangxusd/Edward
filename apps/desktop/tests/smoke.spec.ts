@@ -71,6 +71,8 @@ test('renders AI card clips from the project timeline in the preview canvas', as
     await page.getByRole('button', { name: '应用到时间线' }).click();
     await expect(page.getByLabel('项目卡片 ai-cards-0')).toContainText('重点');
     await expect(page.getByLabel('卡片缩放控件 ai-cards-0')).toBeVisible();
+    await page.getByLabel('项目卡片 ai-cards-0').click();
+    await expect(page.getByLabel('资源检查器')).toContainText('ai-cards-0');
   } finally {
     await app.close();
   }
