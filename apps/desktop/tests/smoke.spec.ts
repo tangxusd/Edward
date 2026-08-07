@@ -78,6 +78,24 @@ test('renders AI card clips from the project timeline in the preview canvas', as
   }
 });
 
+test('renders graphical timeline clips in the preview canvas', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-graphic-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/preview-graphic-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '图形预览', clips: [{ track: 'graphics', start: 0, duration: 2, content: { type: 'timeline' }, styleId: 'timeline-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await expect(page.getByLabel('项目图形 ai-graphics-0')).toBeVisible();
+    await page.getByLabel('项目图形 ai-graphics-0').click();
+    await expect(page.getByLabel('资源检查器')).toContainText('ai-graphics-0');
+  } finally {
+    await app.close();
+  }
+});
+
 test('persists a dragged project card layout', async () => {
   const app = await electron.launch({ args: ['.'] });
   const mediaPath = `/tmp/preview-layout-source-${Date.now()}.mp3`;
