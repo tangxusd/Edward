@@ -236,6 +236,10 @@ test('persists the two-card layout into project cards', async () => {
       { x: 120, y: 180, width: 348, height: 180 },
       { x: 492, y: 180, width: 348, height: 180 },
     ]);
+
+    await page.reload();
+    await page.getByLabel('项目列表').locator('article').filter({ hasText: mediaPath }).getByRole('button', { name: '打开' }).click();
+    await expect(page.locator('[aria-label="卡片布局"] button').filter({ hasText: '双卡' })).toHaveAttribute('aria-pressed', 'true');
   } finally {
     await app.close();
   }
@@ -267,6 +271,10 @@ test('persists the three-card layout with inferred spacing', async () => {
       { x: 368, y: 180, width: 224, height: 180 },
       { x: 616, y: 180, width: 224, height: 180 },
     ]);
+
+    await page.reload();
+    await page.getByLabel('项目列表').locator('article').filter({ hasText: mediaPath }).getByRole('button', { name: '打开' }).click();
+    await expect(page.locator('[aria-label="卡片布局"] button').filter({ hasText: '三卡' })).toHaveAttribute('aria-pressed', 'true');
   } finally {
     await app.close();
   }

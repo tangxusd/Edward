@@ -12,6 +12,18 @@ type ActivePointer =
 const canvasBounds: Rect = { x: 120, y: 180, width: 720, height: 180 };
 const cardColors = ['#4f7cff', '#24b47e', '#d9922e'];
 
+function inferCardLayoutCount(cards: Project['tracks']['cards']['clips']): 1 | 2 | 3 {
+  for (const count of [3, 2] as const) {
+    const expected = distributeHorizontally(canvasBounds, count, 24);
+    if (cards.length >= count && cards.slice(0, count).every((clip, index) => {
+      const layout = clip.layout;
+      const target = expected[index];
+      return layout?.x === target?.x && layout.y === target.y && layout.width === target.width && layout.height === target.height;
+    })) return count;
+  }
+  return 1;
+}
+
 export function PreviewCanvas({ project, onChange, onSelect }: { project?: Project; onChange?: (project: Project) => void; onSelect?: (clipId: string) => void }): React.JSX.Element {
   const [cards, setCards] = useState<Record<string, Rect>>({ 'card-1': { x: 300, y: 180, width: 320, height: 180 } });
   const [cardCount, setCardCount] = useState<1 | 2 | 3>(1);
@@ -21,8 +33,10 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
   const canvasRef = useRef<HTMLElement | null>(null);
   const projectRef = useRef(project);
   const onChangeRef = useRef(onChange);
+  const projectCards = project?.tracks.cards.clips ?? [];
 
   useEffect(() => { projectRef.current = project; onChangeRef.current = onChange; }, [project, onChange]);
+  useEffect(() => { setCardCount(inferCardLayoutCount(projectCards)); }, [project]);
 
   const updateCards = (update: (current: Record<string, Rect>) => Record<string, Rect>) => {
     setCards((current) => {
@@ -31,8 +45,6 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
       return next;
     });
   };
-
-  const projectCards = project?.tracks.cards.clips ?? [];
 
   const setLayout = (count: 1 | 2 | 3) => {
     setCardCount(count);
