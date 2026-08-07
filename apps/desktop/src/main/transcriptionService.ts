@@ -15,7 +15,10 @@ export async function transcribe(mediaPath: string, onSegment?: (segment: Transc
     if (value.type === 'segment') { const segment = { start: value.start, end: value.end, text: value.text }; segments.push(segment); onSegment?.(segment); }
   });
   process.stderr.on('data', (chunk) => errors.push(String(chunk)));
-  const code = await new Promise<number | null>((resolve) => process.once('close', resolve));
+  const code = await new Promise<number | null>((resolve, reject) => {
+    process.once('error', (error) => reject(error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT' ? new Error('未找到 Python 运行时：请安装本地转写运行时后重试') : error));
+    process.once('close', resolve);
+  });
   if (code !== 0) throw new Error(errors.join('').trim() || `transcription failed with code ${code}`);
   return segments;
 }
