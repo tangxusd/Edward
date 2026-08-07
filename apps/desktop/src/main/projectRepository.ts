@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ProjectSchema, type Project } from '@ai-video/domain';
 
@@ -19,6 +19,16 @@ export class ProjectRepository {
 
   async open(id: string): Promise<Project> {
     return ProjectSchema.parse(JSON.parse(await readFile(this.projectFile(id), 'utf8')));
+  }
+
+  async list(): Promise<Project[]> {
+    const entries = await readdir(this.workspace.projects, { withFileTypes: true });
+    const projects: Project[] = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      try { projects.push(await this.open(entry.name)); } catch { /* ignore incomplete project folders */ }
+    }
+    return projects.filter((project) => !project.archivedAt);
   }
 
   async save(project: Project): Promise<void> {

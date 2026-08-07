@@ -5,6 +5,7 @@ import type { ModelRecord } from '../main/modelRepository.js';
 export type DesktopBridge = {
   workspace: { setRoot(root: string): Promise<string>; };
   projects: {
+    list(): Promise<Project[]>;
     create(project: Project): Promise<Project>;
     open(id: string): Promise<Project>;
     save(project: Project): Promise<void>;

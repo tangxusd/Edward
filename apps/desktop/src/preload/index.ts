@@ -5,6 +5,7 @@ import type { DesktopBridge } from '../shared/ipc.js';
 const bridge: DesktopBridge = {
   workspace: { setRoot: (root) => ipcRenderer.invoke('workspace:set-root', root) },
   projects: {
+    list: () => ipcRenderer.invoke('projects:list'),
     create: (project: Project) => ipcRenderer.invoke('projects:create', project),
     open: (id: string) => ipcRenderer.invoke('projects:open', id),
     save: (project: Project) => ipcRenderer.invoke('projects:save', project),

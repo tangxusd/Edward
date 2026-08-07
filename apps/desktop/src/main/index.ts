@@ -47,6 +47,7 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('workspace:set-root', async (_event, root) => (await ensureWorkspace(String(root))).root);
 
   ipcMain.handle('projects:create', (_event, project) => repository.create(ProjectSchema.parse(project)));
+  ipcMain.handle('projects:list', () => repository.list());
   ipcMain.handle('projects:open', (_event, id) => repository.open(String(id)));
   ipcMain.handle('projects:save', (_event, project) => repository.save(ProjectSchema.parse(project)));
   ipcMain.handle('projects:archive', (_event, id) => repository.archive(String(id)));
