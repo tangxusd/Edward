@@ -57,6 +57,10 @@ async function registerProjectIpc(): Promise<void> {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? undefined : result.filePaths[0];
   });
+  ipcMain.handle('workspace:choose-file', async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openFile'] });
+    return result.canceled ? undefined : result.filePaths[0];
+  });
 
   ipcMain.handle('projects:create', (_event, project) => repository.create(ProjectSchema.parse(project)));
   ipcMain.handle('projects:list', () => repository.list());
