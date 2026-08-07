@@ -1,5 +1,6 @@
 import type { Project } from '@ai-video/domain';
 import type { Resource } from '@ai-video/domain';
+import type { ModelRecord } from '../main/modelRepository.js';
 
 export type DesktopBridge = {
   projects: {
@@ -13,4 +14,5 @@ export type DesktopBridge = {
     toggleFavorite(id: string): Promise<Resource>;
     importStylePackage(zipPath: string): Promise<Resource>;
   };
+  models: { list(): Promise<ModelRecord>; save(record: ModelRecord): Promise<ModelRecord>; };
 };

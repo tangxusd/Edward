@@ -5,6 +5,7 @@ import { ProjectSchema } from '@ai-video/domain';
 import { ProjectRepository } from './projectRepository.js';
 import { LibraryRepository } from './libraryRepository.js';
 import { importStylePackage } from './stylePackageImporter.js';
+import { ModelRepository } from './modelRepository.js';
 import { ensureWorkspace } from './workspace.js';
 
 function createWindow(): BrowserWindow {
@@ -42,6 +43,7 @@ async function registerProjectIpc(): Promise<void> {
   const workspace = await ensureWorkspace(join(app.getPath('documents'), 'AI Video Editor'));
   const repository = new ProjectRepository(workspace);
   const library = new LibraryRepository(workspace);
+  const models = new ModelRepository(workspace);
 
   ipcMain.handle('projects:create', (_event, project) => repository.create(ProjectSchema.parse(project)));
   ipcMain.handle('projects:open', (_event, id) => repository.open(String(id)));
@@ -50,6 +52,8 @@ async function registerProjectIpc(): Promise<void> {
   ipcMain.handle('library:list', (_event, type) => library.list(type));
   ipcMain.handle('library:toggle-favorite', (_event, id) => library.toggleFavorite(String(id)));
   ipcMain.handle('library:import-style-package', (_event, zipPath) => importStylePackage(String(zipPath), workspace, library));
+  ipcMain.handle('models:list', () => models.list());
+  ipcMain.handle('models:save', (_event, record) => models.upsert(record));
 }
 
 app.on('window-all-closed', () => {

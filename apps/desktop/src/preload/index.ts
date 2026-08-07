@@ -14,6 +14,7 @@ const bridge: DesktopBridge = {
     toggleFavorite: (id) => ipcRenderer.invoke('library:toggle-favorite', id),
     importStylePackage: (zipPath) => ipcRenderer.invoke('library:import-style-package', zipPath),
   },
+  models: { list: () => ipcRenderer.invoke('models:list'), save: (record) => ipcRenderer.invoke('models:save', record) },
 };
 
 contextBridge.exposeInMainWorld('aiVideo', bridge);
