@@ -27,6 +27,7 @@ test('drags preview cards while preserving the grab offset', async () => {
   try {
     const page = await app.firstWindow();
     const card = page.getByLabel('可拖拽卡片').first();
+    await card.scrollIntoViewIfNeeded();
     const before = await card.boundingBox();
     if (!before) throw new Error('preview card is not visible');
     const beforeLeft = await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).left));
@@ -65,5 +66,37 @@ test('moves a timeline clip by dragging it', async () => {
     await expect(clip).toHaveCSS('margin-left', '60px');
   } finally {
     await app.close();
+  }
+});
+
+test('persists subtitle style changes with the project', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/subtitle-style-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill('/tmp/subtitle-style-script.txt');
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const createdProject = page.locator('section[aria-label="项目列表"] article').filter({ hasText: mediaPath }).first();
+    await expect(createdProject).toBeVisible();
+    const font = page.getByLabel('字体');
+    await font.fill('PingFang SC');
+    await font.blur();
+    const projectId = await createdProject.locator('strong').textContent();
+    if (!projectId) throw new Error('created project id is missing');
+    await expect.poll(() => page.evaluate((id) => window.aiVideo.projects.open(id).then((value) => value.subtitleStyle.fontFamily), projectId)).toBe('PingFang SC');
+  } finally {
+    await app.close();
+  }
+
+  const reopened = await electron.launch({ args: ['.'] });
+  try {
+    const page = await reopened.firstWindow();
+    const project = page.locator('section[aria-label="项目列表"] article').filter({ hasText: mediaPath }).first();
+    await project.getByRole('button', { name: '打开' }).click();
+    await expect(page.getByLabel('字体')).toHaveValue('PingFang SC');
+  } finally {
+    await reopened.close();
   }
 });

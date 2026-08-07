@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Project } from '@ai-video/domain';
 import { LibraryPanel } from './LibraryPanel.js';
@@ -14,9 +14,10 @@ import { Timeline } from './Timeline.js';
 
 function App(): React.JSX.Element {
   const [project, setProject] = useState<Project>(); const [refreshToken, setRefreshToken] = useState(0);
+  const saveQueue = useRef(Promise.resolve());
   const created = (next: Project) => { setProject(next); setRefreshToken((value) => value + 1); };
-  const updateProject = (next: Project) => { setProject(next); void window.aiVideo.projects.save(next); };
-  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas /><Timeline project={project} onChange={updateProject} /><SubtitleStylePanel /><ModelSettings /><ExportDialog project={project} /><LibraryPanel /></main>;
+  const updateProject = (next: Project) => { setProject(next); saveQueue.current = saveQueue.current.catch(() => undefined).then(() => window.aiVideo.projects.save(next)); };
+  return <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList onOpen={setProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /><PreviewCanvas /><Timeline project={project} onChange={updateProject} /><SubtitleStylePanel project={project} onChange={updateProject} /><ModelSettings /><ExportDialog project={project} /><LibraryPanel /></main>;
 }
 
 const root = document.getElementById('root');
