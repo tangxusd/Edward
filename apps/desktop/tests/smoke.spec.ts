@@ -59,6 +59,21 @@ test('renders the audio project default background in the preview canvas', async
   }
 });
 
+test('renders the imported video as the main preview media', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/preview-video-source-${Date.now()}.mp4`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-video-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('主视频预览')).toHaveAttribute('src', `file://${mediaPath}`);
+  } finally {
+    await app.close();
+  }
+});
+
 test('renders AI card clips from the project timeline in the preview canvas', async () => {
   const app = await electron.launch({ args: ['.'] });
 
