@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createProject } from '@ai-video/domain';
@@ -22,5 +22,19 @@ describe('ProjectRepository', () => {
     await writeFile(join(root, 'escape', 'project.json'), `${JSON.stringify(escapedProject)}\n`, 'utf8');
 
     await expect(new ProjectRepository(workspace).open('../escape')).rejects.toThrow('invalid project id');
+  });
+
+  it('preserves every generated AI plan as a project snapshot', async () => {
+    root = await mkdtemp(join(tmpdir(), 'ai-video-project-plans-'));
+    const workspace = await ensureWorkspace(root);
+    const repository = new ProjectRepository(workspace);
+    const project = createProject({ id: 'project-1', scriptPath: '/tmp/script.txt', mediaPath: '/tmp/media.mp3', mediaKind: 'audio' });
+    await repository.create(project);
+
+    await repository.saveAiPlan(project.id, { summary: '第一版', clips: [] });
+    await repository.saveAiPlan(project.id, { summary: '第二版', clips: [] });
+
+    const plans = await Promise.all((await readdir(join(workspace.projects, project.id, 'ai-plans'))).map(async (name) => JSON.parse(await readFile(join(workspace.projects, project.id, 'ai-plans', name), 'utf8')) as { summary: string }));
+    expect(plans.map((plan) => plan.summary).sort()).toEqual(['第一版', '第二版']);
   });
 });

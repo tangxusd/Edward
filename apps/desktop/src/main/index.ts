@@ -99,7 +99,9 @@ async function registerProjectIpc(): Promise<void> {
     const model = (await models.list()).find((candidate) => candidate.id === String(modelId));
     if (!model) throw new Error('analysis model not found');
     const [script, transcript] = await Promise.all([readFile(project.scriptPath, 'utf8'), transcribe(project.media.path)]);
-    return analyzeSemantics({ baseUrl: model.baseUrl, modelId: model.modelId, apiKey: await readCredential(model.credentialRef), script, transcript });
+    const plan = await analyzeSemantics({ baseUrl: model.baseUrl, modelId: model.modelId, apiKey: await readCredential(model.credentialRef), script, transcript });
+    await repository.saveAiPlan(project.id, plan);
+    return plan;
   });
   ipcMain.handle('analysis:apply', async (_event, projectId: string, plan: unknown, mode: unknown) => {
     const project = await repository.open(String(projectId));

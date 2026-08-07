@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ProjectSchema, type Project } from '@ai-video/domain';
+import { randomUUID } from 'node:crypto';
+import { AiEditPlanSchema, ProjectSchema, type AiEditPlan, type Project } from '@ai-video/domain';
 
 import type { WorkspacePaths } from './workspace.js';
 
@@ -44,6 +45,12 @@ export class ProjectRepository {
   async archive(id: string): Promise<void> {
     const project = await this.open(id);
     await this.save({ ...project, archivedAt: new Date().toISOString() } as Project);
+  }
+
+  async saveAiPlan(projectId: string, plan: AiEditPlan): Promise<void> {
+    const directory = join(this.projectDirectory(projectId), 'ai-plans');
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, `${Date.now()}-${randomUUID()}.json`), `${JSON.stringify(AiEditPlanSchema.parse(plan), null, 2)}\n`, 'utf8');
   }
 
   private projectDirectory(id: string): string {
