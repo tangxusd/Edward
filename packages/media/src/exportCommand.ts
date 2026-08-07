@@ -1,5 +1,11 @@
 export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; crf?: number; durationMs?: number };
 
+export function createPartialOutputPath(output: string): string {
+  const separator = Math.max(output.lastIndexOf('/'), output.lastIndexOf('\\'));
+  const extension = output.lastIndexOf('.');
+  return extension <= separator ? `${output}.partial` : `${output.slice(0, extension)}.partial${output.slice(extension)}`;
+}
+
 export function buildExportCommand(request: ExportRequest): string[] {
   const args = ['-y', '-i', request.input, '-vf', `scale=${request.width}:${request.height}`];
   if (request.transparent) args.push('-c:v', 'libx265', '-pix_fmt', 'yuva420p', '-tag:v', 'hvc1');
