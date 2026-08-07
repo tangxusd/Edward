@@ -10,10 +10,12 @@ const types: Array<{ value: Resource['type'] | 'all'; label: string }> = [
 export function LibraryPanel(): React.JSX.Element {
   const [type, setType] = useState<Resource['type'] | 'all'>('all');
   const [resources, setResources] = useState<Resource[]>([]);
+  const [query, setQuery] = useState('');
   const [packagePath, setPackagePath] = useState('');
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const refresh = () => window.aiVideo.library.list(type === 'all' ? undefined : type).then(setResources);
+  const visibleResources = resources.filter((resource) => `${resource.name} ${resource.category}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   useEffect(() => { void refresh(); }, [type]);
   const importPackage = async () => {
     if (!packagePath || importing) return;
@@ -29,5 +31,5 @@ export function LibraryPanel(): React.JSX.Element {
       setImporting(false);
     }
   };
-  return <section aria-label="资源库"><h2>资源库</h2><label>风格包路径<input aria-label="风格包路径" value={packagePath} onChange={(event) => setPackagePath(event.target.value)} /></label><button disabled={!packagePath || importing} onClick={() => void importPackage()}>导入风格包</button>{error ? <p role="alert">{error}</p> : null}<select aria-label="资源类型" value={type} onChange={(event) => setType(event.target.value as typeof type)}>{types.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><div>{resources.length === 0 ? <p>暂无已导入资源</p> : resources.map((resource) => <article key={resource.id}><button onClick={() => void window.aiVideo.library.toggleFavorite(resource.id).then(refresh)}>{resource.favorite ? '取消收藏' : '收藏'}</button><button aria-label={`移出 ${resource.name}`} onClick={() => { if (window.confirm(`从资源库移除“${resource.name}”？`)) void window.aiVideo.library.remove(resource.id).then(refresh); }}>移出</button>{resource.thumbnailPath ? <img src={`file://${resource.thumbnailPath}`} alt={resource.name} /> : null}<strong>{resource.name}</strong><small>{resource.category}</small></article>)}</div></section>;
+  return <section aria-label="资源库"><h2>资源库</h2><label>风格包路径<input aria-label="风格包路径" value={packagePath} onChange={(event) => setPackagePath(event.target.value)} /></label><button disabled={!packagePath || importing} onClick={() => void importPackage()}>导入风格包</button>{error ? <p role="alert">{error}</p> : null}<select aria-label="资源类型" value={type} onChange={(event) => setType(event.target.value as typeof type)}>{types.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select><label>搜索资源<input aria-label="搜索资源" value={query} onChange={(event) => setQuery(event.target.value)} /></label><div>{visibleResources.length === 0 ? <p>暂无已导入资源</p> : visibleResources.map((resource) => <article key={resource.id}><button onClick={() => void window.aiVideo.library.toggleFavorite(resource.id).then(refresh)}>{resource.favorite ? '取消收藏' : '收藏'}</button><button aria-label={`移出 ${resource.name}`} onClick={() => { if (window.confirm(`从资源库移除“${resource.name}”？`)) void window.aiVideo.library.remove(resource.id).then(refresh); }}>移出</button>{resource.thumbnailPath ? <img src={`file://${resource.thumbnailPath}`} alt={resource.name} /> : null}<strong>{resource.name}</strong><small>{resource.category}</small></article>)}</div></section>;
 }
