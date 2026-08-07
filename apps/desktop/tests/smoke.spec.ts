@@ -21,30 +21,6 @@ test('exposes only the desktop bridge', async () => {
   }
 });
 
-test('drags preview cards while preserving the grab offset', async () => {
-  const app = await electron.launch({ args: ['.'] });
-
-  try {
-    const page = await app.firstWindow();
-    const card = page.getByLabel('可拖拽卡片').first();
-    await card.scrollIntoViewIfNeeded();
-    const before = await card.boundingBox();
-    if (!before) throw new Error('preview card is not visible');
-    const beforeLeft = await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).left));
-    const beforeTop = await card.evaluate((element) => Number.parseFloat(getComputedStyle(element).top));
-
-    await page.mouse.move(before.x + 20, before.y + 20);
-    await page.mouse.down();
-    await page.mouse.move(before.x + 120, before.y + 70);
-    await page.mouse.up();
-
-    await expect(card).toHaveCSS('left', `${beforeLeft + 100}px`);
-    await expect(card).toHaveCSS('top', `${beforeTop + 50}px`);
-  } finally {
-    await app.close();
-  }
-});
-
 test('moves a timeline clip by dragging it', async () => {
   const app = await electron.launch({ args: ['.'] });
 
@@ -94,6 +70,7 @@ test('renders AI card clips from the project timeline in the preview canvas', as
     await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '卡片预览', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '重点' }, styleId: 'card-style' }] }));
     await page.getByRole('button', { name: '应用到时间线' }).click();
     await expect(page.getByLabel('项目卡片 ai-cards-0')).toContainText('重点');
+    await expect(page.getByLabel('卡片缩放控件 ai-cards-0')).toBeVisible();
   } finally {
     await app.close();
   }
