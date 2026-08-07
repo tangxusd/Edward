@@ -34,6 +34,12 @@ it('centers timed overlays near the lower edge', () => {
   expect(command).toContain('y=h*0.8');
 });
 
+it('renders a background box behind timed overlays', () => {
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '字幕', start: 0, duration: 1, background: 'black@0.55' }] }).join(' ');
+  expect(command).toContain('box=1');
+  expect(command).toContain("boxcolor='black@0.55'");
+});
+
 it('parses FFmpeg elapsed time in milliseconds', () => {
   expect(parseFfmpegProgress('frame=  120 fps=30.0 time=00:01:15.50 speed=1.2x')).toMatchObject({
     frame: 120,
