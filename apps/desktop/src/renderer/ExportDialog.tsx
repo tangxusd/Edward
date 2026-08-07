@@ -37,7 +37,7 @@ export function ExportDialog({ project }: { project?: Project }): React.JSX.Elem
     setError('');
     setProgress({});
     try {
-      const overlays = [...project.tracks.subtitles.clips, ...project.tracks.cards.clips].flatMap((clip) => typeof clip.content === 'object' && clip.content !== null && 'text' in clip.content ? [{ text: String(clip.content.text), start: clip.start, duration: clip.duration }] : []);
+      const overlays = [...project.tracks.subtitles.clips, ...project.tracks.cards.clips].flatMap((clip) => typeof clip.content === 'object' && clip.content !== null && 'text' in clip.content ? [{ text: String(clip.content.text), start: clip.start, duration: clip.duration, color: project.subtitleStyle.color, fontSize: project.subtitleStyle.fontSize }] : []);
       const nextJobId = await window.aiVideo.export.start({ input: project.media.path, output, width, height, transparent, crf: qualityCrf[quality], overlays });
       setJobId(nextJobId);
     } catch (cause) {

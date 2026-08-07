@@ -17,7 +17,15 @@ it('uses ProRes 4444 with an alpha-capable pixel format for transparent exports'
 
 it('renders timed text overlays in the export filter graph', () => {
   expect(buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] })).toContain('-filter_complex');
-  expect(buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] }).join(' ')).toContain("drawtext=text='重点':enable='between(t,1,3)'");
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] }).join(' ');
+  expect(command).toContain("drawtext=text='重点'");
+  expect(command).toContain("enable='between(t,1,3)'");
+});
+
+it('applies text color and size to timed overlays', () => {
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '标题', start: 0, duration: 1, color: '#ff0000', fontSize: 42 }] }).join(' ');
+  expect(command).toContain("fontcolor='#ff0000'");
+  expect(command).toContain('fontsize=42');
 });
 
 it('parses FFmpeg elapsed time in milliseconds', () => {
