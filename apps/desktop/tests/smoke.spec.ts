@@ -100,3 +100,21 @@ test('persists subtitle style changes with the project', async () => {
     await reopened.close();
   }
 });
+
+test('saves a named cloud model record', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const name = `云模型-${Date.now()}`;
+
+  try {
+    const page = await app.firstWindow();
+    const modelPanel = page.getByLabel('模型设置');
+    await modelPanel.getByLabel('名称').fill(name);
+    await modelPanel.getByLabel('API 地址').fill('https://model.example.test/v1');
+    await modelPanel.getByRole('textbox', { name: '模型' }).fill('semantic-editor');
+    await modelPanel.getByLabel('凭证引用').fill('credential-test');
+    await modelPanel.getByRole('button', { name: '保存模型' }).click();
+    await expect(modelPanel).toContainText(name);
+  } finally {
+    await app.close();
+  }
+});
