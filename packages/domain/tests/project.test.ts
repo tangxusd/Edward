@@ -28,6 +28,7 @@ describe('createProject', () => {
         start: 0,
       }),
     ]);
+    expect(project.aspectRatio).toBe('16:9');
   });
 
   it('does not add a default background for video media', () => {

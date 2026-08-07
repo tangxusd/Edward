@@ -11,6 +11,7 @@ import { SubtitleStyleSchema } from './subtitleStyle.js';
 export const DEFAULT_BACKGROUND_RESOURCE_ID = 'default-background';
 
 export const MediaKindSchema = z.enum(['audio', 'video']);
+export const AspectRatioSchema = z.enum(['16:9', '9:16']);
 
 export const ProjectSchema = z.object({
   id: z.string().min(1),
@@ -20,6 +21,7 @@ export const ProjectSchema = z.object({
     kind: MediaKindSchema,
   }),
   defaultBackgroundResourceId: z.string().min(1),
+  aspectRatio: AspectRatioSchema.default('16:9'),
   archivedAt: z.string().datetime().optional(),
   subtitleStyle: SubtitleStyleSchema,
   tracks: z.object({
@@ -37,6 +39,7 @@ export const CreateProjectInputSchema = z.object({
   mediaPath: z.string().min(1),
   mediaKind: MediaKindSchema,
   defaultBackgroundResourceId: z.string().min(1).optional(),
+  aspectRatio: AspectRatioSchema.optional(),
 });
 
 export type Project = z.infer<typeof ProjectSchema>;
@@ -84,6 +87,7 @@ export function createProject(input: CreateProjectInput): Project {
       kind: parsed.mediaKind,
     },
     defaultBackgroundResourceId,
+    aspectRatio: parsed.aspectRatio ?? '16:9',
     subtitleStyle: { fontFamily: 'Arial', fontSize: 48, color: '#ffffff', background: 'rgba(0,0,0,.55)' },
     tracks: {
       mainMedia: createTrack('mainMedia', [mainMediaClip]),

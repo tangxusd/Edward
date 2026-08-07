@@ -16,6 +16,8 @@ export function ExportDialog({ project }: { project?: Project }): React.JSX.Elem
   const [progress, setProgress] = useState<ExportProgress>();
   const [error, setError] = useState('');
 
+  useEffect(() => setAspect(project?.aspectRatio ?? '16:9'), [project?.id, project?.aspectRatio]);
+
   useEffect(() => window.aiVideo.export.onProgress((event) => {
     if (event.jobId === jobId) setProgress(event.progress);
   }), [jobId]);
