@@ -8,6 +8,7 @@ import { ExportDialog } from './ExportDialog.js';
 import { ModelSettings } from './ModelSettings.js';
 import { WorkspaceSettings } from './WorkspaceSettings.js';
 import { ProjectList } from './ProjectList.js';
+import { Timeline } from './Timeline.js';
 
 const root = document.getElementById('root');
 
@@ -17,6 +18,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList /><NewProjectDialog /><PreviewCanvas /><SubtitleStylePanel /><ModelSettings /><ExportDialog /><LibraryPanel /></main>
+    <main><h1>AI 剪视频工具</h1><WorkspaceSettings /><ProjectList /><NewProjectDialog /><PreviewCanvas /><Timeline /><SubtitleStylePanel /><ModelSettings /><ExportDialog /><LibraryPanel /></main>
   </StrictMode>,
 );
