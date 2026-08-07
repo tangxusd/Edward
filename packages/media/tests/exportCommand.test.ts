@@ -2,17 +2,16 @@ import { expect, it } from 'vitest';
 import { buildExportCommand, calculateExportPercent, createPartialOutputPath, parseFfmpegProgress } from '../src/index.js';
 
 it('uses ProRes 4444 with an alpha-capable pixel format for transparent exports', () => {
-  expect(buildExportCommand({
+  const command = buildExportCommand({
     input: '/source/input.mov',
     output: '/exports/alpha.mov',
     width: 1920,
     height: 1080,
     transparent: true,
-  })).toEqual([
-    '-y', '-i', '/source/input.mov', '-vf', 'scale=1920:1080',
-    '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le',
-    '-c:a', 'pcm_s16le', '/exports/alpha.mov',
-  ]);
+  });
+  expect(command).toContain('prores_ks');
+  expect(command).toContain('yuva444p10le');
+  expect(command.join(' ')).toContain('color=c=black@0.0:s=1920x1080');
 });
 
 it('renders timed text overlays in the export filter graph', () => {
@@ -58,6 +57,12 @@ it('escapes drawtext option delimiters in overlay text', () => {
 it('preserves line breaks in drawtext overlays', () => {
   const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '第一行\n第二行', start: 0, duration: 1 }] }).join(' ');
   expect(command).toContain(String.raw`text='第一行\\n第二行'`);
+});
+
+it('uses a transparent canvas instead of opaque source video for alpha exports', () => {
+  const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/alpha.mov', width: 1280, height: 720, transparent: true, durationMs: 3000, overlays: [{ text: '标题', start: 0, duration: 1 }] }).join(' ');
+  expect(command).toContain('color=c=black@0.0:s=1280x720:d=3');
+  expect(command).toContain('-shortest');
 });
 
 it('parses FFmpeg elapsed time in milliseconds', () => {

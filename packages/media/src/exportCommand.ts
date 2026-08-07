@@ -15,8 +15,12 @@ export function createPartialOutputPath(output: string): string {
 
 export function buildExportCommand(request: ExportRequest): string[] {
   const args = ['-y', '-i', request.input];
-  if (request.overlays?.length) {
-    const filters = [`scale=${request.width}:${request.height}`, ...request.overlays.map((overlay) => `drawtext=text='${overlay.text.replace(/\r?\n/g, '\\n').replace(/([\\':])/g, '\\$1')}':fontcolor='${overlay.color ?? '#ffffff'}':fontsize=${overlay.fontSize ?? 48}:box=1:boxcolor='${toFfmpegColor(overlay.background ?? 'black@0.55')}':x=${overlay.x ?? '(w-text_w)/2'}:y=${overlay.y ?? 'h*0.8'}:enable='between(t,${overlay.start},${overlay.start + overlay.duration})'`)].join(',');
+  const textFilters = request.overlays?.map((overlay) => `drawtext=text='${overlay.text.replace(/\r?\n/g, '\\n').replace(/([\\':])/g, '\\$1')}':fontcolor='${overlay.color ?? '#ffffff'}':fontsize=${overlay.fontSize ?? 48}:box=1:boxcolor='${toFfmpegColor(overlay.background ?? 'black@0.55')}':x=${overlay.x ?? '(w-text_w)/2'}:y=${overlay.y ?? 'h*0.8'}:enable='between(t,${overlay.start},${overlay.start + overlay.duration})'`) ?? [];
+  if (request.transparent) {
+    const duration = (request.durationMs ?? 1000) / 1000;
+    args.push('-filter_complex', `color=c=black@0.0:s=${request.width}x${request.height}:d=${duration},format=rgba${textFilters.length ? `,${textFilters.join(',')}` : ''}[v]`, '-map', '[v]', '-map', '0:a?', '-shortest');
+  } else if (textFilters.length) {
+    const filters = [`scale=${request.width}:${request.height}`, ...textFilters].join(',');
     args.push('-filter_complex', `[0:v]${filters}[v]`, '-map', '[v]', '-map', '0:a?');
   } else {
     args.push('-vf', `scale=${request.width}:${request.height}`);
