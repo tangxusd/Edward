@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { canEditOffline, canUseAi, type EntitlementCache } from '../src/index.js';
+import { canEditOffline, canUseAi, hashDeviceSerial, type EntitlementCache } from '../src/index.js';
 
 const checkedAt = Date.parse('2026-08-07T00:00:00.000Z');
 const activeCache: EntitlementCache = { accountId: 'account-1', deviceIdHash: 'device-1', sessionId: 'session-1', status: 'active', checkedAt, validUntil: checkedAt + 2 * 60 * 60 * 1000 };
@@ -26,5 +26,14 @@ describe('local entitlement guard', () => {
     const validate = vi.fn().mockResolvedValue({ ...activeCache, deviceIdHash: 'device-2', checkedAt: now, validUntil: now + 2 * 60 * 60 * 1000 });
 
     await expect(canUseAi(activeCache, checkedAt + 3 * 60 * 60 * 1000, { validate })).resolves.toBe(false);
+  });
+
+  it('hashes a device serial into a stable SHA-256 identifier', async () => {
+    const first = await hashDeviceSerial('  serial-123  ');
+    const second = await hashDeviceSerial('serial-123');
+
+    expect(first).toHaveLength(64);
+    expect(first).toBe(second);
+    expect(first).not.toBe(await hashDeviceSerial('serial-456'));
   });
 });

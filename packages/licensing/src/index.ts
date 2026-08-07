@@ -27,8 +27,7 @@ export async function canUseAi(cache: EntitlementCache | undefined, now: number,
   }
 }
 
-export function hashDeviceSerial(serial: string): string {
-  let hash = 2166136261;
-  for (const char of serial) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return (hash >>> 0).toString(16).padStart(8, '0');
+export async function hashDeviceSerial(serial: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(serial.trim()));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
