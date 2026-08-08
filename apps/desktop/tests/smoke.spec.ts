@@ -34,24 +34,131 @@ test('opens settings from the top bar and switches settings tabs', async () => {
     const page = await app.firstWindow();
     await expect(page.getByRole('dialog', { name: '设置' })).toHaveCount(0);
     await page.getByRole('button', { name: '设置' }).click();
-    await expect(page.getByRole('dialog', { name: '设置' })).toBeVisible();
+    const settingsDialog = page.getByRole('dialog', { name: '设置' });
+    const settingsTrigger = page.getByRole('button', { name: '设置', exact: true });
+    await expect(settingsDialog).toBeVisible();
+    const generalTab = settingsDialog.getByRole('tab', { name: '通用' });
+    const modelsTab = settingsDialog.getByRole('tab', { name: 'AI 模型' });
+    await expect(generalTab).toBeFocused();
+    await expect(generalTab).toHaveAttribute('tabindex', '0');
+    await expect(modelsTab).toHaveAttribute('tabindex', '-1');
+    await expect(settingsTrigger).toHaveCSS('position', 'fixed');
+    await expect(settingsTrigger).toHaveCSS('top', '9px');
+    await expect(settingsTrigger).toHaveCSS('right', '88px');
+    await expect(settingsDialog).toHaveCSS('position', 'fixed');
+    await expect(settingsDialog).toHaveCSS('display', 'grid');
+    await expect(settingsDialog).toHaveCSS('place-items', 'center');
+    const settingsDialogBody = settingsDialog.locator(':scope > section');
+    const settingsDialogGeometry = await settingsDialogBody.evaluate((element) => ({
+      height: element.getBoundingClientRect().height,
+      left: element.getBoundingClientRect().left,
+      top: element.getBoundingClientRect().top,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+      width: element.getBoundingClientRect().width,
+    }));
+    expect(Math.abs(settingsDialogGeometry.left - (settingsDialogGeometry.viewportWidth - settingsDialogGeometry.width) / 2)).toBeLessThanOrEqual(1);
+    expect(Math.abs(settingsDialogGeometry.top - (settingsDialogGeometry.viewportHeight - settingsDialogGeometry.height) / 2)).toBeLessThanOrEqual(1);
+    expect(Math.abs(settingsDialogGeometry.width - Math.min(640, settingsDialogGeometry.viewportWidth - 40))).toBeLessThanOrEqual(1);
+    await expect(settingsDialog.locator('[role="tablist"]')).toHaveCSS('display', 'flex');
+    await expect(settingsDialog.getByRole('tab', { name: '通用' })).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(settingsDialog.getByRole('tab', { name: '通用' })).toHaveCSS('border-bottom-color', 'rgb(61, 139, 253)');
     await expect(page.getByLabel('工作目录路径')).toBeVisible();
-    const generalTab = page.getByRole('tab', { name: '通用' });
-    const modelsTab = page.getByRole('tab', { name: 'AI 模型' });
     await expect(generalTab).toHaveAttribute('id', 'settings-tab-general');
     await expect(generalTab).toHaveAttribute('aria-controls', 'settings-panel-general');
     await expect(modelsTab).toHaveAttribute('id', 'settings-tab-models');
     await expect(modelsTab).toHaveAttribute('aria-controls', 'settings-panel-models');
     await generalTab.press('ArrowRight');
     await expect(modelsTab).toHaveAttribute('aria-selected', 'true');
+    await expect(generalTab).toHaveAttribute('tabindex', '-1');
+    await expect(modelsTab).toHaveAttribute('tabindex', '0');
     await expect(modelsTab).toBeFocused();
     await expect(page.getByLabel('模型设置')).toBeVisible();
     await modelsTab.press('ArrowRight');
     await expect(generalTab).toHaveAttribute('aria-selected', 'true');
     await expect(generalTab).toBeFocused();
     await modelsTab.click();
-    await page.getByRole('button', { name: '关闭设置' }).click();
+    const closeButton = settingsDialog.getByRole('button', { name: '关闭设置' });
+    const lastFocusable = settingsDialog.locator('button:not([disabled]):not([tabindex="-1"]), input:not([disabled])').last();
+    await lastFocusable.focus();
+    await page.keyboard.press('Tab');
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(lastFocusable).toBeFocused();
+    await closeButton.click();
     await expect(page.getByRole('dialog', { name: '设置' })).toHaveCount(0);
+    await expect(settingsTrigger).toBeFocused();
+    await settingsTrigger.click();
+    await expect(page.getByRole('tab', { name: 'AI 模型' })).toBeFocused();
+  } finally {
+    await app.close();
+  }
+});
+
+test('hides the resource library on the home screen and shows it in the editor', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel('项目列表')).toBeVisible();
+    await expect(page.getByLabel('新建项目')).toBeVisible();
+    await expect(page.getByLabel('资源库')).toBeHidden();
+
+    await page.getByLabel('文案文稿').fill(`/tmp/library-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/library-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    await expect(page.getByLabel('项目列表')).toHaveCount(0);
+    await expect(page.getByLabel('新建项目')).toHaveCount(0);
+    await expect(page.getByLabel('资源库')).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test('returns to the home screen after changing the workspace from an open project', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/workspace-state-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/workspace-state-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('资源库')).toBeVisible();
+
+    await page.getByRole('button', { name: '设置' }).click();
+    const workspace = page.getByRole('region', { name: '工作目录' });
+    await workspace.getByLabel('工作目录路径').fill(`/tmp/workspace-state-${Date.now()}`);
+    await workspace.getByRole('button', { name: '应用' }).click();
+    await page.getByRole('button', { name: '关闭设置' }).click();
+
+    await expect(page.getByLabel('项目列表')).toBeVisible();
+    await expect(page.getByLabel('新建项目')).toBeVisible();
+    await expect(page.getByLabel('资源库')).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('opens the export dialog only from the header export button', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel('导出')).toHaveCount(0);
+    await expect(page.getByLabel('分辨率')).toHaveCount(0);
+    const exportTrigger = page.getByRole('button', { name: '导出' });
+    await expect(exportTrigger).toHaveCount(1);
+    await expect(exportTrigger).toHaveCSS('position', 'fixed');
+    await expect(exportTrigger).toHaveCSS('right', '14px');
+    await exportTrigger.click();
+    const exportDialog = page.getByRole('dialog', { name: '导出' });
+    await expect(exportDialog).toHaveCount(1);
+    await expect(exportDialog).toBeVisible();
+    await expect(exportDialog.getByLabel('分辨率')).toBeVisible();
+    await page.getByRole('button', { name: '关闭导出' }).click();
+    await expect(page.getByLabel('导出')).toHaveCount(0);
+    await expect(page.getByLabel('分辨率')).toHaveCount(0);
   } finally {
     await app.close();
   }
@@ -322,13 +429,13 @@ test('persists subtitle style changes with the project', async () => {
     await page.getByLabel('文案文稿').fill('/tmp/subtitle-style-script.txt');
     await page.getByLabel('音频或视频').fill(mediaPath);
     await page.getByRole('button', { name: '创建项目' }).click();
-    const createdProject = page.locator('section[aria-label="项目列表"] article').filter({ hasText: mediaPath }).first();
-    await expect(createdProject).toBeVisible();
+    await expect(page.getByLabel('项目列表')).toHaveCount(0);
+    await expect(page.getByLabel('工作目录')).toHaveCount(0);
+    const projectId = await page.evaluate(async (path) => (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path)?.id, mediaPath);
+    if (!projectId) throw new Error('created project id is missing');
     const font = page.getByLabel('字体');
     await font.fill('PingFang SC');
     await font.blur();
-    const projectId = await createdProject.locator('strong').textContent();
-    if (!projectId) throw new Error('created project id is missing');
     await expect.poll(() => page.evaluate((id) => window.aiVideo.projects.open(id).then((value) => value.subtitleStyle.fontFamily), projectId)).toBe('PingFang SC');
   } finally {
     await app.close();
@@ -372,6 +479,9 @@ test('reports an invalid style package import', async () => {
 
   try {
     const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/style-package-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/style-package-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
     const library = page.getByLabel('资源库');
     await library.getByLabel('风格包路径').fill('/tmp/missing-style-package.zip');
     await library.getByRole('button', { name: '导入风格包' }).click();
@@ -410,6 +520,7 @@ test('shows custom resolution inputs for manual export', async () => {
 
   try {
     const page = await app.firstWindow();
+    await page.getByRole('button', { name: '导出' }).click();
     const exportPanel = page.getByLabel('导出');
     await exportPanel.getByLabel('分辨率').selectOption('custom');
     await expect(exportPanel.getByLabel('自定义宽度')).toBeVisible();
@@ -458,14 +569,16 @@ test('switches project storage when changing the workspace', async () => {
     await page.getByLabel('文案文稿').fill(`/tmp/workspace-source-${Date.now()}.txt`);
     await page.getByLabel('音频或视频').fill(mediaPath);
     await page.getByRole('button', { name: '创建项目' }).click();
-    await expect(page.getByLabel('项目列表')).toContainText(mediaPath);
+    await expect(page.getByLabel('项目列表')).toHaveCount(0);
+    await expect(page.getByLabel('工作目录')).toHaveCount(0);
+    await expect(page.evaluate((path) => window.aiVideo.projects.list().then((projects) => projects.some((candidate) => candidate.media.path === path)), mediaPath)).resolves.toBe(true);
 
     await page.getByRole('button', { name: '设置' }).click();
     const workspace = page.getByRole('region', { name: '工作目录' });
     await workspace.getByLabel('工作目录路径').fill(destinationRoot);
     await workspace.getByRole('button', { name: '应用' }).click();
-
     await expect(workspace).toContainText(`已设置：${destinationRoot}`);
+    await page.getByRole('button', { name: '关闭设置' }).click();
     await expect(page.getByLabel('项目列表')).not.toContainText(mediaPath);
   } finally {
     await app.close();
