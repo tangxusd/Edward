@@ -156,9 +156,23 @@ test('opens the export dialog only from the header export button', async () => {
     await expect(exportDialog).toHaveCount(1);
     await expect(exportDialog).toBeVisible();
     await expect(exportDialog.getByLabel('分辨率')).toBeVisible();
-    await page.getByRole('button', { name: '关闭导出' }).click();
+    const closeButton = exportDialog.getByRole('button', { name: '关闭导出' });
+    const lastFocusable = exportDialog.locator('button:not([disabled]), input:not([disabled]), select:not([disabled])').last();
+    await expect(closeButton).toBeFocused();
+    await lastFocusable.focus();
+    await page.keyboard.press('Tab');
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(lastFocusable).toBeFocused();
+    await closeButton.click();
     await expect(page.getByLabel('导出')).toHaveCount(0);
     await expect(page.getByLabel('分辨率')).toHaveCount(0);
+    await expect(exportTrigger).toBeFocused();
+    await exportTrigger.click();
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: '导出' })).toHaveCount(0);
+    await expect(exportTrigger).toBeFocused();
   } finally {
     await app.close();
   }
