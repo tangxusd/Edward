@@ -27,6 +27,24 @@ test('exposes only the desktop bridge', async () => {
   }
 });
 
+test('opens settings from the top bar and switches settings tabs', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByRole('dialog', { name: '设置' })).toHaveCount(0);
+    await page.getByRole('button', { name: '设置' }).click();
+    await expect(page.getByRole('dialog', { name: '设置' })).toBeVisible();
+    await expect(page.getByLabel('工作目录路径')).toBeVisible();
+    await page.getByRole('tab', { name: 'AI 模型' }).click();
+    await expect(page.getByLabel('模型设置')).toBeVisible();
+    await page.getByRole('button', { name: '关闭设置' }).click();
+    await expect(page.getByRole('dialog', { name: '设置' })).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
 test('moves a timeline clip by dragging it', async () => {
   const app = await electron.launch({ args: ['.'] });
 
