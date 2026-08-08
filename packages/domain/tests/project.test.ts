@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createProject, setClipStyle } from '../src/index.js';
+import { createProject, ProjectSchema, setClipStyle } from '../src/index.js';
 
 describe('createProject', () => {
   it('creates all fixed tracks and a default background for audio media', () => {
@@ -49,5 +49,12 @@ describe('createProject', () => {
 
     expect(updated.tracks.background.clips[0]).toEqual(expect.objectContaining({ styleId: 'background-2', userEditedAt: expect.any(String) }));
     expect(project.tracks.background.clips[0].styleId).toBe('default-background');
+  });
+
+  it('preserves a non-empty component conversation in a project', () => {
+    const project = createProject({ id: 'project-chat', scriptPath: '/a.txt', mediaPath: '/a.mp3', mediaKind: 'audio' });
+    const parsed = ProjectSchema.parse({ ...project, componentConversations: { 'ai-cards-0': { modelId: 'model-1', messages: [{ role: 'user', content: '修改折线图' }, { role: 'assistant', content: '已生成数据草案' }], draftContent: { points: [1, 2] }, updatedAt: '2026-08-08T00:00:00.000Z' } } });
+
+    expect(parsed.componentConversations?.['ai-cards-0']).toMatchObject({ modelId: 'model-1', draftContent: { points: [1, 2] } });
   });
 });

@@ -1,4 +1,4 @@
-export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; crf?: number; durationMs?: number; overlays?: Array<{ text: string; start: number; duration: number; color?: string; fontSize?: number; background?: string; x?: number; y?: number }> };
+export type ExportRequest = { input: string; output: string; width: number; height: number; transparent: boolean; mediaKind?: 'audio' | 'video'; crf?: number; durationMs?: number; overlays?: Array<{ text: string; start: number; duration: number; color?: string; fontSize?: number; background?: string; x?: number; y?: number }> };
 
 function toFfmpegColor(value: string): string {
   const rgba = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*\.?\d+)\s*\)$/i);
@@ -19,6 +19,14 @@ export function buildExportCommand(request: ExportRequest): string[] {
   if (request.transparent) {
     const duration = (request.durationMs ?? 1000) / 1000;
     args.push('-filter_complex', `color=c=black@0.0:s=${request.width}x${request.height}:d=${duration},format=rgba${textFilters.length ? `,${textFilters.join(',')}` : ''}[v]`, '-map', '[v]', '-map', '0:a?', '-shortest');
+  } else if (request.mediaKind === 'audio') {
+    const duration = (request.durationMs ?? 1000) / 1000;
+    args.push('-f', 'lavfi', '-i', `color=c=#151923:s=${request.width}x${request.height}:d=${duration}`);
+    if (textFilters.length) {
+      args.push('-filter_complex', `[1:v]${textFilters.join(',')}[v]`, '-map', '[v]', '-map', '0:a');
+    } else {
+      args.push('-map', '1:v', '-map', '0:a');
+    }
   } else if (textFilters.length) {
     const filters = [`scale=${request.width}:${request.height}`, ...textFilters].join(',');
     args.push('-filter_complex', `[0:v]${filters}[v]`, '-map', '[v]', '-map', '0:a?');

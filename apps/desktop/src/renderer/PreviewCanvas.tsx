@@ -24,13 +24,15 @@ function inferCardLayoutCount(cards: Project['tracks']['cards']['clips']): 1 | 2
   return 1;
 }
 
-export function PreviewCanvas({ project, onChange, onSelect }: { project?: Project; onChange?: (project: Project) => void; onSelect?: (clipId: string) => void }): React.JSX.Element {
+export function PreviewCanvas({ project, onChange, onSelect, selectedClipId }: { project?: Project; onChange?: (project: Project) => void; onSelect?: (clipId?: string) => void; selectedClipId?: string }): React.JSX.Element {
   const [cards, setCards] = useState<Record<string, Rect>>({ 'card-1': { x: 300, y: 180, width: 320, height: 180 } });
   const [cardCount, setCardCount] = useState<1 | 2 | 3>(1);
   const [guides, setGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
+  const [playing, setPlaying] = useState(false);
   const cardsRef = useRef(cards);
   const activeRef = useRef<ActivePointer | undefined>(undefined);
   const canvasRef = useRef<HTMLElement | null>(null);
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
   const projectRef = useRef(project);
   const onChangeRef = useRef(onChange);
   const projectCards = project?.tracks.cards.clips ?? [];
@@ -101,7 +103,7 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
     if (active.mode === 'project-drag' && currentProject) {
       const nextX = Math.max(0, Math.min(canvas.width - active.rect.width, clientX - canvas.left - active.offsetX));
       const nextY = Math.max(0, Math.min(canvas.height - active.rect.height, clientY - canvas.top - active.offsetY));
-      const peers = projectVisualClips.filter(({ clip }) => clip.id !== active.id).map(({ clip }, index) => clip.layout ?? projectVisualRects[index] ?? active.rect);
+      const peers = projectVisualClips.map(({ clip }, index) => ({ id: clip.id, rect: clip.layout ?? projectVisualRects[index] ?? active.rect })).filter((peer) => peer.id !== active.id).map((peer) => peer.rect);
       const snapped = snapRectToGuides({ ...active.rect, x: nextX, y: nextY }, { x: 0, y: 0, width: canvas.width, height: canvas.height }, peers);
       setGuides(snapped.guides);
       onChangeRef.current?.(markClipUserEdited(setClipLayout(currentProject, active.id, snapped.rect), active.id));
@@ -128,6 +130,22 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
 
   const finish = () => { activeRef.current = undefined; setGuides({ x: [], y: [] }); };
 
+  const togglePlayback = async () => {
+    const media = mediaRef.current;
+    if (!media) return;
+    if (media.paused) {
+      try {
+        await media.play();
+        setPlaying(true);
+      } catch {
+        setPlaying(false);
+      }
+    } else {
+      media.pause();
+      setPlaying(false);
+    }
+  };
+
   useEffect(() => {
     const move = (event: MouseEvent) => { if (activeRef.current) updateAt(event.clientX, event.clientY); };
     window.addEventListener('mousemove', move);
@@ -141,5 +159,5 @@ export function PreviewCanvas({ project, onChange, onSelect }: { project?: Proje
   const projectVisualRects = projectVisualClips.map(({ clip }, index) => clip.layout ?? distributeHorizontally(canvasBounds, Math.min(3, Math.max(2, projectVisualClips.length)) as 2 | 3, 24)[index]);
   const clipText = (content: unknown): string => typeof content === 'object' && content !== null && 'text' in content ? String(content.text) : '';
   const graphicText = (content: unknown): string => typeof content === 'object' && content !== null && 'type' in content ? `图形：${String(content.type)}` : '图形';
-  return <section ref={canvasRef} aria-label="预览画布" onMouseMove={(event) => updateAt(event.clientX, event.clientY)} onMouseUp={finish} style={{ position: 'relative', aspectRatio: project?.aspectRatio === '9:16' ? '9 / 16' : '16 / 9', background: '#151923', overflow: 'hidden' }}>{resourceId ? <div aria-label={`预览背景 ${resourceId}`} style={{ position: 'absolute', inset: 0, background: '#243b53' }} /> : null}{project?.media.kind === 'video' ? <video aria-label="主视频预览" src={toLocalFileUrl(project.media.path)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} /> : null}<i aria-hidden="true" style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '1px dashed #6f86b0' }} /><i aria-hidden="true" style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px dashed #6f86b0' }} />{guides.x.map((x) => <i key={`x-${x}`} aria-label="垂直对齐参考线" style={{ position: 'absolute', left: x, top: 0, bottom: 0, borderLeft: '1px solid #24b47e', pointerEvents: 'none' }} />)}{guides.y.map((y) => <i key={`y-${y}`} aria-label="水平对齐参考线" style={{ position: 'absolute', top: y, left: 0, right: 0, borderTop: '1px solid #24b47e', pointerEvents: 'none' }} />)}<div role="toolbar" aria-label="卡片布局"><button onClick={() => setLayout(1)} aria-pressed={cardCount === 1}>单卡</button><button onClick={() => setLayout(2)} aria-pressed={cardCount === 2}>双卡</button><button onClick={() => setLayout(3)} aria-pressed={cardCount === 3}>三卡</button></div>{projectVisualClips.map(({ clip, kind }, index) => { const rect = projectVisualRects[index]; const localTextStyle = typeof clip.content === 'object' && clip.content !== null && 'textStyle' in clip.content ? clip.content.textStyle as { fontFamily?: string; fontSize?: number; color?: string; background?: string } : {}; const subtitleStyle = kind === '字幕' ? { ...project?.subtitleStyle, ...localTextStyle } : undefined; return rect ? <div key={clip.id} aria-label={`项目${kind} ${clip.id}`} onMouseDown={(event) => startProjectDrag(event, clip.id, rect)} onMouseMove={(event) => updateAt(event.clientX, event.clientY)} onClick={() => { persistProjectLayout(clip.id, rect); onSelect?.(clip.id); }} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, border: `1px solid ${cardColors[index % cardColors.length]}`, color: subtitleStyle?.color ?? 'white', background: subtitleStyle?.background, fontFamily: subtitleStyle?.fontFamily, fontSize: subtitleStyle?.fontSize, touchAction: 'none', userSelect: 'none' }}>{kind === '卡片' || kind === '字幕' ? clipText(clip.content) : graphicText(clip.content)}<button aria-label={`${kind}缩放控件 ${clip.id}`} onMouseDown={(event) => startProjectResize(event, clip.id, rect)}>缩放</button></div> : null; })}</section>;
+  return <section ref={canvasRef} aria-label="预览画布" onClick={(event) => { const target = event.target as HTMLElement; if (!target.closest('[aria-label^="项目"], button, select')) onSelect?.(); }} onMouseMove={(event) => updateAt(event.clientX, event.clientY)} onMouseUp={finish} style={{ position: 'relative', aspectRatio: project?.aspectRatio === '9:16' ? '9 / 16' : '16 / 9', background: '#151923', overflow: 'hidden' }}>{resourceId ? <div aria-label={`预览背景 ${resourceId}`} style={{ position: 'absolute', inset: 0, background: '#243b53' }} /> : null}{project?.media.kind === 'video' ? <video ref={mediaRef as React.RefObject<HTMLVideoElement>} aria-label="主视频预览" src={toLocalFileUrl(project.media.path)} onEnded={() => setPlaying(false)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} /> : project?.media.kind === 'audio' ? <audio ref={mediaRef as React.RefObject<HTMLAudioElement>} aria-label="主音频预览" src={toLocalFileUrl(project.media.path)} onEnded={() => setPlaying(false)} /> : null}<i aria-hidden="true" style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, borderLeft: '1px dashed #6f86b0' }} /><i aria-hidden="true" style={{ position: 'absolute', top: '50%', left: 0, right: 0, borderTop: '1px dashed #6f86b0' }} />{guides.x.map((x) => <i key={`x-${x}`} aria-label="垂直对齐参考线" style={{ position: 'absolute', left: x, top: 0, bottom: 0, borderLeft: '1px solid #24b47e', pointerEvents: 'none' }} />)}{guides.y.map((y) => <i key={`y-${y}`} aria-label="水平对齐参考线" style={{ position: 'absolute', top: y, left: 0, right: 0, borderTop: '1px solid #24b47e', pointerEvents: 'none' }} />)}<div role="toolbar" aria-label="卡片布局"><button onClick={() => setLayout(1)} aria-pressed={cardCount === 1}>单卡</button><button onClick={() => setLayout(2)} aria-pressed={cardCount === 2}>双卡</button><button onClick={() => setLayout(3)} aria-pressed={cardCount === 3}>三卡</button></div>{projectVisualClips.map(({ clip, kind }, index) => { const rect = projectVisualRects[index]; const localTextStyle = typeof clip.content === 'object' && clip.content !== null && 'textStyle' in clip.content ? clip.content.textStyle as { fontFamily?: string; fontSize?: number; color?: string; background?: string } : {}; const subtitleStyle = kind === '字幕' ? { ...project?.subtitleStyle, ...localTextStyle } : undefined; return rect ? <div key={clip.id} aria-label={`项目${kind} ${clip.id}`} onMouseDown={(event) => startProjectDrag(event, clip.id, rect)} onMouseMove={(event) => updateAt(event.clientX, event.clientY)} onClick={() => { persistProjectLayout(clip.id, rect); onSelect?.(clip.id); }} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, border: `${clip.id === selectedClipId ? 2 : 1}px solid ${clip.id === selectedClipId ? '#ffffff' : cardColors[index % cardColors.length]}`, color: subtitleStyle?.color ?? 'white', background: subtitleStyle?.background, fontFamily: subtitleStyle?.fontFamily, fontSize: subtitleStyle?.fontSize, touchAction: 'none', userSelect: 'none' }}>{kind === '卡片' || kind === '字幕' ? clipText(clip.content) : graphicText(clip.content)}<button aria-label={`${kind}缩放控件 ${clip.id}`} onMouseDown={(event) => startProjectResize(event, clip.id, rect)}>缩放</button></div> : null; })}<div aria-label="预览播放控制" style={{ position: 'absolute', left: 12, right: 12, bottom: 10, display: 'flex', alignItems: 'center', gap: 8, zIndex: 4 }}><button aria-label={playing ? '暂停预览' : '播放预览'} onClick={togglePlayback}>{playing ? '暂停' : '播放'}</button><select aria-label="预览画幅" value={project?.aspectRatio ?? '16:9'} onChange={(event) => project && onChange?.({ ...project, aspectRatio: event.target.value as Project['aspectRatio'] })}><option value="16:9">16:9</option><option value="9:16">9:16</option></select></div></section>;
 }

@@ -1,4 +1,5 @@
 import type { AiEditPlan, AiPlanApplicationMode, Project } from '@ai-video/domain';
+import type { ComponentChatResult } from '../main/semanticAnalysisService.js';
 import type { Resource } from '@ai-video/domain';
 import type { ModelRecord } from '../main/modelRepository.js';
 import type { ExportProgress, ExportRequest } from '@ai-video/media';
@@ -21,5 +22,6 @@ export type DesktopBridge = {
   };
   models: { list(): Promise<ModelRecord[]>; save(record: ModelRecord, credentialValue?: string): Promise<ModelRecord>; status(id: string): Promise<{ online: boolean }>; };
   analysis: { generate(projectId: string, modelId: string): Promise<AiEditPlan>; apply(projectId: string, plan: AiEditPlan, mode?: AiPlanApplicationMode): Promise<Project>; list(projectId: string): Promise<Array<{ id: string; plan: AiEditPlan }>>; };
+  componentChat: { send(projectId: string, clipId: string, modelId: string, message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<ComponentChatResult>; };
   export: { start(request: ExportRequest): Promise<string>; cancel(jobId: string): Promise<void>; onProgress(listener: (event: { jobId: string; progress: ExportProgress }) => void): () => void; };
 };

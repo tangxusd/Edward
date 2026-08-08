@@ -25,6 +25,7 @@ const bridge: DesktopBridge = {
     apply: (projectId: string, plan: AiEditPlan, mode?: AiPlanApplicationMode) => ipcRenderer.invoke('analysis:apply', projectId, plan, mode),
     list: (projectId: string) => ipcRenderer.invoke('analysis:list', projectId),
   },
+  componentChat: { send: (projectId, clipId, modelId, message, history) => ipcRenderer.invoke('component-chat:send', projectId, clipId, modelId, message, history) },
   export: {
     start: (request) => ipcRenderer.invoke('export:start', request),
     cancel: (jobId) => ipcRenderer.invoke('export:cancel', jobId),

@@ -14,6 +14,32 @@ it('uses ProRes 4444 with an alpha-capable pixel format for transparent exports'
   expect(command.join(' ')).toContain('color=c=black@0.0:s=1920x1080');
 });
 
+it('uses HEVC video and AAC audio for ordinary exports', () => {
+  const command = buildExportCommand({
+    input: '/source/input.mp4',
+    output: '/exports/video.mp4',
+    width: 1920,
+    height: 1080,
+    transparent: false,
+  });
+  expect(command).toEqual(expect.arrayContaining(['-c:v', 'libx265', '-c:a', 'aac', '-tag:v', 'hvc1']));
+  expect(command).not.toContain('libx264');
+});
+
+it('renders an audio-only project over a generated background', () => {
+  const command = buildExportCommand({
+    input: '/source/input.mp3',
+    output: '/exports/audio-project.mp4',
+    width: 1920,
+    height: 1080,
+    transparent: false,
+    mediaKind: 'audio',
+    durationMs: 4000,
+  });
+  expect(command).toEqual(expect.arrayContaining(['-f', 'lavfi', '-i', 'color=c=#151923:s=1920x1080:d=4', '-map', '1:v', '-map', '0:a']));
+  expect(command).not.toContain('-vf');
+});
+
 it('renders timed text overlays in the export filter graph', () => {
   expect(buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] })).toContain('-filter_complex');
   const command = buildExportCommand({ input: '/source/input.mp4', output: '/exports/video.mp4', width: 1280, height: 720, transparent: false, overlays: [{ text: '重点', start: 1, duration: 2 }] }).join(' ');

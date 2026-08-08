@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Project } from '@ai-video/domain';
 import type { ExportProgress } from '@ai-video/media';
 
@@ -21,9 +21,9 @@ export function ExportDialog({ project }: { project?: Project }): React.JSX.Elem
 
   useEffect(() => setAspect(project?.aspectRatio ?? '16:9'), [project?.id, project?.aspectRatio]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
-    requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus());
+    dialogRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus();
   }, [open]);
 
   useEffect(() => window.aiVideo.export.onProgress((event) => {
@@ -52,7 +52,7 @@ export function ExportDialog({ project }: { project?: Project }): React.JSX.Elem
       });
       const cardOverlays = project.tracks.cards.clips.flatMap((clip) => typeof clip.content === 'object' && clip.content !== null && 'text' in clip.content ? [{ text: String(clip.content.text), start: clip.start, duration: clip.duration, color: project.subtitleStyle.color, fontSize: project.subtitleStyle.fontSize, background: project.subtitleStyle.background, x: clip.layout?.x, y: clip.layout?.y }] : []);
       const overlays = [...subtitleOverlays, ...cardOverlays];
-      const nextJobId = await window.aiVideo.export.start({ input: project.media.path, output, width, height, transparent, crf: qualityCrf[quality], overlays });
+      const nextJobId = await window.aiVideo.export.start({ input: project.media.path, output, width, height, transparent, mediaKind: project.media.kind, crf: qualityCrf[quality], overlays });
       setJobId(nextJobId);
     } catch (cause) {
       setProgress(undefined);

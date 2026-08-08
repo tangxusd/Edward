@@ -12,6 +12,12 @@ export const DEFAULT_BACKGROUND_RESOURCE_ID = 'default-background';
 
 export const MediaKindSchema = z.enum(['audio', 'video']);
 export const AspectRatioSchema = z.enum(['16:9', '9:16']);
+export const ComponentConversationSchema = z.object({
+  modelId: z.string().min(1),
+  messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1) })).min(2),
+  draftContent: z.unknown(),
+  updatedAt: z.string().datetime(),
+});
 
 export const ProjectSchema = z.object({
   id: z.string().min(1),
@@ -24,6 +30,7 @@ export const ProjectSchema = z.object({
   aspectRatio: AspectRatioSchema.default('16:9'),
   archivedAt: z.string().datetime().optional(),
   subtitleStyle: SubtitleStyleSchema,
+  componentConversations: z.record(z.string().min(1), ComponentConversationSchema).optional(),
   tracks: z.object({
     mainMedia: TrackSchema,
     background: TrackSchema,

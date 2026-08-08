@@ -12,7 +12,7 @@ import { probeMedia, type ExportRequest } from '@ai-video/media';
 import { ensureWorkspace } from './workspace.js';
 import { readCredential, saveCredential } from './credentialStore.js';
 import { transcribe } from './transcriptionService.js';
-import { analyzeSemantics } from './semanticAnalysisService.js';
+import { analyzeSemantics, requestComponentContentEdit } from './semanticAnalysisService.js';
 import { checkModelAvailability } from './modelAvailabilityService.js';
 import { loadWorkspaceRoot, saveWorkspaceRoot } from './workspaceConfig.js';
 
@@ -26,6 +26,7 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
     },
   });
+  window.maximize();
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -110,6 +111,15 @@ async function registerProjectIpc(): Promise<void> {
     return next;
   });
   ipcMain.handle('analysis:list', (_event, projectId: string) => repository.listAiPlans(String(projectId)));
+  ipcMain.handle('component-chat:send', async (_event, projectId: string, clipId: string, modelId: string, message: string, history: Array<{ role: 'user' | 'assistant'; content: string }>) => {
+    const project = await repository.open(String(projectId));
+    const clip = [...project.tracks.cards.clips, ...project.tracks.graphics.clips, ...project.tracks.subtitles.clips].find((candidate) => candidate.id === String(clipId));
+    if (!clip) throw new Error('component not found');
+    const model = (await models.list()).find((candidate) => candidate.id === String(modelId));
+    if (!model) throw new Error('component chat model not found');
+    const script = await readFile(project.scriptPath, 'utf8');
+    return requestComponentContentEdit({ baseUrl: model.baseUrl, modelId: model.modelId, apiKey: await readCredential(model.credentialRef), script, componentType: clip.styleId, content: clip.content, message: String(message), history });
+  });
   ipcMain.handle('export:start', async (event, request: ExportRequest) => {
     const jobId = crypto.randomUUID();
     const media = await probeMedia(request.input);

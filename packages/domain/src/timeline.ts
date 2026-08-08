@@ -15,7 +15,7 @@ export const TimelineClipSchema = z.object({
   content: z.unknown(),
   styleId: z.string().min(1),
   locked: z.boolean(),
-  layout: z.object({ x: z.number().finite(), y: z.number().finite(), width: z.number().positive(), height: z.number().positive() }).optional(),
+  layout: z.object({ x: z.number().finite(), y: z.number().finite(), width: z.number().positive(), height: z.number().positive(), baseWidth: z.number().positive().optional(), baseHeight: z.number().positive().optional(), scale: z.number().positive().optional() }).optional(),
   sourceRange: z
     .object({
       start: z.number().finite().nonnegative(),

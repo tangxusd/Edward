@@ -3,7 +3,7 @@ import { copyClip, deleteClip, markClipUserEdited, moveClip, resizeClip, type Pr
 
 const pixelsPerSecond = 60;
 const tracks: Array<{ id: TrackId; label: string }> = [
-  { id: 'mainMedia', label: '主媒体' }, { id: 'background', label: '背景' }, { id: 'subtitles', label: '字幕' }, { id: 'cards', label: '卡片' }, { id: 'graphics', label: '图形' },
+  { id: 'graphics', label: '图形' }, { id: 'cards', label: '卡片' }, { id: 'subtitles', label: '字幕' }, { id: 'background', label: '背景' }, { id: 'mainMedia', label: '主媒体' },
 ];
 
 type ActiveClip = { trackId: TrackId; clipId: string; mode: 'move' | 'resize'; startX: number; startStart: number; startDuration: number };

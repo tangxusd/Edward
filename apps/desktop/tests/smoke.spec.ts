@@ -12,7 +12,7 @@ test('exposes only the desktop bridge', async () => {
     ).resolves.toBeDefined();
     await expect(
       page.evaluate(() => Object.keys((window as unknown as Window & { aiVideo: { projects: unknown } }).aiVideo)),
-    ).resolves.toEqual(['workspace', 'projects', 'library', 'models', 'analysis', 'export']);
+    ).resolves.toEqual(['workspace', 'projects', 'library', 'models', 'analysis', 'componentChat', 'export']);
     await expect(
       page.evaluate(() => Object.keys((window as unknown as Window & { aiVideo: { workspace: Record<string, unknown> } }).aiVideo.workspace)),
     ).resolves.toEqual(['setRoot', 'chooseDirectory', 'chooseFile', 'getRoot']);
@@ -140,6 +140,130 @@ test('returns to the home screen after changing the workspace from an open proje
   }
 });
 
+test('closes an open project and returns to the home screen', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/close-project-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/close-project-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('资源库')).toBeVisible();
+    await expect(page.getByLabel('项目名称')).toBeVisible();
+    await expect(page.getByLabel('保存状态')).toBeVisible();
+    await page.getByRole('button', { name: '关闭项目' }).click();
+    await expect(page.getByLabel('项目列表')).toBeVisible();
+    await expect(page.getByLabel('新建项目')).toBeVisible();
+    await expect(page.getByLabel('项目名称')).toHaveCount(0);
+    await expect(page.getByLabel('保存状态')).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('shows the project save status in the editor header', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/save-status-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/save-status-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await expect(page.getByLabel('保存状态')).toHaveText('已保存');
+  } finally {
+    await app.close();
+  }
+});
+
+test('contains editor panels inside the right inspector', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/inspector-container-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/inspector-container-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const inspector = page.getByLabel('资源检查器');
+    await expect(inspector.getByLabel('AI时间线分析')).toBeVisible();
+    await expect(inspector.getByLabel('字幕样式')).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});
+
+test('keeps the preview canvas out of the right inspector column', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-grid-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/preview-grid-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const preview = await page.getByLabel('预览画布').boundingBox();
+    const inspector = await page.getByLabel('资源检查器').boundingBox();
+    if (!preview || !inspector) throw new Error('editor panels are not visible');
+    expect(preview.x + preview.width).toBeLessThanOrEqual(inspector.x);
+  } finally {
+    await app.close();
+  }
+});
+
+test('shows the current project media name in the editor header', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/project-title-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/project-title-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const projectName = page.getByLabel('项目名称');
+    await expect(projectName).toHaveText(mediaPath.split('/').at(-1)!);
+    await expect(projectName).toHaveCSS('left', '270px');
+  } finally {
+    await app.close();
+  }
+});
+
+test('resizes the left editor panel by dragging its divider', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/panel-resize-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/panel-resize-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const initialWidth = await page.evaluate(() => Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue('--left-panel-width'), 10));
+    await page.mouse.move(initialWidth, 300);
+    await page.mouse.down();
+    await page.mouse.move(initialWidth - 40, 300);
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--left-panel-width'))).toBe(`${initialWidth - 40}px`);
+  } finally {
+    await app.close();
+  }
+});
+
+test('resizes the right editor panel by dragging its divider', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/right-panel-resize-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/right-panel-resize-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const viewportWidth = await page.evaluate(() => window.innerWidth);
+    const initialWidth = await page.evaluate(() => Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue('--right-panel-width'), 10));
+    await page.mouse.move(viewportWidth - initialWidth, 300);
+    await page.mouse.down();
+    await page.mouse.move(viewportWidth - initialWidth + 40, 300);
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--right-panel-width'))).toBe(`${initialWidth - 40}px`);
+  } finally {
+    await app.close();
+  }
+});
+
 test('opens the export dialog only from the header export button', async () => {
   const app = await electron.launch({ args: ['.'] });
 
@@ -178,6 +302,23 @@ test('opens the export dialog only from the header export button', async () => {
   }
 });
 
+test('locks ordinary quality controls when transparent export is selected', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: '导出' }).click();
+    const exportDialog = page.getByRole('dialog', { name: '导出' });
+    const quality = exportDialog.getByLabel('质量');
+    await expect(quality).toBeEnabled();
+    await exportDialog.getByRole('checkbox').check();
+    await expect(quality).toBeDisabled();
+    await expect(exportDialog).toContainText('ProRes 4444 MOV');
+  } finally {
+    await app.close();
+  }
+});
+
 test('moves a timeline clip by dragging it', async () => {
   const app = await electron.launch({ args: ['.'] });
 
@@ -197,6 +338,55 @@ test('moves a timeline clip by dragging it', async () => {
     await page.mouse.up();
 
     await expect(clip).toHaveCSS('margin-left', '60px');
+  } finally {
+    await app.close();
+  }
+});
+
+test('resizes a timeline clip by dragging its duration control', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/resize-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill('/tmp/resize-script.txt');
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    const clip = page.getByLabel('多轨时间线').locator('div[role="button"]').filter({ hasText: 'main-media' });
+    const durationControl = page.getByLabel('调整 main-media 时长');
+    await clip.scrollIntoViewIfNeeded();
+    const before = await clip.boundingBox();
+    const control = await durationControl.boundingBox();
+    if (!before || !control) throw new Error('timeline duration control is not visible');
+    await page.mouse.move(control.x + control.width / 2, control.y + control.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(control.x + control.width / 2 + 60, control.y + control.height / 2);
+    await page.mouse.up();
+
+    await expect(clip).toHaveCSS('width', '90px');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.mainMedia.clips[0]?.duration;
+    }, mediaPath)).toBe(1.5);
+  } finally {
+    await app.close();
+  }
+});
+
+test('uses the compositing order in the timeline after opening a project', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/order-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/order-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    await expect(page.getByLabel('项目列表')).toHaveCount(0);
+    await expect(page.getByLabel('工作目录')).toHaveCount(0);
+    await expect(page.getByLabel('新建项目')).toHaveCount(0);
+    await expect(page.getByLabel('多轨时间线').locator(':scope > div').evaluateAll((tracks) => tracks.map((track) => track.getAttribute('aria-label')))).resolves.toEqual(['图形轨道', '卡片轨道', '字幕轨道', '背景轨道', '主媒体轨道']);
   } finally {
     await app.close();
   }
@@ -239,6 +429,98 @@ test('renders the audio project default background in the preview canvas', async
     await page.getByLabel('音频或视频').fill(`/tmp/preview-source-${Date.now()}.mp3`);
     await page.getByRole('button', { name: '创建项目' }).click();
     await expect(page.getByLabel('预览背景 default-background')).toBeVisible();
+    await expect(page.getByLabel('主音频预览')).toBeAttached();
+  } finally {
+    await app.close();
+  }
+});
+
+test('opens background resource choices from the audio background track', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/background-resource-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/background-resource-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('背景轨道').getByRole('button').filter({ hasText: 'default-background' }).click();
+    await expect(page.getByLabel('背景资源')).toBeVisible();
+    await expect(page.getByLabel('背景资源')).toContainText('暂无同类资源');
+  } finally {
+    await app.close();
+  }
+});
+
+test('copies and deletes a background clip from the timeline', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/background-edit-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/background-edit-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    const track = page.getByLabel('背景轨道');
+    await track.getByRole('button', { name: '复制 default-background', exact: true }).click();
+    await expect(track.getByRole('button').filter({ hasText: 'default-background-copy' })).toBeVisible();
+    await track.getByRole('button', { name: '删除 default-background-copy', exact: true }).click();
+    await expect(track.getByRole('button').filter({ hasText: 'default-background-copy' })).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('resizes an audio project background clip from the timeline', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/background-resize-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill('/tmp/background-resize-script.txt');
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    const clip = page.getByLabel('背景轨道').getByRole('button').filter({ hasText: 'default-background' });
+    const control = page.getByLabel('调整 default-background 时长');
+    const before = await control.boundingBox();
+    if (!before) throw new Error('background duration control is not visible');
+    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(before.x + before.width / 2 + 60, before.y + before.height / 2);
+    await page.mouse.up();
+
+    await expect(clip).toHaveCSS('width', '90px');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.background.clips[0]?.duration;
+    }, mediaPath)).toBe(1.5);
+  } finally {
+    await app.close();
+  }
+});
+
+test('moves an audio project background clip from the timeline', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/background-move-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill('/tmp/background-move-script.txt');
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+
+    const clip = page.getByLabel('背景轨道').getByRole('button').filter({ hasText: 'default-background' });
+    const before = await clip.boundingBox();
+    if (!before) throw new Error('background clip is not visible');
+    await page.mouse.move(before.x + 12, before.y + 12);
+    await page.mouse.down();
+    await page.mouse.move(before.x + 72, before.y + 12);
+    await page.mouse.up();
+
+    await expect(clip).toHaveCSS('margin-left', '60px');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.background.clips[0]?.start;
+    }, mediaPath)).toBe(1);
   } finally {
     await app.close();
   }
@@ -253,7 +535,11 @@ test('uses the selected project aspect ratio in preview', async () => {
     await page.getByLabel('音频或视频').fill(`/tmp/aspect-source-${Date.now()}.mp3`);
     await page.getByLabel('项目画幅').selectOption('9:16');
     await page.getByRole('button', { name: '创建项目' }).click();
-    await expect(page.getByLabel('预览画布')).toHaveCSS('aspect-ratio', '9 / 16');
+    const preview = page.getByLabel('预览画布');
+    await expect(preview).toHaveCSS('aspect-ratio', '9 / 16');
+    const bounds = await preview.boundingBox();
+    if (!bounds) throw new Error('preview canvas is not visible');
+    expect(bounds.width / bounds.height).toBeCloseTo(9 / 16, 2);
   } finally {
     await app.close();
   }
@@ -287,7 +573,127 @@ test('renders AI card clips from the project timeline in the preview canvas', as
     await expect(page.getByLabel('项目卡片 ai-cards-0')).toContainText('重点');
     await expect(page.getByLabel('卡片缩放控件 ai-cards-0')).toBeVisible();
     await page.getByLabel('项目卡片 ai-cards-0').click();
+    await expect(page.getByLabel('项目卡片 ai-cards-0')).toHaveCSS('border-width', '2px');
     await expect(page.getByLabel('资源检查器')).toContainText('ai-cards-0');
+    await expect(page.getByLabel('卡片资源')).toBeVisible();
+    const previewBounds = await page.getByLabel('预览画布').boundingBox();
+    if (!previewBounds) throw new Error('preview canvas is not visible');
+    await page.getByLabel('预览画布').click({ position: { x: previewBounds.width - 40, y: previewBounds.height - 80 } });
+    await expect(page.getByLabel('资源检查器')).toContainText('未选择资源');
+  } finally {
+    await app.close();
+  }
+});
+
+test('scales a selected card from the inspector by percentage', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/preview-percent-scale-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-percent-scale-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '百分比缩放', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '可缩放卡片' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await page.getByLabel('项目卡片 ai-cards-0').click();
+
+    const scale = page.getByLabel('缩放', { exact: true });
+    await expect(scale).toHaveValue('100');
+    await scale.fill('125');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.cards.clips[0]?.layout;
+    }, mediaPath)).toMatchObject({ width: 435, height: 225, scale: 125, baseWidth: 348, baseHeight: 180 });
+
+    await scale.fill('50');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.cards.clips[0]?.layout;
+    }, mediaPath)).toMatchObject({ width: 174, height: 90, scale: 50 });
+
+    await page.reload();
+    await page.getByLabel('项目列表').locator('article').filter({ hasText: mediaPath }).getByRole('button', { name: '打开' }).click();
+    await page.getByLabel('项目卡片 ai-cards-0').click();
+    await expect(page.getByLabel('缩放', { exact: true })).toHaveValue('50');
+  } finally {
+    await app.close();
+  }
+});
+
+test('shows component AI chat only for editable preview components', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/component-chat-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/component-chat-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '组件对话', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '卡片内容' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await page.getByLabel('项目卡片 ai-cards-0').click();
+    await expect(page.getByLabel('AI修改组件')).toBeVisible();
+    await expect(page.getByRole('button', { name: '发送给AI' })).toBeDisabled();
+    await page.getByLabel('背景轨道').getByRole('button').filter({ hasText: 'default-background' }).click();
+    await expect(page.getByLabel('AI修改组件')).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('applies only a validated component AI draft after confirmation', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/component-chat-apply-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/component-chat-apply-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '组件草案', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '原始内容' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      if (!project) throw new Error('project not found');
+      await window.aiVideo.projects.save({ ...project, componentConversations: { 'ai-cards-0': { modelId: 'test-model', messages: [{ role: 'user', content: '修改文字' }, { role: 'assistant', content: '已生成草案' }], draftContent: { text: '修改后内容' }, updatedAt: '2026-08-08T00:00:00.000Z' } } });
+    }, mediaPath);
+    await page.reload();
+    await page.getByLabel('项目列表').locator('article').filter({ hasText: mediaPath }).getByRole('button', { name: '打开' }).click();
+    await page.getByLabel('项目卡片 ai-cards-0').click();
+    await expect(page.getByLabel('组件草案状态')).toContainText('草案已通过格式校验');
+    await expect(page.getByLabel('项目卡片 ai-cards-0')).toContainText('原始内容');
+    await page.getByRole('button', { name: '应用修改' }).click();
+    await expect(page.getByLabel('项目卡片 ai-cards-0')).toContainText('修改后内容');
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.cards.clips[0]?.content;
+    }, mediaPath)).toEqual({ text: '修改后内容' });
+  } finally {
+    await app.close();
+  }
+});
+
+test('blocks an incompatible component AI draft', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/component-chat-invalid-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/component-chat-invalid-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '错误草案', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '原始内容' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    await page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      if (!project) throw new Error('project not found');
+      await window.aiVideo.projects.save({ ...project, componentConversations: { 'ai-cards-0': { modelId: 'test-model', messages: [{ role: 'user', content: '增加未知字段' }, { role: 'assistant', content: '错误草案' }], draftContent: { data: [1, 2] }, updatedAt: '2026-08-08T00:00:00.000Z' } } });
+    }, mediaPath);
+    await page.reload();
+    await page.getByLabel('项目列表').locator('article').filter({ hasText: mediaPath }).getByRole('button', { name: '打开' }).click();
+    await page.getByLabel('项目卡片 ai-cards-0').click();
+    await expect(page.getByLabel('组件草案状态')).toContainText('草案格式不兼容');
+    await expect(page.getByRole('button', { name: '应用修改' })).toBeDisabled();
   } finally {
     await app.close();
   }
@@ -359,6 +765,85 @@ test('persists a dragged project card layout', async () => {
       const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
       return project?.tracks.cards.clips[0]?.layout?.x;
     }, mediaPath)).toBeGreaterThanOrEqual(120);
+  } finally {
+    await app.close();
+  }
+});
+
+test('persists a resized project card layout', async () => {
+  const app = await electron.launch({ args: ['.'] });
+  const mediaPath = `/tmp/preview-resize-source-${Date.now()}.mp3`;
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/preview-resize-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(mediaPath);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '卡片缩放', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '可缩放卡片' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+    const control = page.getByLabel('卡片缩放控件 ai-cards-0');
+    const bounds = await control.boundingBox();
+    if (!bounds) throw new Error('project card resize control is not visible');
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width / 2 + 80, bounds.y + bounds.height / 2);
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(async (path) => {
+      const project = (await window.aiVideo.projects.list()).find((candidate) => candidate.media.path === path);
+      return project?.tracks.cards.clips[0]?.layout?.width;
+    }, mediaPath)).toBeGreaterThan(348);
+  } finally {
+    await app.close();
+  }
+});
+
+test('shows a center guide while dragging a card into horizontal alignment', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/guide-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/guide-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '居中参考线', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '对齐卡片' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+
+    const canvas = page.getByLabel('预览画布');
+    const card = page.getByLabel('项目卡片 ai-cards-0');
+    const canvasBounds = await canvas.boundingBox();
+    const cardBounds = await card.boundingBox();
+    if (!canvasBounds || !cardBounds) throw new Error('preview card is not visible');
+    await page.mouse.move(cardBounds.x + 20, cardBounds.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(canvasBounds.x + canvasBounds.width / 2 - cardBounds.width / 2 + 20, cardBounds.y + 20);
+    await expect(page.getByLabel('垂直对齐参考线')).toBeVisible();
+    await page.mouse.up();
+  } finally {
+    await app.close();
+  }
+});
+
+test('shows a center guide while dragging a card into vertical alignment', async () => {
+  const app = await electron.launch({ args: ['.'] });
+
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel('文案文稿').fill(`/tmp/vertical-guide-script-${Date.now()}.txt`);
+    await page.getByLabel('音频或视频').fill(`/tmp/vertical-guide-source-${Date.now()}.mp3`);
+    await page.getByRole('button', { name: '创建项目' }).click();
+    await page.getByLabel('AI编辑计划').fill(JSON.stringify({ summary: '垂直居中参考线', clips: [{ track: 'cards', start: 0, duration: 2, content: { text: '对齐卡片' }, styleId: 'card-style' }] }));
+    await page.getByRole('button', { name: '应用到时间线' }).click();
+
+    const canvas = page.getByLabel('预览画布');
+    const card = page.getByLabel('项目卡片 ai-cards-0');
+    const canvasBounds = await canvas.boundingBox();
+    const cardBounds = await card.boundingBox();
+    if (!canvasBounds || !cardBounds) throw new Error('preview card is not visible');
+    await page.mouse.move(cardBounds.x + 20, cardBounds.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(cardBounds.x + 20, canvasBounds.y + canvasBounds.height / 2 - cardBounds.height / 2 + 20);
+    await expect(page.getByLabel('水平对齐参考线')).toBeVisible();
+    await page.mouse.up();
   } finally {
     await app.close();
   }
@@ -482,7 +967,10 @@ test('saves a named cloud model record', async () => {
     await modelPanel.getByLabel('模型凭证').fill('secret-test-value');
     await modelPanel.getByRole('button', { name: '保存模型' }).click();
     await expect(modelPanel).toContainText(name);
-    await expect(page.getByLabel('当前模型状态')).toContainText(`${name} 离线`);
+    const modelStatus = page.getByLabel('当前模型状态');
+    await expect(modelStatus).toContainText(`${name} 离线`);
+    await expect(modelStatus).toHaveCSS('right', '440px');
+    await expect(modelStatus).toHaveCSS('color', 'rgb(209, 67, 67)');
   } finally {
     await app.close();
   }
