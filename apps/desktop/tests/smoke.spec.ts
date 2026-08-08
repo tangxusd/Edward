@@ -36,8 +36,20 @@ test('opens settings from the top bar and switches settings tabs', async () => {
     await page.getByRole('button', { name: '设置' }).click();
     await expect(page.getByRole('dialog', { name: '设置' })).toBeVisible();
     await expect(page.getByLabel('工作目录路径')).toBeVisible();
-    await page.getByRole('tab', { name: 'AI 模型' }).click();
+    const generalTab = page.getByRole('tab', { name: '通用' });
+    const modelsTab = page.getByRole('tab', { name: 'AI 模型' });
+    await expect(generalTab).toHaveAttribute('id', 'settings-tab-general');
+    await expect(generalTab).toHaveAttribute('aria-controls', 'settings-panel-general');
+    await expect(modelsTab).toHaveAttribute('id', 'settings-tab-models');
+    await expect(modelsTab).toHaveAttribute('aria-controls', 'settings-panel-models');
+    await generalTab.press('ArrowRight');
+    await expect(modelsTab).toHaveAttribute('aria-selected', 'true');
+    await expect(modelsTab).toBeFocused();
     await expect(page.getByLabel('模型设置')).toBeVisible();
+    await modelsTab.press('ArrowRight');
+    await expect(generalTab).toHaveAttribute('aria-selected', 'true');
+    await expect(generalTab).toBeFocused();
+    await modelsTab.click();
     await page.getByRole('button', { name: '关闭设置' }).click();
     await expect(page.getByRole('dialog', { name: '设置' })).toHaveCount(0);
   } finally {
@@ -339,6 +351,8 @@ test('saves a named cloud model record', async () => {
 
   try {
     const page = await app.firstWindow();
+    await page.getByRole('button', { name: '设置' }).click();
+    await page.getByRole('tab', { name: 'AI 模型' }).click();
     const modelPanel = page.getByLabel('模型设置');
     await modelPanel.getByLabel('名称').fill(name);
     await modelPanel.getByLabel('API 地址').fill('https://model.example.test/v1');
@@ -410,6 +424,7 @@ test('shows a native workspace directory picker', async () => {
 
   try {
     const page = await app.firstWindow();
+    await page.getByRole('button', { name: '设置' }).click();
     await expect(page.getByLabel('工作目录').getByRole('button', { name: '选择目录' })).toBeVisible();
   } finally {
     await app.close();
@@ -421,6 +436,7 @@ test('shows workspace validation errors in the settings panel', async () => {
 
   try {
     const page = await app.firstWindow();
+    await page.getByRole('button', { name: '设置' }).click();
     const workspace = page.getByRole('region', { name: '工作目录' });
     await workspace.getByLabel('工作目录路径').fill('relative/workspace');
     await workspace.getByRole('button', { name: '应用' }).click();
@@ -444,6 +460,7 @@ test('switches project storage when changing the workspace', async () => {
     await page.getByRole('button', { name: '创建项目' }).click();
     await expect(page.getByLabel('项目列表')).toContainText(mediaPath);
 
+    await page.getByRole('button', { name: '设置' }).click();
     const workspace = page.getByRole('region', { name: '工作目录' });
     await workspace.getByLabel('工作目录路径').fill(destinationRoot);
     await workspace.getByRole('button', { name: '应用' }).click();
@@ -463,6 +480,8 @@ test('reloads saved models when changing the workspace', async () => {
   try {
     const page = await app.firstWindow();
     await page.evaluate((nextRoot) => window.aiVideo.workspace.setRoot(nextRoot), sourceRoot);
+    await page.getByRole('button', { name: '设置' }).click();
+    await page.getByRole('tab', { name: 'AI 模型' }).click();
     const modelSettings = page.getByLabel('模型设置');
     await modelSettings.getByLabel('名称').fill('源目录模型');
     await modelSettings.getByLabel('API 地址').fill('https://example.com/v1');
@@ -472,11 +491,14 @@ test('reloads saved models when changing the workspace', async () => {
     await modelSettings.getByRole('button', { name: '保存模型' }).click();
     await expect(modelSettings.getByLabel('已保存模型')).toContainText('源目录模型');
 
+    await page.getByRole('tab', { name: '通用' }).click();
     const workspace = page.getByRole('region', { name: '工作目录' });
     await workspace.getByLabel('工作目录路径').fill(destinationRoot);
     await workspace.getByRole('button', { name: '应用' }).click();
 
-    await expect(modelSettings.getByLabel('已保存模型')).not.toContainText('源目录模型');
+    await page.getByRole('tab', { name: 'AI 模型' }).click();
+    const destinationModelSettings = page.getByLabel('模型设置');
+    await expect(destinationModelSettings.getByLabel('已保存模型')).not.toContainText('源目录模型');
     await expect(page.getByLabel('分析模型')).toContainText('暂无模型');
   } finally {
     await app.close();
