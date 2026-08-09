@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { markClipUserEdited, type Project, type Resource } from '@ai-video/domain';
 import { ResourceChoicePanel } from './ResourceChoicePanel.js';
 import { ComponentAiChatPanel } from './ComponentAiChatPanel.js';
-import { AiAnalysisPanel } from './AiAnalysisPanel.js';
 import { SubtitleStylePanel } from './SubtitleStylePanel.js';
 import {
   identifyComponentKind,
@@ -170,12 +169,7 @@ export function RightPanel({
               />
             ) : null}
 
-            {/* AI analysis panel */}
-            <AiAnalysisPanel
-              project={project}
-              onApplied={updateProject}
-            />
-          </section>
+            </section>
         ) : (
           <section className="right-panel-resources">
             {selected?.id.includes('cards') ? (

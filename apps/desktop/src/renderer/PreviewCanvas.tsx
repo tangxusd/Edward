@@ -174,13 +174,25 @@ export function PreviewCanvas({ project, onChange, onSelect, selectedClipId }: {
       onMouseUp={finish}
       className="preview-canvas"
     >
-      {/* 参考线按钮 */}
-      <button
-        className="preview-ref-btn"
-        onClick={() => setShowGuides(!showGuides)}
-      >
-        参考线 ▾
-      </button>
+      {/* 参考线下拉菜单 */}
+      <div className="preview-guide-menu">
+        <button
+          className="preview-ref-btn"
+          onClick={() => setShowGuides(!showGuides)}
+        >
+          参考线 ▾
+        </button>
+        {showGuides ? (
+          <div className="preview-guide-dropdown">
+            <button onClick={() => setShowGuides(true)}>水平参考线</button>
+            <button onClick={() => setShowGuides(true)}>垂直参考线</button>
+            <button onClick={() => setShowGuides(true)}>对角参考线</button>
+            <hr />
+            <button onClick={() => {/* 锁定 */}}>锁定参考线</button>
+            <button onClick={() => setShowGuides(false)}>隐藏参考线</button>
+          </div>
+        ) : null}
+      </div>
 
       {/* 16:9 预览帧 */}
       <div className="preview-frame">
@@ -225,12 +237,7 @@ export function PreviewCanvas({ project, onChange, onSelect, selectedClipId }: {
             <i key={`y-${y}`} aria-label="水平对齐参考线" style={{ position: 'absolute', top: y, left: 0, right: 0, borderTop: '1px solid #24b47e', pointerEvents: 'none' }} />
           ))}
 
-          {/* 卡片布局工具栏 */}
-          <div role="toolbar" aria-label="卡片布局" className="preview-card-toolbar">
-            <button onClick={() => setLayout(1)} aria-pressed={cardCount === 1}>单卡</button>
-            <button onClick={() => setLayout(2)} aria-pressed={cardCount === 2}>双卡</button>
-            <button onClick={() => setLayout(3)} aria-pressed={cardCount === 3}>三卡</button>
-          </div>
+
 
           {/* 项目可视片段 */}
           {projectVisualClips.map(({ clip, kind }, index) => {
