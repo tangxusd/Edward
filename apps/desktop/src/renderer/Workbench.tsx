@@ -1,13 +1,10 @@
 import { useCallback } from 'react';
-import { markClipUserEdited, type Project, type Resource } from '@ai-video/domain';
+import type { Project, Resource } from '@ai-video/domain';
 import { TopBar } from './TopBar.js';
 import { LeftPanel } from './LeftPanel.js';
 import { PreviewCanvas } from './PreviewCanvas.js';
-import { ResourceChoicePanel } from './ResourceChoicePanel.js';
-import { ComponentAiChatPanel } from './ComponentAiChatPanel.js';
+import { RightPanel } from './RightPanel.js';
 import { Timeline } from './Timeline.js';
-import { AiAnalysisPanel } from './AiAnalysisPanel.js';
-import { SubtitleStylePanel } from './SubtitleStylePanel.js';
 import { SettingsDialog } from './SettingsDialog.js';
 import { ExportDialog } from './ExportDialog.js';
 import type { ModelRecord } from '../main/modelRepository.js';
@@ -67,18 +64,21 @@ export function Workbench({
           <PreviewCanvas project={project} onChange={updateProject} onSelect={setSelectedClipId} selectedClipId={selectedClipId} />
         </main>
         <div className="divider-right" />
-        <aside className="right-panel">
-          {selectedClipId ?? '未选择资源'}
-          {selected && selectedText ? <label>文字内容<textarea aria-label="文字内容" value={selectedText} onChange={(event) => project && updateProject(markClipUserEdited(project, selected.id, { ...(selected.content as object), text: event.target.value }))} /></label> : null}
-          {selected?.layout ? <fieldset aria-label="缩放属性"><label>缩放<input aria-label="缩放" type="number" min="1" max="1000" value={selected.layout.scale ?? 100} onChange={(event) => updateSelectedScale(Number(event.target.value))} />%</label></fieldset> : null}
-          {selected?.id.includes('subtitles') ? <fieldset aria-label="局部字幕样式"><label>局部字体<input aria-label="局部字体" value={selectedTextStyle.fontFamily ?? project?.subtitleStyle.fontFamily ?? ''} onChange={(event) => updateSelectedTextStyle('fontFamily', event.target.value)} /></label><label>局部字号<input aria-label="局部字号" type="number" value={selectedTextStyle.fontSize ?? project?.subtitleStyle.fontSize ?? 48} onChange={(event) => updateSelectedTextStyle('fontSize', Number(event.target.value))} /></label><label>局部颜色<input aria-label="局部颜色" type="color" value={selectedTextStyle.color ?? project?.subtitleStyle.color ?? '#ffffff'} onChange={(event) => updateSelectedTextStyle('color', event.target.value)} /></label><label>局部文字背景<input aria-label="局部文字背景" value={selectedTextStyle.background ?? project?.subtitleStyle.background ?? ''} onChange={(event) => updateSelectedTextStyle('background', event.target.value)} /></label></fieldset> : null}
-          {selected?.id.includes('cards') ? <ResourceChoicePanel label="卡片" resources={cardStyles} onSelect={replaceSelectedResource} /> : null}
-          {selected?.id.includes('background') ? <ResourceChoicePanel label="背景" resources={backgrounds} onSelect={replaceSelectedResource} /> : null}
-          {selected?.id.includes('graphics') ? <ResourceChoicePanel label="图形" resources={graphics} onSelect={replaceSelectedResource} /> : null}
-          {selected && (selected.id.includes('cards') || selected.id.includes('graphics') || selected.id.includes('subtitles')) ? <ComponentAiChatPanel project={project!} clip={selected} onProjectChange={updateProject} onApply={(content) => updateProject(markClipUserEdited(project!, selected.id, content))} /> : null}
-          <AiAnalysisPanel project={project} onApplied={updateProject} />
-          <SubtitleStylePanel project={project} onChange={updateProject} />
-        </aside>
+        <RightPanel
+          project={project}
+          updateProject={updateProject}
+          selectedClipId={selectedClipId}
+          selected={selected}
+          selectedText={selectedText}
+          selectedTextStyle={selectedTextStyle}
+          updateSelectedTextStyle={updateSelectedTextStyle}
+          updateSelectedScale={updateSelectedScale}
+          cardStyles={cardStyles}
+          backgrounds={backgrounds}
+          graphics={graphics}
+          replaceSelectedResource={replaceSelectedResource}
+          setModels={setModels}
+        />
         <div className="divider-horizontal" />
         <section className="timeline-panel">
           <Timeline project={project} onChange={updateProject} onSelect={setSelectedClipId} />
