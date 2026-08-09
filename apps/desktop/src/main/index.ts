@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { AiPlanApplicationModeSchema, AiEditPlanSchema, ProjectSchema, applyAiPlan } from '@ai-video/domain';
@@ -17,16 +17,18 @@ import { checkModelAvailability } from './modelAvailabilityService.js';
 import { loadWorkspaceRoot, saveWorkspaceRoot } from './workspaceConfig.js';
 
 function createWindow(): BrowserWindow {
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
   const window = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: Math.round(screenWidth / 2),
+    height: Math.round(screenHeight / 2),
+    center: true,
+    resizable: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
-  window.maximize();
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
