@@ -21,15 +21,15 @@ h1, h2 { margin: 0; font-weight: 600; letter-spacing: 0; }
 h1 { font-size: 14px; }
 h2 { font-size: 12px; color: #c8ced7; }
 
-main { display: grid; grid-template-columns: var(--left-panel-width) minmax(520px, 1fr) var(--right-panel-width); grid-template-rows: 46px minmax(360px, 1fr) 250px; min-height: 100vh; background: #08090b; overflow: hidden; }
-main::before, main::after { content: ''; position: fixed; z-index: 20; top: 46px; bottom: 250px; width: 7px; cursor: col-resize; }
-main::before { left: calc(var(--left-panel-width) - 3px); border-left: 1px solid #303842; }
-main::after { right: calc(var(--right-panel-width) - 3px); border-right: 1px solid #303842; }
-main > header { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #252a32; background: #0d0f13; }
-main > header h1 { min-width: 148px; }
-main > header button { padding: 5px 8px; background: transparent; border-color: transparent; color: #a6afbb; }
-main > header button:hover:not(:disabled) { color: #e7eaf0; background: #191d23; }
-main > header output { position: fixed; z-index: 30; top: 15px; right: 440px; max-width: 170px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+main.workbench { display: grid; grid-template-columns: var(--left-panel-width) minmax(520px, 1fr) var(--right-panel-width); grid-template-rows: 46px minmax(360px, 1fr) 250px; min-height: 100vh; background: #08090b; overflow: hidden; }
+main.workbench::before, main.workbench::after { content: ''; position: fixed; z-index: 20; top: 46px; bottom: 250px; width: 7px; cursor: col-resize; }
+main.workbench::before { left: calc(var(--left-panel-width) - 3px); border-left: 1px solid #303842; }
+main.workbench::after { right: calc(var(--right-panel-width) - 3px); border-right: 1px solid #303842; }
+main.workbench > header { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #252a32; background: #0d0f13; }
+main.workbench > header h1 { min-width: 148px; }
+main.workbench > header button { padding: 5px 8px; background: transparent; border-color: transparent; color: #a6afbb; }
+main.workbench > header button:hover:not(:disabled) { color: #e7eaf0; background: #191d23; }
+main.workbench > header output { position: fixed; z-index: 30; top: 15px; right: 440px; max-width: 170px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .export-trigger { position: fixed; z-index: 30; top: 9px; right: 14px; border-color: #2a8c98; background: #12717c; color: #fff; }
 .export-trigger:hover:not(:disabled) { background: #188a96; border-color: #58b7c1; }
 .settings-trigger { position: fixed; z-index: 30; top: 9px; right: 88px; }
@@ -54,40 +54,40 @@ main > header output { position: fixed; z-index: 30; top: 15px; right: 440px; ma
 [role="dialog"][aria-label="设置"] section > h2 { margin-bottom: 10px; }
 [role="dialog"][aria-label="设置"] section > * { margin-bottom: 8px; }
 
-main > section[aria-label="项目列表"], main > section[aria-label="新建项目"], main > section[aria-label="资源库"] { grid-column: 1; padding: 12px; border-right: 1px solid #252a32; background: #0f1115; overflow: auto; }
-main > section[aria-label="项目列表"] { grid-row: 2; align-self: start; height: 154px; margin-top: 126px; border-top: 1px solid #252a32; z-index: 2; }
-main > section[aria-label="新建项目"] { grid-row: 2; align-self: start; height: 280px; margin-top: 290px; border-top: 1px solid #252a32; z-index: 1; }
-main:not(:has(section[aria-label="项目列表"])) > section[aria-label="导出"] { position: fixed; left: -5000px; top: 0; width: 420px; max-height: 90vh; overflow: auto; }
-main:not(:has(section[aria-label="项目列表"])) > section[aria-label="资源库"] { display: block; grid-row: 2; }
-main:has(section[aria-label="项目列表"]) > section[aria-label="资源库"] { display: none; }
-main > section[aria-label="项目列表"] h2, main > section[aria-label="新建项目"] h2 { margin-bottom: 10px; }
-main > section[aria-label="新建项目"] > * { margin-bottom: 8px; }
+main.workbench > section[aria-label="项目列表"], main.workbench > section[aria-label="新建项目"], main.workbench > section[aria-label="资源库"] { grid-column: 1; padding: 12px; border-right: 1px solid #252a32; background: #0f1115; overflow: auto; }
+main.workbench > section[aria-label="项目列表"] { grid-row: 2; align-self: start; height: 154px; margin-top: 126px; border-top: 1px solid #252a32; z-index: 2; }
+main.workbench > section[aria-label="新建项目"] { grid-row: 2; align-self: start; height: 280px; margin-top: 290px; border-top: 1px solid #252a32; z-index: 1; }
+main.workbench:not(:has(section[aria-label="项目列表"])) > section[aria-label="导出"] { position: fixed; left: -5000px; top: 0; width: 420px; max-height: 90vh; overflow: auto; }
+main.workbench:not(:has(section[aria-label="项目列表"])) > section[aria-label="资源库"] { display: block; grid-row: 2; }
+main.workbench:has(section[aria-label="项目列表"]) > section[aria-label="资源库"] { display: none; }
+main.workbench > section[aria-label="项目列表"] h2, main.workbench > section[aria-label="新建项目"] h2 { margin-bottom: 10px; }
+main.workbench > section[aria-label="新建项目"] > * { margin-bottom: 8px; }
 
-main > section[aria-label="预览画布"] { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; align-self: center; justify-self: stretch; margin: 14px; border: 1px solid #292f38; border-radius: 4px; background: #050608 !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02); }
-main > aside[aria-label="资源检查器"] { grid-column: 3; grid-row: 2; padding: 14px; border-left: 1px solid #252a32; background: #0f1115; overflow: auto; }
-main > aside[aria-label="资源检查器"] > * { margin-bottom: 12px; }
-main > aside[aria-label="资源检查器"] fieldset { border: 0; border-top: 1px solid #252a32; padding: 12px 0 0; }
-main > aside[aria-label="资源检查器"] textarea { min-height: 82px; width: 100%; }
+main.workbench > section[aria-label="预览画布"] { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; align-self: center; justify-self: stretch; margin: 14px; border: 1px solid #292f38; border-radius: 4px; background: #050608 !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02); }
+main.workbench > aside[aria-label="资源检查器"] { grid-column: 3; grid-row: 2; padding: 14px; border-left: 1px solid #252a32; background: #0f1115; overflow: auto; }
+main.workbench > aside[aria-label="资源检查器"] > * { margin-bottom: 12px; }
+main.workbench > aside[aria-label="资源检查器"] fieldset { border: 0; border-top: 1px solid #252a32; padding: 12px 0 0; }
+main.workbench > aside[aria-label="资源检查器"] textarea { min-height: 82px; width: 100%; }
 .resource-choice-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
 .resource-choice-panel button { display: grid; min-width: 0; gap: 6px; padding: 6px; overflow: hidden; text-align: left; }
 .resource-choice-panel img, .resource-choice-panel button > span { display: block; width: 100%; height: 58px; border-radius: 3px; background: #1a2029; object-fit: cover; }
 .resource-choice-panel button > span { border: 1px solid #303842; }
-main > aside[aria-label="资源检查器"] > section[aria-label="AI时间线分析"], main > aside[aria-label="资源检查器"] > section[aria-label="字幕样式"], main > aside[aria-label="资源检查器"] > section[aria-label="AI修改组件"] { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid #252a32; }
-main > aside[aria-label="资源检查器"] > section[aria-label="AI时间线分析"] textarea, main > aside[aria-label="资源检查器"] > section[aria-label="AI时间线分析"] select { width: 100%; }
+main.workbench > aside[aria-label="资源检查器"] > section[aria-label="AI时间线分析"], main.workbench > aside[aria-label="资源检查器"] > section[aria-label="字幕样式"], main.workbench > aside[aria-label="资源检查器"] > section[aria-label="AI修改组件"] { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid #252a32; }
+main.workbench > aside[aria-label="资源检查器"] > section[aria-label="AI时间线分析"] textarea, main.workbench > aside[aria-label="资源检查器"] > section[aria-label="AI时间线分析"] select { width: 100%; }
 
-main > section[aria-label="多轨时间线"] { grid-column: 1 / -1; grid-row: 3; padding: 12px 14px; border-top: 1px solid #252a32; background: #0d0f13; overflow: auto; }
-main > section[aria-label="多轨时间线"] > h2 { margin-bottom: 10px; }
-main > section[aria-label="多轨时间线"] > div { display: grid; grid-template-columns: 88px 1fr; align-items: center; min-height: 48px; border-top: 1px solid #1e232b; }
-main > section[aria-label="多轨时间线"] > div > strong { color: #8d96a3; font-size: 11px; }
-main > section[aria-label="多轨时间线"] > div > div { min-height: 38px !important; border-left: 1px solid #292f38; }
-main > section[aria-label="多轨时间线"] [role="button"] { border: 1px solid #3c5d88; border-radius: 3px; background: #17253a !important; }
+main.workbench > section[aria-label="多轨时间线"] { grid-column: 1 / -1; grid-row: 3; padding: 12px 14px; border-top: 1px solid #252a32; background: #0d0f13; overflow: auto; }
+main.workbench > section[aria-label="多轨时间线"] > h2 { margin-bottom: 10px; }
+main.workbench > section[aria-label="多轨时间线"] > div { display: grid; grid-template-columns: 88px 1fr; align-items: center; min-height: 48px; border-top: 1px solid #1e232b; }
+main.workbench > section[aria-label="多轨时间线"] > div > strong { color: #8d96a3; font-size: 11px; }
+main.workbench > section[aria-label="多轨时间线"] > div > div { min-height: 38px !important; border-left: 1px solid #292f38; }
+main.workbench > section[aria-label="多轨时间线"] [role="button"] { border: 1px solid #3c5d88; border-radius: 3px; background: #17253a !important; }
 
-main > section[aria-label="导出"] { grid-column: 1; grid-row: 2; }
-main > section[aria-label="预览画布"] [role="toolbar"] { top: 10px !important; left: 10px !important; display: flex; gap: 4px; }
-main > section[aria-label="预览画布"] [role="toolbar"] button { padding: 4px 8px; font-size: 11px; }
-main > section[aria-label="预览画布"] [role="toolbar"] button[aria-pressed="true"] { border-color: #3d8bfd; background: #15315a; color: #fff; }
-main > section[aria-label="预览画布"] [aria-label="预览播放控制"] { border-top: 1px solid rgba(255,255,255,.08); padding-top: 8px; }
-main > section[aria-label="预览画布"] [aria-label="预览播放控制"] select { margin-left: auto; min-width: 74px; padding: 5px 8px; }
+main.workbench > section[aria-label="导出"] { grid-column: 1; grid-row: 2; }
+main.workbench > section[aria-label="预览画布"] [role="toolbar"] { top: 10px !important; left: 10px !important; display: flex; gap: 4px; }
+main.workbench > section[aria-label="预览画布"] [role="toolbar"] button { padding: 4px 8px; font-size: 11px; }
+main.workbench > section[aria-label="预览画布"] [role="toolbar"] button[aria-pressed="true"] { border-color: #3d8bfd; background: #15315a; color: #fff; }
+main.workbench > section[aria-label="预览画布"] [aria-label="预览播放控制"] { border-top: 1px solid rgba(255,255,255,.08); padding-top: 8px; }
+main.workbench > section[aria-label="预览画布"] [aria-label="预览播放控制"] select { margin-left: auto; min-width: 74px; padding: 5px 8px; }
 
 @media (max-width: 1180px) {
   body { min-width: 960px; }

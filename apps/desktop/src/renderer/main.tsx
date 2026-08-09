@@ -64,7 +64,7 @@ function App(): React.JSX.Element {
     );
   }
   return (
-    <main>
+    <main className="workbench">
       <header data-history-revision={historyRevision}>
         <h1>Edward</h1>
         <span className="header-version">0.1.1</span>
