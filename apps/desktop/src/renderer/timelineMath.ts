@@ -1,5 +1,22 @@
 export type Rect = { x: number; y: number; width: number; height: number };
 
+/** Pixels per second for timeline rendering */
+export const PIXELS_PER_SECOND = 60;
+
+/** Minimum clip width in pixels */
+export const MIN_CLIP_PX = 20;
+
+/** Convert time in seconds to pixel x-position */
+export function timeToPixel(time: number): number {
+  return time * PIXELS_PER_SECOND;
+}
+
+/** Convert pixel x-position to time in seconds */
+export function pixelToTime(pixel: number): number {
+  return pixel / PIXELS_PER_SECOND;
+}
+
+/** Snap a value to nearby guides */
 export function snap(value: number, guides: number[], threshold = 8): number {
   const guide = guides.find((candidate) => Math.abs(candidate - value) <= threshold);
   return guide ?? value;
@@ -42,4 +59,35 @@ export function resizeWithAspectRatio(rect: Rect, width: number, freeResize: boo
 export function distributeHorizontally(bounds: Rect, count: 2 | 3, gap: number): Rect[] {
   const width = (bounds.width - gap * (count - 1)) / count;
   return Array.from({ length: count }, (_, index) => ({ x: bounds.x + index * (width + gap), y: bounds.y, width, height: bounds.height }));
+}
+
+/** Generate tick marks for the time ruler */
+export function generateTickMarks(totalSeconds: number): Array<{ position: number; label: string; isMajor: boolean }> {
+  const ticks: Array<{ position: number; label: string; isMajor: boolean }> = [];
+  const interval = 1; // 1 second intervals
+  for (let t = 0; t <= totalSeconds; t += interval) {
+    const position = timeToPixel(t);
+    const minutes = Math.floor(t / 60);
+    const seconds = Math.floor(t % 60);
+    const label = minutes > 0
+      ? `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `00:${String(seconds).padStart(2, '0')}`;
+    ticks.push({ position, label, isMajor: t % 5 === 0 });
+  }
+  return ticks;
+}
+
+/** Get the clip color based on track type */
+export function getClipColor(trackId: string): string {
+  switch (trackId) {
+    case 'graphics':
+    case 'cards':
+      return '#84527b';
+    case 'subtitles':
+      return '#3d7671';
+    case 'mainMedia':
+    case 'background':
+    default:
+      return '#356e9e';
+  }
 }
