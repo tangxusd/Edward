@@ -3,6 +3,9 @@ import { markClipUserEdited, setClipLayout, type Project } from '@ai-video/domai
 import { distributeHorizontally, resizeWithAspectRatio, snapRectToGuides, type Rect } from './timelineMath.js';
 import { toLocalFileUrl } from './fileUrl.js';
 
+const ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:2', '21:9'] as const;
+const PREVIEW_QUALITIES = ['原画', '清晰', '流畅'] as const;
+
 type ActivePointer =
   | { id: string; mode: 'drag'; offsetX: number; offsetY: number }
   | { id: string; mode: 'resize'; startX: number; startWidth: number }
@@ -30,6 +33,9 @@ export function PreviewCanvas({ project, onChange, onSelect, selectedClipId }: {
   const [guides, setGuides] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [playing, setPlaying] = useState(false);
   const [showGuides, setShowGuides] = useState(true);
+  const [aspectOpen, setAspectOpen] = useState(false);
+  const [qualityOpen, setQualityOpen] = useState(false);
+  const [previewQuality, setPreviewQuality] = useState<string>('原画');
   const cardsRef = useRef(cards);
   const activeRef = useRef<ActivePointer | undefined>(undefined);
   const canvasRef = useRef<HTMLElement | null>(null);
@@ -288,16 +294,64 @@ export function PreviewCanvas({ project, onChange, onSelect, selectedClipId }: {
         >
           {playing ? '⏸' : '▶'}
         </button>
-        <select
-          aria-label="预览画幅"
-          className="preview-aspect-select"
-          value={project?.aspectRatio ?? '16:9'}
-          onChange={(event) => project && onChange?.({ ...project, aspectRatio: event.target.value as Project['aspectRatio'] })}
-        >
-          <option value="16:9">16:9</option>
-          <option value="9:16">9:16</option>
-        </select>
-        <span className="preview-quality">原画 ▾</span>
+        {/* 画幅切换下拉菜单 */}
+        <div className="preview-aspect-wrap">
+          <button
+            aria-label="预览画幅"
+            className="preview-aspect-btn"
+            onClick={() => { setAspectOpen(!aspectOpen); setQualityOpen(false); }}
+          >
+            {project?.aspectRatio ?? '16:9'} ▾
+          </button>
+          {aspectOpen ? (
+            <div className="preview-aspect-dropdown">
+              {ASPECT_RATIOS.map((ratio) => (
+                <div
+                  key={ratio}
+                  className={`preview-aspect-option${ratio === (project?.aspectRatio ?? '16:9') ? ' active' : ''}`}
+                  onClick={() => {
+                    if (project) onChange?.({ ...project, aspectRatio: ratio as Project['aspectRatio'] });
+                    setAspectOpen(false);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (project) onChange?.({ ...project, aspectRatio: ratio as Project['aspectRatio'] }); setAspectOpen(false); } }}
+                >
+                  {ratio}
+                  {ratio === (project?.aspectRatio ?? '16:9') ? <span className="preview-menu-dot">●</span> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {/* 预览清晰度下拉菜单 */}
+        <div className="preview-quality-wrap">
+          <button
+            aria-label="预览清晰度"
+            className="preview-quality-btn"
+            onClick={() => { setQualityOpen(!qualityOpen); setAspectOpen(false); }}
+          >
+            {previewQuality} ▾
+          </button>
+          {qualityOpen ? (
+            <div className="preview-quality-dropdown">
+              {PREVIEW_QUALITIES.map((q) => (
+                <div
+                  key={q}
+                  className={`preview-quality-option${q === previewQuality ? ' active' : ''}`}
+                  onClick={() => { setPreviewQuality(q); setQualityOpen(false); }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewQuality(q); setQualityOpen(false); } }}
+                >
+                  {q}
+                  {q === previewQuality ? <span className="preview-menu-dot">●</span> : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );

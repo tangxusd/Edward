@@ -1167,3 +1167,148 @@ h2 { font-size: 12px; color: #c8ced7; }
 .resource-upgrade-card:hover {
   border-color: #20d5cc;
 }
+
+/* ===== Aspect Ratio Dropdown — 匹配视觉确认稿 aspect-ratio-menu-v2-dot.html ===== */
+.preview-aspect-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.preview-aspect-btn {
+  background: #292c30;
+  border: 1px solid #4a4f55;
+  border-radius: 5px;
+  color: #bbb;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 24px;
+}
+.preview-aspect-btn:hover { background: #353a40; color: #fff; }
+
+.preview-aspect-dropdown {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  min-width: 80px;
+  background: #292c30;
+  border: 1px solid #4a4f55;
+  border-radius: 5px;
+  padding: 4px 0;
+  z-index: 10;
+  line-height: 24px;
+}
+
+.preview-aspect-option {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #bbb;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.preview-aspect-option:hover { background: #3a3f45; color: #fff; border-radius: 3px; }
+.preview-aspect-option.active { color: #e6ffff; }
+
+.preview-menu-dot {
+  color: #16c9c0;
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* ===== Preview Quality Dropdown — 匹配视觉确认稿 preview-quality-menu-v1.html ===== */
+.preview-quality-wrap {
+  position: relative;
+}
+
+.preview-quality-btn {
+  background: #292c30;
+  border: 1px solid #4a4f55;
+  border-radius: 5px;
+  color: #bbb;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 24px;
+}
+.preview-quality-btn:hover { background: #353a40; color: #fff; }
+
+.preview-quality-dropdown {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  min-width: 64px;
+  background: #292c30;
+  border: 1px solid #4a4f55;
+  border-radius: 5px;
+  padding: 4px 0;
+  z-index: 10;
+  line-height: 24px;
+}
+
+.preview-quality-option {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #bbb;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.preview-quality-option:hover { background: #3a3f45; color: #fff; border-radius: 3px; }
+.preview-quality-option.active { color: #e6ffff; }
+
+/* ===== Model Status Dropdown — 匹配视觉确认稿 model-status-menu-v1.html ===== */
+.topbar-model-wrap {
+  position: relative;
+}
+
+.topbar-model-btn {
+  background: #292c30;
+  border: 1px solid #4a4f55;
+  border-radius: 5px;
+  color: #c8c8c8;
+  font-size: 11px;
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.topbar-model-btn:hover { background: #353a40; color: #fff; }
+
+.topbar-model-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  min-width: 160px;
+  background: #292c30;
+  border: 1px solid #4a4f55;
+  border-radius: 5px;
+  padding: 4px 0;
+  z-index: 15;
+  line-height: 24px;
+}
+
+.topbar-model-option {
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #c8c8c8;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.topbar-model-option:hover { background: #3a3f45; color: #fff; border-radius: 3px; }
