@@ -6,14 +6,17 @@ import type { Project, TimelineClip } from '@ai-video/domain';
 
 /** 组件种类 */
 export type ComponentKind =
-  | 'card'       // 卡片（变换/动画/关键帧）
-  | 'chart'      // 图表（数据表/外观）
-  | 'text'       // 文字（字体/字号/颜色/对齐）
-  | 'subtitle'   // 字幕（统一样式）
-  | 'background' // 背景
-  | 'graphic'    // 图形
-  | 'media'      // 主媒体
-  | 'unknown';   // 未识别
+  | 'card'        // 卡片（变换/动画/关键帧）
+  | 'chart'       // 图表（数据表/外观）
+  | 'text'        // 文字（字体/字号/颜色/对齐）
+  | 'subtitle'    // 字幕（统一样式）
+  | 'background'  // 背景
+  | 'graphic'     // 图形
+  | 'media'       // 主媒体
+  | 'audio'       // 音频
+  | 'annotation'  // 标注
+  | 'number'      // 数字
+  | 'unknown';    // 未识别
 
 /** 每个检查器接收的公共 props */
 export type InspectorProps = {
@@ -34,6 +37,9 @@ export function identifyComponentKind(clipId: string, project?: Project): Compon
   if (clipId.includes('cards')) return 'card';
   if (clipId.includes('graphics')) return 'graphic';
   if (clipId.includes('background')) return 'background';
+  if (clipId.includes('audio')) return 'audio';
+  if (clipId.includes('annotation')) return 'annotation';
+  if (clipId.includes('number')) return 'number';
   if (clipId === 'main-media' || clipId.includes('main-media')) return 'media';
   // 如果 content 含有 text 字段，视为文字组件
   if (project) {
@@ -69,6 +75,9 @@ export function getClipDisplayName(clip: TimelineClip): string {
   if (clip.id.includes('graphics')) return '图形';
   if (clip.id.includes('subtitles')) return '字幕';
   if (clip.id.includes('background')) return '背景';
+  if (clip.id.includes('audio')) return '音频';
+  if (clip.id.includes('annotation')) return '标注';
+  if (clip.id.includes('number')) return '数字';
   if (clip.id === 'main-media') return '媒体';
   return clip.id;
 }
@@ -77,7 +86,7 @@ export function getClipDisplayName(clip: TimelineClip): string {
 // 卡片属性检查器 — CardInspector
 // ============================================================
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { markClipUserEdited } from '@ai-video/domain';
 
 type CardInspectorProps = {
@@ -598,29 +607,536 @@ export function ChartInspector(_props: InspectorProps): React.JSX.Element {
   );
 }
 
-// ============================================================
-// 背景属性检查器 — BackgroundInspector
+// background-properties-v1.html
 // ============================================================
 
 type BackgroundInspectorProps = {
   clip: TimelineClip;
+  updateSelectedScale?: (value: number) => void;
 };
 
 /**
- * 背景属性检查器
+ * 背景属性检查器 — 位置与大小 / 入场动画 / 关键帧
+ * 匹配视觉确认稿 background-properties-v1.html
  */
-export function BackgroundInspector({ clip }: BackgroundInspectorProps): React.JSX.Element {
+export function BackgroundInspector({ clip, updateSelectedScale }: BackgroundInspectorProps): React.JSX.Element {
+  const layout = clip.layout;
+  const x = layout?.x ?? 0;
+  const y = layout?.y ?? 0;
+  const scale = layout?.scale ?? 100;
+  const [linked, setLinked] = useLinkedState(true);
+
   return (
     <div className="rp-inspector">
       <div className="rp-inspector-head">
         <h3 className="rp-inspector-title">背景属性</h3>
+        <button type="button" className="rp-inspector-undo" onClick={() => {/* 还原默认 */}}>
+          还原
+        </button>
       </div>
+
       <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>位置与大小</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+
         <div className="rp-inspector-param">
-          <span className="rp-param-label">资源 ID</span>
-          <span className="rp-param-num">{clip.styleId}</span>
+          <span className="rp-param-label">缩放</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num" title="X 缩放">X {scale}%</span>
+            <button
+              type="button"
+              className={`rp-chain-btn${linked ? ' active' : ''}`}
+              onClick={() => setLinked(!linked)}
+              title="链接 X/Y 缩放"
+            >
+              {linked ? '🔗' : '⛓️‍💥'}
+            </button>
+            <span className="rp-param-num" title="Y 缩放">Y {scale}%</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn rp-key-on" title="已有关键帧">◆</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">位置</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num">X {x}</span>
+            <span />
+            <span className="rp-param-num">Y {y}</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">不透明度</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">100%</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>入场动画</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <div className="rp-inspector-dropdown">
+          <span>无</span>
+          <span className="rp-dropdown-arrow">⌄</span>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>关键帧</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <button type="button" className="rp-keyframes-add-btn" title="添加关键帧">
+          ＋ 添加关键帧
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <p className="rp-inspector-note">
+          背景默认铺满画布。当前选中背景不需要 AI 对话，属性区已延展至右栏底部。
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 素材属性检查器 — MediaInspector
+// 匹配视觉确认稿 media-properties-v1.html
+// ============================================================
+
+type MediaInspectorProps = {
+  clip: TimelineClip;
+  updateSelectedScale?: (value: number) => void;
+};
+
+/**
+ * 素材属性检查器 — 位置与大小 / 音频 / 入场动画
+ */
+export function MediaInspector({ clip, updateSelectedScale }: MediaInspectorProps): React.JSX.Element {
+  const layout = clip.layout;
+  const x = layout?.x ?? 0;
+  const y = layout?.y ?? 0;
+  const scale = layout?.scale ?? 100;
+  const [linked, setLinked] = useLinkedState(true);
+
+  return (
+    <div className="rp-inspector">
+      <div className="rp-inspector-head">
+        <h3 className="rp-inspector-title">素材属性</h3>
+        <button type="button" className="rp-inspector-undo" onClick={() => {/* 还原默认 */}}>
+          还原
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>位置与大小</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">缩放</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num" title="X 缩放">X {scale}%</span>
+            <button
+              type="button"
+              className={`rp-chain-btn${linked ? ' active' : ''}`}
+              onClick={() => setLinked(!linked)}
+              title="链接 X/Y 缩放"
+            >
+              {linked ? '🔗' : '⛓️‍💥'}
+            </button>
+            <span className="rp-param-num" title="Y 缩放">Y {scale}%</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn rp-key-on" title="已有关键帧">◆</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">位置</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num">X {x}</span>
+            <span />
+            <span className="rp-param-num">Y {y}</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">旋转</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.00°</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">不透明度</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">100%</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>音频</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">音量</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.0 dB</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">淡入</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.0 s</span>
+          <span />
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">淡出</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.0 s</span>
+          <span />
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>入场动画</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <div className="rp-inspector-dropdown">
+          <span>无</span>
+          <span className="rp-dropdown-arrow">⌄</span>
         </div>
       </div>
     </div>
   );
 }
+
+// ============================================================
+// 音频属性检查器 — AudioInspector
+// 匹配视觉确认稿 audio-properties-v1.html
+// ============================================================
+
+type AudioInspectorProps = {
+  clip: TimelineClip;
+};
+
+/**
+ * 音频属性检查器 — 音量 / 淡入 / 淡出
+ */
+export function AudioInspector({ clip }: AudioInspectorProps): React.JSX.Element {
+  return (
+    <div className="rp-inspector">
+      <div className="rp-inspector-head">
+        <h3 className="rp-inspector-title">音频属性</h3>
+        <button type="button" className="rp-inspector-undo" onClick={() => {/* 还原默认 */}}>
+          还原
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>音频</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">音量</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.0 dB</span>
+          <button type="button" className="rp-key-btn rp-key-on" title="已有关键帧">◆</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">淡入</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.0 s</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">淡出</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">0.0 s</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 标注属性检查器 — AnnotationInspector
+// 匹配视觉确认稿 annotation-properties-v1.html
+// ============================================================
+
+type AnnotationInspectorProps = {
+  clip: TimelineClip;
+  updateSelectedScale?: (value: number) => void;
+};
+
+/**
+ * 标注属性检查器 — 位置与大小 / 入场动画 / 关键帧
+ * 标注样式由资源锁定；此处仅提供组件级变换与动画。
+ */
+export function AnnotationInspector({ clip, updateSelectedScale }: AnnotationInspectorProps): React.JSX.Element {
+  const layout = clip.layout;
+  const x = layout?.x ?? 0;
+  const y = layout?.y ?? 0;
+  const scale = layout?.scale ?? 100;
+  const [linked, setLinked] = useLinkedState(true);
+
+  return (
+    <div className="rp-inspector">
+      <div className="rp-inspector-head">
+        <h3 className="rp-inspector-title">标注属性</h3>
+        <button type="button" className="rp-inspector-undo" onClick={() => {/* 还原默认 */}}>
+          还原
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>位置与大小</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">缩放</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num" title="X 缩放">X {scale}%</span>
+            <button
+              type="button"
+              className={`rp-chain-btn${linked ? ' active' : ''}`}
+              onClick={() => setLinked(!linked)}
+              title="链接 X/Y 缩放"
+            >
+              {linked ? '🔗' : '⛓️‍💥'}
+            </button>
+            <span className="rp-param-num" title="Y 缩放">Y {scale}%</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn rp-key-on" title="已有关键帧">◆</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">位置</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num">X {x}</span>
+            <span />
+            <span className="rp-param-num">Y {y}</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">不透明度</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">100%</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>入场动画</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <div className="rp-inspector-dropdown">
+          <span>无</span>
+          <span className="rp-dropdown-arrow">⌄</span>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>关键帧</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <button type="button" className="rp-keyframes-add-btn" title="添加关键帧">
+          ＋ 添加关键帧
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <p className="rp-inspector-note">
+          标注样式由资源锁定；可通过通用变换调整其位置、大小和动画。
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 数字属性检查器 — NumberInspector
+// 匹配视觉确认稿 number-properties-v1.html
+// ============================================================
+
+type NumberInspectorProps = {
+  clip: TimelineClip;
+  updateSelectedScale?: (value: number) => void;
+};
+
+/**
+ * 数字属性检查器 — 位置与大小 / 入场动画 / 关键帧
+ * 数字内容需在预览窗中单独选中后进入文字属性修改；此处仅提供组件级变换与动画。
+ */
+export function NumberInspector({ clip, updateSelectedScale }: NumberInspectorProps): React.JSX.Element {
+  const layout = clip.layout;
+  const x = layout?.x ?? 0;
+  const y = layout?.y ?? 0;
+  const scale = layout?.scale ?? 100;
+  const [linked, setLinked] = useLinkedState(true);
+
+  return (
+    <div className="rp-inspector">
+      <div className="rp-inspector-head">
+        <h3 className="rp-inspector-title">数字属性</h3>
+        <button type="button" className="rp-inspector-undo" onClick={() => {/* 还原默认 */}}>
+          还原
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>位置与大小</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">缩放</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num" title="X 缩放">X {scale}%</span>
+            <button
+              type="button"
+              className={`rp-chain-btn${linked ? ' active' : ''}`}
+              onClick={() => setLinked(!linked)}
+              title="链接 X/Y 缩放"
+            >
+              {linked ? '🔗' : '⛓️‍💥'}
+            </button>
+            <span className="rp-param-num" title="Y 缩放">Y {scale}%</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn rp-key-on" title="已有关键帧">◆</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">位置</span>
+          <div className="rp-param-xy">
+            <span className="rp-param-num">X {x}</span>
+            <span />
+            <span className="rp-param-num">Y {y}</span>
+          </div>
+          <span />
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+
+        <div className="rp-inspector-param">
+          <span className="rp-param-label">不透明度</span>
+          <div className="rp-param-slider">
+            <i className="rp-slider-track" />
+          </div>
+          <span className="rp-param-num">100%</span>
+          <button type="button" className="rp-key-btn" title="添加关键帧">◇</button>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>入场动画</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <div className="rp-inspector-dropdown">
+          <span>无</span>
+          <span className="rp-dropdown-arrow">⌄</span>
+        </div>
+      </div>
+
+      <div className="rp-inspector-section">
+        <div className="rp-inspector-section-title">
+          <span>关键帧</span>
+          <span className="rp-collapse-arrow">⌃</span>
+        </div>
+        <button type="button" className="rp-keyframes-add-btn" title="添加关键帧">
+          ＋ 添加关键帧
+        </button>
+      </div>
+
+      <div className="rp-inspector-section">
+        <p className="rp-inspector-note">
+          数字内容需在预览窗中单独选中后进入文字属性修改；此处仅提供组件级变换与动画。
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 检查器映射 — inspectorFor
+// ============================================================
+
+type InspectorComponent = FC<{
+  clip: TimelineClip;
+  project?: Project;
+  updateProject?: (next: Project) => void;
+  updateSelectedScale?: (value: number) => void;
+  selectedText?: string;
+  selectedTextStyle?: Record<string, string | number | undefined>;
+  updateSelectedTextStyle?: (field: string, value: string | number) => void;
+}>;
+
+/**
+ * 根据组件种类返回对应的检查器组件
+ */
+export const inspectorFor: Record<ComponentKind, InspectorComponent | null> = {
+  card: CardInspector as InspectorComponent,
+  chart: ChartInspector as InspectorComponent,
+  text: TextInspector as InspectorComponent,
+  subtitle: null, // 字幕使用 SubtitleStylePanel
+  background: BackgroundInspector as InspectorComponent,
+  graphic: GraphicInspector as InspectorComponent,
+  media: MediaInspector as InspectorComponent,
+  audio: AudioInspector as InspectorComponent,
+  annotation: AnnotationInspector as InspectorComponent,
+  number: NumberInspector as InspectorComponent,
+  unknown: null,
+};

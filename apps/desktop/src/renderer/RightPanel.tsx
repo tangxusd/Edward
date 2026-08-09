@@ -9,6 +9,11 @@ import {
   GraphicInspector,
   TextInspector,
   BackgroundInspector,
+  MediaInspector,
+  AudioInspector,
+  AnnotationInspector,
+  NumberInspector,
+  ChartInspector,
 } from './componentContract.js';
 import type { ModelRecord } from '../main/modelRepository.js';
 
@@ -94,6 +99,43 @@ export function RightPanel({
         return (
           <BackgroundInspector
             clip={selected}
+            updateSelectedScale={updateSelectedScale}
+          />
+        );
+      case 'media':
+        return (
+          <MediaInspector
+            clip={selected}
+            updateSelectedScale={updateSelectedScale}
+          />
+        );
+      case 'audio':
+        return (
+          <AudioInspector
+            clip={selected}
+          />
+        );
+      case 'annotation':
+        return (
+          <AnnotationInspector
+            clip={selected}
+            updateSelectedScale={updateSelectedScale}
+          />
+        );
+      case 'number':
+        return (
+          <NumberInspector
+            clip={selected}
+            updateSelectedScale={updateSelectedScale}
+          />
+        );
+      case 'chart':
+        return (
+          <ChartInspector
+            clip={selected}
+            project={project}
+            updateProject={updateProject}
+            updateSelectedScale={updateSelectedScale}
           />
         );
       default:
