@@ -151,3 +151,42 @@ h2 { font-size: 12px; color: #c8ced7; }
 
 /* Workbench header */
 .header-version { font-size: 11px; color: #59636e; margin-left: 4px; }
+
+/* ===== TopBar ===== */
+.topbar-save-status { font-size: 11px; margin-left: 8px; }
+.topbar-project-name { font-weight: 600; letter-spacing: .3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; display: inline-block; }
+.topbar-model-status { font-size: 11px; color: #c8c8c8; display: flex; align-items: center; gap: 6px; }
+.topbar-model-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #28d69e; }
+.topbar-export-btn { background: #00c6bb; border: 0; border-radius: 4px; padding: 6px 12px; color: #07312e; font-weight: 600; cursor: pointer; }
+.topbar-export-btn:hover { background: #00ddd0; }
+
+/* ===== LeftPanel ===== */
+.left-panel-tabs { display: flex; gap: 10px; border-bottom: 1px solid #353535; padding-bottom: 10px; }
+.left-panel-tab { background: none; border: 0; color: #999; padding: 0; font-size: 12px; cursor: pointer; }
+.left-panel-tab:hover { color: #ddd; }
+.left-panel-tab.active { color: #20d5cc; }
+.left-panel-content { margin-top: 10px; }
+.left-panel-import-box { border: 1px solid #363636; border-radius: 4px; padding: 9px; background: #252525; margin-bottom: 10px; }
+.left-panel-import-label { color: #aaa; font-size: 12px; }
+.left-panel-import-placeholder { height: 58px; background: #2e2e2e; border-radius: 3px; margin-top: 8px; }
+
+/* ===== PreviewCanvas ===== */
+.preview-canvas { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.preview-ref-btn { position: absolute; right: 10px; top: 8px; z-index: 5; background: #2a2a2a; border: 1px solid #4a4a4a; border-radius: 3px; color: #bbb; font-size: 11px; padding: 3px 8px; cursor: pointer; }
+.preview-ref-btn:hover { background: #3a3a3a; color: #fff; }
+.preview-frame { width: 70%; aspect-ratio: 16/9; background: #0b0b0b; border: 1px solid #4a4a4a; position: relative; }
+.preview-ruler-top { position: absolute; top: -20px; left: 0; width: 100%; height: 19px; color: #777; font-size: 9px; word-spacing: 28px; border-bottom: 1px solid #555; background: repeating-linear-gradient(to right, transparent 0 7px, #555 7px 8px, transparent 8px 15px); overflow: hidden; }
+.preview-ruler-left { position: absolute; left: -20px; top: 0; height: 100%; width: 19px; color: #777; font-size: 9px; line-height: 37px; border-right: 1px solid #555; background: repeating-linear-gradient(to bottom, transparent 0 7px, #555 7px 8px, transparent 8px 15px); writing-mode: vertical-lr; text-align: center; overflow: hidden; }
+.preview-guide-line { position: absolute; top: 50%; width: 100%; border-top: 1px dashed #28d8d0; z-index: 2; }
+.preview-card-toolbar { position: absolute; top: 10px; left: 10px; z-index: 5; display: flex; gap: 4px; }
+.preview-card-toolbar button { padding: 4px 8px; font-size: 11px; }
+.preview-card-toolbar button[aria-pressed="true"] { border-color: #3d8bfd; background: #15315a; color: #fff; }
+.preview-controls { position: absolute; bottom: 10px; left: 10px; right: 10px; display: flex; align-items: center; gap: 10px; }
+.preview-timecode { color: #17cbbf; font-size: 11px; font-family: monospace; }
+.preview-play-btn { background: none; border: 0; font-size: 18px; color: #ddd; cursor: pointer; padding: 0 6px; }
+.preview-play-btn:hover { color: #fff; }
+.preview-aspect-select { margin-left: auto; min-width: 60px; padding: 3px 6px; font-size: 11px; background: #2a2a2a; border: 1px solid #4a4a4a; border-radius: 3px; color: #bbb; }
+.preview-quality { font-size: 11px; color: #aaa; cursor: pointer; }
+
+/* Hide the ExportDialog's own trigger button since TopBar now has the export button */
+.export-trigger { display: none; }

@@ -1,5 +1,7 @@
+import { useCallback } from 'react';
 import { markClipUserEdited, type Project, type Resource } from '@ai-video/domain';
-import { LibraryPanel } from './LibraryPanel.js';
+import { TopBar } from './TopBar.js';
+import { LeftPanel } from './LeftPanel.js';
 import { PreviewCanvas } from './PreviewCanvas.js';
 import { ResourceChoicePanel } from './ResourceChoicePanel.js';
 import { ComponentAiChatPanel } from './ComponentAiChatPanel.js';
@@ -51,22 +53,15 @@ export function Workbench({
   workspaceChanged,
   setModels,
 }: Props): React.JSX.Element {
+  const handleExport = useCallback(() => {
+    document.querySelector<HTMLButtonElement>('.export-trigger')?.click();
+  }, []);
+
   return (
     <div className="workbench-container">
-      <header className="workbench-topbar" data-history-revision={historyRevision}>
-        <div className="workbench-topbar-left">
-          <h1>Edward</h1>
-          <span className="header-version">0.1.1</span>
-        </div>
-        <div className="workbench-topbar-center" />
-        <div className="workbench-topbar-right">
-          <output aria-label="当前模型状态" style={{ color: modelColor }}>{modelStatus}</output>
-        </div>
-      </header>
+      <TopBar modelStatus={modelStatus} modelColor={modelColor} onExport={handleExport} />
       <div className="workbench-grid">
-        <aside className="left-panel">
-          <LibraryPanel />
-        </aside>
+        <LeftPanel />
         <div className="divider-left" />
         <main className="center-canvas">
           <PreviewCanvas project={project} onChange={updateProject} onSelect={setSelectedClipId} selectedClipId={selectedClipId} />
