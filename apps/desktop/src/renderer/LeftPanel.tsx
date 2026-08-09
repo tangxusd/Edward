@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { LibraryPanel } from './LibraryPanel.js';
 
-const TABS = ['媒体', '文本', '音频', '卡片', '图表', '背景'] as const;
+const TABS = ['媒体', '文本', '音频', '卡片', '图表', '背景', '标注', '数字'] as const;
 
 export function LeftPanel(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<string>('媒体');
