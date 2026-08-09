@@ -6,7 +6,7 @@ test('exposes only the desktop bridge', async () => {
   try {
     const page = await app.firstWindow();
 
-    await expect(page.locator('main')).toContainText('AI 剪视频工具');
+    await expect(page.locator('main')).toContainText('Edward');
     await expect(
       page.evaluate(() => (window as Window & { aiVideo?: unknown }).aiVideo),
     ).resolves.toBeDefined();
