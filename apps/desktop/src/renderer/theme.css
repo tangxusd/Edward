@@ -23,7 +23,7 @@ h2 { font-size: 12px; color: #c8ced7; }
 .workbench-container { background: #181818; border: 1px solid #3a3a3a; border-radius: 8px; overflow: hidden; min-height: 100vh; min-width: 960px; }
 
 /* Workbench top bar */
-.workbench-topbar { height: 38px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 12px; background: #252525; }
+.workbench-topbar { height: 42px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 14px; background: #252525; }
 .workbench-topbar-left { justify-self: start; display: flex; align-items: center; gap: 8px; }
 .workbench-topbar-center { justify-self: center; }
 .workbench-topbar-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
@@ -153,7 +153,7 @@ h2 { font-size: 12px; color: #c8ced7; }
 .rp-scale-fieldset input { width: 70px; }
 
 /* AI Chat section — fixed bottom half */
-.right-panel-ai { position: relative; flex-shrink: 0; height: calc(50% - 15px); border-top: 1px solid #3a3a3a; background: #1d1d1d; display: flex; flex-direction: column; padding: 0; margin-top: 0; }
+.right-panel-ai { position: absolute; left: 10px; right: 10px; bottom: 10px; height: calc(50% - 15px); border-top: 1px solid #3a3a3a; background: #1d1d1d; display: flex; flex-direction: column; }
 .rp-ai-header { padding: 10px 0 8px; display: flex; justify-content: space-between; align-items: center; color: #ccc; font-size: 12px; }
 .rp-ai-header b { font-weight: 600; }
 .rp-ai-model-selector { color: #8d8d8d; font-size: 11px; cursor: pointer; }
