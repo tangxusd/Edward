@@ -94,22 +94,60 @@ main > section[aria-label="预览画布"] [aria-label="预览播放控制"] sele
   :root { --left-panel-width: 320px; --right-panel-width: 320px; }
 }
 
-/* HomePage */
-.home-page { display: flex; min-height: 100vh; background: #08090b; color: #e7eaf0; }
-.home-ad-column { width: 200px; min-width: 200px; display: flex; flex-direction: column; justify-content: space-between; padding: 18px; border-right: 1px solid #252a32; background: #0d0f13; }
-.home-ad-placeholder { flex: 1; display: grid; place-items: center; color: #59636e; font-size: 12px; }
-.resource-upgrade-btn { width: 100%; padding: 8px; border: 1px solid #2a3039; border-radius: 4px; background: #191d23; color: #a6afbb; font-size: 12px; cursor: pointer; }
-.resource-upgrade-btn:hover { background: #242a33; border-color: #46505d; color: #e7eaf0; }
-.home-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.home-header { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid #252a32; background: #0d0f13; }
-.home-header h1 { font-size: 16px; font-weight: 600; color: #e7eaf0; }
-.home-version { font-size: 11px; color: #59636e; }
-.home-header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-.home-header-right .settings-trigger { padding: 5px 10px; font-size: 12px; border: 1px solid #2a3039; border-radius: 4px; background: transparent; color: #a6afbb; cursor: pointer; }
-.home-header-right .settings-trigger:hover { color: #e7eaf0; background: #191d23; }
-.account-trigger { padding: 0; border: none; background: transparent; cursor: pointer; }
-.account-avatar { display: block; width: 28px; height: 28px; border-radius: 50%; background: #2a3039; }
-.home-content { flex: 1; padding: 18px; overflow: auto; }
+/* HomePage — 匹配视觉确认稿 homepage-approved-v4.html */
+.home-page { background: #111; color: #ddd; font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 25px; }
+.home-topbar { height: 42px; display: flex; align-items: center; padding: 0 16px; background: #242424; border-bottom: 1px solid #353535; border-radius: 8px 8px 0 0; width: 100%; max-width: 1060px; box-sizing: border-box; }
+.home-topbar b { font-size: 14px; color: #e7eaf0; }
+.home-topbar span { margin-left: auto; display: flex; align-items: center; }
+.home-btn { margin-left: 12px; background: #303030; color: #ccc; border: 1px solid #484848; border-radius: 4px; padding: 5px 9px; font-size: 12px; cursor: pointer; }
+.home-btn:hover { background: #404040; color: #fff; }
+.home-avatar { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; padding: 0; font-weight: 600; }
+.home-shell { display: grid; grid-template-columns: 180px 1fr; max-width: 1060px; width: 100%; background: #181818; border: 1px solid #3a3a3a; border-radius: 0 0 8px 8px; border-top: none; min-height: 578px; }
+.home-ad { border-right: 1px solid #363636; background: linear-gradient(160deg, #25383a, #1c292d 53%, #23303b); display: flex; flex-direction: column; align-items: center; justify-content: center; color: #b8d3d0; padding: 12px; box-sizing: border-box; }
+.home-ad-title { font-size: 14px; color: #b8d3d0; }
+.home-ad-desc { font-size: 11px; color: #8dafb0; margin-top: 6px; }
+.home-upgrade { margin-top: auto; width: 100%; background: #185a56; color: #e6ffff; border: 1px solid #20d5cc; border-radius: 4px; padding: 7px; font-size: 12px; cursor: pointer; }
+.home-upgrade:hover { background: #1d6b66; }
+.home-main-content { padding: 34px 42px; }
+.home-head { display: flex; justify-content: space-between; align-items: center; }
+.home-head-title { margin: 0 0 4px; font-size: 16px; color: #e7eaf0; font-weight: 600; }
+.home-head-sub { color: #8d8d8d; font-size: 12px; }
+.home-head-actions { display: flex; align-items: center; }
+.home-search { border: 1px solid #3d3d3d; background: #242424; color: #999; border-radius: 4px; padding: 8px; font-size: 12px; width: 180px; margin-right: 8px; cursor: pointer; }
+.home-search:hover { background: #2a2a2a; color: #ccc; }
+.home-new-btn { background: #00c5ba; color: #07302c; border: 0; border-radius: 4px; padding: 9px 13px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.home-new-btn:hover { background: #00ddd0; }
+.home-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+.home-card { background: #232323; border: 1px solid #363636; border-radius: 6px; overflow: hidden; cursor: pointer; }
+.home-card:hover { border-color: #20d5cc; }
+.home-card-thumb { height: 105px; background: linear-gradient(135deg, #29535c, #20303e, #5d3e58); }
+.home-card-meta { padding: 9px; font-size: 13px; color: #ddd; }
+.home-card-sub { font-size: 11px; color: #898989; margin-top: 4px; }
+.home-card-empty { height: 151px; display: grid; place-items: center; border: 1px dashed #4a4a4a; border-radius: 6px; color: #999; text-align: center; font-size: 14px; cursor: pointer; }
+.home-card-empty:hover { border-color: #20d5cc; color: #20d5cc; }
+
+/* New Project Modal — 匹配视觉确认稿 new-project-import-v2.html */
+.home-modal-overlay { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.62); }
+.home-modal { background: #181818; border: 1px solid #414141; border-radius: 8px; width: 700px; max-width: calc(100vw - 40px); padding: 20px; box-sizing: border-box; }
+.home-modal-header { display: flex; border-bottom: 1px solid #373737; padding-bottom: 14px; }
+.home-modal-header h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.home-modal-close { margin-left: auto; background: none; border: 0; color: #aaa; font-size: 18px; cursor: pointer; padding: 0 4px; }
+.home-modal-close:hover { color: #fff; }
+.home-modal-sub { color: #8d8d8d; font-size: 11px; margin: 9px 0 18px; }
+.home-modal-row { display: grid; grid-template-columns: 120px 1fr; gap: 14px; margin: 12px 0; align-items: start; }
+.home-modal-label { padding-top: 10px; font-size: 13px; color: #ddd; }
+.home-modal-req { color: #20d5cc; }
+.home-modal-input { width: 100%; background: #252525; border: 1px solid #404040; color: #ddd; border-radius: 4px; padding: 8px; box-sizing: border-box; font-size: 13px; }
+.home-modal-drop { min-height: 94px; border: 1px dashed #4c4c4c; border-radius: 5px; background: #212121; padding: 12px; box-sizing: border-box; }
+.home-modal-sel { background: #303030; border: 1px solid #4c4c4c; color: #ddd; border-radius: 4px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+.home-modal-sel:hover { background: #404040; }
+.home-modal-hint { color: #8d8d8d; font-size: 11px; margin-top: 8px; }
+.home-modal-error { color: #d14343; font-size: 12px; margin: 8px 0; }
+.home-modal-footer { border-top: 1px solid #373737; margin-top: 20px; padding-top: 14px; text-align: right; }
+.home-modal-cancel { background: #303030; color: #ddd; border: 1px solid #484848; border-radius: 4px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.home-modal-cancel:hover { background: #404040; }
+.home-modal-create { background: #00c5ba; color: #07302c; border: 0; border-radius: 4px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.home-modal-create:hover { background: #00ddd0; }
 
 /* Workbench header */
 .header-version { font-size: 11px; color: #59636e; margin-left: 4px; }
