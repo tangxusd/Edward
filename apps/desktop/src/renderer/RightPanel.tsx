@@ -1,9 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { markClipUserEdited, type Project, type Resource } from '@ai-video/domain';
 import { ResourceChoicePanel } from './ResourceChoicePanel.js';
 import { ComponentAiChatPanel } from './ComponentAiChatPanel.js';
 import { AiAnalysisPanel } from './AiAnalysisPanel.js';
 import { SubtitleStylePanel } from './SubtitleStylePanel.js';
+import {
+  identifyComponentKind,
+  CardInspector,
+  GraphicInspector,
+  TextInspector,
+  BackgroundInspector,
+} from './componentContract.js';
 import type { ModelRecord } from '../main/modelRepository.js';
 
 type Props = {
@@ -41,19 +48,84 @@ export function RightPanel({
 }: Props): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<TabId>('properties');
 
-  const handleTextChange = useCallback(
-    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      if (project && selected) {
-        updateProject(
-          markClipUserEdited(project, selected.id, {
-            ...(selected.content as object),
-            text: event.target.value,
-          }),
+  /** 根据选中的 clip 确定组件种类，渲染对应检查器 */
+  const renderInspector = (): React.JSX.Element | null => {
+    if (!selected || !project) return <p className="rp-empty-hint">未选择资源</p>;
+
+    const kind = identifyComponentKind(selected.id, project);
+
+    switch (kind) {
+      case 'card':
+        return (
+          <CardInspector
+            clip={selected}
+            project={project}
+            updateProject={updateProject}
+            updateSelectedScale={updateSelectedScale}
+          />
         );
-      }
-    },
-    [project, selected, updateProject],
-  );
+      case 'graphic':
+        return (
+          <GraphicInspector
+            clip={selected}
+            project={project}
+            updateProject={updateProject}
+            updateSelectedScale={updateSelectedScale}
+          />
+        );
+      case 'text':
+        return (
+          <TextInspector
+            clip={selected}
+            selectedText={selectedText}
+            selectedTextStyle={selectedTextStyle}
+            updateSelectedTextStyle={updateSelectedTextStyle as (field: string, value: string | number) => void}
+          />
+        );
+      case 'subtitle':
+        return (
+          <>
+            <SubtitleStylePanel
+              project={project}
+              onChange={updateProject}
+            />
+          </>
+        );
+      case 'background':
+        return (
+          <BackgroundInspector
+            clip={selected}
+          />
+        );
+      default:
+        // 兜底：显示基础属性
+        return (
+          <div className="rp-inspector">
+            <div className="rp-inspector-head">
+              <h3 className="rp-inspector-title">组件属性</h3>
+            </div>
+            <div className="rp-inspector-section">
+              <div className="rp-inspector-param">
+                <span className="rp-param-label">位置</span>
+                <div className="rp-param-xy">
+                  <span className="rp-param-num">X {(selected.layout as { x?: number })?.x ?? 0}</span>
+                  <span />
+                  <span className="rp-param-num">Y {(selected.layout as { y?: number })?.y ?? 0}</span>
+                </div>
+                <span />
+                <button type="button" className="rp-key-btn">◇</button>
+              </div>
+              <div className="rp-inspector-param">
+                <span className="rp-param-label">缩放</span>
+                <span className="rp-param-num">{selected.layout?.scale ?? 100}%</span>
+                <span />
+                <button type="button" className="rp-key-btn">◇</button>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <aside className="right-panel">
@@ -79,77 +151,7 @@ export function RightPanel({
       <div className="right-panel-content">
         {activeTab === 'properties' ? (
           <section className="right-panel-properties">
-            {selected ? (
-              <div className="rp-properties-box">
-                {/* Position */}
-                <div className="rp-property-line">
-                  <span className="rp-property-label">位置</span>
-                  <span className="rp-property-value">
-                    X {(selected.layout as { x?: number })?.x ?? 0}　Y{' '}
-                    {(selected.layout as { y?: number })?.y ?? 0}
-                  </span>
-                </div>
-                {/* Scale */}
-                <div className="rp-property-line">
-                  <span className="rp-property-label">缩放</span>
-                  <span className="rp-property-value">
-                    {selected.layout?.scale ?? 100}%
-                  </span>
-                </div>
-                {/* Animation */}
-                <div className="rp-property-line">
-                  <span className="rp-property-label">入场动画</span>
-                  <span className="rp-property-value">无</span>
-                </div>
-                {/* Keyframes */}
-                <div className="rp-property-line">
-                  <span className="rp-property-label">关键帧</span>
-                  <span className="rp-property-value rp-keyframes-btn">＋</span>
-                </div>
-              </div>
-            ) : (
-              <p className="rp-empty-hint">未选择资源</p>
-            )}
-
-            {/* Text content editor (when clip has text) */}
-            {selected && selectedText ? (
-              <label className="rp-text-editor">
-                文字内容
-                <textarea
-                  aria-label="文字内容"
-                  value={selectedText}
-                  onChange={handleTextChange}
-                />
-              </label>
-            ) : null}
-
-            {/* Scale input (when clip has layout) */}
-            {selected?.layout ? (
-              <fieldset className="rp-scale-fieldset" aria-label="缩放属性">
-                <label>
-                  缩放
-                  <input
-                    aria-label="缩放"
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={selected.layout.scale ?? 100}
-                    onChange={(event) =>
-                      updateSelectedScale(Number(event.target.value))
-                    }
-                  />
-                  %
-                </label>
-              </fieldset>
-            ) : null}
-
-            {/* Subtitle style (when subtitles) */}
-            {selected?.id.includes('subtitles') ? (
-              <SubtitleStylePanel
-                project={project}
-                onChange={updateProject}
-              />
-            ) : null}
+            {renderInspector()}
 
             {/* Component AI chat (when cards/graphics/subtitles) */}
             {selected &&
