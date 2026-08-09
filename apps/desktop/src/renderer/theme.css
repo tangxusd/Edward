@@ -836,3 +836,310 @@ h2 { font-size: 12px; color: #c8ced7; }
 
 /* Hide the ExportDialog's own trigger button since TopBar now has the export button */
 .export-trigger { display: none; }
+
+/* ===== Export Dialog — 匹配视觉确认稿 export-panel-v2.html ===== */
+.export-overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.export-panel {
+  background: #181818;
+  border: 1px solid #414141;
+  border-radius: 8px;
+  width: 680px;
+  max-width: calc(100vw - 40px);
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.export-header {
+  display: flex;
+  border-bottom: 1px solid #373737;
+  padding-bottom: 14px;
+}
+
+.export-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.export-close {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: #aaa;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.export-close:hover { color: #fff; }
+
+.export-row {
+  display: grid;
+  grid-template-columns: 105px 1fr;
+  gap: 14px;
+  margin: 14px 0;
+  align-items: center;
+}
+
+.export-row > label {
+  padding-top: 0;
+  font-size: 13px;
+  color: #ddd;
+  display: block;
+}
+
+.export-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #252525;
+  border: 1px solid #404040;
+  color: #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 13px;
+}
+
+.export-input[readonly] {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.export-select {
+  background: #303030;
+  border: 1px solid #4a4a4a;
+  border-radius: 4px;
+  padding: 7px 10px;
+  color: #ddd;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.export-select:hover:not(:disabled) { background: #404040; border-color: #5a5a5a; }
+.export-select:disabled { opacity: .55; cursor: default; }
+
+.export-inline-input {
+  width: 68px;
+  background: #252525;
+  border: 1px solid #404040;
+  color: #ddd;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.export-choose {
+  background: #303030;
+  color: #ddd;
+  border: 1px solid #4a4a4a;
+  border-radius: 4px;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.export-choose:hover { background: #404040; border-color: #5a5a5a; }
+
+.export-hint {
+  font-size: 11px;
+  color: #8d8d8d;
+  margin-top: 7px;
+  line-height: 1.5;
+}
+
+.export-path {
+  font-size: 11px;
+  color: #8d8d8d;
+  margin-top: 7px;
+}
+
+.export-bar {
+  height: 5px;
+  background: #303030;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.export-bar-fill {
+  height: 100%;
+  background: #00c5ba;
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.export-error {
+  font-size: 12px;
+  color: #d14343;
+  margin: 8px 0;
+}
+
+.export-footer {
+  border-top: 1px solid #373737;
+  margin-top: 20px;
+  padding-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.export-cancel {
+  background: #303030;
+  color: #ddd;
+  border: 1px solid #484848;
+  border-radius: 4px;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.export-cancel:hover:not(:disabled) { background: #404040; }
+.export-cancel:disabled { opacity: .55; cursor: default; }
+
+.export-go {
+  background: #00c5ba;
+  color: #07302c;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.export-go:hover:not(:disabled) { background: #00ddd0; }
+.export-go:disabled { opacity: .55; cursor: default; }
+
+/* ===== Resource Upgrade Panel — 匹配视觉确认稿 resource-upgrade-categories-v4.html ===== */
+.resource-upgrade-overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.resource-upgrade-panel {
+  background: #181818;
+  border: 1px solid #414141;
+  border-radius: 8px;
+  width: 980px;
+  max-width: calc(100vw - 40px);
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.resource-upgrade-header {
+  display: flex;
+  border-bottom: 1px solid #373737;
+  padding-bottom: 14px;
+}
+
+.resource-upgrade-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.resource-upgrade-close {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: #aaa;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.resource-upgrade-close:hover { color: #fff; }
+
+.resource-upgrade-shell {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.resource-upgrade-nav {
+  border-right: 1px solid #363636;
+  padding-right: 12px;
+}
+
+.resource-upgrade-cat {
+  padding: 8px;
+  border-radius: 4px;
+  color: #aaa;
+  margin-bottom: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.resource-upgrade-cat:hover { background: #252525; color: #ddd; }
+
+.resource-upgrade-cat.active {
+  background: #185a56;
+  color: #e6ffff;
+}
+
+.resource-upgrade-section {
+  min-width: 0;
+}
+
+.resource-upgrade-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resource-upgrade-top b {
+  font-size: 14px;
+  color: #ddd;
+  font-weight: 600;
+}
+
+.resource-upgrade-btn {
+  background: #00c5ba;
+  color: #07302c;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resource-upgrade-btn:hover:not(:disabled) { background: #00ddd0; }
+.resource-upgrade-btn:disabled { opacity: .55; cursor: default; }
+
+.resource-upgrade-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.resource-upgrade-card {
+  height: 150px;
+  background: #232323;
+  border: 1px solid #373737;
+  border-radius: 5px;
+  padding: 9px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.resource-upgrade-card:hover {
+  border-color: #20d5cc;
+}

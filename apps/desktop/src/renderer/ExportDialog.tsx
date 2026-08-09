@@ -104,5 +104,120 @@ export function ExportDialog({ project }: { project?: Project }): React.JSX.Elem
   const running = Boolean(jobId);
   const status = progress?.status === 'completed' ? '导出完成' : progress?.status === 'failed' ? `导出失败：${progress.error ?? '未知错误'}` : running ? '正在导出' : '';
   const progressValue = progress?.status === 'completed' ? 100 : progress?.percent;
-  return <><button ref={triggerRef} type="button" className="export-trigger" onClick={() => setOpen(true)}>导出</button>{open ? <div ref={dialogRef} role="dialog" aria-label="导出" aria-modal="true" onKeyDown={handleKeyDown}><section><header><h2>手动导出</h2><button type="button" aria-label="关闭导出" onClick={close}>关闭</button></header><label>画幅<select value={aspect} onChange={(e) => setAspect(e.target.value)}><option>16:9</option><option>9:16</option></select></label><label>分辨率<select value={resolution} onChange={(e) => setResolution(e.target.value)}><option>1280x720</option><option>1920x1080</option><option>2560x1440</option><option>3840x2160</option><option value="custom">自定义</option></select></label>{resolution === 'custom' ? <><label>自定义宽度<input aria-label="自定义宽度" type="number" min="1" value={customWidth} onChange={(event) => setCustomWidth(Number(event.target.value))} /></label><label>自定义高度<input aria-label="自定义高度" type="number" min="1" value={customHeight} onChange={(event) => setCustomHeight(Number(event.target.value))} /></label></> : null}<label>质量<select aria-label="质量" disabled={transparent} value={quality} onChange={(event) => setQuality(event.target.value as keyof typeof qualityCrf)}><option value="high">高质量</option><option value="balanced">均衡</option><option value="compact">紧凑</option></select></label><label><input type="checkbox" checked={transparent} onChange={(e) => setTransparent(e.target.checked)} />透明叠加层（ProRes 4444 MOV）</label><label>输出目录<input value={directory} onChange={(e) => setDirectory(e.target.value)} /></label><button type="button" disabled={running} onClick={() => void chooseDirectory()}>选择目录</button><button disabled={!project || !directory || running} onClick={() => void start()}>开始导出</button>{running ? <button onClick={() => void cancel()}>取消导出</button> : null}{status ? <p role="status">{status}</p> : null}{error ? <p role="alert">{error}</p> : null}<progress max="100" value={progressValue} aria-label="导出进度" />{progressValue === undefined ? null : <output aria-label="导出百分比">{progressValue}%</output>}</section></div> : null}</>;
+  const resolutionLabel = resolution === 'custom' ? `自定义 ${customWidth}×${customHeight}` : resolution;
+  const aspectHint = aspect === '16:9' ? '横屏' : '竖屏';
+  const [w, h] = resolution === 'custom' ? [customWidth, customHeight] : resolution.split('x').map(Number);
+  const showWidth = aspect === '16:9' ? w : h;
+  const showHeight = aspect === '16:9' ? h : w;
+  const formatLabel = transparent ? 'MOV（ProRes 4444）' : 'MP4（HEVC）';
+
+  return (
+    <>
+      <button ref={triggerRef} type="button" className="export-trigger" onClick={() => setOpen(true)}>导出</button>
+      {open ? (
+        <div className="export-overlay" onClick={close}>
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-label="导出"
+            aria-modal="true"
+            className="export-panel"
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="export-header">
+              <h2>导出</h2>
+              <button type="button" className="export-close" aria-label="关闭导出" onClick={close}>×</button>
+            </header>
+
+            <div className="export-row">
+              <label>文件名</label>
+              <div>
+                <input className="export-input" value={project?.id ?? '未命名项目'} readOnly />
+                <div className="export-hint">默认使用当前项目名称</div>
+              </div>
+            </div>
+
+            <div className="export-row">
+              <label>分辨率</label>
+              <div>
+                <select className="export-select" value={resolution} onChange={(e) => setResolution(e.target.value)}>
+                  <option value="1280x720">720p</option>
+                  <option value="1920x1080">1080p</option>
+                  <option value="2560x1440">1440p</option>
+                  <option value="3840x2160">4K</option>
+                  <option value="custom">自定义</option>
+                </select>
+                <span className="export-hint">
+                  {resolution === 'custom' ? (
+                    <>自定义分辨率：<input className="export-inline-input" type="number" min="1" value={customWidth} onChange={(e) => setCustomWidth(Number(e.target.value))} aria-label="自定义宽度" /> × <input className="export-inline-input" type="number" min="1" value={customHeight} onChange={(e) => setCustomHeight(Number(e.target.value))} aria-label="自定义高度" /></>
+                  ) : (
+                    <>根据项目画幅自动识别：{aspectHint} {showWidth} × {showHeight}</>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="export-row">
+              <label>画幅</label>
+              <select className="export-select" value={aspect} onChange={(e) => setAspect(e.target.value)}>
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+              </select>
+            </div>
+
+            <div className="export-row">
+              <label>质量</label>
+              <div>
+                <select className="export-select" disabled={transparent} value={quality} onChange={(e) => setQuality(e.target.value as keyof typeof qualityCrf)}>
+                  <option value="high">高质量</option>
+                  <option value="balanced">均衡</option>
+                  <option value="compact">紧凑</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="export-row">
+              <label>格式</label>
+              <div>
+                <select className="export-select" value={transparent ? 'mov' : 'mp4'} onChange={(e) => setTransparent(e.target.value === 'mov')}>
+                  <option value="mp4">MP4（HEVC）</option>
+                  <option value="mov">MOV（ProRes 4444）</option>
+                </select>
+                <div className="export-hint">勾选透明叠加层时自动切换为 ProRes 4444 MOV</div>
+              </div>
+            </div>
+
+            <div className="export-row">
+              <label>导出位置</label>
+              <div>
+                <button className="export-choose" onClick={() => void chooseDirectory()}>选择文件夹</button>
+                <div className="export-path">{directory || '尚未选择导出位置'}</div>
+              </div>
+            </div>
+
+            <div className="export-row">
+              <label>导出进度</label>
+              <div>
+                <div className="export-bar">
+                  <div className="export-bar-fill" style={{ width: `${progressValue ?? 0}%` }} />
+                </div>
+                <div className="export-path">{status || '等待导出'}</div>
+              </div>
+            </div>
+
+            {error ? <p className="export-error" role="alert">{error}</p> : null}
+
+            <footer className="export-footer">
+              <span className="export-hint">切换为 9:16 项目时自动显示竖屏预设</span>
+              <div>
+                <button className="export-cancel" onClick={() => void cancel()} disabled={!running}>取消</button>
+                <button className="export-go" onClick={() => void start()} disabled={!project || !directory || running}>导出</button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 }
