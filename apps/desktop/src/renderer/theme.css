@@ -147,7 +147,8 @@ main.workbench > section[aria-label="预览画布"] [aria-label="预览播放控
 .home-modal-cancel { background: #303030; color: #ddd; border: 1px solid #484848; border-radius: 4px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
 .home-modal-cancel:hover { background: #404040; }
 .home-modal-create { background: #00c5ba; color: #07302c; border: 0; border-radius: 4px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
-.home-modal-create:hover { background: #00ddd0; }
+.home-modal-create:hover:not(:disabled) { background: #00ddd0; }
+.home-modal-create:disabled { opacity: .55; cursor: default; }
 
 /* Workbench header */
 .header-version { font-size: 11px; color: #59636e; margin-left: 4px; }

@@ -21,7 +21,7 @@ export const ComponentConversationSchema = z.object({
 
 export const ProjectSchema = z.object({
   id: z.string().min(1),
-  scriptPath: z.string().min(1),
+  scriptPath: z.string().min(1).optional(),
   media: z.object({
     path: z.string().min(1),
     kind: MediaKindSchema,
@@ -42,7 +42,7 @@ export const ProjectSchema = z.object({
 
 export const CreateProjectInputSchema = z.object({
   id: z.string().min(1).optional(),
-  scriptPath: z.string().min(1),
+  scriptPath: z.string().min(1).optional(),
   mediaPath: z.string().min(1),
   mediaKind: MediaKindSchema,
   defaultBackgroundResourceId: z.string().min(1).optional(),

@@ -120,7 +120,7 @@ function NewProjectModal({ onCreated, onClose }: { onCreated: (project: ReturnTy
         {error ? <p className="home-modal-error" role="alert">{error}</p> : null}
         <footer className="home-modal-footer">
           <button className="home-modal-cancel" onClick={onClose}>取消</button>
-          <button className="home-modal-create" onClick={() => void create()}>创建项目</button>
+          <button className="home-modal-create" disabled={!mediaPath} onClick={() => void create()}>创建项目</button>
         </footer>
       </main>
     </div>
