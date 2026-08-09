@@ -172,6 +172,54 @@ h2 { font-size: 12px; color: #c8ced7; }
 
 .rp-ai-note { color: #777; font-size: 11px; margin-top: 7px; flex-shrink: 0; }
 
+/* AI Chat — model dropdown */
+.rp-ai-model-wrap { position: relative; }
+.rp-ai-model-selector { color: #8d8d8d; font-size: 11px; cursor: pointer; background: none; border: 0; padding: 2px 4px; border-radius: 3px; }
+.rp-ai-model-selector:hover { color: #aaa; background: #2a2a2a; }
+.rp-ai-model-dropdown { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 140px; background: #2a2a2a; border: 1px solid #484848; border-radius: 4px; padding: 4px 0; margin: 2px 0 0; list-style: none; }
+.rp-ai-model-option { padding: 6px 10px; font-size: 11px; color: #ccc; cursor: pointer; }
+.rp-ai-model-option:hover { background: #353535; color: #fff; }
+.rp-ai-model-option.active { color: #20d5cc; background: #1a3a3a; }
+.rp-ai-model-empty { padding: 6px 10px; font-size: 11px; color: #777; }
+.rp-ai-msg-typing { font-style: italic; color: #8d8d8d; }
+.rp-ai-apply-btn { background: #00c6bb; border: 0; border-radius: 4px; padding: 6px 12px; color: #07312e; font-weight: 600; font-size: 12px; cursor: pointer; margin-top: 6px; align-self: flex-start; }
+.rp-ai-apply-btn:hover:not(:disabled) { background: #00ddd0; }
+.rp-ai-apply-btn:disabled { opacity: .55; cursor: default; }
+.rp-ai-changes { list-style: none; padding: 0; margin: 6px 0 0; font-size: 11px; color: #8d8d8d; }
+.rp-ai-change-item { padding: 2px 0; }
+.rp-ai-change-item::before { content: '·'; margin-right: 4px; color: #20d5cc; }
+.rp-ai-actions { margin-top: 6px; flex-shrink: 0; }
+.rp-ai-error { font-size: 11px; color: #d14343; margin: 6px 0 0; }
+
+/* ===== Global AI Create Panel ===== */
+.global-ai-create { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0; }
+.ga-header { padding: 10px 0 8px; display: flex; justify-content: space-between; align-items: center; color: #ccc; font-size: 12px; flex-shrink: 0; }
+.ga-header b { font-weight: 600; }
+.ga-model-wrap { position: relative; }
+.ga-model-btn { background: #303030; border: 1px solid #4c4c4c; color: #ddd; border-radius: 4px; padding: 4px 7px; font-size: 11px; cursor: pointer; }
+.ga-model-btn:hover { background: #3a3a3a; }
+.ga-model-dropdown { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 160px; background: #2a2a2a; border: 1px solid #484848; border-radius: 4px; padding: 4px 0; margin: 2px 0 0; list-style: none; }
+.ga-model-option { padding: 6px 10px; font-size: 11px; color: #ccc; cursor: pointer; }
+.ga-model-option:hover { background: #353535; color: #fff; }
+.ga-model-option.active { color: #20d5cc; background: #1a3a3a; }
+.ga-model-empty { padding: 6px 10px; font-size: 11px; color: #777; }
+.ga-history { flex: 1; overflow-y: auto; background: #242424; border: 1px solid #373737; border-radius: 4px; padding: 8px; min-height: 80px; }
+.ga-empty-hint { color: #777; font-size: 11px; text-align: center; padding: 30px 0; margin: 0; }
+.ga-msg { padding: 7px 8px; margin-bottom: 7px; border-radius: 4px; max-width: 85%; font-size: 11px; line-height: 1.4; }
+.ga-msg:last-child { margin-bottom: 0; }
+.ga-msg-user { margin-left: auto; background: #275a58; color: #d4f0ee; }
+.ga-msg-bot { background: #303030; color: #ccc; }
+.ga-msg-typing { font-style: italic; color: #8d8d8d; }
+.ga-input-area { margin-top: 8px; display: grid; grid-template-columns: 30px 1fr 45px; gap: 6px; align-items: end; flex-shrink: 0; }
+.ga-add-btn { height: 30px; border: 0; border-radius: 4px; background: #303030; color: #ddd; font-size: 17px; cursor: pointer; display: grid; place-items: center; }
+.ga-add-btn:hover { background: #3a3a3a; }
+.ga-field { height: 70px; resize: vertical; box-sizing: border-box; background: #272727; border: 1px solid #474747; border-radius: 4px; padding: 7px; color: #ccc; font: 11px -apple-system, sans-serif; }
+.ga-field::placeholder { color: #888; }
+.ga-send-btn { height: 30px; border: 0; border-radius: 4px; background: #00c5ba; color: #07302c; font-weight: 600; font-size: 12px; cursor: pointer; }
+.ga-send-btn:hover:not(:disabled) { background: #00ddd0; }
+.ga-send-btn:disabled { opacity: .55; cursor: default; }
+.ga-note { font-size: 10px; color: #777; margin-top: 4px; flex-shrink: 0; }
+
 /* Resource choice panel */
 .resource-choice-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
 .resource-choice-panel button { display: grid; min-width: 0; gap: 6px; padding: 6px; overflow: hidden; text-align: left; }
