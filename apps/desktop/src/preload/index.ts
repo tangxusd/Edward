@@ -4,6 +4,7 @@ import type { ExportProgress } from '@ai-video/media';
 import type { DesktopBridge } from '../shared/ipc.js';
 
 const bridge: DesktopBridge = {
+  window: { enterWorkbench: () => ipcRenderer.invoke('window:enter-workbench'), exitWorkbench: () => ipcRenderer.invoke('window:exit-workbench') },
   workspace: { setRoot: (root) => ipcRenderer.invoke('workspace:set-root', root), chooseDirectory: () => ipcRenderer.invoke('workspace:choose-directory'), chooseFile: () => ipcRenderer.invoke('workspace:choose-file'), getRoot: () => ipcRenderer.invoke('workspace:get-root') },
   projects: {
     list: () => ipcRenderer.invoke('projects:list'),

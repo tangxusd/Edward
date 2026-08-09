@@ -39,16 +39,36 @@ function createWindow(): BrowserWindow {
   return window;
 }
 
+let mainWindow: BrowserWindow | null = null;
+let homeBounds: { x: number; y: number; width: number; height: number } | null = null;
+
 app.whenReady().then(() => {
+  mainWindow = createWindow();
   void registerProjectIpc();
-  createWindow();
+  registerWindowIpc();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      mainWindow = createWindow();
     }
   });
 });
+
+function registerWindowIpc(): void {
+  ipcMain.handle('window:enter-workbench', () => {
+    if (!mainWindow) return;
+    homeBounds = mainWindow.getBounds();
+    mainWindow.setResizable(true);
+    mainWindow.maximize();
+  });
+
+  ipcMain.handle('window:exit-workbench', () => {
+    if (!mainWindow || !homeBounds) return;
+    mainWindow.unmaximize();
+    mainWindow.setResizable(false);
+    mainWindow.setBounds(homeBounds);
+  });
+}
 
 async function registerProjectIpc(): Promise<void> {
   const configPath = join(app.getPath('userData'), 'workspace.json');
