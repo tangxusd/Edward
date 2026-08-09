@@ -4,6 +4,7 @@ type Props = {
   modelStatus?: string;
   modelColor?: string;
   onExport?: () => void;
+  onSettings?: () => void;
 };
 
 const saveStatusLabel: Record<string, string> = {
@@ -24,6 +25,7 @@ export function TopBar({
   modelStatus = 'GPT-4.1 · 在线',
   modelColor = '#28d69e',
   onExport,
+  onSettings,
 }: Props): React.JSX.Element {
   return (
     <header className="workbench-topbar">
@@ -43,6 +45,9 @@ export function TopBar({
         </span>
         <button className="topbar-export-btn" onClick={onExport}>
           导出
+        </button>
+        <button className="topbar-settings-btn" onClick={onSettings} aria-label="设置">
+          设置
         </button>
       </div>
     </header>

@@ -56,7 +56,7 @@ export function Workbench({
 
   return (
     <div className="workbench-container">
-      <TopBar modelStatus={modelStatus} modelColor={modelColor} onExport={handleExport} />
+      <TopBar modelStatus={modelStatus} modelColor={modelColor} onExport={handleExport} onSettings={() => window.dispatchEvent(new Event('settings-request'))} />
       <div className="workbench-grid">
         <LeftPanel />
         <div className="divider-left" />

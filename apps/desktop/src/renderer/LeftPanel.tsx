@@ -20,10 +20,12 @@ export function LeftPanel(): React.JSX.Element {
         ))}
       </div>
       <div className="left-panel-content">
-        <div className="left-panel-import-box">
-          <span className="left-panel-import-label">导入素材</span>
-          <div className="left-panel-import-placeholder" />
-        </div>
+        {activeTab === '媒体' ? (
+          <div className="left-panel-import-box">
+            <span className="left-panel-import-label">导入素材</span>
+            <div className="left-panel-import-placeholder" />
+          </div>
+        ) : null}
         <LibraryPanel tab={activeTab} />
       </div>
     </aside>
