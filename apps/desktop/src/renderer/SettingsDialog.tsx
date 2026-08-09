@@ -52,7 +52,7 @@ export function SettingsDialog({ onWorkspaceChanged, onModelsChanged, showTrigge
   };
   const trapFocus = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
-    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])') ?? []);
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"]):not([aria-hidden="true"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])') ?? []);
     if (focusable.length === 0) return;
     const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
     const nextIndex = event.shiftKey
@@ -62,5 +62,53 @@ export function SettingsDialog({ onWorkspaceChanged, onModelsChanged, showTrigge
     focusable[nextIndex]?.focus();
   };
 
-  return <>{projectOpen ? <output aria-label="项目名称" className="project-name">{projectName}</output> : null}{projectOpen ? <output aria-label="保存状态" className="save-status">{saveStatus}</output> : null}{showTrigger ? <button ref={triggerRef} type="button" className="settings-trigger" onClick={() => setOpen(true)}>设置</button> : null}{projectOpen ? <button type="button" className="project-close-trigger" onClick={() => window.dispatchEvent(new Event('project-close-request'))}>关闭项目</button> : null}{open ? <div ref={dialogRef} role="dialog" aria-label="设置" aria-modal="true" onKeyDown={trapFocus}><section><header><h2>设置</h2><button type="button" aria-label="关闭设置" onClick={close}>关闭</button></header><div role="tablist" aria-label="设置分类"><button type="button" id="settings-tab-general" role="tab" tabIndex={tab === 'general' ? 0 : -1} aria-controls="settings-panel-general" aria-selected={tab === 'general'} onClick={() => activateTab('general')} onKeyDown={moveTab}>通用</button><button type="button" id="settings-tab-models" role="tab" tabIndex={tab === 'models' ? 0 : -1} aria-controls="settings-panel-models" aria-selected={tab === 'models'} onClick={() => activateTab('models')} onKeyDown={moveTab}>AI 模型</button></div><div id={`settings-panel-${tab}`} role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>{tab === 'general' ? <WorkspaceSettings onChanged={onWorkspaceChanged} /> : <ModelSettings onModelsChanged={onModelsChanged} />}</div></section></div> : null}</>;
+  return (
+    <>
+      {projectOpen ? <output aria-label="项目名称" className="project-name">{projectName}</output> : null}
+      {projectOpen ? <output aria-label="保存状态" className="save-status">{saveStatus}</output> : null}
+      {showTrigger ? <button ref={triggerRef} type="button" className="settings-trigger" onClick={() => setOpen(true)}>设置</button> : null}
+      {projectOpen ? <button type="button" className="project-close-trigger" onClick={() => window.dispatchEvent(new Event('project-close-request'))}>关闭项目</button> : null}
+      {open ? (
+        <div ref={dialogRef} role="dialog" aria-label="设置" aria-modal="true" onKeyDown={trapFocus} className="settings-overlay">
+          <div className="settings-dialog">
+            <header className="settings-dialog-header">
+              <h2>设置</h2>
+              <button type="button" aria-label="关闭设置" onClick={close} className="settings-dialog-close">×</button>
+            </header>
+            <nav className="settings-tabs" role="tablist" aria-label="设置分类">
+              <button
+                type="button"
+                id="settings-tab-general"
+                role="tab"
+                tabIndex={tab === 'general' ? 0 : -1}
+                aria-controls="settings-panel-general"
+                aria-selected={tab === 'general'}
+                onClick={() => activateTab('general')}
+                onKeyDown={moveTab}
+                className={`settings-tab${tab === 'general' ? ' active' : ''}`}
+              >
+                项目设置
+              </button>
+              <button
+                type="button"
+                id="settings-tab-models"
+                role="tab"
+                tabIndex={tab === 'models' ? 0 : -1}
+                aria-controls="settings-panel-models"
+                aria-selected={tab === 'models'}
+                onClick={() => activateTab('models')}
+                onKeyDown={moveTab}
+                className={`settings-tab${tab === 'models' ? ' active' : ''}`}
+              >
+                大模型设置
+              </button>
+            </nav>
+            <div id={`settings-panel-${tab}`} role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="settings-tabpanel">
+              {tab === 'general' ? <WorkspaceSettings onChanged={onWorkspaceChanged} /> : <ModelSettings onModelsChanged={onModelsChanged} />}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 }
