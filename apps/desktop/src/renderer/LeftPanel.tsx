@@ -24,7 +24,7 @@ export function LeftPanel(): React.JSX.Element {
           <span className="left-panel-import-label">导入素材</span>
           <div className="left-panel-import-placeholder" />
         </div>
-        <LibraryPanel />
+        <LibraryPanel tab={activeTab} />
       </div>
     </aside>
   );
