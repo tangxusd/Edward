@@ -2,36 +2,36 @@ import { StrictMode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { markClipUserEdited, setClipLayout, setClipStyle, type Project, type Resource } from '@ai-video/domain';
+import { HomePage } from './HomePage.js';
 import { LibraryPanel } from './LibraryPanel.js';
-import { NewProjectDialog } from './NewProjectDialog.js';
 import { PreviewCanvas } from './PreviewCanvas.js';
 import { SubtitleStylePanel } from './SubtitleStylePanel.js';
 import { ExportDialog } from './ExportDialog.js';
 import { SettingsDialog } from './SettingsDialog.js';
-import { ProjectList } from './ProjectList.js';
-import { ResourceChoicePanel } from './ResourceChoicePanel.js';
 import { ComponentAiChatPanel } from './ComponentAiChatPanel.js';
+import { ResourceChoicePanel } from './ResourceChoicePanel.js';
 import { Timeline } from './Timeline.js';
 import { AiAnalysisPanel } from './AiAnalysisPanel.js';
 import { createProjectHistory, type ProjectHistory } from './projectHistory.js';
 import { startProjectAutoSave } from './projectAutoSave.js';
 import type { ModelRecord } from '../main/modelRepository.js';
+import { type AppView, openProject as navOpenProject, closeProject as navCloseProject } from './appNavigation.js';
 import './theme.css';
 
 function App(): React.JSX.Element {
-  const [project, setProject] = useState<Project>(); const [selectedClipId, setSelectedClipId] = useState<string>(); const [models, setModels] = useState<ModelRecord[]>([]); const [modelOnline, setModelOnline] = useState<boolean>(); const [refreshToken, setRefreshToken] = useState(0); const [historyRevision, setHistoryRevision] = useState(0);
+  const [view, setView] = useState<AppView>('home'); const [project, setProject] = useState<Project>(); const [selectedClipId, setSelectedClipId] = useState<string>(); const [models, setModels] = useState<ModelRecord[]>([]); const [modelOnline, setModelOnline] = useState<boolean>(); const [refreshToken, setRefreshToken] = useState(0); const [historyRevision, setHistoryRevision] = useState(0);
   const [cardStyles, setCardStyles] = useState<Resource[]>([]); const [backgrounds, setBackgrounds] = useState<Resource[]>([]); const [graphics, setGraphics] = useState<Resource[]>([]);
   const [leftPanelWidth, setLeftPanelWidth] = useState(440); const [rightPanelWidth, setRightPanelWidth] = useState(440);
   const saveQueue = useRef(Promise.resolve());
   const history = useRef<ProjectHistory>();
   const projectRef = useRef<Project>();
   const workspaceDataVersion = useRef(0);
-  const openProject = (next: Project) => { history.current = createProjectHistory(next); setProject(next); window.dispatchEvent(new Event('project-opened')); window.dispatchEvent(new CustomEvent('project-name', { detail: next.media.path.split(/[\\/]/).at(-1) ?? next.id })); window.dispatchEvent(new CustomEvent('project-save-status', { detail: '已保存' })); setHistoryRevision((value) => value + 1); };
+  const openProject = (next: Project) => { const nextState = navOpenProject({ view, project }, next); setView(nextState.view); setProject(nextState.project!); history.current = createProjectHistory(next); window.dispatchEvent(new Event('project-opened')); window.dispatchEvent(new CustomEvent('project-name', { detail: next.media.path.split(/[\\/]/).at(-1) ?? next.id })); window.dispatchEvent(new CustomEvent('project-save-status', { detail: '已保存' })); setHistoryRevision((value) => value + 1); };
   const created = (next: Project) => { openProject(next); setRefreshToken((value) => value + 1); };
   const saveProject = (next: Project) => { window.dispatchEvent(new CustomEvent('project-save-status', { detail: '保存中' })); saveQueue.current = saveQueue.current.catch(() => undefined).then(() => window.aiVideo.projects.save(next)).then(() => window.dispatchEvent(new CustomEvent('project-save-status', { detail: '已保存' }))).catch(() => window.dispatchEvent(new CustomEvent('project-save-status', { detail: '保存失败' }))); };
   useEffect(() => { projectRef.current = project; }, [project]);
   useEffect(() => startProjectAutoSave(() => projectRef.current, saveProject), []);
-  useEffect(() => { const closeProject = () => { if (!project) return; saveProject(project); void saveQueue.current.finally(() => { history.current = undefined; setProject(undefined); setSelectedClipId(undefined); window.dispatchEvent(new Event('project-closed')); setHistoryRevision((value) => value + 1); }); }; window.addEventListener('project-close-request', closeProject); return () => window.removeEventListener('project-close-request', closeProject); }, [project]);
+  useEffect(() => { const closeProject = () => { if (!project || view !== 'workbench') return; saveProject(project); void saveQueue.current.finally(() => { const nextState = navCloseProject({ view, project }); history.current = undefined; setProject(nextState.project); setView(nextState.view); setSelectedClipId(undefined); window.dispatchEvent(new Event('project-closed')); setHistoryRevision((value) => value + 1); }); }; window.addEventListener('project-close-request', closeProject); return () => window.removeEventListener('project-close-request', closeProject); }, [project, view]);
   const updateProject = (next: Project) => { history.current?.record(next); setProject(next); setHistoryRevision((value) => value + 1); saveProject(next); };
   const undo = () => { const previous = history.current?.undo(); if (!previous) return; setProject(previous); setHistoryRevision((value) => value + 1); saveProject(previous); };
   const redo = () => { const next = history.current?.redo(); if (!next) return; setProject(next); setHistoryRevision((value) => value + 1); saveProject(next); };
@@ -55,15 +55,23 @@ function App(): React.JSX.Element {
   useEffect(() => { document.documentElement.style.setProperty('--left-panel-width', `${leftPanelWidth}px`); document.documentElement.style.setProperty('--right-panel-width', `${rightPanelWidth}px`); }, [leftPanelWidth, rightPanelWidth]);
   useEffect(() => { const down = (event: PointerEvent) => { const side = Math.abs(event.clientX - leftPanelWidth) < 8 ? 'left' : Math.abs(event.clientX - (window.innerWidth - rightPanelWidth)) < 8 ? 'right' : undefined; if (!side) return; const startX = event.clientX; const startWidth = side === 'left' ? leftPanelWidth : rightPanelWidth; const other = side === 'left' ? rightPanelWidth : leftPanelWidth; const move = (next: PointerEvent) => { const delta = side === 'left' ? next.clientX - startX : startX - next.clientX; const maximum = Math.min(640, window.innerWidth - other - 520); const width = Math.max(280, Math.min(maximum, startWidth + delta)); if (side === 'left') setLeftPanelWidth(width); else setRightPanelWidth(width); }; const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop, { once: true }); event.preventDefault(); }; window.addEventListener('pointerdown', down); return () => window.removeEventListener('pointerdown', down); }, [leftPanelWidth, rightPanelWidth]);
   const replaceSelectedResource = (resourceId: string) => project && selected && updateProject(setClipStyle(project, selected.id, resourceId));
-  return <main>
-    <header data-history-revision={historyRevision}>
-      <h1>AI 剪视频工具</h1>
-      <button aria-label="撤销" title="撤销" type="button" disabled={!history.current?.canUndo} onClick={undo}>撤销</button>
-      <button aria-label="重做" title="重做" type="button" disabled={!history.current?.canRedo} onClick={redo}>重做</button>
-      <output aria-label="当前模型状态" style={{ color: modelColor }}>{modelStatus}</output>
-    </header>
-    <SettingsDialog onWorkspaceChanged={workspaceChanged} onModelsChanged={setModels} />
-    {project ? <LibraryPanel /> : <><ProjectList onOpen={openProject} refreshToken={refreshToken} /><NewProjectDialog onCreated={created} /></>}
+  if (view === 'home') {
+    return (
+      <>
+        <HomePage onOpenProject={openProject} />
+        <SettingsDialog onWorkspaceChanged={workspaceChanged} onModelsChanged={setModels} showTrigger={false} />
+      </>
+    );
+  }
+  return (
+    <main>
+      <header data-history-revision={historyRevision}>
+        <h1>Edward</h1>
+        <span className="header-version">0.1.1</span>
+        <output aria-label="当前模型状态" style={{ color: modelColor }}>{modelStatus}</output>
+      </header>
+      <SettingsDialog onWorkspaceChanged={workspaceChanged} onModelsChanged={setModels} />
+      <LibraryPanel />
     <PreviewCanvas project={project} onChange={updateProject} onSelect={setSelectedClipId} selectedClipId={selectedClipId} />
     <aside aria-label="资源检查器">
       {selectedClipId ?? '未选择资源'}
@@ -79,7 +87,8 @@ function App(): React.JSX.Element {
     </aside>
     <Timeline project={project} onChange={updateProject} onSelect={setSelectedClipId} />
     <ExportDialog project={project} />
-  </main>;
+    </main>
+  );
 }
 
 const root = document.getElementById('root');

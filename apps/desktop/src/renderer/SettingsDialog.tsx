@@ -6,9 +6,10 @@ import { WorkspaceSettings } from './WorkspaceSettings.js';
 type Props = {
   onWorkspaceChanged?: () => void;
   onModelsChanged?: (models: ModelRecord[]) => void;
+  showTrigger?: boolean;
 };
 
-export function SettingsDialog({ onWorkspaceChanged, onModelsChanged }: Props): React.JSX.Element {
+export function SettingsDialog({ onWorkspaceChanged, onModelsChanged, showTrigger = true }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectName, setProjectName] = useState('');
@@ -26,11 +27,13 @@ export function SettingsDialog({ onWorkspaceChanged, onModelsChanged }: Props): 
     const closed = () => { setProjectOpen(false); setProjectName(''); setSaveStatus(''); };
     const named = (event: Event) => setProjectName(String((event as CustomEvent<string>).detail));
     const saved = (event: Event) => setSaveStatus(String((event as CustomEvent<string>).detail));
+    const settingsRequest = () => setOpen(true);
     window.addEventListener('project-opened', opened);
     window.addEventListener('project-closed', closed);
     window.addEventListener('project-name', named);
     window.addEventListener('project-save-status', saved);
-    return () => { window.removeEventListener('project-opened', opened); window.removeEventListener('project-closed', closed); window.removeEventListener('project-name', named); window.removeEventListener('project-save-status', saved); };
+    window.addEventListener('settings-request', settingsRequest);
+    return () => { window.removeEventListener('project-opened', opened); window.removeEventListener('project-closed', closed); window.removeEventListener('project-name', named); window.removeEventListener('project-save-status', saved); window.removeEventListener('settings-request', settingsRequest); };
   }, []);
 
   const close = () => {
@@ -59,5 +62,5 @@ export function SettingsDialog({ onWorkspaceChanged, onModelsChanged }: Props): 
     focusable[nextIndex]?.focus();
   };
 
-  return <>{projectOpen ? <output aria-label="项目名称" className="project-name">{projectName}</output> : null}{projectOpen ? <output aria-label="保存状态" className="save-status">{saveStatus}</output> : null}<button ref={triggerRef} type="button" className="settings-trigger" onClick={() => setOpen(true)}>设置</button>{projectOpen ? <button type="button" className="project-close-trigger" onClick={() => window.dispatchEvent(new Event('project-close-request'))}>关闭项目</button> : null}{open ? <div ref={dialogRef} role="dialog" aria-label="设置" aria-modal="true" onKeyDown={trapFocus}><section><header><h2>设置</h2><button type="button" aria-label="关闭设置" onClick={close}>关闭</button></header><div role="tablist" aria-label="设置分类"><button type="button" id="settings-tab-general" role="tab" tabIndex={tab === 'general' ? 0 : -1} aria-controls="settings-panel-general" aria-selected={tab === 'general'} onClick={() => activateTab('general')} onKeyDown={moveTab}>通用</button><button type="button" id="settings-tab-models" role="tab" tabIndex={tab === 'models' ? 0 : -1} aria-controls="settings-panel-models" aria-selected={tab === 'models'} onClick={() => activateTab('models')} onKeyDown={moveTab}>AI 模型</button></div><div id={`settings-panel-${tab}`} role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>{tab === 'general' ? <WorkspaceSettings onChanged={onWorkspaceChanged} /> : <ModelSettings onModelsChanged={onModelsChanged} />}</div></section></div> : null}</>;
+  return <>{projectOpen ? <output aria-label="项目名称" className="project-name">{projectName}</output> : null}{projectOpen ? <output aria-label="保存状态" className="save-status">{saveStatus}</output> : null}{showTrigger ? <button ref={triggerRef} type="button" className="settings-trigger" onClick={() => setOpen(true)}>设置</button> : null}{projectOpen ? <button type="button" className="project-close-trigger" onClick={() => window.dispatchEvent(new Event('project-close-request'))}>关闭项目</button> : null}{open ? <div ref={dialogRef} role="dialog" aria-label="设置" aria-modal="true" onKeyDown={trapFocus}><section><header><h2>设置</h2><button type="button" aria-label="关闭设置" onClick={close}>关闭</button></header><div role="tablist" aria-label="设置分类"><button type="button" id="settings-tab-general" role="tab" tabIndex={tab === 'general' ? 0 : -1} aria-controls="settings-panel-general" aria-selected={tab === 'general'} onClick={() => activateTab('general')} onKeyDown={moveTab}>通用</button><button type="button" id="settings-tab-models" role="tab" tabIndex={tab === 'models' ? 0 : -1} aria-controls="settings-panel-models" aria-selected={tab === 'models'} onClick={() => activateTab('models')} onKeyDown={moveTab}>AI 模型</button></div><div id={`settings-panel-${tab}`} role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>{tab === 'general' ? <WorkspaceSettings onChanged={onWorkspaceChanged} /> : <ModelSettings onModelsChanged={onModelsChanged} />}</div></section></div> : null}</>;
 }
