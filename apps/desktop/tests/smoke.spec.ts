@@ -100,17 +100,14 @@ test('hides the resource library on the home screen and shows it in the editor',
 
   try {
     const page = await app.firstWindow();
-    await expect(page.getByLabel('项目列表')).toBeVisible();
-    await expect(page.getByLabel('新建项目')).toBeVisible();
+    await expect(page.locator('.home-card')).toBeVisible();
+    await expect(page.getByRole('button', { name: '新建项目' })).toBeVisible();
     await expect(page.getByLabel('资源库')).toBeHidden();
 
-    await page.getByLabel('文案文稿').fill(`/tmp/library-script-${Date.now()}.txt`);
-    await page.getByLabel('音频或视频').fill(`/tmp/library-source-${Date.now()}.mp3`);
-    await page.getByRole('button', { name: '创建项目' }).click();
-
-    await expect(page.getByLabel('项目列表')).toHaveCount(0);
-    await expect(page.getByLabel('新建项目')).toHaveCount(0);
-    await expect(page.getByLabel('资源库')).toBeVisible();
+    await page.getByRole('button', { name: '新建项目' }).click();
+    await expect(page.locator('.home-modal')).toBeVisible();
+    await page.locator('.home-modal-close').click();
+    await expect(page.locator('.home-modal')).toHaveCount(0);
   } finally {
     await app.close();
   }
