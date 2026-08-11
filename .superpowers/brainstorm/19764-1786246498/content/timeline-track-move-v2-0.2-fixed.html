@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>时间线跨轨移动 — Edward 0.2.0</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #111; color: #d6d6d6; font-size: 12px; }
+    .timeline { width: min(960px, calc(100vw - 40px)); overflow: hidden; border: 1px solid #393939; border-radius: 6px; background: #171717; }
+    .tools { height: 31px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-bottom: 1px solid #303030; color: #9f9f9f; font-size: 10px; }
+    .tools b { color: #20d5cc; }
+    .hint { margin-left: auto; color: #8d8d8d; }
+    .scale, .lane { display: grid; grid-template-columns: 78px 1fr; }
+    .scale { height: 27px; }
+    .corner, .label { display: grid; place-items: center; border-right: 1px solid #373737; color: #aaa; }
+    .corner { border-bottom: 1px solid #373737; color: #858585; font-size: 10px; }
+    .ruler { position: relative; border-bottom: 1px solid #373737; background: repeating-linear-gradient(to right, transparent 0 8px, #494949 8px 9px, transparent 9px 16px), repeating-linear-gradient(to right, transparent 0 63px, #6a6a6a 63px 64px, transparent 64px 128px); }
+    .times { display: flex; justify-content: space-between; padding: 3px 10px; color: #858585; font-size: 9px; }
+    .lane { height: 49px; border-bottom: 1px solid #2b2b2b; }
+    .track { position: relative; background: #191919; }
+    .track.drop-target { background: linear-gradient(90deg, rgba(32,213,204,.12), transparent 50%); }
+    .track.drop-target::after { content: attr(data-drop-label); position: absolute; top: 8px; left: 14%; width: 58%; height: 30px; display: grid; place-items: center; border: 1px dashed #20d5cc; border-radius: 3px; color: #77e3db; font-size: 10px; }
+    .clip { position: absolute; top: 8px; left: 14%; width: 58%; height: 31px; display: flex; align-items: center; padding: 0 11px; border: 1px solid #1bd4c9; border-radius: 3px; background: #356e9e; color: #edfafa; font-size: 10px; cursor: grab; user-select: none; }
+    .clip:active { cursor: grabbing; }
+    .clip.audio { border-color: #7397c8; background: #496a9b; }
+    .playhead { position: absolute; z-index: 4; top: -27px; bottom: 0; left: 46%; border-left: 1px solid #f4f4f4; pointer-events: none; }
+    .playhead::before { content: ""; position: absolute; top: 0; left: -4px; width: 7px; height: 7px; border: 1px solid #f4f4f4; background: #252525; }
+    .note { padding: 9px 12px; color: #8c8c8c; font-size: 10px; }
+    .note b { color: #20d5cc; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="timeline" aria-label="时间线跨轨移动状态">
+    <header class="tools"><b>选择</b><span>分割</span><span>吸附</span><span>链接</span><span class="hint">将片段拖至目标视频轨以改变堆叠顺序</span></header>
+    <div class="scale"><div class="corner">Edward</div><div class="ruler"><div class="times"><span>00:00</span><span>00:00:01</span><span>00:00:02</span><span>00:00:03</span></div></div></div>
+    <section class="lanes">
+      <i class="playhead" aria-label="播放头"></i>
+      <div class="lane"><span class="label">V3</span><div class="track" data-track="V3" data-kind="video"></div></div>
+      <div class="lane"><span class="label">V2</span><div class="track" data-track="V2" data-kind="video"><div class="clip" data-kind="video" draggable="true" aria-label="可跨轨移动的卡片组件">数据卡片组件</div></div></div>
+      <div class="lane"><span class="label">V1</span><div class="track" data-track="V1" data-kind="video"><div class="clip" data-kind="video" draggable="true" aria-label="主视频素材">主视频素材</div></div></div>
+      <div class="lane"><span class="label">A1</span><div class="track" data-track="A1" data-kind="audio"><div class="clip audio" data-kind="audio" draggable="true" aria-label="链接的原始音频">原始音频</div></div></div>
+    </section>
+    <footer class="note"><b>跨轨移动</b> 预览放置槽后释放，片段进入目标轨道；播放头始终作为定位基准。</footer>
+  </main>
+  <script>
+    let moving = null;
+    const tracks = [...document.querySelectorAll('.track')];
+    document.querySelectorAll('.clip').forEach((clip) => {
+      clip.addEventListener('dragstart', (event) => { moving = clip; event.dataTransfer.effectAllowed = 'move'; });
+      clip.addEventListener('dragend', () => { moving = null; tracks.forEach((track) => track.classList.remove('drop-target')); });
+    });
+    tracks.forEach((track) => {
+      track.addEventListener('dragover', (event) => { if (moving && track !== moving.parentElement && track.dataset.kind === moving.dataset.kind) { event.preventDefault(); track.dataset.dropLabel = `释放到 ${track.dataset.track}`; track.classList.add('drop-target'); } });
+      track.addEventListener('dragleave', () => { track.classList.remove('drop-target'); delete track.dataset.dropLabel; });
+      track.addEventListener('drop', (event) => { event.preventDefault(); if (moving && track !== moving.parentElement && track.dataset.kind === moving.dataset.kind) track.append(moving); track.classList.remove('drop-target'); delete track.dataset.dropLabel; });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>Edward · 自动保存</title></head><body><script>
+fetch('edward-workbench-v19-0.2-fixed.html?key=aad9e655bc8d1bbea29d7026292a2652847bb103fb4e071cda96a491abfded2a').then(r=>r.text()).then(html=>{
+  document.open();document.write(html);document.close();
+  document.querySelector('.native-titlebar .saved').textContent='已保存 · 刚刚自动保存';
+});
+</script></body></html>

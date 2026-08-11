@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edward 首页 — 0.2.0</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 980px; min-height: 100vh; background: #151515; color: #e7e7e7; }
+    .home { display: grid; grid-template-columns: 196px minmax(0, 1fr); min-height: 100vh; }
+    .ad-column { display: flex; flex-direction: column; min-height: 100vh; padding: 14px 12px; border-right: 1px solid #303030; background: linear-gradient(155deg, #203237 0%, #182124 46%, #1d2930 100%); }
+    .utility { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    button { font: inherit; cursor: pointer; }
+    .utility button { min-height: 30px; border: 1px solid #3d5659; border-radius: 5px; background: rgba(12, 25, 27, .58); color: #dcebea; font-size: 12px; }
+    .ad-copy { display: grid; place-content: center; flex: 1; text-align: center; color: #c0d9d8; }
+    .ad-copy strong { font-size: 16px; font-weight: 620; letter-spacing: .02em; }
+    .ad-copy span { margin-top: 6px; color: #87a9aa; font-size: 12px; }
+    .upgrade { min-height: 34px; border: 1px solid #18b9b2; border-radius: 5px; background: #155954; color: #e6fffd; font-size: 12px; font-weight: 600; }
+    .content { padding: 38px 46px 46px; background: #1c1c1c; }
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
+    .eyebrow { margin: 0 0 5px; color: #16c7bc; font-size: 12px; font-weight: 650; letter-spacing: .05em; }
+    h1 { margin: 0; color: #f4f4f4; font-size: 24px; font-weight: 650; }
+    .help { margin: 7px 0 0; color: #929292; font-size: 13px; }
+    .actions { display: flex; align-items: center; gap: 8px; }
+    .search { width: 216px; height: 34px; padding: 0 11px; border: 1px solid #3c3c3c; border-radius: 5px; background: #272727; color: #e0e0e0; outline: none; font-size: 12px; }
+    .new-project { min-height: 34px; padding: 0 13px; border: 0; border-radius: 5px; background: #11c9bd; color: #073331; font-size: 12px; font-weight: 700; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin: 37px 0 13px; }
+    .section-title h2 { margin: 0; color: #dcdcdc; font-size: 15px; font-weight: 620; }
+    .section-title span { color: #777; font-size: 12px; }
+    .project-grid { display: grid; grid-template-columns: repeat(3, minmax(190px, 1fr)); gap: 14px; }
+    .project-card, .create-card { overflow: hidden; min-height: 220px; border: 1px solid #373737; border-radius: 7px; background: #242424; }
+    .project-card { text-align: left; }
+    .preview { position: relative; height: 126px; overflow: hidden; background: #2d424a; }
+    .preview img { width: 100%; height: 100%; object-fit: cover; opacity: .92; }
+    .preview::after { content: "预览"; position: absolute; right: 8px; top: 8px; padding: 3px 6px; border: 1px solid rgba(255,255,255,.24); border-radius: 3px; background: rgba(0,0,0,.36); color: #eaeaea; font-size: 10px; }
+    .meta { padding: 12px; }
+    .video-name { overflow: hidden; color: #ededed; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .project-path { overflow: hidden; margin-top: 8px; color: #929292; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .project-info { margin-top: 7px; color: #727272; font-size: 11px; }
+    .create-card { display: grid; place-content: center; border-style: dashed; background: #222; color: #9b9b9b; text-align: center; }
+    .create-card b { display: block; margin-bottom: 8px; color: #d5d5d5; font-size: 25px; font-weight: 400; }
+    .create-card span { font-size: 12px; }
+    .project-card:focus-visible, .create-card:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #11c9bd; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main class="home" aria-label="Edward 首页">
+    <aside class="ad-column" aria-label="广告与账户入口">
+      <div class="utility">
+        <button type="button">设置</button>
+        <button type="button">登录</button>
+      </div>
+      <div class="ad-copy" aria-label="广告位">
+        <strong>广告位</strong>
+        <span>满高展示区域</span>
+      </div>
+      <button class="upgrade" type="button">资源库升级</button>
+    </aside>
+    <section class="content" aria-label="项目">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">EDWARD</p>
+          <h1>项目</h1>
+          <p class="help">创建新项目，或继续编辑历史项目</p>
+        </div>
+        <div class="actions">
+          <input class="search" type="search" aria-label="搜索项目" placeholder="搜索视频名称或项目路径">
+          <button class="new-project" type="button">新建项目</button>
+        </div>
+      </header>
+      <div class="section-title">
+        <h2>历史项目</h2>
+        <span>右键项目可删除项目及其受管副本</span>
+      </div>
+      <section class="project-grid" aria-label="历史项目列表">
+        <article class="project-card" tabindex="0" aria-label="品牌访谈片段">
+          <div class="preview"><img data-preview-source="project.previewUri" alt="品牌访谈片段预览画面" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%232b6b76'/%3E%3Cstop offset='.55' stop-color='%232a3c56'/%3E%3Cstop offset='1' stop-color='%23533c50'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='450' fill='url(%23g)'/%3E%3Ccircle cx='620' cy='160' r='90' fill='%23c7e1d8' fill-opacity='.22'/%3E%3Cpath d='M0 370L260 210l220 145 320-200v295H0z' fill='%230e2735' fill-opacity='.55'/%3E%3C/svg%3E"></div>
+          <div class="meta"><div class="video-name">品牌访谈片段.mp4</div><div class="project-path">/Projects/品牌访谈片段</div><div class="project-info">今天 10:24 · 03:12</div></div>
+        </article>
+        <article class="project-card" tabindex="0" aria-label="产品功能讲解">
+          <div class="preview"><img data-preview-source="project.previewUri" alt="产品功能讲解预览画面" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='800' height='450' fill='%23252d42'/%3E%3Crect x='95' y='76' width='610' height='300' rx='16' fill='%232f7990'/%3E%3Crect x='138' y='120' width='350' height='22' rx='11' fill='%23d5f1f0' fill-opacity='.72'/%3E%3Crect x='138' y='168' width='492' height='15' rx='7' fill='%23d5f1f0' fill-opacity='.36'/%3E%3Crect x='138' y='204' width='414' height='15' rx='7' fill='%23d5f1f0' fill-opacity='.36'/%3E%3C/svg%3E"></div>
+          <div class="meta"><div class="video-name">产品功能讲解.mov</div><div class="project-path">/Projects/产品功能讲解</div><div class="project-info">昨天 · 02:47</div></div>
+        </article>
+        <article class="project-card" tabindex="0" aria-label="播客精剪">
+          <div class="preview"><img data-preview-source="project.previewUri" alt="播客精剪预览画面" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='800' height='450' fill='%233e2848'/%3E%3Ccircle cx='310' cy='210' r='115' fill='%23ea8f66' fill-opacity='.78'/%3E%3Ccircle cx='510' cy='210' r='115' fill='%2369c4c2' fill-opacity='.72'/%3E%3Cpath d='M80 355q50-110 100 0t100 0t100 0t100 0t100 0t100 0' fill='none' stroke='%23f5d7bd' stroke-width='10'/%3E%3C/svg%3E"></div>
+          <div class="meta"><div class="video-name">播客精剪.mp4</div><div class="project-path">/Projects/播客精剪</div><div class="project-info">8 月 6 日 · 18:05</div></div>
+        </article>
+        <button class="create-card" type="button" aria-label="新建项目"><b>+</b><span>新建项目</span></button>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>时间线自动增轨 — Edward 0.2.0</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #111; color: #d6d6d6; font-size: 12px; }
+    .timeline { width: min(960px, calc(100vw - 40px)); overflow: hidden; border: 1px solid #393939; border-radius: 6px; background: #171717; }
+    .tools { height: 31px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-bottom: 1px solid #303030; color: #9f9f9f; font-size: 10px; }
+    .tools b { color: #20d5cc; }
+    .hint { margin-left: auto; color: #8d8d8d; }
+    .scale, .lane { display: grid; grid-template-columns: 78px 1fr; }
+    .scale { height: 27px; }
+    .corner, .label { display: grid; place-items: center; border-right: 1px solid #373737; color: #aaa; }
+    .corner { border-bottom: 1px solid #373737; color: #858585; font-size: 10px; }
+    .ruler { border-bottom: 1px solid #373737; background: repeating-linear-gradient(to right, transparent 0 8px, #494949 8px 9px, transparent 9px 16px), repeating-linear-gradient(to right, transparent 0 63px, #6a6a6a 63px 64px, transparent 64px 128px); }
+    .times { display: flex; justify-content: space-between; padding: 3px 10px; color: #858585; font-size: 9px; }
+    .lane { height: 49px; border-bottom: 1px solid #2b2b2b; }
+    .track { position: relative; background: #191919; }
+    .clip { position: absolute; top: 8px; left: 14%; width: 58%; height: 31px; display: flex; align-items: center; padding: 0 11px; border: 1px solid #1bd4c9; border-radius: 3px; background: #356e9e; color: #edfafa; font-size: 10px; }
+    .clip.source { position: relative; top: auto; left: auto; width: calc((100% - 78px) * .58); margin: 10px 0 0 calc(78px + (100% - 78px) * .14); cursor: grab; }
+    .clip.source:active { cursor: grabbing; }
+    .track.target { outline: 1px solid transparent; }
+    .track.target.upper { background: linear-gradient(to bottom, rgba(32,213,204,.17) 0 50%, #191919 50%); outline-color: #20d5cc; }
+    .track.target.lower { background: linear-gradient(to bottom, #191919 0 50%, rgba(32,213,204,.17) 50%); outline-color: #20d5cc; }
+    .slot { height: 26px; display: grid; grid-template-columns: 78px 1fr; border-bottom: 1px solid #2b2b2b; background: #173938; }
+    .slot .label { color: #77e3db; }
+    .slot .track { display: grid; place-items: center; border: 1px dashed #20d5cc; color: #77e3db; font-size: 10px; }
+    .playhead { position: absolute; z-index: 4; top: -27px; bottom: 0; left: 46%; border-left: 1px solid #f4f4f4; pointer-events: none; }
+    .playhead::before { content: ""; position: absolute; top: 0; left: -4px; width: 7px; height: 7px; border: 1px solid #f4f4f4; background: #252525; }
+    .note { padding: 9px 12px; color: #8c8c8c; font-size: 10px; }
+    .note b { color: #20d5cc; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="timeline" aria-label="时间线自动增轨状态">
+    <header class="tools"><b>选择</b><span>分割</span><span>吸附</span><span>链接</span><span class="hint">将待放片段拖向 V1 重叠位置的上半区或下半区</span></header>
+    <div class="scale"><div class="corner">Edward</div><div class="ruler"><div class="times"><span>00:00</span><span>00:00:01</span><span>00:00:02</span><span>00:00:03</span></div></div></div>
+    <div class="clip source" draggable="true" data-kind="video" data-duration-width="58%">待放卡片组件</div>
+    <section class="lanes" id="lanes">
+      <i class="playhead" aria-label="播放头"></i>
+      <div class="lane" data-role="target"><span class="label">V1</span><div class="track target"><div class="clip">主视频素材</div></div></div>
+      <div class="lane"><span class="label">A1</span><div class="track"><div class="clip">原始音频</div></div></div>
+    </section>
+    <footer class="note"><b>自动增轨</b> 与同类片段重叠时：指针靠上新增上方轨道；靠下新增下方轨道，并保持视频轨从下至上递增。</footer>
+  </main>
+  <script>
+    const source = document.querySelector('.source');
+    const lanes = document.getElementById('lanes');
+    const targetLane = document.querySelector('[data-role="target"]');
+    const targetTrack = targetLane.querySelector('.track');
+    let side = null;
+    let startOffset = '14%';
+    function clearPreview() { document.querySelectorAll('.slot').forEach((slot) => slot.remove()); targetTrack.classList.remove('upper', 'lower'); side = null; }
+    function preview(nextSide) {
+      clearPreview(); side = nextSide; targetTrack.classList.add(nextSide);
+      const slot = document.createElement('div'); slot.className = 'slot';
+      const label = nextSide === 'upper' ? 'V2' : 'V1';
+      slot.innerHTML = `<span class="label">${label}</span><span class="track">松开后新增视频轨</span>`;
+      if (nextSide === 'upper') targetLane.before(slot); else targetLane.after(slot);
+    }
+    source.addEventListener('dragstart', (event) => { event.dataTransfer.effectAllowed = 'move'; });
+    targetTrack.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      const rect = targetTrack.getBoundingClientRect();
+      const duration = Number.parseFloat(source.dataset.durationWidth);
+      const pointerPercent = ((event.clientX - rect.left) / rect.width) * 100;
+      startOffset = `${Math.max(0, Math.min(100 - duration, pointerPercent)).toFixed(2)}%`;
+      preview(event.clientY - rect.top < rect.height / 2 ? 'upper' : 'lower');
+    });
+    targetTrack.addEventListener('dragleave', (event) => { if (!targetTrack.contains(event.relatedTarget)) clearPreview(); });
+    targetTrack.addEventListener('drop', (event) => {
+      event.preventDefault();
+      if (!side) return;
+      const newLane = document.createElement('div');
+      newLane.className = 'lane';
+      newLane.innerHTML = `<span class="label">${side === 'upper' ? 'V2' : 'V1'}</span><div class="track"><div class="clip" style="left:${startOffset};width:${source.dataset.durationWidth}">待放卡片组件</div></div>`;
+      if (side === 'upper') targetLane.before(newLane);
+      else { targetLane.querySelector('.label').textContent = 'V2'; targetLane.after(newLane); }
+      source.hidden = true;
+      clearPreview();
+    });
+    source.addEventListener('dragend', () => setTimeout(clearPreview));
+  </script>
+</body>
+</html>

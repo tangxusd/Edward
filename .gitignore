@@ -1,8 +1,8 @@
-._*
+# Edward 0.2.0 local development outputs
+.archives/
 .worktrees/
-__pycache__/
-node_modules/
-out/
-test-results/
-playwright-report/
-apps/desktop/release/
+build/
+
+# macOS metadata
+.DS_Store
+._*

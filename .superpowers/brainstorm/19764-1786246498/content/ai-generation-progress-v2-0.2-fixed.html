@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>正在生成剪辑时间线 — Edward 0.2.0</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #111; color: #ddd; }
+    .dialog { width: min(580px, calc(100vw - 40px)); border: 1px solid #414141; border-radius: 8px; background: #181818; box-shadow: 0 22px 58px rgba(0,0,0,.46); }
+    header { padding: 20px; border-bottom: 1px solid #373737; }
+    h1 { margin: 0; color: #f0f0f0; font-size: 17px; font-weight: 650; }
+    .content { padding: 0 20px; }
+    .intro { margin: 13px 0 20px; color: #9d9d9d; font-size: 12px; line-height: 1.6; }
+    .step { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; margin: 14px 0; }
+    .dot { display: grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; background: #303030; color: #aaa; font-size: 10px; font-style: normal; }
+    .done { background: #185a56; color: #20d5cc; }
+    .running { background: #20d5cc; color: #07302c; font-weight: 700; }
+    .label { color: #ddd; font-size: 13px; }
+    .state { color: #929292; font-size: 11px; white-space: nowrap; }
+    .bar { height: 5px; margin-top: 6px; overflow: hidden; border-radius: 3px; background: #303030; }
+    .bar i { display: block; width: 62%; height: 100%; border-radius: 3px; background: #00c5ba; }
+    footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding: 14px 20px; border-top: 1px solid #373737; }
+    .note { margin: 0; color: #8d8d8d; font-size: 11px; line-height: 1.55; }
+    .cancel { min-height: 31px; flex: 0 0 auto; padding: 0 12px; border: 1px solid #484848; border-radius: 4px; background: #303030; color: #ddd; font: 12px inherit; }
+    button:focus-visible { outline: 2px solid #11c9bd; outline-offset: 2px; }
+  </style>
+</head>
+<body>
+  <main class="dialog" role="status" aria-live="polite" aria-labelledby="progress-title">
+    <header><h1 id="progress-title">正在生成剪辑时间线</h1></header>
+    <div class="content">
+      <p class="intro">项目和受管副本已创建。本地仅处理媒体转写与时间对齐；云端仅接收文稿、转写文本、时间戳和本地资源的结构化信息。</p>
+      <div class="step"><i class="dot done">✓</i><div class="label">读取媒体信息</div><span class="state">已完成</span></div>
+      <div class="step"><i class="dot running">2</i><div class="label">本地转写并对齐字幕<div class="bar" aria-label="转写进度 62%"><i></i></div></div><span class="state">62%</span></div>
+      <div class="step"><i class="dot">3</i><div class="label">调用当前选择的模型进行语义分析</div><span class="state">等待中</span></div>
+      <div class="step"><i class="dot">4</i><div class="label">生成初版时间线与本地资源组件</div><span class="state">等待中</span></div>
+    </div>
+    <footer>
+      <p class="note">取消后保留项目和受管副本。首页会显示“分析未完成”，再次打开后可重试或删除项目；不会进入不完整工作台。</p>
+      <button class="cancel" type="button">取消创建</button>
+    </footer>
+  </main>
+</body>
+</html>
