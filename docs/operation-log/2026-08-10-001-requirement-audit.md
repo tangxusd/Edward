@@ -1789,3 +1789,9 @@
 - 目的：避免调用方自行拼接 `renderFrame` RPC、进程调用和响应解析，导致绕过统一边界。
 - 修改：新增 `renderPluginFrame`，将请求参数校验、`callPlugin`、请求响应 ID 校验和透明帧解析封装为单一调用。
 - 验证：插件宿主测试覆盖缺失请求 ID、负帧失败；待本轮构建后运行完整 CTest。
+
+## 208. Edward 0.3.0 已安装插件加载边界
+
+- 目的：建立外部插件的最小安装边界，避免工作台直接接受任意可执行文件路径。
+- 修改：新增 `InstalledPlugin` 与 `loadInstalledPlugin`；仅接受插件根目录内的 `edward-plugin.json`，解析 manifest 后确认声明入口是同目录内的普通文件。
+- 验证：覆盖正确安装、缺少入口失败；待本轮构建后运行完整 CTest。
