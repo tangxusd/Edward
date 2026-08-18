@@ -8,6 +8,7 @@
 
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/render_graph.hpp"
+#include "edward/plugins/installed_plugin.hpp"
 
 namespace edward::desktop {
 
@@ -22,6 +23,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int demoOverlayHeight READ demoOverlayHeight WRITE setDemoOverlayHeight NOTIFY timelineChanged)
   Q_PROPERTY(double demoOverlayOpacity READ demoOverlayOpacity WRITE setDemoOverlayOpacity NOTIFY timelineChanged)
   Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
+  Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
+  Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -34,6 +37,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int demoOverlayHeight() const { return demoOverlayHeight_; }
   [[nodiscard]] double demoOverlayOpacity() const { return demoOverlayOpacity_; }
   [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
+  [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
+  [[nodiscard]] QString installedPluginId() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
   void setDemoOverlayWidth(int value);
@@ -47,6 +52,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool loadComponentJson(const QString& json);
   Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
+  Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);
+  Q_INVOKABLE void clearInstalledPlugin();
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
@@ -72,6 +79,7 @@ class WorkbenchRuntime final : public QObject {
   int demoOverlayHeight_ = 72;
   double demoOverlayOpacity_ = 0.82;
   QString demoOverlayText_ = QStringLiteral("Edward Component");
+  std::optional<edward::plugins::InstalledPlugin> installedPlugin_;
 };
 
 }  // namespace edward::desktop

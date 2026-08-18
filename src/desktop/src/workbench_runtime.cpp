@@ -38,6 +38,10 @@ void WorkbenchRuntime::refreshDemoOverlay() {
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
 
+QString WorkbenchRuntime::installedPluginId() const {
+  return installedPlugin_ ? installedPlugin_->manifest.pluginId : QString{};
+}
+
 QVariantList WorkbenchRuntime::clips() const {
   QVariantList result;
   for (const auto& clip : timeline_.clips(videoTrack_)) {
@@ -140,6 +144,26 @@ bool WorkbenchRuntime::loadPluginFrameJson(const QString& requestId, const QStri
   renderGraph_.setPluginFrame(*frame);
   emit timelineChanged();
   return true;
+}
+
+bool WorkbenchRuntime::selectInstalledPlugin(const QString& rootPath) {
+  QString error;
+  auto plugin = edward::plugins::loadInstalledPlugin(
+      std::filesystem::path(rootPath.toStdString()), &error);
+  if (!plugin) {
+    emit operationFailed(QStringLiteral("插件不可用：%1").arg(error));
+    return false;
+  }
+  installedPlugin_ = std::move(plugin);
+  emit timelineChanged();
+  return true;
+}
+
+void WorkbenchRuntime::clearInstalledPlugin() {
+  if (!installedPlugin_) return;
+  installedPlugin_.reset();
+  renderGraph_.setPluginFrame(std::nullopt);
+  emit timelineChanged();
 }
 
 void WorkbenchRuntime::clearComponentOverlay() {
