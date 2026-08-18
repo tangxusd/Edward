@@ -63,6 +63,19 @@ ApplicationWindow {
                         text: workbenchRuntime.demoOverlayEnabled ? "移除测试组件" : "添加测试组件"
                         onClicked: workbenchRuntime.toggleDemoOverlay()
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "组件 X: " + workbenchRuntime.demoOverlayX
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 0
+                        to: 640
+                        value: workbenchRuntime.demoOverlayX
+                        onMoved: workbenchRuntime.demoOverlayX = value
+                    }
                 }
             }
         }

@@ -1633,3 +1633,9 @@
 - 目的：在工作台中验证标准组件从 IR 到透明预览层的真实调用链。
 - 修改：`WorkbenchRuntime` 增加可切换的测试组件入口；测试组件由标准 Component IR 构造，经过 `ComponentRenderer` 和 `RenderGraph` 叠加到预览帧；AI 面板暂提供添加/移除测试组件按钮，后续替换为 AI 草稿和资源库组件。
 - 验证：完整 CTest `12/12` 通过；四个 QML 文件通过 `qmlformat`；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无输出错误；`git diff --check` 通过。
+
+## 182. Edward 0.3.0 工作台组件属性回写
+
+- 目的：验证属性面板修改值可以回写 Component IR，并立即影响预览合成结果。
+- 修改：工作台增加测试组件 X 坐标属性和滑块；运行时对输入范围进行约束，组件启用时重新生成 IR 并更新 RenderGraph 叠加层。
+- 验证：完整 CTest `12/12` 通过；四个 QML 文件通过 `qmlformat`；离屏启动 3 秒无输出错误；`git diff --check` 通过。
