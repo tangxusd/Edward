@@ -1621,3 +1621,9 @@
 - 目的：让标准组件真正进入视频预览和导出共用的渲染链，避免组件只停留在独立测试。
 - 修改：`RenderGraph` 接收可选 Component IR，先由 MLT 生成视频底图，再以 SourceOver 叠加透明组件帧；导出无需新增路径，继续使用同一 Graph。
 - 验证：`media.render_graph` 像素合成测试通过；完整 CTest `12/12` 通过；`git diff --check` 通过。
+
+## 180. Edward 0.3.0 Task 6 贝塞尔关键帧插值
+
+- 目的：让 Component IR 的属性轨道支持非线性运动，满足组件和内部小组件的曲线动画基础要求。
+- 修改：`ComponentRenderer` 支持关键帧段的 `easing: bezier`、`controlOut` 和 `controlIn` 标量控制点；Schema 明确关键帧点格式；测试使用非线性控制点检查实际渲染像素位置。
+- 验证：`media.component_renderer` 定向 CTest 通过；构建成功；`git diff --check` 通过。

@@ -35,6 +35,16 @@ double animatedNumber(const QJsonObject& keyframes, const QString& property, int
       const auto& left = points[i - 1];
       const auto& right = points[i];
       const double t = static_cast<double>(frame - left.frame) / (right.frame - left.frame);
+      const auto leftFrame = frames.at(static_cast<int>(i - 1)).toObject();
+      const auto rightFrame = frames.at(static_cast<int>(i)).toObject();
+      if (leftFrame.value("easing").toString() == "bezier") {
+        const double c1 = leftFrame.value("controlOut").toDouble(left.value);
+        const double c2 = rightFrame.value("controlIn").toDouble(right.value);
+        const double inverse = 1.0 - t;
+        return inverse * inverse * inverse * left.value +
+               3.0 * inverse * inverse * t * c1 +
+               3.0 * inverse * t * t * c2 + t * t * t * right.value;
+      }
       return left.value + (right.value - left.value) * t;
     }
   }

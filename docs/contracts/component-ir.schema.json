@@ -16,7 +16,23 @@
         "type": { "enum": ["container", "text", "shape", "image", "svg"] },
         "properties": { "type": "object" },
         "transform": { "type": "object" },
-        "keyframes": { "type": "object" },
+        "keyframes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["frame", "value"],
+              "properties": {
+                "frame": { "type": "integer", "minimum": 0 },
+                "value": { "type": "number" },
+                "easing": { "enum": ["linear", "bezier"] },
+                "controlIn": { "type": "number" },
+                "controlOut": { "type": "number" }
+              }
+            }
+          }
+        },
         "children": { "type": "array", "items": { "$ref": "#/$defs/node" } }
       }
     }
