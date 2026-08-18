@@ -4,6 +4,7 @@
 
 #include <QJsonObject>
 #include <QString>
+#include <QByteArray>
 
 #include <filesystem>
 
@@ -32,5 +33,18 @@ struct RpcRequest final {
   static std::optional<RpcRequest> parse(const QJsonObject& object, QString* error = nullptr);
   [[nodiscard]] QJsonObject toJson() const;
 };
+
+struct ProcessResult final {
+  bool started = false;
+  bool timedOut = false;
+  int exitCode = -1;
+  QByteArray standardOutput;
+  QByteArray standardError;
+};
+
+ProcessResult launchPluginProcess(const PluginManifest& manifest,
+                                  const std::filesystem::path& pluginRoot,
+                                  const QStringList& arguments,
+                                  int timeoutMs);
 
 }  // namespace edward::plugins

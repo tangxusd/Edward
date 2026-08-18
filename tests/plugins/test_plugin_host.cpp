@@ -25,5 +25,13 @@ int main() {
   assert(rpc);
   assert(rpc->toJson().value("method").toString() == "renderFrame");
   assert(!edward::plugins::RpcRequest::parse(QJsonObject{{"id", "7"}, {"method", "renderFrame"}}, &error));
+  const auto processManifest = edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
+  assert(processManifest);
+  const auto process = edward::plugins::launchPluginProcess(
+      *processManifest, std::filesystem::path("/usr/bin"), {}, 1000);
+  assert(process.started);
+  assert(!process.timedOut);
+  assert(process.exitCode == 0);
   return 0;
 }

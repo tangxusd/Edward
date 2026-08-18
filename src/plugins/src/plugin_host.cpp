@@ -1,5 +1,7 @@
 #include "edward/plugins/plugin_host.hpp"
 
+#include <QProcess>
+
 namespace edward::plugins {
 namespace {
 
@@ -46,5 +48,33 @@ std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* 
 }
 
 QJsonObject RpcRequest::toJson() const { return {{"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", params}}; }
+
+ProcessResult launchPluginProcess(const PluginManifest& manifest,
+                                  const std::filesystem::path& pluginRoot,
+                                  const QStringList& arguments,
+                                  int timeoutMs) {
+  ProcessResult result;
+  if (timeoutMs <= 0 || pluginRoot.empty()) return result;
+  const auto executable = pluginRoot / manifest.entry.toStdString();
+  if (!std::filesystem::is_regular_file(executable)) return result;
+  QProcess process;
+  process.setProgram(QString::fromStdString(executable.string()));
+  process.setArguments(arguments);
+  process.start();
+  result.started = process.waitForStarted(1000);
+  if (!result.started) {
+    result.standardError = process.errorString().toUtf8();
+    return result;
+  }
+  if (!process.waitForFinished(timeoutMs)) {
+    result.timedOut = true;
+    process.kill();
+    process.waitForFinished(1000);
+  }
+  result.exitCode = process.exitCode();
+  result.standardOutput = process.readAllStandardOutput();
+  result.standardError = process.readAllStandardError();
+  return result;
+}
 
 }  // namespace edward::plugins
