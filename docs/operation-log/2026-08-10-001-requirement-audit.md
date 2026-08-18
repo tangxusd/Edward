@@ -1693,3 +1693,9 @@
 - 目的：把工作台生成动作从测试组件语义改为可替换的组件草稿生成语义，为后续 AI 模型接入保持稳定入口。
 - 修改：新增 `generateComponentDraft` QML 调用；按钮显示“生成组件草稿/重新生成组件草稿”，生成结果继续通过 Component IR、属性编辑和 RenderGraph，不改变现有渲染链。
 - 验证：工作台重新构建；完整 CTest `12/12` 通过；QML 格式检查通过；离屏启动无 QML 加载错误；`git diff --check` 通过。
+
+## 192. Edward 0.3.0 插件 Manifest 校验边界
+
+- 目的：在启动 Remotion/HyperFrames 独立进程前，先固定插件身份、入口路径和权限边界。
+- 修改：新增 `edward_plugins` 静态库和 `PluginManifest`；要求 `pluginId`、`version`、相对 `entry`，解析能力、权限和可编辑字段列表；拒绝绝对路径、路径穿越、非法列表以及 `network`/`engine_write` 权限。
+- 验证：新增 `plugins.plugin_manifest` 定向测试通过；完整 CTest `13/13` 通过；`git diff --check` 通过。

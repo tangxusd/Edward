@@ -1,0 +1,3 @@
+add_executable(test_plugin_manifest test_plugin_manifest.cpp)
+target_link_libraries(test_plugin_manifest PRIVATE edward_plugins Qt6::Core)
+add_test(NAME plugins.plugin_manifest COMMAND test_plugin_manifest)
