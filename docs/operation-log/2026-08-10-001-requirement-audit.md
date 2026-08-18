@@ -1573,3 +1573,9 @@
 - 目的：让预览帧与最终导出共享同一时间线到源帧映射，避免两套定位逻辑产生偏差。
 - 修改：新增 `MltAdapter`、`RenderGraph` 和 `ExportJob`；MLT 负责读取源帧并转为独立 `QImage`，渲染图统一提供预览和导出帧，导出通过 FFmpeg raw RGBA 管道生成 H.264 MP4，失败时清理不完整输出。
 - 验证：macOS Debug 构建通过；`media.mlt_adapter`、`media.render_graph`、`media.export_job` 均通过，导出测试以 25 帧、1920x1080 样片并用 `MediaProbe` 验证尺寸与帧数；随后完整 CTest 通过，`git diff --check` 通过。
+
+## 172. Edward 0.3.0 Task 5 时间线控制器第一步
+
+- 目的：在接入 QML 前冻结素材添加、播放头冲突和基础编辑的唯一控制入口。
+- 修改：新增 `TimelineController`，素材通过 `MediaProbe` 获取时长后加入当前轨道；当前播放头范围冲突直接拒绝，不自动创建新轨道；分割和波纹删除委托给核心命令，维护选中片段。
+- 验证：`desktop.timeline_controller` 与核心、MLT、导出回归共 4 项定向 CTest 全部通过，确认冲突添加不会改变轨道数量，`git diff --check` 通过。
