@@ -1675,3 +1675,9 @@
 - 目的：为 AI 草稿、资源库组件和外部插件提供统一的组件进入工作台入口。
 - 修改：`WorkbenchRuntime` 增加 `loadComponentJson` 和 `clearComponentOverlay`；导入时先解析 JSON，再执行 Component IR 版本、节点结构和 ID 唯一性校验，成功后作为当前透明叠加层进入预览与导出链，失败只发出错误并保留原叠加层。
 - 验证：工作台重新构建；完整 CTest `12/12` 通过；离屏启动 3 秒无 QML 加载错误；`git diff --check` 通过。
+
+## 189. Edward 0.3.0 工作台组件草稿导入界面
+
+- 目的：为已实现的 Component IR 导入接口提供可操作的工作台入口。
+- 修改：AI 面板增加“导入组件草稿”和“清除组件叠加”；导入弹窗居中显示纯文本 JSON 编辑区，确认后调用 `loadComponentJson`，失败由现有错误提示展示。
+- 验证：相关 QML 通过 `qmlformat`；完整 CTest `12/12` 通过；离屏启动 3 秒无 QML 加载错误；`git diff --check` 通过。

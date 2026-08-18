@@ -154,6 +154,17 @@ ApplicationWindow {
                         placeholderText: "组件文字"
                         onEditingFinished: workbenchRuntime.demoOverlayText = text
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "导入组件草稿"
+                        onClicked: componentDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "清除组件叠加"
+                        enabled: workbenchRuntime.demoOverlayEnabled
+                        onClicked: workbenchRuntime.clearComponentOverlay()
+                    }
                 }
             }
         }
@@ -165,6 +176,35 @@ ApplicationWindow {
         fileMode: FileDialog.OpenFile
         nameFilters: ["视频文件 (*.mp4 *.mov *.mkv *.webm)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.importMedia(selectedFile.toLocalFile())
+    }
+
+    Dialog {
+        id: componentDialog
+        anchors.centerIn: Overlay.overlay
+        width: 520
+        height: 420
+        modal: true
+        title: "导入组件草稿"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        contentItem: Column {
+            spacing: 10
+            Label {
+                text: "粘贴版本化 Component IR JSON"
+                color: DesignTokens.textSecondary
+            }
+            TextArea {
+                id: componentJson
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                textFormat: TextEdit.PlainText
+                placeholderText: '{"version":"1","root":{...}}'
+                wrapMode: TextEdit.Wrap
+            }
+        }
+        onAccepted: {
+            if (workbenchRuntime.loadComponentJson(componentJson.text))
+                componentJson.clear();
+        }
     }
 
     Connections {
