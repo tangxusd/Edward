@@ -1530,3 +1530,28 @@
 - 用户授权采用“冻结基线，再隔离开发”：基线仅保留已确认的 44 个最终视觉 HTML、0.2.0 规格、合同、计划、审计、操作记录与项目规则；旧 Electron/TypeScript 代码删除记录进入基线，不提交过程稿、缓存、构建产物或 macOS `._*` 元数据。
 - 在建立实现工作树前，于项目内 `.archives/` 生成不提交 Git 的 `edward-v0.2.0-design-freeze.zip`，并用 SHA-256 校验；随后创建 `codex/edward-0.2.0-baseline` 作为干净重写起点，再由其创建 `codex/0.2.0-foundation` 工作树。
 - 新建最小 `.gitignore` 只忽略 `.archives/`、`.worktrees/`、`build/` 和 macOS 元数据，不恢复旧项目的忽略规则。
+
+## 165. 标准组件边框动画 HTML 示例
+
+- 用户要求：将仅保留静止状态环绕边框的 CSS 效果转换为 Edward 标准组件格式并生成 HTML 示例。
+- 修改：更新 `.worktrees/0.2.0-foundation/plugins/hyperframes-host/composition/index.html`，以 `container`、`shape`、`text` 节点和 `data-edward-*` 属性表达组件树；移除 hover、翻转和外部 GSAP 依赖，保留旋转渐变边框与独立光晕动画。
+- 验证：已检查 HTML 节点层级、组件 ID、节点类型、关键帧声明和 CSS 动画定义均存在；未执行浏览器截图验证。
+
+## 166. 修复标准组件边框图层
+
+- 用户反馈：示例中未看到环绕边框。
+- 修复：将旋转渐变节点从负层级调整为底层可见层，将内部表面设为上层并保留 3px 内缩，避免表面覆盖边框动画。
+- 验证：`git diff --check` 通过；当前环境未安装 Playwright，未执行自动截图验证。
+
+## 167. 验证边框动画实际运动
+
+- 用户反馈：边框视觉上仍像固定描边。
+- 修复：将线性渐变块改为带单段高亮光带的 `conic-gradient`，缩短周期到 3.2 秒，使光带沿圆角边框循环。
+- 验证：通过 HyperFrames host 分别渲染第 0 帧和第 30 帧；两张 PNG 的 SHA-1 不同，且视觉检查确认高亮光带从左上方移动到右上方。`git diff --check` 通过。
+
+## 168. Edward 0.3.0 Task 1 媒体基座依赖审计
+
+- 用户要求：在 `codex/edward-0.3.0` 分支从 MLT/Shotcut 选择性基座开始实施。
+- 结果：记录 Shotcut `v26.8.1` 提交 `0474a712131fe1a82d499a32f3d54be956d2963f` 与 GPL-3.0-or-later，记录 MLT `v7.40.0` 提交 `bef9d89c0c279e558d9625dac3399c2aa3d961bc` 与 LGPL-2.1-only；当前不导入 Shotcut 源文件，仅建立允许/排除范围合同。
+- 修改：新增 `third_party/shotcut/SOURCES.json`、第三方说明、MLT 说明、最小 CMake 依赖发现入口和依赖合同测试。
+- 验证：macOS CMake/Ninja 配置成功，发现本机 MLT 7.40.0 和 FFmpeg，`contract.dependency` 通过，`git diff --check` 通过。

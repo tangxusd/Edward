@@ -1,0 +1,24 @@
+include_guard(GLOBAL)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(EDWARD_FFMPEG REQUIRED IMPORTED_TARGET
+  libavformat libavcodec libavfilter libavutil libswresample libswscale)
+
+find_package(Mlt7 7.40 CONFIG REQUIRED)
+
+if(NOT TARGET Mlt7::mlt)
+  message(FATAL_ERROR "Edward requires the Mlt7::mlt target from MLT 7.40.")
+endif()
+
+set(EDWARD_MLT_MODULE_DIR "" CACHE PATH
+  "Directory containing the MLT runtime modules")
+
+add_library(edward_media_runtime INTERFACE)
+target_link_libraries(edward_media_runtime INTERFACE
+  Mlt7::mlt
+  PkgConfig::EDWARD_FFMPEG
+)
+
+message(STATUS "Edward dependency: FFmpeg ${EDWARD_FFMPEG_VERSION}")
+message(STATUS "Edward dependency: MLT ${Mlt7_VERSION}")
+message(STATUS "Edward dependency: MLT modules ${EDWARD_MLT_MODULE_DIR}")

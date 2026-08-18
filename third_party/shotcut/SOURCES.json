@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/mltframework/shotcut.git",
+  "tag": "v26.8.1",
+  "commit": "0474a712131fe1a82d499a32f3d54be956d2963f",
+  "license": "GPL-3.0-or-later",
+  "licenseFile": "COPYING",
+  "importedFiles": [],
+  "allowedScopes": [
+    "timeline clip model",
+    "playhead and snapping",
+    "split and trim commands",
+    "ripple delete",
+    "selection and linked clips",
+    "undo and redo boundaries"
+  ],
+  "excludedScopes": [
+    "Shotcut QML user interface",
+    "audio waveform and mixer",
+    "color grading",
+    "full filter and transition catalog",
+    "Shotcut resource library"
+  ]
+}
