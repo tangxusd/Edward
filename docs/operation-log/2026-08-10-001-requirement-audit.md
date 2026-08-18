@@ -1615,3 +1615,9 @@
 - 目的：让标准 Component IR 可以渲染为透明图层，后续统一叠加到预览和导出画面。
 - 修改：新增 `ComponentRenderer`，支持容器局部坐标、文字、矩形/圆形、图片节点、透明度和数值关键帧线性插值；新增像素级回归测试，验证动画位置和透明背景。
 - 验证：完整 CTest `12/12` 通过；`git diff --check` 通过。
+
+## 179. Edward 0.3.0 Task 6 RenderGraph 透明层合成
+
+- 目的：让标准组件真正进入视频预览和导出共用的渲染链，避免组件只停留在独立测试。
+- 修改：`RenderGraph` 接收可选 Component IR，先由 MLT 生成视频底图，再以 SourceOver 叠加透明组件帧；导出无需新增路径，继续使用同一 Graph。
+- 验证：`media.render_graph` 像素合成测试通过；完整 CTest `12/12` 通过；`git diff --check` 通过。
