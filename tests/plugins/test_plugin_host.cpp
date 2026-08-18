@@ -28,6 +28,9 @@ int main() {
   assert(!edward::plugins::RpcRequest::parse(QJsonObject{{"id", "7"}, {"method", "renderFrame"}}, &error));
   assert(edward::plugins::validateRpcMethod(*manifest, "renderFrame"));
   assert(!edward::plugins::validateRpcMethod(*manifest, "deleteProject", &error));
+  assert(edward::plugins::validateRpcParams("renderFrame", QJsonObject{{"frame", 0}, {"width", 1920}, {"height", 1080}}));
+  assert(!edward::plugins::validateRpcParams("renderFrame", QJsonObject{{"frame", -1}, {"width", 1920}, {"height", 1080}}, &error));
+  assert(!edward::plugins::validateRpcParams("renderExport", QJsonObject{{"outputPath", "../out.mov"}, {"width", 1920}, {"height", 1080}}, &error));
   const auto processManifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
   assert(processManifest);

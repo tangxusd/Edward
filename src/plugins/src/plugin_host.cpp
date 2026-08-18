@@ -48,6 +48,38 @@ bool validateRpcMethod(const PluginManifest& manifest, const QString& method, QS
   return true;
 }
 
+bool validateRpcParams(const QString& method, const QJsonObject& params, QString* error) {
+  const auto positiveInt = [&params](const char* key) {
+    return params.value(QLatin1String(key)).isDouble() && params.value(QLatin1String(key)).toInt() > 0;
+  };
+  if (method == "describe") {
+    if (!params.value("compositionId").isString() || params.value("compositionId").toString().isEmpty()) {
+      if (error) *error = QStringLiteral("describe requires compositionId");
+      return false;
+    }
+    return true;
+  }
+  if (method == "renderFrame") {
+    if (!params.value("frame").isDouble() || params.value("frame").toInt() < 0 ||
+        !positiveInt("width") || !positiveInt("height")) {
+      if (error) *error = QStringLiteral("renderFrame requires non-negative frame and positive width/height");
+      return false;
+    }
+    return true;
+  }
+  if (method == "renderExport") {
+    const auto output = params.value("outputPath").toString();
+    if (output.isEmpty() || output.startsWith('/') || output.contains("..") || output.contains("\\") ||
+        !positiveInt("width") || !positiveInt("height")) {
+      if (error) *error = QStringLiteral("renderExport requires safe outputPath and positive width/height");
+      return false;
+    }
+    return true;
+  }
+  if (error) *error = QStringLiteral("rpc method is unknown");
+  return false;
+}
+
 std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* error) {
   const auto id = object.value("id").toString();
   const auto method = object.value("method").toString();
@@ -111,6 +143,7 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
     return std::nullopt;
   }
   if (!validateRpcMethod(manifest, request.method, error)) return std::nullopt;
+  if (!validateRpcParams(request.method, request.params, error)) return std::nullopt;
   const auto executable = pluginRoot / manifest.entry.toStdString();
   if (!std::filesystem::is_regular_file(executable)) {
     if (error) *error = QStringLiteral("plugin entry is unavailable");

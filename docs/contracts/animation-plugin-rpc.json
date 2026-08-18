@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Edward Animation Plugin RPC",
+  "type": "object",
+  "required": ["jsonrpc", "id", "method", "params"],
+  "properties": {
+    "jsonrpc": {"const": "2.0"},
+    "id": {"type": "string", "minLength": 1},
+    "method": {"enum": ["describe", "renderFrame", "renderExport"]},
+    "params": {"type": "object"}
+  }
+}

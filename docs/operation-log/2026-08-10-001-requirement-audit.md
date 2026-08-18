@@ -1729,3 +1729,9 @@
 - 目的：将插件 RPC 方法限制在明确的动画能力范围，避免宿主转发任意未知命令。
 - 修改：新增 `validateRpcMethod`，仅允许 manifest 声明的 `describe`、`renderFrame`、`renderExport`；`callPlugin` 在启动进程前执行该校验。
 - 验证：覆盖已声明方法成功和未知方法失败；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 198. Edward 0.3.0 插件 RPC 参数合同
+
+- 目的：固定三个动画 RPC 的最小参数边界，避免插件收到不完整或越权的渲染请求。
+- 修改：新增 `animation-plugin-rpc.json`；宿主校验 `describe` 的 compositionId、`renderFrame` 的非负 frame 与正宽高、`renderExport` 的安全相对输出路径与正宽高；参数校验在进程启动前执行。
+- 验证：覆盖合法渲染参数、负帧和路径穿越失败；完整 CTest `14/14` 通过；`git diff --check` 通过。

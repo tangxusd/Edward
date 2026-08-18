@@ -26,6 +26,7 @@ bool validateRequest(const PluginManifest& manifest,
                     QString* error = nullptr);
 
 bool validateRpcMethod(const PluginManifest& manifest, const QString& method, QString* error = nullptr);
+bool validateRpcParams(const QString& method, const QJsonObject& params, QString* error = nullptr);
 
 struct RpcRequest final {
   QString id;
