@@ -1,7 +1,7 @@
 include_guard(GLOBAL)
 
 find_package(PkgConfig REQUIRED)
-find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui)
+find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui Quick QuickControls2)
 pkg_check_modules(EDWARD_FFMPEG REQUIRED IMPORTED_TARGET
   libavformat libavcodec libavfilter libavutil libswresample libswscale)
 
@@ -18,6 +18,8 @@ add_library(edward_media_runtime INTERFACE)
 target_link_libraries(edward_media_runtime INTERFACE
   Qt6::Core
   Qt6::Gui
+  Qt6::Quick
+  Qt6::QuickControls2
   Mlt7::mlt
   PkgConfig::EDWARD_FFMPEG
 )

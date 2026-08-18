@@ -1585,3 +1585,9 @@
 - 目的：按 Edward 视觉确认稿建立工作台的预览窗、轨道区域、标尺和播放头外观，不引入 Shotcut QML。
 - 修改：新增 `DesignTokens.qml`、`EdwardPreview.qml`、`EdwardTimeline.qml`、`Workbench.qml`；工作台仅使用 `ApplicationWindow` 系统标题栏，时间线提供轨道头、片段块、标尺、播放头及分割/删除/波纹删除信号。
 - 验证：`desktop.visual_routes` 和控制器回归通过；四个 QML 文件均通过 `qmlformat` 解析，并完成离屏启动检查；`git diff --check` 通过。
+
+## 174. Edward 0.3.0 Task 5 工作台运行时桥接
+
+- 目的：将素材导入和时间线编辑从视觉占位接入真实 C++ 状态，提供可启动的 macOS 工作台入口。
+- 修改：新增 `WorkbenchRuntime` Qt 对象和 `edward_app` 入口；QML 通过文件选择器调用素材导入、播放头、分割、删除和波纹删除；运行时状态通过 `clips` 与 `playheadFrame` 属性回传给时间线视图。
+- 验证：修复 Qt MOC 头文件扫描后，macOS Debug 应用成功链接；完整 CTest `10/10` 通过；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无 QML 错误，`git diff --check` 通过。
