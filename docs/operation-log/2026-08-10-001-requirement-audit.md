@@ -1591,3 +1591,9 @@
 - 目的：将素材导入和时间线编辑从视觉占位接入真实 C++ 状态，提供可启动的 macOS 工作台入口。
 - 修改：新增 `WorkbenchRuntime` Qt 对象和 `edward_app` 入口；QML 通过文件选择器调用素材导入、播放头、分割、删除和波纹删除；运行时状态通过 `clips` 与 `playheadFrame` 属性回传给时间线视图。
 - 验证：修复 Qt MOC 头文件扫描后，macOS Debug 应用成功链接；完整 CTest `10/10` 通过；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无 QML 错误，`git diff --check` 通过。
+
+## 175. Edward 0.3.0 Task 5 MLT 预览帧桥接
+
+- 目的：让工作台预览窗在播放头变化时请求与导出共用的 MLT `RenderGraph` 当前帧，结束预览占位状态。
+- 修改：`WorkbenchRuntime` 暴露当前预览帧；`edward_app` 注册 `image://edward` 图像提供器；`EdwardPreview.qml` 在没有外部源图时请求该提供器，并显式判断空 URL。
+- 验证：macOS Debug 构建通过；完整 CTest `10/10` 通过；四个 QML 文件通过 `qmlformat`；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无输出错误；`git diff --check` 通过。

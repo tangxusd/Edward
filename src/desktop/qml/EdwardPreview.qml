@@ -23,9 +23,12 @@ Item {
 
         Image {
             anchors.fill: parent
-            source: root.source
+            source: root.source.toString() !== ""
+                ? root.source
+                : ("image://edward/frame?frame=" + root.playheadFrame)
+            cache: false
             fillMode: Image.PreserveAspectFit
-            visible: source !== ""
+            visible: status === Image.Ready || source !== ""
         }
 
         Text {

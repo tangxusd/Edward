@@ -5,7 +5,8 @@
 namespace edward::desktop {
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
-    : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_) {}
+    : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
+      renderGraph_(mltAdapter_) {}
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
 
@@ -23,6 +24,11 @@ QVariantList WorkbenchRuntime::clips() const {
     result.push_back(item);
   }
   return result;
+}
+
+QImage WorkbenchRuntime::previewFrame() const {
+  const auto scene = renderGraph_.build(timeline_.snapshot(), {controller_.playheadFrame()});
+  return scene ? scene->frame : QImage{};
 }
 
 bool WorkbenchRuntime::importMedia(const QString& path) {

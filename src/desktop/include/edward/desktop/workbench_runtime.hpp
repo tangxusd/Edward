@@ -4,6 +4,10 @@
 
 #include <QObject>
 #include <QVariantList>
+#include <QImage>
+
+#include "edward/media/mlt_adapter.hpp"
+#include "edward/media/render_graph.hpp"
 
 namespace edward::desktop {
 
@@ -16,6 +20,7 @@ class WorkbenchRuntime final : public QObject {
   explicit WorkbenchRuntime(QObject* parent = nullptr);
   [[nodiscard]] int playheadFrame() const;
   [[nodiscard]] QVariantList clips() const;
+  [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
@@ -30,6 +35,8 @@ class WorkbenchRuntime final : public QObject {
   edward::core::Timeline timeline_;
   edward::core::TrackId videoTrack_;
   TimelineController controller_;
+  edward::media::MltAdapter mltAdapter_;
+  edward::media::RenderGraph renderGraph_;
 };
 
 }  // namespace edward::desktop
