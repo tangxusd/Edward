@@ -44,6 +44,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE void toggleDemoOverlay();
+  Q_INVOKABLE bool loadComponentJson(const QString& json);
+  Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
   Q_INVOKABLE bool deleteSelected();

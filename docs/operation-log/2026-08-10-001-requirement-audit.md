@@ -1669,3 +1669,9 @@
 - 目的：让工作台属性编辑使用统一的 Component IR 写回接口，为后续 AI 草稿、资源库组件和外部插件适配器复用同一编辑真相源。
 - 修改：`ComponentIr` 增加按节点 ID 修改数值型 transform 字段和普通属性的接口；工作台运行时保留当前组件 IR，并将 X/Y、宽度、高度、不透明度和文字修改直接写入对应节点后刷新 RenderGraph。
 - 验证：核心 IR 写回测试通过；完整 CTest `12/12` 通过；离屏启动 3 秒无 QML 加载错误；`git diff --check` 通过。
+
+## 188. Edward 0.3.0 Component IR 草稿导入入口
+
+- 目的：为 AI 草稿、资源库组件和外部插件提供统一的组件进入工作台入口。
+- 修改：`WorkbenchRuntime` 增加 `loadComponentJson` 和 `clearComponentOverlay`；导入时先解析 JSON，再执行 Component IR 版本、节点结构和 ID 唯一性校验，成功后作为当前透明叠加层进入预览与导出链，失败只发出错误并保留原叠加层。
+- 验证：工作台重新构建；完整 CTest `12/12` 通过；离屏启动 3 秒无 QML 加载错误；`git diff --check` 通过。

@@ -2,6 +2,7 @@
 
 #include <QVariantMap>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 
 #include <algorithm>
@@ -76,6 +77,32 @@ void WorkbenchRuntime::toggleDemoOverlay() {
   if (demoOverlayEnabled_) demoOverlayIr_ = demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_);
   else demoOverlayIr_.reset();
   refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+bool WorkbenchRuntime::loadComponentJson(const QString& json) {
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    emit operationFailed(QStringLiteral("组件 JSON 无效：%1").arg(parseError.errorString()));
+    return false;
+  }
+  auto component = edward::core::ComponentIr::parse(document.object());
+  if (!component) {
+    emit operationFailed(QStringLiteral("组件 IR 校验失败"));
+    return false;
+  }
+  demoOverlayIr_ = std::move(component);
+  demoOverlayEnabled_ = true;
+  refreshDemoOverlay();
+  emit timelineChanged();
+  return true;
+}
+
+void WorkbenchRuntime::clearComponentOverlay() {
+  demoOverlayIr_.reset();
+  demoOverlayEnabled_ = false;
+  renderGraph_.setOverlay(std::nullopt);
   emit timelineChanged();
 }
 
