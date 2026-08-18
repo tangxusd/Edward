@@ -7,6 +7,7 @@
 #include <filesystem>
 
 int main() {
+  QString error;
   const auto manifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"}, {"entry", "host.mjs"},
                   {"permissions", QJsonArray{"read_input_asset", "write_draft_output"}}});
@@ -19,5 +20,10 @@ int main() {
   request.inputPath = "input.png";
   request.operation = "engine_write";
   assert(!edward::plugins::validateRequest(*manifest, request, taskRoot));
+  const auto rpc = edward::plugins::RpcRequest::parse(
+      QJsonObject{{"jsonrpc", "2.0"}, {"id", "7"}, {"method", "renderFrame"}, {"params", QJsonObject{{"frame", 0}}}}, &error);
+  assert(rpc);
+  assert(rpc->toJson().value("method").toString() == "renderFrame");
+  assert(!edward::plugins::RpcRequest::parse(QJsonObject{{"id", "7"}, {"method", "renderFrame"}}, &error));
   return 0;
 }

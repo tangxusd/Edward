@@ -34,4 +34,17 @@ bool validateRequest(const PluginManifest& manifest,
   return true;
 }
 
+std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* error) {
+  const auto id = object.value("id").toString();
+  const auto method = object.value("method").toString();
+  const auto params = object.value("params");
+  if (id.isEmpty() || method.isEmpty() || !params.isObject()) {
+    if (error) *error = QStringLiteral("rpc request requires id, method and object params");
+    return std::nullopt;
+  }
+  return RpcRequest{id, method, params.toObject()};
+}
+
+QJsonObject RpcRequest::toJson() const { return {{"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", params}}; }
+
 }  // namespace edward::plugins

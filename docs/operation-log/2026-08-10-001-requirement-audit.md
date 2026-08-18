@@ -1705,3 +1705,9 @@
 - 目的：在未来启动插件进程前，拒绝越权 RPC 请求和任务目录外读写。
 - 修改：新增 `PluginRequest` 与 `validateRequest`；校验任务 ID、插件身份和版本、相对路径、输出大小限制以及 manifest 授权的 `read_input_asset`、`write_draft_output`、`report_progress` 操作。
 - 验证：新增 `plugins.plugin_host` 定向测试通过；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 194. Edward 0.3.0 插件 JSON-RPC 消息层
+
+- 目的：固定插件宿主与独立进程之间的请求信封，避免后续进程通信重复定义 JSON 格式。
+- 修改：新增 `RpcRequest`，要求非空请求 ID、方法名和对象类型 params，并提供标准 `jsonrpc: 2.0` 序列化；非法消息在进入权限校验前拒绝。
+- 验证：插件宿主测试覆盖合法消息往返和缺失字段失败；完整 CTest `14/14` 通过；`git diff --check` 通过。

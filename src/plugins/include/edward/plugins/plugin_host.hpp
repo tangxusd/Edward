@@ -2,6 +2,7 @@
 
 #include "edward/plugins/plugin_manifest.hpp"
 
+#include <QJsonObject>
 #include <QString>
 
 #include <filesystem>
@@ -22,5 +23,14 @@ bool validateRequest(const PluginManifest& manifest,
                     const PluginRequest& request,
                     const std::filesystem::path& taskRoot,
                     QString* error = nullptr);
+
+struct RpcRequest final {
+  QString id;
+  QString method;
+  QJsonObject params;
+
+  static std::optional<RpcRequest> parse(const QJsonObject& object, QString* error = nullptr);
+  [[nodiscard]] QJsonObject toJson() const;
+};
 
 }  // namespace edward::plugins
