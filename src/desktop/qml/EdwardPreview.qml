@@ -21,8 +21,42 @@ Item {
         border.color: DesignTokens.divider
         border.width: 1
 
-        Text { anchors.horizontalCenter: parent.horizontalCenter; y: 6; text: "0"; color: DesignTokens.textSecondary; font.pixelSize: 10 }
-        Text { x: 8; anchors.verticalCenter: parent.verticalCenter; text: "0"; color: DesignTokens.textSecondary; font.pixelSize: 10 }
+        Repeater {
+            model: 7
+            delegate: Item {
+                readonly property int offset: (index - 3) * 100
+                x: canvas.width / 2 + offset
+                y: 0
+                width: 1
+                height: canvas.height
+                Rectangle { width: 1; height: 7; color: DesignTokens.textSecondary }
+                Text {
+                    x: 4
+                    y: 8
+                    text: (-offset).toString()
+                    color: DesignTokens.textSecondary
+                    font.pixelSize: 10
+                }
+            }
+        }
+        Repeater {
+            model: 5
+            delegate: Item {
+                readonly property int offset: (index - 2) * 100
+                x: 0
+                y: canvas.height / 2 + offset
+                width: canvas.width
+                height: 1
+                Rectangle { width: 7; height: 1; color: DesignTokens.textSecondary }
+                Text {
+                    x: 8
+                    y: -16
+                    text: (-offset).toString()
+                    color: DesignTokens.textSecondary
+                    font.pixelSize: 10
+                }
+            }
+        }
         Rectangle { anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: "#335e666b" }
         Rectangle { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; height: 1; color: "#335e666b" }
 
