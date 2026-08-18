@@ -1,3 +1,7 @@
 add_executable(test_media_project test_media_project.cpp)
 target_link_libraries(test_media_project PRIVATE edward_core)
 add_test(NAME core.media_project COMMAND test_media_project)
+
+add_executable(test_timeline_commands test_timeline_commands.cpp)
+target_link_libraries(test_timeline_commands PRIVATE edward_core)
+add_test(NAME core.timeline_commands COMMAND test_timeline_commands)

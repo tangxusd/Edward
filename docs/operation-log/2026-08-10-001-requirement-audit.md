@@ -1561,3 +1561,9 @@
 - 目的：建立与 UI 解耦的媒体工程模型，并在接入 MLT 前用 FFmpeg 的 `ffprobe` 验证基础媒体信息读取。
 - 修改：新增视频轨、片段插入和边界校验的 `MediaProject`；新增 `MediaProbe`，通过 `ffprobe` 读取首个视频流的宽高、化简帧率和向上取整的时长帧数；CMake 新增 `edward_core`、`edward_media` 和对应 CTest 目标。
 - 验证：构建时由 FFmpeg 生成 16x16、25fps、1 秒 MP4；`contract.dependency`、`core.media_project`、`media.media_probe`、`media.media_probe_fixture` 共 4 项 CTest 全部通过，`git diff --check` 通过。
+
+## 170. Edward 0.3.0 Task 3 基础时间线命令
+
+- 目的：将播放头、片段编辑和历史记录从后续 QML 界面中剥离，形成可原子验证的时间线核心。
+- 修改：新增 `Timeline` 与 `TimelineCommands`，实现分割、裁切、普通删除、同轨道波纹删除、移动、播放头边界及撤销/重做；失败命令回滚到原快照，拒绝重叠和越界片段。
+- 验证：`core.timeline_commands` 覆盖播放头越界、分割、冲突移动、裁切、删除、波纹删除和撤销/重做；与 Task 2 回归共 4 项定向 CTest 全部通过，`git diff --check` 通过。
