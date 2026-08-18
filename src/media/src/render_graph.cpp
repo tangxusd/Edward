@@ -9,6 +9,10 @@ namespace edward::media {
 RenderGraph::RenderGraph(const MltAdapter& adapter, std::optional<edward::core::ComponentIr> overlay)
     : adapter_(adapter), overlay_(std::move(overlay)) {}
 
+void RenderGraph::setOverlay(std::optional<edward::core::ComponentIr> overlay) {
+  overlay_ = std::move(overlay);
+}
+
 std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapshot& snapshot,
                                               const RenderRequest& request) const {
   auto frame = adapter_.renderFrame(snapshot, request.frame);

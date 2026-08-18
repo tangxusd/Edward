@@ -1,8 +1,27 @@
 #include "edward/desktop/workbench_runtime.hpp"
 
 #include <QVariantMap>
+#include <QJsonArray>
+#include <QJsonObject>
 
 namespace edward::desktop {
+
+namespace {
+std::optional<edward::core::ComponentIr> demoOverlay() {
+  const QJsonObject box{{"id", "demo-box"}, {"type", "shape"},
+                        {"transform", QJsonObject{{"x", 24}, {"y", 24}, {"width", 220}, {"height", 72}}},
+                        {"properties", QJsonObject{{"fill", "#00b8c8"}, {"opacity", 0.82}}},
+                        {"keyframes", QJsonObject{{"x", QJsonArray{
+                            QJsonObject{{"frame", 0}, {"value", 24}},
+                            QJsonObject{{"frame", 90}, {"value", 180}}
+                        }}}}};
+  const QJsonObject text{{"id", "demo-text"}, {"type", "text"},
+                         {"transform", QJsonObject{{"x", 44}, {"y", 44}, {"width", 180}, {"height", 32}}},
+                         {"properties", QJsonObject{{"text", "Edward Component"}, {"fontSize", 18}, {"color", "#ffffff"}}}};
+  const QJsonObject root{{"id", "demo-root"}, {"type", "container"}, {"children", QJsonArray{box, text}}};
+  return edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
+}
+}  // namespace
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
@@ -44,6 +63,12 @@ bool WorkbenchRuntime::selectClip(qlonglong id) {
   if (!controller_.selectClip(static_cast<edward::core::ClipId>(id))) return false;
   emit timelineChanged();
   return true;
+}
+
+void WorkbenchRuntime::toggleDemoOverlay() {
+  demoOverlayEnabled_ = !demoOverlayEnabled_;
+  renderGraph_.setOverlay(demoOverlayEnabled_ ? demoOverlay() : std::nullopt);
+  emit timelineChanged();
 }
 
 bool WorkbenchRuntime::setPlayhead(int frame) {

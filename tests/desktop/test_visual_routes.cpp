@@ -15,6 +15,7 @@ int main() {
   const auto preview = read(root / "EdwardPreview.qml");
   assert(workbench.find("EdwardPreview") != std::string::npos);
   assert(workbench.find("EdwardTimeline") != std::string::npos);
+  assert(workbench.find("toggleDemoOverlay") != std::string::npos);
   assert(workbench.find("ApplicationWindow") != std::string::npos);
   assert(timeline.find("playheadChangedByUser") != std::string::npos);
   assert(timeline.find("selectClip") != std::string::npos);

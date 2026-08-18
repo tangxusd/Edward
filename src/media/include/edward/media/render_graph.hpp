@@ -22,6 +22,7 @@ class RenderGraph {
  public:
   explicit RenderGraph(const MltAdapter& adapter,
                        std::optional<edward::core::ComponentIr> overlay = std::nullopt);
+  void setOverlay(std::optional<edward::core::ComponentIr> overlay);
   std::optional<RenderScene> build(const edward::core::TimelineSnapshot& snapshot,
                                    const RenderRequest& request) const;
 

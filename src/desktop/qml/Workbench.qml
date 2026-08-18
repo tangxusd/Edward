@@ -54,7 +54,16 @@ ApplicationWindow {
                 Layout.preferredWidth: 280
                 Layout.fillHeight: true
                 color: DesignTokens.panel
-                Text { anchors.centerIn: parent; text: "AI 创作"; color: DesignTokens.accent; font.pixelSize: 13 }
+                Column {
+                    anchors.centerIn: parent
+                    spacing: 12
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "AI 创作"; color: DesignTokens.accent; font.pixelSize: 13 }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.demoOverlayEnabled ? "移除测试组件" : "添加测试组件"
+                        onClicked: workbenchRuntime.toggleDemoOverlay()
+                    }
+                }
             }
         }
     }

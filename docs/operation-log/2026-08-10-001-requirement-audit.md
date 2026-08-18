@@ -1627,3 +1627,9 @@
 - 目的：让 Component IR 的属性轨道支持非线性运动，满足组件和内部小组件的曲线动画基础要求。
 - 修改：`ComponentRenderer` 支持关键帧段的 `easing: bezier`、`controlOut` 和 `controlIn` 标量控制点；Schema 明确关键帧点格式；测试使用非线性控制点检查实际渲染像素位置。
 - 验证：`media.component_renderer` 定向 CTest 通过；构建成功；`git diff --check` 通过。
+
+## 181. Edward 0.3.0 工作台 Component IR 预览入口
+
+- 目的：在工作台中验证标准组件从 IR 到透明预览层的真实调用链。
+- 修改：`WorkbenchRuntime` 增加可切换的测试组件入口；测试组件由标准 Component IR 构造，经过 `ComponentRenderer` 和 `RenderGraph` 叠加到预览帧；AI 面板暂提供添加/移除测试组件按钮，后续替换为 AI 草稿和资源库组件。
+- 验证：完整 CTest `12/12` 通过；四个 QML 文件通过 `qmlformat`；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无输出错误；`git diff --check` 通过。
