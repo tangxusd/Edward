@@ -115,14 +115,20 @@ bool WorkbenchRuntime::loadPluginFrameJson(const QString& json) {
     emit operationFailed(QStringLiteral("插件帧 JSON 无效：%1").arg(parseError.errorString()));
     return false;
   }
+  QString rpcError;
+  auto response = edward::plugins::RpcResponse::parse(document.object(), &rpcError);
+  if (!response) {
+    emit operationFailed(QStringLiteral("插件响应 JSON 无效：%1").arg(rpcError));
+    return false;
+  }
   const auto base = mltAdapter_.renderFrame(timeline_.snapshot(), controller_.playheadFrame());
   if (!base) {
     emit operationFailed(QStringLiteral("当前没有可用的预览画布"));
     return false;
   }
   QString error;
-  const auto frame = edward::plugins::parseRenderFrameResult(
-      document.object(), controller_.playheadFrame(), base->size(), &error);
+  const auto frame = edward::plugins::parseRenderFrameResponse(
+      *response, response->id, controller_.playheadFrame(), base->size(), &error);
   if (!frame) {
     emit operationFailed(QStringLiteral("插件帧校验失败：%1").arg(error));
     return false;
