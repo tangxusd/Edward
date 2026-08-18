@@ -22,3 +22,7 @@ add_test(NAME media.render_graph COMMAND test_render_graph ${EDWARD_MEDIA_FIXTUR
 add_executable(test_export_job test_export_job.cpp)
 target_link_libraries(test_export_job PRIVATE edward_media)
 add_test(NAME media.export_job COMMAND test_export_job ${EDWARD_MEDIA_FIXTURE} ${CMAKE_CURRENT_BINARY_DIR}/export.mp4)
+
+add_executable(test_component_renderer test_component_renderer.cpp)
+target_link_libraries(test_component_renderer PRIVATE edward_media)
+add_test(NAME media.component_renderer COMMAND test_component_renderer)

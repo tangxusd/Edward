@@ -1609,3 +1609,9 @@
 - 目的：建立所有 HTML、React、Remotion 和 HyperFrames 输出进入 Edward 前的统一编辑真相源。
 - 修改：新增版本为 1 的 Component IR JSON Schema 和 C++ 解析/校验；支持 `container`、`text`、`shape`、`image`、`svg` 节点、递归 children、局部 transform 和 keyframes；拒绝未知版本、缺少节点 ID、非法节点类型和重复 ID；核心库声明 Qt Core JSON 依赖。
 - 验证：`core.component_ir`、`core.timeline_commands`、`desktop.visual_routes` 定向 CTest 全部通过；构建成功；`git diff --check` 通过。完整 CTest 和媒体/桌面 smoke 待本次提交前执行。
+
+## 178. Edward 0.3.0 Task 6 透明 Component Renderer 首版
+
+- 目的：让标准 Component IR 可以渲染为透明图层，后续统一叠加到预览和导出画面。
+- 修改：新增 `ComponentRenderer`，支持容器局部坐标、文字、矩形/圆形、图片节点、透明度和数值关键帧线性插值；新增像素级回归测试，验证动画位置和透明背景。
+- 验证：完整 CTest `12/12` 通过；`git diff --check` 通过。
