@@ -1771,3 +1771,9 @@
 - 目的：确保真实插件进程返回的 JSON-RPC 响应不会绕过响应 ID 和成功结果校验。
 - 修改：新增 `parseRenderFrameResponse`，校验响应 ID 与请求 ID 一致且存在成功 `result`，随后统一调用透明 PNG 帧解析器。
 - 验证：插件宿主测试覆盖匹配响应成功和 ID 不匹配失败；待本轮构建后运行完整 CTest。
+
+## 205. Edward 0.3.0 工作台消费插件 RPC 响应
+
+- 目的：禁止工作台直接信任裸插件结果，统一使用独立插件进程的 JSON-RPC 响应合同。
+- 修改：`loadPluginFrameJson` 现要求完整 `RpcResponse`，先解析响应对象，再通过 `parseRenderFrameResponse` 校验成功结果后写入预览合成器。
+- 验证：桌面应用构建成功；完整 CTest `14/14` 通过；`git diff --check` 通过。
