@@ -1699,3 +1699,9 @@
 - 目的：在启动 Remotion/HyperFrames 独立进程前，先固定插件身份、入口路径和权限边界。
 - 修改：新增 `edward_plugins` 静态库和 `PluginManifest`；要求 `pluginId`、`version`、相对 `entry`，解析能力、权限和可编辑字段列表；拒绝绝对路径、路径穿越、非法列表以及 `network`/`engine_write` 权限。
 - 验证：新增 `plugins.plugin_manifest` 定向测试通过；完整 CTest `13/13` 通过；`git diff --check` 通过。
+
+## 193. Edward 0.3.0 插件 RPC 请求校验边界
+
+- 目的：在未来启动插件进程前，拒绝越权 RPC 请求和任务目录外读写。
+- 修改：新增 `PluginRequest` 与 `validateRequest`；校验任务 ID、插件身份和版本、相对路径、输出大小限制以及 manifest 授权的 `read_input_asset`、`write_draft_output`、`report_progress` 操作。
+- 验证：新增 `plugins.plugin_host` 定向测试通过；完整 CTest `14/14` 通过；`git diff --check` 通过。
