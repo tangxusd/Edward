@@ -1747,3 +1747,9 @@
 - 目的：确保外部插件返回的预览帧可以安全叠加到 Edward 的 RenderGraph。
 - 修改：新增 `parseRenderFrameResult`；校验响应帧号、PNG Base64、目标尺寸和 Alpha 通道，统一转换为 `QImage::Format_RGBA8888`；插件库增加 QtGui 依赖。
 - 验证：透明 PNG 正常解析，帧号不匹配失败；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 201. Edward 0.3.0 插件 renderExport 结果合同
+
+- 目的：避免外部插件将未经验证的导出路径和媒体元数据直接交给 Edward。
+- 修改：新增 `RenderExportResult` 与 `parseRenderExportResult`；要求安全相对输出路径、正宽高、正帧数和布尔 `hasAlpha`，同步补充 RPC 合同 schema 与失败边界测试。
+- 验证：覆盖合法导出结果、路径穿越和非法尺寸；待本轮构建后运行完整 CTest 与 `git diff --check`。

@@ -134,6 +134,21 @@ std::optional<QImage> parseRenderFrameResult(const QJsonObject& result,
   return image.convertToFormat(QImage::Format_RGBA8888);
 }
 
+std::optional<RenderExportResult> parseRenderExportResult(const QJsonObject& result, QString* error) {
+  const auto outputPath = result.value("outputPath").toString();
+  const auto width = result.value("width");
+  const auto height = result.value("height");
+  const auto frameCount = result.value("frameCount");
+  const auto hasAlpha = result.value("hasAlpha");
+  if (!safeRelative(outputPath) || !width.isDouble() || !height.isDouble() ||
+      !frameCount.isDouble() || !hasAlpha.isBool() || width.toInt() <= 0 ||
+      height.toInt() <= 0 || frameCount.toInt() <= 0) {
+    if (error) *error = QStringLiteral("renderExport result requires safe outputPath, positive size/frameCount and hasAlpha");
+    return std::nullopt;
+  }
+  return RenderExportResult{outputPath, frameCount.toInt(), QSize(width.toInt(), height.toInt()), hasAlpha.toBool()};
+}
+
 std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* error) {
   const auto id = object.value("id").toString();
   const auto method = object.value("method").toString();

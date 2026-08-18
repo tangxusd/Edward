@@ -52,6 +52,19 @@ int main() {
   assert(frame);
   assert(!edward::plugins::parseRenderFrameResult(
       QJsonObject{{"frame", 3}, {"pngBase64", QString::fromUtf8(encoded.toBase64())}}, 4, QSize(2, 2), &error));
+  const auto exportResult = edward::plugins::parseRenderExportResult(
+      QJsonObject{{"outputPath", "exports/animation.mov"}, {"width", 1920}, {"height", 1080},
+                  {"frameCount", 120}, {"hasAlpha", true}}, &error);
+  assert(exportResult);
+  assert(exportResult->size == QSize(1920, 1080));
+  assert(exportResult->frameCount == 120);
+  assert(exportResult->hasAlpha);
+  assert(!edward::plugins::parseRenderExportResult(
+      QJsonObject{{"outputPath", "../animation.mov"}, {"width", 1920}, {"height", 1080},
+                  {"frameCount", 120}, {"hasAlpha", true}}, &error));
+  assert(!edward::plugins::parseRenderExportResult(
+      QJsonObject{{"outputPath", "exports/animation.mov"}, {"width", 0}, {"height", 1080},
+                  {"frameCount", 120}, {"hasAlpha", true}}, &error));
   const auto processManifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
   assert(processManifest);

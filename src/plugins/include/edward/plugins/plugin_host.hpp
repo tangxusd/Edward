@@ -37,6 +37,16 @@ std::optional<QImage> parseRenderFrameResult(const QJsonObject& result,
                                              const QSize& expectedSize,
                                              QString* error = nullptr);
 
+struct RenderExportResult final {
+  QString outputPath;
+  int frameCount = 0;
+  QSize size;
+  bool hasAlpha = false;
+};
+
+std::optional<RenderExportResult> parseRenderExportResult(const QJsonObject& result,
+                                                          QString* error = nullptr);
+
 struct RpcRequest final {
   QString id;
   QString method;
