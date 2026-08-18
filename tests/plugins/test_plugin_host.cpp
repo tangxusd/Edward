@@ -11,7 +11,8 @@ int main() {
   const auto manifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"}, {"entry", "host.mjs"},
                   {"capabilities", QJsonArray{"renderFrame"}},
-                  {"permissions", QJsonArray{"read_input_asset", "write_draft_output"}}});
+                  {"permissions", QJsonArray{"read_input_asset", "write_draft_output"}},
+                  {"editableProps", QJsonArray{"opacity"}}});
   assert(manifest);
   const auto taskRoot = std::filesystem::temp_directory_path();
   edward::plugins::PluginRequest request{"task-1", "remotion", "1.0.0", "read_input_asset", "input.png", "draft.json", 1024};
@@ -31,6 +32,14 @@ int main() {
   assert(edward::plugins::validateRpcParams("renderFrame", QJsonObject{{"frame", 0}, {"width", 1920}, {"height", 1080}}));
   assert(!edward::plugins::validateRpcParams("renderFrame", QJsonObject{{"frame", -1}, {"width", 1920}, {"height", 1080}}, &error));
   assert(!edward::plugins::validateRpcParams("renderExport", QJsonObject{{"outputPath", "../out.mov"}, {"width", 1920}, {"height", 1080}}, &error));
+  const QJsonObject component{{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "container"}}}};
+  const auto described = edward::plugins::parseDescribeResult(
+      *manifest, QJsonObject{{"compositionId", "comp-1"}, {"component", component},
+                             {"editableProps", QJsonArray{"opacity"}}}, &error);
+  assert(described);
+  assert(!edward::plugins::parseDescribeResult(
+      *manifest, QJsonObject{{"compositionId", "comp-1"}, {"component", component},
+                             {"editableProps", QJsonArray{"forbidden"}}}, &error));
   const auto processManifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
   assert(processManifest);

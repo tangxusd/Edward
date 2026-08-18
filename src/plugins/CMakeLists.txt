@@ -5,4 +5,4 @@ add_library(edward_plugins STATIC
   src/plugin_host.cpp
 )
 target_include_directories(edward_plugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(edward_plugins PUBLIC Qt6::Core)
+target_link_libraries(edward_plugins PUBLIC edward_core Qt6::Core)

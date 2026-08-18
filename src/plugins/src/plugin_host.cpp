@@ -2,6 +2,7 @@
 
 #include <QProcess>
 #include <QJsonDocument>
+#include <QJsonArray>
 
 namespace edward::plugins {
 namespace {
@@ -78,6 +79,36 @@ bool validateRpcParams(const QString& method, const QJsonObject& params, QString
   }
   if (error) *error = QStringLiteral("rpc method is unknown");
   return false;
+}
+
+std::optional<edward::core::ComponentIr> parseDescribeResult(const PluginManifest& manifest,
+                                                             const QJsonObject& result,
+                                                             QString* error) {
+  if (!result.value("compositionId").isString() || result.value("compositionId").toString().isEmpty()) {
+    if (error) *error = QStringLiteral("describe result requires compositionId");
+    return std::nullopt;
+  }
+  const auto component = result.value("component");
+  if (!component.isObject()) {
+    if (error) *error = QStringLiteral("describe result requires component object");
+    return std::nullopt;
+  }
+  const auto editable = result.value("editableProps");
+  if (!editable.isUndefined()) {
+    if (!editable.isArray()) {
+      if (error) *error = QStringLiteral("editableProps must be an array");
+      return std::nullopt;
+    }
+    for (const auto& value : editable.toArray()) {
+      if (!value.isString() || !manifest.editableProps.contains(value.toString())) {
+        if (error) *error = QStringLiteral("describe result contains undeclared editable property");
+        return std::nullopt;
+      }
+    }
+  }
+  auto parsed = edward::core::ComponentIr::parse(component.toObject());
+  if (!parsed && error) *error = QStringLiteral("describe result component IR is invalid");
+  return parsed;
 }
 
 std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* error) {

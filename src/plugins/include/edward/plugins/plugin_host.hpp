@@ -1,6 +1,7 @@
 #pragma once
 
 #include "edward/plugins/plugin_manifest.hpp"
+#include "edward/core/component_ir.hpp"
 
 #include <QJsonObject>
 #include <QString>
@@ -27,6 +28,9 @@ bool validateRequest(const PluginManifest& manifest,
 
 bool validateRpcMethod(const PluginManifest& manifest, const QString& method, QString* error = nullptr);
 bool validateRpcParams(const QString& method, const QJsonObject& params, QString* error = nullptr);
+std::optional<edward::core::ComponentIr> parseDescribeResult(const PluginManifest& manifest,
+                                                             const QJsonObject& result,
+                                                             QString* error = nullptr);
 
 struct RpcRequest final {
   QString id;

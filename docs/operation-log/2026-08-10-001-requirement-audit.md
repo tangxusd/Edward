@@ -1735,3 +1735,9 @@
 - 目的：固定三个动画 RPC 的最小参数边界，避免插件收到不完整或越权的渲染请求。
 - 修改：新增 `animation-plugin-rpc.json`；宿主校验 `describe` 的 compositionId、`renderFrame` 的非负 frame 与正宽高、`renderExport` 的安全相对输出路径与正宽高；参数校验在进程启动前执行。
 - 验证：覆盖合法渲染参数、负帧和路径穿越失败；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 199. Edward 0.3.0 插件 describe 结果接入校验
+
+- 目的：确保插件返回的组件描述在进入 Edward 编辑链前已经转换为合法 Component IR。
+- 修改：新增 `parseDescribeResult`；要求 compositionId、component 对象和已声明的 editableProps，并重新执行 Component IR schema 校验；插件库链接 `edward_core` 作为唯一组件真相源。
+- 验证：覆盖合法描述和未声明可编辑属性失败；完整 CTest `14/14` 通过；`git diff --check` 通过。
