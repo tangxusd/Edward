@@ -1579,3 +1579,9 @@
 - 目的：在接入 QML 前冻结素材添加、播放头冲突和基础编辑的唯一控制入口。
 - 修改：新增 `TimelineController`，素材通过 `MediaProbe` 获取时长后加入当前轨道；当前播放头范围冲突直接拒绝，不自动创建新轨道；分割和波纹删除委托给核心命令，维护选中片段。
 - 验证：`desktop.timeline_controller` 与核心、MLT、导出回归共 4 项定向 CTest 全部通过，确认冲突添加不会改变轨道数量，`git diff --check` 通过。
+
+## 173. Edward 0.3.0 Task 5 视觉时间线与预览首步
+
+- 目的：按 Edward 视觉确认稿建立工作台的预览窗、轨道区域、标尺和播放头外观，不引入 Shotcut QML。
+- 修改：新增 `DesignTokens.qml`、`EdwardPreview.qml`、`EdwardTimeline.qml`、`Workbench.qml`；工作台仅使用 `ApplicationWindow` 系统标题栏，时间线提供轨道头、片段块、标尺、播放头及分割/删除/波纹删除信号。
+- 验证：`desktop.visual_routes` 和控制器回归通过；四个 QML 文件均通过 `qmlformat` 解析，并完成离屏启动检查；`git diff --check` 通过。
