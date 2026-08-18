@@ -9,4 +9,8 @@ include(CTest)
 include(cmake/Dependencies.cmake)
 
 enable_testing()
+add_subdirectory(src/core)
+add_subdirectory(src/media)
 add_subdirectory(tests/contracts)
+add_subdirectory(tests/core)
+add_subdirectory(tests/media)

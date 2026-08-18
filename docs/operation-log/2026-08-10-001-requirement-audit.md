@@ -1555,3 +1555,9 @@
 - 结果：记录 Shotcut `v26.8.1` 提交 `0474a712131fe1a82d499a32f3d54be956d2963f` 与 GPL-3.0-or-later，记录 MLT `v7.40.0` 提交 `bef9d89c0c279e558d9625dac3399c2aa3d961bc` 与 LGPL-2.1-only；当前不导入 Shotcut 源文件，仅建立允许/排除范围合同。
 - 修改：新增 `third_party/shotcut/SOURCES.json`、第三方说明、MLT 说明、最小 CMake 依赖发现入口和依赖合同测试。
 - 验证：macOS CMake/Ninja 配置成功，发现本机 MLT 7.40.0 和 FFmpeg，`contract.dependency` 通过，`git diff --check` 通过。
+
+## 169. Edward 0.3.0 Task 2 媒体工程与探测
+
+- 目的：建立与 UI 解耦的媒体工程模型，并在接入 MLT 前用 FFmpeg 的 `ffprobe` 验证基础媒体信息读取。
+- 修改：新增视频轨、片段插入和边界校验的 `MediaProject`；新增 `MediaProbe`，通过 `ffprobe` 读取首个视频流的宽高、化简帧率和向上取整的时长帧数；CMake 新增 `edward_core`、`edward_media` 和对应 CTest 目标。
+- 验证：构建时由 FFmpeg 生成 16x16、25fps、1 秒 MP4；`contract.dependency`、`core.media_project`、`media.media_probe`、`media.media_probe_fixture` 共 4 项 CTest 全部通过，`git diff --check` 通过。
