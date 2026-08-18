@@ -37,6 +37,17 @@ bool validateRequest(const PluginManifest& manifest,
   return true;
 }
 
+bool validateRpcMethod(const PluginManifest& manifest, const QString& method, QString* error) {
+  const QString capability = method == "describe" ? "describe" :
+                             method == "renderFrame" ? "renderFrame" :
+                             method == "renderExport" ? "renderExport" : QString{};
+  if (capability.isEmpty() || !manifest.capabilities.contains(capability)) {
+    if (error) *error = QStringLiteral("rpc method is not declared by plugin");
+    return false;
+  }
+  return true;
+}
+
 std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* error) {
   const auto id = object.value("id").toString();
   const auto method = object.value("method").toString();
@@ -99,6 +110,7 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
     if (error) *error = QStringLiteral("rpc timeout must be positive");
     return std::nullopt;
   }
+  if (!validateRpcMethod(manifest, request.method, error)) return std::nullopt;
   const auto executable = pluginRoot / manifest.entry.toStdString();
   if (!std::filesystem::is_regular_file(executable)) {
     if (error) *error = QStringLiteral("plugin entry is unavailable");

@@ -1723,3 +1723,9 @@
 - 目的：让宿主能够向独立插件进程发送 JSON-RPC 请求并安全读取响应。
 - 修改：新增 `RpcResponse` 和 `callPlugin`；请求以单行 JSON 写入标准输入，等待限定时间读取标准输出，校验响应 JSON 和请求 ID；超时、无效响应、启动失败和 ID 不匹配均返回失败。
 - 验证：插件宿主测试覆盖响应解析、缺失字段和结果对象；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 197. Edward 0.3.0 插件 RPC 方法能力校验
+
+- 目的：将插件 RPC 方法限制在明确的动画能力范围，避免宿主转发任意未知命令。
+- 修改：新增 `validateRpcMethod`，仅允许 manifest 声明的 `describe`、`renderFrame`、`renderExport`；`callPlugin` 在启动进程前执行该校验。
+- 验证：覆盖已声明方法成功和未知方法失败；完整 CTest `14/14` 通过；`git diff --check` 通过。

@@ -10,6 +10,7 @@ int main() {
   QString error;
   const auto manifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"}, {"entry", "host.mjs"},
+                  {"capabilities", QJsonArray{"renderFrame"}},
                   {"permissions", QJsonArray{"read_input_asset", "write_draft_output"}}});
   assert(manifest);
   const auto taskRoot = std::filesystem::temp_directory_path();
@@ -25,6 +26,8 @@ int main() {
   assert(rpc);
   assert(rpc->toJson().value("method").toString() == "renderFrame");
   assert(!edward::plugins::RpcRequest::parse(QJsonObject{{"id", "7"}, {"method", "renderFrame"}}, &error));
+  assert(edward::plugins::validateRpcMethod(*manifest, "renderFrame"));
+  assert(!edward::plugins::validateRpcMethod(*manifest, "deleteProject", &error));
   const auto processManifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
   assert(processManifest);

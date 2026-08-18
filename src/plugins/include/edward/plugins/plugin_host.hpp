@@ -25,6 +25,8 @@ bool validateRequest(const PluginManifest& manifest,
                     const std::filesystem::path& taskRoot,
                     QString* error = nullptr);
 
+bool validateRpcMethod(const PluginManifest& manifest, const QString& method, QString* error = nullptr);
+
 struct RpcRequest final {
   QString id;
   QString method;
