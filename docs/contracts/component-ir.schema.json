@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Edward Component IR",
+  "type": "object",
+  "required": ["version", "root"],
+  "properties": {
+    "version": { "const": "1" },
+    "root": { "$ref": "#/$defs/node" }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["container", "text", "shape", "image", "svg"] },
+        "properties": { "type": "object" },
+        "transform": { "type": "object" },
+        "keyframes": { "type": "object" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/node" } }
+      }
+    }
+  }
+}

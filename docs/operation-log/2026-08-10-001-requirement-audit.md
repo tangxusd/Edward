@@ -1603,3 +1603,9 @@
 - 目的：补齐时间线最小可用交互，片段点击选择和标尺点击定位都必须回到 C++ 时间线状态。
 - 修改：`WorkbenchRuntime` 新增 `selectClip` 调用入口；`EdwardTimeline.qml` 为片段增加选择点击，为标尺增加播放头定位点击；补充控制器选择有效性和视觉路由断言。
 - 验证：完整 CTest `10/10` 通过；四个 QML 文件通过 `qmlformat`；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无输出错误；`git diff --check` 通过。
+
+## 177. Edward 0.3.0 Task 6 Component IR 合同首版
+
+- 目的：建立所有 HTML、React、Remotion 和 HyperFrames 输出进入 Edward 前的统一编辑真相源。
+- 修改：新增版本为 1 的 Component IR JSON Schema 和 C++ 解析/校验；支持 `container`、`text`、`shape`、`image`、`svg` 节点、递归 children、局部 transform 和 keyframes；拒绝未知版本、缺少节点 ID、非法节点类型和重复 ID；核心库声明 Qt Core JSON 依赖。
+- 验证：`core.component_ir`、`core.timeline_commands`、`desktop.visual_routes` 定向 CTest 全部通过；构建成功；`git diff --check` 通过。完整 CTest 和媒体/桌面 smoke 待本次提交前执行。
