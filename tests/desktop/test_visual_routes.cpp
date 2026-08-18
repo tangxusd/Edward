@@ -15,7 +15,7 @@ int main() {
   const auto preview = read(root / "EdwardPreview.qml");
   assert(workbench.find("EdwardPreview") != std::string::npos);
   assert(workbench.find("EdwardTimeline") != std::string::npos);
-  assert(workbench.find("toggleDemoOverlay") != std::string::npos);
+  assert(workbench.find("generateComponentDraft") != std::string::npos);
   assert(workbench.find("demoOverlayX") != std::string::npos);
   assert(preview.find("componentDragged") != std::string::npos);
   assert(workbench.find("demoOverlayOpacity") != std::string::npos);

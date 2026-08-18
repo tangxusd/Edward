@@ -80,6 +80,13 @@ void WorkbenchRuntime::toggleDemoOverlay() {
   emit timelineChanged();
 }
 
+void WorkbenchRuntime::generateComponentDraft() {
+  demoOverlayIr_ = demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_);
+  demoOverlayEnabled_ = true;
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
 bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);

@@ -87,8 +87,8 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: workbenchRuntime.demoOverlayEnabled ? "移除测试组件" : "添加测试组件"
-                        onClicked: workbenchRuntime.toggleDemoOverlay()
+                        text: workbenchRuntime.demoOverlayEnabled ? "重新生成组件草稿" : "生成组件草稿"
+                        onClicked: workbenchRuntime.generateComponentDraft()
                     }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
