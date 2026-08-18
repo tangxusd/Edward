@@ -23,12 +23,14 @@ class RenderGraph {
   explicit RenderGraph(const MltAdapter& adapter,
                        std::optional<edward::core::ComponentIr> overlay = std::nullopt);
   void setOverlay(std::optional<edward::core::ComponentIr> overlay);
+  void setPluginFrame(std::optional<QImage> frame);
   std::optional<RenderScene> build(const edward::core::TimelineSnapshot& snapshot,
                                    const RenderRequest& request) const;
 
  private:
   const MltAdapter& adapter_;
   std::optional<edward::core::ComponentIr> overlay_;
+  std::optional<QImage> pluginFrame_;
 };
 
 }  // namespace edward::media

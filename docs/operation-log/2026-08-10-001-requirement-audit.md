@@ -1753,3 +1753,9 @@
 - 目的：避免外部插件将未经验证的导出路径和媒体元数据直接交给 Edward。
 - 修改：新增 `RenderExportResult` 与 `parseRenderExportResult`；要求安全相对输出路径、正宽高、正帧数和布尔 `hasAlpha`，同步补充 RPC 合同 schema 与失败边界测试。
 - 验证：覆盖合法导出结果、路径穿越和非法尺寸；待本轮构建后运行完整 CTest 与 `git diff --check`。
+
+## 202. Edward 0.3.0 插件透明帧进入 RenderGraph
+
+- 目的：让外部插件经过 `renderFrame` 校验的透明 PNG 真正进入 Edward 预览合成链，而不是停留在宿主解析层。
+- 修改：`RenderGraph` 新增 `setPluginFrame`；构建场景时以 SourceOver 叠加同画布尺寸且带 Alpha 的插件帧，尺寸不匹配时忽略，避免插件帧破坏主画面。
+- 验证：媒体 RenderGraph 测试覆盖透明插件像素实际叠加与错误尺寸忽略；待本轮构建后运行完整 CTest 与 `git diff --check`。

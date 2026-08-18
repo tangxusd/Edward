@@ -13,6 +13,10 @@ void RenderGraph::setOverlay(std::optional<edward::core::ComponentIr> overlay) {
   overlay_ = std::move(overlay);
 }
 
+void RenderGraph::setPluginFrame(std::optional<QImage> frame) {
+  pluginFrame_ = std::move(frame);
+}
+
 std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapshot& snapshot,
                                               const RenderRequest& request) const {
   auto frame = adapter_.renderFrame(snapshot, request.frame);
@@ -24,6 +28,11 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
       painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
       painter.drawImage(0, 0, layer);
     }
+  }
+  if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
+    QPainter painter(&*frame);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    painter.drawImage(0, 0, *pluginFrame_);
   }
   return std::optional<RenderScene>(RenderScene{*frame});
 }

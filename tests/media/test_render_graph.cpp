@@ -4,6 +4,7 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QColor>
 #include <cassert>
 
 int main(int argc, char** argv) {
@@ -20,11 +21,27 @@ int main(int argc, char** argv) {
   }}};
   const auto overlay = edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
   assert(overlay);
-  const edward::media::RenderGraph graph(adapter, *overlay);
+  edward::media::RenderGraph graph(adapter, *overlay);
   const auto scene = graph.build(timeline.snapshot(), {0});
   assert(scene.has_value());
   assert(scene->frame.width() == 16);
   assert(scene->frame.pixelColor(8, 8).red() > scene->frame.pixelColor(8, 8).green());
+  QImage pluginFrame(QSize(16, 16), QImage::Format_RGBA8888);
+  pluginFrame.fill(Qt::transparent);
+  pluginFrame.setPixelColor(0, 0, QColor(0, 255, 0, 255));
+  graph.setPluginFrame(pluginFrame);
+  const auto pluginScene = graph.build(timeline.snapshot(), {0});
+  assert(pluginScene.has_value());
+  assert(pluginScene->frame.pixelColor(0, 0).green() > pluginScene->frame.pixelColor(0, 0).red());
+  graph.setPluginFrame(std::nullopt);
+  const auto baseline = graph.build(timeline.snapshot(), {0});
+  assert(baseline.has_value());
+  QImage wrongSize(QSize(8, 8), QImage::Format_RGBA8888);
+  wrongSize.fill(Qt::red);
+  graph.setPluginFrame(wrongSize);
+  const auto unchanged = graph.build(timeline.snapshot(), {0});
+  assert(unchanged.has_value());
+  assert(unchanged->frame == baseline->frame);
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }
