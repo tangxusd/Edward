@@ -37,7 +37,15 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 1
-                EdwardPreview { Layout.fillWidth: true; Layout.fillHeight: true; playheadFrame: workbenchRuntime.playheadFrame }
+                EdwardPreview {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    playheadFrame: workbenchRuntime.playheadFrame
+                    componentOverlayEnabled: workbenchRuntime.demoOverlayEnabled
+                    componentX: workbenchRuntime.demoOverlayX
+                    componentY: workbenchRuntime.demoOverlayY
+                    onComponentDragged: { workbenchRuntime.demoOverlayX = x; workbenchRuntime.demoOverlayY = y }
+                }
                 EdwardTimeline {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 220
@@ -66,6 +74,11 @@ ApplicationWindow {
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "组件 X: " + workbenchRuntime.demoOverlayX
+                        color: DesignTokens.textSecondary
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "组件 Y: " + workbenchRuntime.demoOverlayY
                         color: DesignTokens.textSecondary
                     }
                     Slider {

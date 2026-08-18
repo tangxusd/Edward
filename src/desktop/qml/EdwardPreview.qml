@@ -6,6 +6,10 @@ Item {
     property int playheadFrame: 0
     property int durationFrames: 1
     property url source
+    property bool componentOverlayEnabled: false
+    property int componentX: 0
+    property int componentY: 0
+    signal componentDragged(int x, int y)
 
     Rectangle {
         anchors.fill: parent
@@ -59,6 +63,34 @@ Item {
         }
         Rectangle { anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: "#335e666b" }
         Rectangle { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; height: 1; color: "#335e666b" }
+
+        Rectangle {
+            id: componentBounds
+            visible: root.componentOverlayEnabled
+            x: canvas.width / 2 - root.componentX - width / 2
+            y: canvas.height / 2 - root.componentY - height / 2
+            width: 220
+            height: 72
+            color: "transparent"
+            border.color: DesignTokens.accent
+            border.width: 1
+            MouseArea {
+                anchors.fill: parent
+                property real pressX
+                property real pressY
+                property int initialX
+                property int initialY
+                onPressed: {
+                    pressX = mouse.x
+                    pressY = mouse.y
+                    initialX = root.componentX
+                    initialY = root.componentY
+                }
+                onPositionChanged: if (pressed) root.componentDragged(
+                    initialX - Math.round(mouse.x - pressX),
+                    initialY - Math.round(mouse.y - pressY))
+            }
+        }
 
         Image {
             anchors.fill: parent

@@ -17,6 +17,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QVariantList clips READ clips NOTIFY timelineChanged)
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayX READ demoOverlayX WRITE setDemoOverlayX NOTIFY timelineChanged)
+  Q_PROPERTY(int demoOverlayY READ demoOverlayY WRITE setDemoOverlayY NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -24,7 +25,9 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
   [[nodiscard]] int demoOverlayX() const { return demoOverlayX_; }
+  [[nodiscard]] int demoOverlayY() const { return demoOverlayY_; }
   void setDemoOverlayX(int value);
+  void setDemoOverlayY(int value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);
@@ -46,6 +49,7 @@ class WorkbenchRuntime final : public QObject {
   edward::media::RenderGraph renderGraph_;
   bool demoOverlayEnabled_ = false;
   int demoOverlayX_ = 24;
+  int demoOverlayY_ = 24;
 };
 
 }  // namespace edward::desktop
