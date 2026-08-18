@@ -1759,3 +1759,9 @@
 - 目的：让外部插件经过 `renderFrame` 校验的透明 PNG 真正进入 Edward 预览合成链，而不是停留在宿主解析层。
 - 修改：`RenderGraph` 新增 `setPluginFrame`；构建场景时以 SourceOver 叠加同画布尺寸且带 Alpha 的插件帧，尺寸不匹配时忽略，避免插件帧破坏主画面。
 - 验证：媒体 RenderGraph 测试覆盖透明插件像素实际叠加与错误尺寸忽略；待本轮构建后运行完整 CTest 与 `git diff --check`。
+
+## 203. Edward 0.3.0 工作台插件帧入口
+
+- 目的：把插件 `renderFrame` 返回结果接入工作台，而不是只停留在媒体层接口。
+- 修改：`WorkbenchRuntime` 新增 `loadPluginFrameJson`；读取当前播放头画布尺寸，调用统一 `parseRenderFrameResult` 校验帧号、PNG、尺寸和 Alpha，成功后写入 `RenderGraph`，失败通过既有 `operationFailed` 报告。
+- 验证：待本轮桌面目标构建并运行完整 CTest。

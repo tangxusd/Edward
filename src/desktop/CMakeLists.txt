@@ -5,7 +5,7 @@ add_library(edward_desktop STATIC
   src/workbench_runtime.cpp
 )
 target_include_directories(edward_desktop PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(edward_desktop PUBLIC edward_core edward_media Qt6::Core)
+target_link_libraries(edward_desktop PUBLIC edward_core edward_media edward_plugins Qt6::Core)
 
 add_executable(edward_app src/main.cpp)
 target_compile_definitions(edward_app PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

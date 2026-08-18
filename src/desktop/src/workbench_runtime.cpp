@@ -1,5 +1,7 @@
 #include "edward/desktop/workbench_runtime.hpp"
 
+#include "edward/plugins/plugin_host.hpp"
+
 #include <QVariantMap>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -102,6 +104,30 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   demoOverlayIr_ = std::move(component);
   demoOverlayEnabled_ = true;
   refreshDemoOverlay();
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::loadPluginFrameJson(const QString& json) {
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    emit operationFailed(QStringLiteral("插件帧 JSON 无效：%1").arg(parseError.errorString()));
+    return false;
+  }
+  const auto base = mltAdapter_.renderFrame(timeline_.snapshot(), controller_.playheadFrame());
+  if (!base) {
+    emit operationFailed(QStringLiteral("当前没有可用的预览画布"));
+    return false;
+  }
+  QString error;
+  const auto frame = edward::plugins::parseRenderFrameResult(
+      document.object(), controller_.playheadFrame(), base->size(), &error);
+  if (!frame) {
+    emit operationFailed(QStringLiteral("插件帧校验失败：%1").arg(error));
+    return false;
+  }
+  renderGraph_.setPluginFrame(*frame);
   emit timelineChanged();
   return true;
 }
