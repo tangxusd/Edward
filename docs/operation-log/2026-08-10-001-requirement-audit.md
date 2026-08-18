@@ -1597,3 +1597,9 @@
 - 目的：让工作台预览窗在播放头变化时请求与导出共用的 MLT `RenderGraph` 当前帧，结束预览占位状态。
 - 修改：`WorkbenchRuntime` 暴露当前预览帧；`edward_app` 注册 `image://edward` 图像提供器；`EdwardPreview.qml` 在没有外部源图时请求该提供器，并显式判断空 URL。
 - 验证：macOS Debug 构建通过；完整 CTest `10/10` 通过；四个 QML 文件通过 `qmlformat`；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无输出错误；`git diff --check` 通过。
+
+## 176. Edward 0.3.0 Task 5 片段选择与标尺定位
+
+- 目的：补齐时间线最小可用交互，片段点击选择和标尺点击定位都必须回到 C++ 时间线状态。
+- 修改：`WorkbenchRuntime` 新增 `selectClip` 调用入口；`EdwardTimeline.qml` 为片段增加选择点击，为标尺增加播放头定位点击；补充控制器选择有效性和视觉路由断言。
+- 验证：完整 CTest `10/10` 通过；四个 QML 文件通过 `qmlformat`；`QT_QPA_PLATFORM=offscreen` 启动应用 3 秒无输出错误；`git diff --check` 通过。

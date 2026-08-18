@@ -39,6 +39,11 @@ Item {
         height: 28
         color: DesignTokens.panelRaised
         clip: true
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames,
+                Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
+        }
         Repeater {
             model: 11
             delegate: Item {
@@ -80,6 +85,10 @@ Item {
             color: DesignTokens.videoClip
             border.color: modelData.selected ? DesignTokens.accent : "#0a0a0a"
             border.width: modelData.selected ? 2 : 1
+            MouseArea {
+                anchors.fill: parent
+                onClicked: workbenchRuntime.selectClip(modelData.id)
+            }
             Text { anchors.centerIn: parent; text: modelData.name || "素材"; color: "#ffffff"; font.pixelSize: 11; elide: Text.ElideRight; width: parent.width - 8 }
         }
     }

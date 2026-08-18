@@ -22,6 +22,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
+  Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
   Q_INVOKABLE bool deleteSelected();

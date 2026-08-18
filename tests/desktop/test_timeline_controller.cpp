@@ -11,6 +11,8 @@ int main(int argc, char** argv) {
   assert(controller.dropMediaAtPlayhead(argv[1]));
   assert(timeline.clips(track).size() == 1);
   assert(controller.selectedClip() == 1);
+  assert(controller.selectClip(1));
+  assert(!controller.selectClip(999));
   assert(!controller.dropMediaAtPlayhead(argv[1]));
   assert(controller.setPlayhead(10));
   assert(controller.splitSelectedAtPlayhead());

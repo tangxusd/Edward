@@ -40,6 +40,12 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
   return true;
 }
 
+bool WorkbenchRuntime::selectClip(qlonglong id) {
+  if (!controller_.selectClip(static_cast<edward::core::ClipId>(id))) return false;
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::setPlayhead(int frame) {
   if (!controller_.setPlayhead(frame)) return false;
   emit timelineChanged();
