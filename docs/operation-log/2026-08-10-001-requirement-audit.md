@@ -1777,3 +1777,9 @@
 - 目的：禁止工作台直接信任裸插件结果，统一使用独立插件进程的 JSON-RPC 响应合同。
 - 修改：`loadPluginFrameJson` 现要求完整 `RpcResponse`，先解析响应对象，再通过 `parseRenderFrameResponse` 校验成功结果后写入预览合成器。
 - 验证：桌面应用构建成功；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 206. Edward 0.3.0 工作台插件请求 ID 绑定
+
+- 目的：防止工作台将响应自身 ID 当作预期 ID，导致请求-响应绑定形同虚设。
+- 修改：`loadPluginFrameJson` 现要求调用方传入非空预期请求 ID，并使用该 ID 校验 `RpcResponse`；缺少 ID 或 ID 不匹配的插件帧不能进入预览。
+- 验证：待本轮桌面构建和完整 CTest。

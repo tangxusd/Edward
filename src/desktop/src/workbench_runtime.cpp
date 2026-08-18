@@ -108,7 +108,11 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   return true;
 }
 
-bool WorkbenchRuntime::loadPluginFrameJson(const QString& json) {
+bool WorkbenchRuntime::loadPluginFrameJson(const QString& requestId, const QString& json) {
+  if (requestId.isEmpty()) {
+    emit operationFailed(QStringLiteral("插件帧请求 ID 不能为空"));
+    return false;
+  }
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
   if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
@@ -128,7 +132,7 @@ bool WorkbenchRuntime::loadPluginFrameJson(const QString& json) {
   }
   QString error;
   const auto frame = edward::plugins::parseRenderFrameResponse(
-      *response, response->id, controller_.playheadFrame(), base->size(), &error);
+      *response, requestId, controller_.playheadFrame(), base->size(), &error);
   if (!frame) {
     emit operationFailed(QStringLiteral("插件帧校验失败：%1").arg(error));
     return false;

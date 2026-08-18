@@ -46,7 +46,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool loadComponentJson(const QString& json);
-  Q_INVOKABLE bool loadPluginFrameJson(const QString& json);
+  Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
