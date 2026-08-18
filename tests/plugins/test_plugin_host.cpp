@@ -58,6 +58,10 @@ int main() {
       {}};
   assert(edward::plugins::parseRenderFrameResponse(frameResponse, "frame-1", 3, QSize(2, 2), &error));
   assert(!edward::plugins::parseRenderFrameResponse(frameResponse, "frame-2", 3, QSize(2, 2), &error));
+  assert(!edward::plugins::renderPluginFrame(
+      *manifest, std::filesystem::path("/missing"), "", "comp-1", 3, QSize(2, 2), 1000, &error));
+  assert(!edward::plugins::renderPluginFrame(
+      *manifest, std::filesystem::path("/missing"), "frame-1", "comp-1", -1, QSize(2, 2), 1000, &error));
   const auto exportResult = edward::plugins::parseRenderExportResult(
       QJsonObject{{"outputPath", "exports/animation.mov"}, {"width", 1920}, {"height", 1080},
                   {"frameCount", 120}, {"hasAlpha", true}}, &error);

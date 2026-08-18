@@ -89,4 +89,13 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
                                       int timeoutMs,
                                       QString* error = nullptr);
 
+std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
+                                        const std::filesystem::path& pluginRoot,
+                                        const QString& requestId,
+                                        const QString& compositionId,
+                                        int frame,
+                                        const QSize& size,
+                                        int timeoutMs,
+                                        QString* error = nullptr);
+
 }  // namespace edward::plugins

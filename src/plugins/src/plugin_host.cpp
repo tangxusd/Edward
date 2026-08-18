@@ -259,4 +259,24 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
   return parsed;
 }
 
+std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
+                                        const std::filesystem::path& pluginRoot,
+                                        const QString& requestId,
+                                        const QString& compositionId,
+                                        int frame,
+                                        const QSize& size,
+                                        int timeoutMs,
+                                        QString* error) {
+  if (requestId.isEmpty() || compositionId.isEmpty() || frame < 0 || size.isEmpty()) {
+    if (error) *error = QStringLiteral("renderFrame request is incomplete");
+    return std::nullopt;
+  }
+  const RpcRequest request{requestId, QStringLiteral("renderFrame"),
+                           {{"compositionId", compositionId}, {"frame", frame},
+                            {"width", size.width()}, {"height", size.height()}}};
+  const auto response = callPlugin(manifest, pluginRoot, request, timeoutMs, error);
+  if (!response) return std::nullopt;
+  return parseRenderFrameResponse(*response, requestId, frame, size, error);
+}
+
 }  // namespace edward::plugins
