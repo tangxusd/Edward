@@ -66,9 +66,10 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
   const double opacity = std::clamp(animatedNumber(node.keyframes, "opacity", frame, number(properties, "opacity", 1)), 0.0, 1.0);
 
   painter.save();
-  painter.translate(x, y);
+  // Edward preview coordinates use the canvas center as (0, 0): left/up are positive.
+  painter.translate(-x, -y);
   painter.setOpacity(painter.opacity() * opacity);
-  const QRectF bounds(0, 0, width, height);
+  const QRectF bounds(-width / 2.0, -height / 2.0, width, height);
   switch (node.type) {
     case edward::core::ComponentNodeType::Text: {
       painter.setPen(color(properties, "color", Qt::white));
@@ -105,6 +106,7 @@ QImage ComponentRenderer::render(const edward::core::ComponentIr& component, int
   output.fill(Qt::transparent);
   QPainter painter(&output);
   painter.setRenderHint(QPainter::Antialiasing, true);
+  painter.translate(canvasSize.width() / 2.0, canvasSize.height() / 2.0);
   renderNode(painter, component.root(), frame);
   return output;
 }

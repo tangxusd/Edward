@@ -15,7 +15,16 @@
         "id": { "type": "string", "minLength": 1 },
         "type": { "enum": ["container", "text", "shape", "image", "svg"] },
         "properties": { "type": "object" },
-        "transform": { "type": "object" },
+        "transform": {
+          "type": "object",
+          "description": "x/y are center-origin Edward coordinates: left/up positive, right/down negative.",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number", "minimum": 0 },
+            "height": { "type": "number", "minimum": 0 }
+          }
+        },
         "keyframes": {
           "type": "object",
           "additionalProperties": {

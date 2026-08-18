@@ -21,6 +21,11 @@ Item {
         border.color: DesignTokens.divider
         border.width: 1
 
+        Text { anchors.horizontalCenter: parent.horizontalCenter; y: 6; text: "0"; color: DesignTokens.textSecondary; font.pixelSize: 10 }
+        Text { x: 8; anchors.verticalCenter: parent.verticalCenter; text: "0"; color: DesignTokens.textSecondary; font.pixelSize: 10 }
+        Rectangle { anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: "#335e666b" }
+        Rectangle { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; height: 1; color: "#335e666b" }
+
         Image {
             anchors.fill: parent
             source: root.source.toString() !== ""

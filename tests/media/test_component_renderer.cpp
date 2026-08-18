@@ -16,7 +16,7 @@ int main() {
   assert(component);
   const auto image = edward::media::ComponentRenderer{}.render(*component, 5, {100, 100});
   assert(!image.isNull());
-  assert(image.pixelColor(16, 20).alpha() > 0);
+  assert(image.pixelColor(34, 50).alpha() > 0);
   assert(image.pixelColor(5, 5).alpha() == 0);
   return 0;
 }

@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
   const auto scene = graph.build(timeline.snapshot(), {0});
   assert(scene.has_value());
   assert(scene->frame.width() == 16);
-  assert(scene->frame.pixelColor(0, 0).red() > scene->frame.pixelColor(0, 0).green());
+  assert(scene->frame.pixelColor(8, 8).red() > scene->frame.pixelColor(8, 8).green());
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }
