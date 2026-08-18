@@ -33,5 +33,10 @@ int main() {
   assert(process.started);
   assert(!process.timedOut);
   assert(process.exitCode == 0);
+  const auto response = edward::plugins::RpcResponse::parse(
+      QJsonObject{{"id", "7"}, {"result", QJsonObject{{"ok", true}}}}, &error);
+  assert(response);
+  assert(response->result.value("ok").toBool());
+  assert(!edward::plugins::RpcResponse::parse(QJsonObject{{"id", "7"}}, &error));
   return 0;
 }

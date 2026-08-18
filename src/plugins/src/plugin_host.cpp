@@ -1,6 +1,7 @@
 #include "edward/plugins/plugin_host.hpp"
 
 #include <QProcess>
+#include <QJsonDocument>
 
 namespace edward::plugins {
 namespace {
@@ -49,6 +50,18 @@ std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* 
 
 QJsonObject RpcRequest::toJson() const { return {{"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", params}}; }
 
+std::optional<RpcResponse> RpcResponse::parse(const QJsonObject& object, QString* error) {
+  const auto id = object.value("id").toString();
+  const auto result = object.value("result");
+  const auto failure = object.value("error");
+  if (id.isEmpty() || (result.isUndefined() && failure.isUndefined()) ||
+      (!result.isUndefined() && !result.isObject()) || (!failure.isUndefined() && !failure.isObject())) {
+    if (error) *error = QStringLiteral("rpc response requires id and result or error object");
+    return std::nullopt;
+  }
+  return RpcResponse{id, result.toObject(), failure.toObject()};
+}
+
 ProcessResult launchPluginProcess(const PluginManifest& manifest,
                                   const std::filesystem::path& pluginRoot,
                                   const QStringList& arguments,
@@ -75,6 +88,49 @@ ProcessResult launchPluginProcess(const PluginManifest& manifest,
   result.standardOutput = process.readAllStandardOutput();
   result.standardError = process.readAllStandardError();
   return result;
+}
+
+std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
+                                      const std::filesystem::path& pluginRoot,
+                                      const RpcRequest& request,
+                                      int timeoutMs,
+                                      QString* error) {
+  if (timeoutMs <= 0) {
+    if (error) *error = QStringLiteral("rpc timeout must be positive");
+    return std::nullopt;
+  }
+  const auto executable = pluginRoot / manifest.entry.toStdString();
+  if (!std::filesystem::is_regular_file(executable)) {
+    if (error) *error = QStringLiteral("plugin entry is unavailable");
+    return std::nullopt;
+  }
+  QProcess process;
+  process.setProgram(QString::fromStdString(executable.string()));
+  process.start();
+  if (!process.waitForStarted(1000)) {
+    if (error) *error = process.errorString();
+    return std::nullopt;
+  }
+  process.write(QJsonDocument(request.toJson()).toJson(QJsonDocument::Compact) + '\n');
+  process.closeWriteChannel();
+  if (!process.waitForFinished(timeoutMs)) {
+    process.kill();
+    process.waitForFinished(1000);
+    if (error) *error = QStringLiteral("plugin rpc timed out");
+    return std::nullopt;
+  }
+  const auto response = QJsonDocument::fromJson(process.readAllStandardOutput().trimmed());
+  if (!response.isObject()) {
+    if (error) *error = QStringLiteral("plugin returned invalid rpc response");
+    return std::nullopt;
+  }
+  auto parsed = RpcResponse::parse(response.object(), error);
+  if (!parsed) return std::nullopt;
+  if (parsed->id != request.id) {
+    if (error) *error = QStringLiteral("plugin rpc response id mismatch");
+    return std::nullopt;
+  }
+  return parsed;
 }
 
 }  // namespace edward::plugins

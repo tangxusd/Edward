@@ -34,6 +34,14 @@ struct RpcRequest final {
   [[nodiscard]] QJsonObject toJson() const;
 };
 
+struct RpcResponse final {
+  QString id;
+  QJsonObject result;
+  QJsonObject error;
+
+  static std::optional<RpcResponse> parse(const QJsonObject& object, QString* error = nullptr);
+};
+
 struct ProcessResult final {
   bool started = false;
   bool timedOut = false;
@@ -46,5 +54,11 @@ ProcessResult launchPluginProcess(const PluginManifest& manifest,
                                   const std::filesystem::path& pluginRoot,
                                   const QStringList& arguments,
                                   int timeoutMs);
+
+std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
+                                      const std::filesystem::path& pluginRoot,
+                                      const RpcRequest& request,
+                                      int timeoutMs,
+                                      QString* error = nullptr);
 
 }  // namespace edward::plugins
