@@ -27,6 +27,8 @@ class ComponentIr final {
   [[nodiscard]] QJsonObject toJson() const;
   [[nodiscard]] const QString& version() const { return version_; }
   [[nodiscard]] const ComponentNode& root() const { return root_; }
+  bool setNodeTransformNumber(const QString& nodeId, const QString& field, double value);
+  bool setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value);
 
  private:
   ComponentIr(QString version, ComponentNode root) : version_(std::move(version)), root_(std::move(root)) {}

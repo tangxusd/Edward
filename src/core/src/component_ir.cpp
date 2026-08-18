@@ -77,6 +77,14 @@ bool validateNode(const ComponentNode& node, QString* error, std::vector<QString
   return true;
 }
 
+ComponentNode* findNode(ComponentNode& node, const QString& nodeId) {
+  if (node.id == nodeId) return &node;
+  for (auto& child : node.children) {
+    if (auto* found = findNode(child, nodeId)) return found;
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 std::optional<ComponentIr> ComponentIr::parse(const QJsonObject& object) {
@@ -97,5 +105,19 @@ bool ComponentIr::validate(QString* error) const {
 }
 
 QJsonObject ComponentIr::toJson() const { return {{"version", version_}, {"root", nodeToJson(root_)}}; }
+
+bool ComponentIr::setNodeTransformNumber(const QString& nodeId, const QString& field, double value) {
+  auto* node = findNode(root_, nodeId);
+  if (!node || field.isEmpty()) return false;
+  node->transform.insert(field, value);
+  return true;
+}
+
+bool ComponentIr::setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value) {
+  auto* node = findNode(root_, nodeId);
+  if (!node || field.isEmpty()) return false;
+  node->properties.insert(field, value);
+  return true;
+}
 
 }  // namespace edward::core

@@ -1663,3 +1663,9 @@
 - 目的：让待确认组件可以在工作台属性区直接调整宽度、高度、不透明度和文字，并立即反映到预览与导出共用的 Component IR 渲染链。
 - 修改：`WorkbenchRuntime` 增加四个 QML 属性及范围约束；测试组件重新生成时写入宽高、opacity 和文字节点；`Workbench.qml` 增加对应滑块和文字输入；`EdwardPreview.qml` 按组件宽高绘制拖拽选择框；补齐 `EdwardTimeline.qml` 的 `QtQuick.Layouts` 导入，修复离屏启动时的 QML 加载错误。
 - 验证：完整 CTest `12/12` 通过；相关 QML 文件通过 `qmlformat`；离屏启动 3 秒无 QML 加载错误（仅保留字体别名和无素材时的预览帧告警）；`git diff --check` 通过。
+
+## 187. Edward 0.3.0 通用 Component IR 属性写回
+
+- 目的：让工作台属性编辑使用统一的 Component IR 写回接口，为后续 AI 草稿、资源库组件和外部插件适配器复用同一编辑真相源。
+- 修改：`ComponentIr` 增加按节点 ID 修改数值型 transform 字段和普通属性的接口；工作台运行时保留当前组件 IR，并将 X/Y、宽度、高度、不透明度和文字修改直接写入对应节点后刷新 RenderGraph。
+- 验证：核心 IR 写回测试通过；完整 CTest `12/12` 通过；离屏启动 3 秒无 QML 加载错误；`git diff --check` 通过。

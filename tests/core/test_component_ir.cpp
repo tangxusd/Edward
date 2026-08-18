@@ -10,11 +10,18 @@ int main() {
                    {"properties", QJsonObject{{"text", "Edward"}}},
                    {"keyframes", QJsonObject{{"opacity", QJsonArray{QJsonObject{{"frame", 0}, {"value", 0.0}}}}}}},
   }}};
-  const auto parsed = edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
+  auto parsed = edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
   assert(parsed);
   assert(parsed->validate());
   assert(parsed->root().children.size() == 1);
   assert(parsed->toJson().value("version").toString() == "1");
+  assert(parsed->setNodeTransformNumber("title", "x", 12.0));
+  assert(parsed->setNodeProperty("title", "text", "Updated"));
+  const auto updated = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject();
+  assert(updated.value("transform").toObject().value("x").toDouble() == 12.0);
+  assert(updated.value("properties").toObject().value("text").toString() == "Updated");
+  assert(!parsed->setNodeTransformNumber("missing", "x", 1.0));
+  assert(!parsed->setNodeProperty("title", "", "ignored"));
 
   assert(!edward::core::ComponentIr::parse({{"version", "2"}, {"root", root}}));
   const QJsonObject duplicate{{"version", "1"}, {"root", QJsonObject{

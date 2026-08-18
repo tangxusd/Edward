@@ -54,12 +54,14 @@ class WorkbenchRuntime final : public QObject {
   void operationFailed(QString message);
 
  private:
+  void refreshDemoOverlay();
   edward::core::Timeline timeline_;
   edward::core::TrackId videoTrack_;
   TimelineController controller_;
   edward::media::MltAdapter mltAdapter_;
   edward::media::RenderGraph renderGraph_;
   bool demoOverlayEnabled_ = false;
+  std::optional<edward::core::ComponentIr> demoOverlayIr_;
   int demoOverlayX_ = 24;
   int demoOverlayY_ = 24;
   int demoOverlayWidth_ = 220;

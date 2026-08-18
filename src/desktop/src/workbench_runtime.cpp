@@ -29,6 +29,10 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
       renderGraph_(mltAdapter_) {}
 
+void WorkbenchRuntime::refreshDemoOverlay() {
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlayIr_);
+}
+
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
 
 QVariantList WorkbenchRuntime::clips() const {
@@ -69,7 +73,9 @@ bool WorkbenchRuntime::selectClip(qlonglong id) {
 
 void WorkbenchRuntime::toggleDemoOverlay() {
   demoOverlayEnabled_ = !demoOverlayEnabled_;
-  renderGraph_.setOverlay(demoOverlayEnabled_ ? demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_) : std::nullopt);
+  if (demoOverlayEnabled_) demoOverlayIr_ = demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_);
+  else demoOverlayIr_.reset();
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
@@ -77,7 +83,11 @@ void WorkbenchRuntime::setDemoOverlayX(int value) {
   const int clamped = std::max(0, std::min(value, 640));
   if (demoOverlayX_ == clamped) return;
   demoOverlayX_ = clamped;
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "x", demoOverlayX_);
+    demoOverlayIr_->setNodeTransformNumber("demo-text", "x", demoOverlayX_ + 20);
+  }
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
@@ -85,31 +95,39 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
   const int clamped = std::max(-360, std::min(value, 360));
   if (demoOverlayY_ == clamped) return;
   demoOverlayY_ = clamped;
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "y", demoOverlayY_);
+    demoOverlayIr_->setNodeTransformNumber("demo-text", "y", demoOverlayY_ - 20);
+  }
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayWidth(int value) {
   demoOverlayWidth_ = std::max(40, std::min(value, 640));
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  if (demoOverlayIr_) demoOverlayIr_->setNodeTransformNumber("demo-box", "width", demoOverlayWidth_);
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayHeight(int value) {
   demoOverlayHeight_ = std::max(24, std::min(value, 360));
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  if (demoOverlayIr_) demoOverlayIr_->setNodeTransformNumber("demo-box", "height", demoOverlayHeight_);
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
   demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  if (demoOverlayIr_) demoOverlayIr_->setNodeProperty("demo-box", "opacity", demoOverlayOpacity_);
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   demoOverlayText_ = value.left(120);
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  if (demoOverlayIr_) demoOverlayIr_->setNodeProperty("demo-text", "text", demoOverlayText_);
+  refreshDemoOverlay();
   emit timelineChanged();
 }
 
