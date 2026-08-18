@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "."
 
 Item {
@@ -8,15 +9,20 @@ Item {
     property int playheadFrame: 0
     property var clips: []
     signal playheadChangedByUser(int frame)
-    signal splitRequested()
-    signal deleteRequested()
-    signal rippleDeleteRequested()
+    signal splitRequested
+    signal deleteRequested
+    signal rippleDeleteRequested
 
-    function frameToX(frame) { return rulerWidth + frame * pixelsPerFrame }
+    function frameToX(frame) {
+        return rulerWidth + frame * pixelsPerFrame;
+    }
     readonly property real rulerWidth: 74
     readonly property real pixelsPerFrame: Math.max(0.25, (width - rulerWidth - 24) / durationFrames)
 
-    Rectangle { anchors.fill: parent; color: DesignTokens.panel }
+    Rectangle {
+        anchors.fill: parent
+        color: DesignTokens.panel
+    }
 
     Row {
         id: toolbar
@@ -25,10 +31,21 @@ Item {
         anchors.right: parent.right
         spacing: 8
         padding: 8
-        Button { text: "分割"; onClicked: root.splitRequested() }
-        Button { text: "删除"; onClicked: root.deleteRequested() }
-        Button { text: "波纹删除"; onClicked: root.rippleDeleteRequested() }
-        Item { Layout.fillWidth: true }
+        Button {
+            text: "分割"
+            onClicked: root.splitRequested()
+        }
+        Button {
+            text: "删除"
+            onClicked: root.deleteRequested()
+        }
+        Button {
+            text: "波纹删除"
+            onClicked: root.rippleDeleteRequested()
+        }
+        Item {
+            Layout.fillWidth: true
+        }
     }
 
     Rectangle {
@@ -41,8 +58,7 @@ Item {
         clip: true
         MouseArea {
             anchors.fill: parent
-            onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames,
-                Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
+            onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
         }
         Repeater {
             model: 11
@@ -50,8 +66,18 @@ Item {
                 x: root.frameToX(index * root.durationFrames / 10)
                 width: 1
                 height: ruler.height
-                Rectangle { width: 1; height: 10; color: DesignTokens.textSecondary }
-                Text { x: 5; y: 8; text: Math.round(index * root.durationFrames / 10); color: DesignTokens.textSecondary; font.pixelSize: 10 }
+                Rectangle {
+                    width: 1
+                    height: 10
+                    color: DesignTokens.textSecondary
+                }
+                Text {
+                    x: 5
+                    y: 8
+                    text: Math.round(index * root.durationFrames / 10)
+                    color: DesignTokens.textSecondary
+                    font.pixelSize: 10
+                }
             }
         }
     }
@@ -68,9 +94,22 @@ Item {
             model: ["V1", "A1"]
             delegate: Item {
                 height: (tracks.height - 1) / 2
-                Rectangle { anchors.fill: parent; color: index === 0 ? "#151515" : "#191919" }
-                Rectangle { width: root.rulerWidth; anchors.top: parent.top; anchors.bottom: parent.bottom; color: DesignTokens.panelRaised }
-                Text { anchors.centerIn: parent; text: modelData; color: DesignTokens.textPrimary; font.pixelSize: 12 }
+                Rectangle {
+                    anchors.fill: parent
+                    color: index === 0 ? "#151515" : "#191919"
+                }
+                Rectangle {
+                    width: root.rulerWidth
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    color: DesignTokens.panelRaised
+                }
+                Text {
+                    anchors.centerIn: parent
+                    text: modelData
+                    color: DesignTokens.textPrimary
+                    font.pixelSize: 12
+                }
             }
         }
     }
@@ -89,7 +128,14 @@ Item {
                 anchors.fill: parent
                 onClicked: workbenchRuntime.selectClip(modelData.id)
             }
-            Text { anchors.centerIn: parent; text: modelData.name || "素材"; color: "#ffffff"; font.pixelSize: 11; elide: Text.ElideRight; width: parent.width - 8 }
+            Text {
+                anchors.centerIn: parent
+                text: modelData.name || "素材"
+                color: "#ffffff"
+                font.pixelSize: 11
+                elide: Text.ElideRight
+                width: parent.width - 8
+            }
         }
     }
 
@@ -106,7 +152,8 @@ Item {
             anchors.margins: -8
             drag.target: parent
             drag.axis: Drag.XAxis
-            onPositionChanged: if (drag.active) root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((playhead.x - root.rulerWidth) / root.pixelsPerFrame))))
+            onPositionChanged: if (drag.active)
+                root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((playhead.x - root.rulerWidth) / root.pixelsPerFrame))))
         }
     }
 }

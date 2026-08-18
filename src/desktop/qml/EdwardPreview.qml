@@ -9,6 +9,8 @@ Item {
     property bool componentOverlayEnabled: false
     property int componentX: 0
     property int componentY: 0
+    property int componentWidth: 220
+    property int componentHeight: 72
     signal componentDragged(int x, int y)
 
     Rectangle {
@@ -33,7 +35,11 @@ Item {
                 y: 0
                 width: 1
                 height: canvas.height
-                Rectangle { width: 1; height: 7; color: DesignTokens.textSecondary }
+                Rectangle {
+                    width: 1
+                    height: 7
+                    color: DesignTokens.textSecondary
+                }
                 Text {
                     x: 4
                     y: 8
@@ -51,7 +57,11 @@ Item {
                 y: canvas.height / 2 + offset
                 width: canvas.width
                 height: 1
-                Rectangle { width: 7; height: 1; color: DesignTokens.textSecondary }
+                Rectangle {
+                    width: 7
+                    height: 1
+                    color: DesignTokens.textSecondary
+                }
                 Text {
                     x: 8
                     y: -16
@@ -61,16 +71,28 @@ Item {
                 }
             }
         }
-        Rectangle { anchors.horizontalCenter: parent.horizontalCenter; anchors.top: parent.top; anchors.bottom: parent.bottom; width: 1; color: "#335e666b" }
-        Rectangle { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.right: parent.right; height: 1; color: "#335e666b" }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 1
+            color: "#335e666b"
+        }
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: "#335e666b"
+        }
 
         Rectangle {
             id: componentBounds
             visible: root.componentOverlayEnabled
             x: canvas.width / 2 - root.componentX - width / 2
             y: canvas.height / 2 - root.componentY - height / 2
-            width: 220
-            height: 72
+            width: root.componentWidth
+            height: root.componentHeight
             color: "transparent"
             border.color: DesignTokens.accent
             border.width: 1
@@ -81,22 +103,19 @@ Item {
                 property int initialX
                 property int initialY
                 onPressed: {
-                    pressX = mouse.x
-                    pressY = mouse.y
-                    initialX = root.componentX
-                    initialY = root.componentY
+                    pressX = mouse.x;
+                    pressY = mouse.y;
+                    initialX = root.componentX;
+                    initialY = root.componentY;
                 }
-                onPositionChanged: if (pressed) root.componentDragged(
-                    initialX - Math.round(mouse.x - pressX),
-                    initialY - Math.round(mouse.y - pressY))
+                onPositionChanged: if (pressed)
+                    root.componentDragged(initialX - Math.round(mouse.x - pressX), initialY - Math.round(mouse.y - pressY))
             }
         }
 
         Image {
             anchors.fill: parent
-            source: root.source.toString() !== ""
-                ? root.source
-                : ("image://edward/frame?frame=" + root.playheadFrame)
+            source: root.source.toString() !== "" ? root.source : ("image://edward/frame?frame=" + root.playheadFrame)
             cache: false
             fillMode: Image.PreserveAspectFit
             visible: status === Image.Ready || source !== ""

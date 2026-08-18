@@ -18,6 +18,8 @@ int main() {
   assert(workbench.find("toggleDemoOverlay") != std::string::npos);
   assert(workbench.find("demoOverlayX") != std::string::npos);
   assert(preview.find("componentDragged") != std::string::npos);
+  assert(workbench.find("demoOverlayOpacity") != std::string::npos);
+  assert(workbench.find("demoOverlayText") != std::string::npos);
   assert(workbench.find("ApplicationWindow") != std::string::npos);
   assert(timeline.find("playheadChangedByUser") != std::string::npos);
   assert(timeline.find("selectClip") != std::string::npos);

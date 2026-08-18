@@ -28,8 +28,17 @@ ApplicationWindow {
                 Column {
                     anchors.centerIn: parent
                     spacing: 12
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "素材库"; color: DesignTokens.textPrimary; font.pixelSize: 14 }
-                    Button { anchors.horizontalCenter: parent.horizontalCenter; text: "+ 导入素材"; onClicked: mediaDialog.open() }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "素材库"
+                        color: DesignTokens.textPrimary
+                        font.pixelSize: 14
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "+ 导入素材"
+                        onClicked: mediaDialog.open()
+                    }
                 }
             }
 
@@ -44,7 +53,12 @@ ApplicationWindow {
                     componentOverlayEnabled: workbenchRuntime.demoOverlayEnabled
                     componentX: workbenchRuntime.demoOverlayX
                     componentY: workbenchRuntime.demoOverlayY
-                    onComponentDragged: { workbenchRuntime.demoOverlayX = x; workbenchRuntime.demoOverlayY = y }
+                    componentWidth: workbenchRuntime.demoOverlayWidth
+                    componentHeight: workbenchRuntime.demoOverlayHeight
+                    onComponentDragged: {
+                        workbenchRuntime.demoOverlayX = x;
+                        workbenchRuntime.demoOverlayY = y;
+                    }
                 }
                 EdwardTimeline {
                     Layout.fillWidth: true
@@ -65,7 +79,12 @@ ApplicationWindow {
                 Column {
                     anchors.centerIn: parent
                     spacing: 12
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: "AI 创作"; color: DesignTokens.accent; font.pixelSize: 13 }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "AI 创作"
+                        color: DesignTokens.accent
+                        font.pixelSize: 13
+                    }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: workbenchRuntime.demoOverlayEnabled ? "移除测试组件" : "添加测试组件"
@@ -89,6 +108,52 @@ ApplicationWindow {
                         value: workbenchRuntime.demoOverlayX
                         onMoved: workbenchRuntime.demoOverlayX = value
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "宽度: " + workbenchRuntime.demoOverlayWidth
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 40
+                        to: 640
+                        value: workbenchRuntime.demoOverlayWidth
+                        onMoved: workbenchRuntime.demoOverlayWidth = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "高度: " + workbenchRuntime.demoOverlayHeight
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 24
+                        to: 360
+                        value: workbenchRuntime.demoOverlayHeight
+                        onMoved: workbenchRuntime.demoOverlayHeight = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "透明度: " + workbenchRuntime.demoOverlayOpacity.toFixed(2)
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 0
+                        to: 1
+                        value: workbenchRuntime.demoOverlayOpacity
+                        onMoved: workbenchRuntime.demoOverlayOpacity = value
+                    }
+                    TextField {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        text: workbenchRuntime.demoOverlayText
+                        placeholderText: "组件文字"
+                        onEditingFinished: workbenchRuntime.demoOverlayText = text
+                    }
                 }
             }
         }
@@ -104,7 +169,10 @@ ApplicationWindow {
 
     Connections {
         target: workbenchRuntime
-        function onOperationFailed(message) { failureToast.text = message; failureToast.open() }
+        function onOperationFailed(message) {
+            failureToast.text = message;
+            failureToast.open();
+        }
     }
 
     Dialog {
@@ -114,6 +182,10 @@ ApplicationWindow {
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok
         property alias text: failureLabel.text
-        contentItem: Label { id: failureLabel; color: DesignTokens.textPrimary; padding: 16 }
+        contentItem: Label {
+            id: failureLabel
+            color: DesignTokens.textPrimary
+            padding: 16
+        }
     }
 }

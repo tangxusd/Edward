@@ -9,17 +9,17 @@
 namespace edward::desktop {
 
 namespace {
-std::optional<edward::core::ComponentIr> demoOverlay(int x, int y) {
+std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, int height, double opacity, const QString& label) {
   const QJsonObject box{{"id", "demo-box"}, {"type", "shape"},
-                        {"transform", QJsonObject{{"x", x}, {"y", y}, {"width", 220}, {"height", 72}}},
-                        {"properties", QJsonObject{{"fill", "#00b8c8"}, {"opacity", 0.82}}},
+                        {"transform", QJsonObject{{"x", x}, {"y", y}, {"width", width}, {"height", height}}},
+                        {"properties", QJsonObject{{"fill", "#00b8c8"}, {"opacity", opacity}}},
                         {"keyframes", QJsonObject{{"x", QJsonArray{
                             QJsonObject{{"frame", 0}, {"value", x}},
                             QJsonObject{{"frame", 90}, {"value", x + 156}}
                         }}}}};
   const QJsonObject text{{"id", "demo-text"}, {"type", "text"},
                    {"transform", QJsonObject{{"x", x + 20}, {"y", y - 20}, {"width", 180}, {"height", 32}}},
-                         {"properties", QJsonObject{{"text", "Edward Component"}, {"fontSize", 18}, {"color", "#ffffff"}}}};
+                   {"properties", QJsonObject{{"text", label}, {"fontSize", 18}, {"color", "#ffffff"}}}};
   const QJsonObject root{{"id", "demo-root"}, {"type", "container"}, {"children", QJsonArray{box, text}}};
   return edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
 }
@@ -69,7 +69,7 @@ bool WorkbenchRuntime::selectClip(qlonglong id) {
 
 void WorkbenchRuntime::toggleDemoOverlay() {
   demoOverlayEnabled_ = !demoOverlayEnabled_;
-  renderGraph_.setOverlay(demoOverlayEnabled_ ? demoOverlay(demoOverlayX_, demoOverlayY_) : std::nullopt);
+  renderGraph_.setOverlay(demoOverlayEnabled_ ? demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_) : std::nullopt);
   emit timelineChanged();
 }
 
@@ -77,7 +77,7 @@ void WorkbenchRuntime::setDemoOverlayX(int value) {
   const int clamped = std::max(0, std::min(value, 640));
   if (demoOverlayX_ == clamped) return;
   demoOverlayX_ = clamped;
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_));
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
   emit timelineChanged();
 }
 
@@ -85,7 +85,31 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
   const int clamped = std::max(-360, std::min(value, 360));
   if (demoOverlayY_ == clamped) return;
   demoOverlayY_ = clamped;
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_));
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayWidth(int value) {
+  demoOverlayWidth_ = std::max(40, std::min(value, 640));
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayHeight(int value) {
+  demoOverlayHeight_ = std::max(24, std::min(value, 360));
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
+  demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
+  demoOverlayText_ = value.left(120);
+  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlay(demoOverlayX_, demoOverlayY_, demoOverlayWidth_, demoOverlayHeight_, demoOverlayOpacity_, demoOverlayText_));
   emit timelineChanged();
 }
 

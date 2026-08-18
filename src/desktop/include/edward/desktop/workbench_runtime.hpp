@@ -18,6 +18,10 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayX READ demoOverlayX WRITE setDemoOverlayX NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayY READ demoOverlayY WRITE setDemoOverlayY NOTIFY timelineChanged)
+  Q_PROPERTY(int demoOverlayWidth READ demoOverlayWidth WRITE setDemoOverlayWidth NOTIFY timelineChanged)
+  Q_PROPERTY(int demoOverlayHeight READ demoOverlayHeight WRITE setDemoOverlayHeight NOTIFY timelineChanged)
+  Q_PROPERTY(double demoOverlayOpacity READ demoOverlayOpacity WRITE setDemoOverlayOpacity NOTIFY timelineChanged)
+  Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -26,8 +30,16 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
   [[nodiscard]] int demoOverlayX() const { return demoOverlayX_; }
   [[nodiscard]] int demoOverlayY() const { return demoOverlayY_; }
+  [[nodiscard]] int demoOverlayWidth() const { return demoOverlayWidth_; }
+  [[nodiscard]] int demoOverlayHeight() const { return demoOverlayHeight_; }
+  [[nodiscard]] double demoOverlayOpacity() const { return demoOverlayOpacity_; }
+  [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
+  void setDemoOverlayWidth(int value);
+  void setDemoOverlayHeight(int value);
+  void setDemoOverlayOpacity(double value);
+  void setDemoOverlayText(const QString& value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);
@@ -50,6 +62,10 @@ class WorkbenchRuntime final : public QObject {
   bool demoOverlayEnabled_ = false;
   int demoOverlayX_ = 24;
   int demoOverlayY_ = 24;
+  int demoOverlayWidth_ = 220;
+  int demoOverlayHeight_ = 72;
+  double demoOverlayOpacity_ = 0.82;
+  QString demoOverlayText_ = QStringLiteral("Edward Component");
 };
 
 }  // namespace edward::desktop

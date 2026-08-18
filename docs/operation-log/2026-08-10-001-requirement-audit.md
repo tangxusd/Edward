@@ -1657,3 +1657,9 @@
 - 目的：验证预览窗直接操作组件时，拖拽位移按中心原点规则写回 Component IR。
 - 修改：测试组件显示可拖拽边界；预览窗拖动向右/向下分别使 X/Y 减小，运行时新增 Y 属性并限制坐标范围，实时刷新 RenderGraph。
 - 验证：完整 CTest `12/12` 通过；QML 格式检查通过；离屏启动 3 秒无输出错误；`git diff --check` 通过。
+
+## 186. Edward 0.3.0 组件外观属性编辑
+
+- 目的：让待确认组件可以在工作台属性区直接调整宽度、高度、不透明度和文字，并立即反映到预览与导出共用的 Component IR 渲染链。
+- 修改：`WorkbenchRuntime` 增加四个 QML 属性及范围约束；测试组件重新生成时写入宽高、opacity 和文字节点；`Workbench.qml` 增加对应滑块和文字输入；`EdwardPreview.qml` 按组件宽高绘制拖拽选择框；补齐 `EdwardTimeline.qml` 的 `QtQuick.Layouts` 导入，修复离屏启动时的 QML 加载错误。
+- 验证：完整 CTest `12/12` 通过；相关 QML 文件通过 `qmlformat`；离屏启动 3 秒无 QML 加载错误（仅保留字体别名和无素材时的预览帧告警）；`git diff --check` 通过。
