@@ -1567,3 +1567,9 @@
 - 目的：将播放头、片段编辑和历史记录从后续 QML 界面中剥离，形成可原子验证的时间线核心。
 - 修改：新增 `Timeline` 与 `TimelineCommands`，实现分割、裁切、普通删除、同轨道波纹删除、移动、播放头边界及撤销/重做；失败命令回滚到原快照，拒绝重叠和越界片段。
 - 验证：`core.timeline_commands` 覆盖播放头越界、分割、冲突移动、裁切、删除、波纹删除和撤销/重做；与 Task 2 回归共 4 项定向 CTest 全部通过，`git diff --check` 通过。
+
+## 171. Edward 0.3.0 Task 4 MLT 预览与基础导出
+
+- 目的：让预览帧与最终导出共享同一时间线到源帧映射，避免两套定位逻辑产生偏差。
+- 修改：新增 `MltAdapter`、`RenderGraph` 和 `ExportJob`；MLT 负责读取源帧并转为独立 `QImage`，渲染图统一提供预览和导出帧，导出通过 FFmpeg raw RGBA 管道生成 H.264 MP4，失败时清理不完整输出。
+- 验证：macOS Debug 构建通过；`media.mlt_adapter`、`media.render_graph`、`media.export_job` 均通过，导出测试以 25 帧、1920x1080 样片并用 `MediaProbe` 验证尺寸与帧数；随后完整 CTest 通过，`git diff --check` 通过。

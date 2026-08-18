@@ -1,7 +1,7 @@
 include_guard(GLOBAL)
 
 find_package(PkgConfig REQUIRED)
-find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core)
+find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui)
 pkg_check_modules(EDWARD_FFMPEG REQUIRED IMPORTED_TARGET
   libavformat libavcodec libavfilter libavutil libswresample libswscale)
 
@@ -17,6 +17,7 @@ set(EDWARD_MLT_MODULE_DIR "" CACHE PATH
 add_library(edward_media_runtime INTERFACE)
 target_link_libraries(edward_media_runtime INTERFACE
   Qt6::Core
+  Qt6::Gui
   Mlt7::mlt
   PkgConfig::EDWARD_FFMPEG
 )
