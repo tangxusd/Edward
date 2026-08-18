@@ -29,6 +29,7 @@ bool validateRequest(const PluginManifest& manifest,
 
 bool validateRpcMethod(const PluginManifest& manifest, const QString& method, QString* error = nullptr);
 bool validateRpcParams(const QString& method, const QJsonObject& params, QString* error = nullptr);
+struct RpcResponse;
 std::optional<edward::core::ComponentIr> parseDescribeResult(const PluginManifest& manifest,
                                                              const QJsonObject& result,
                                                              QString* error = nullptr);
@@ -36,6 +37,11 @@ std::optional<QImage> parseRenderFrameResult(const QJsonObject& result,
                                              int expectedFrame,
                                              const QSize& expectedSize,
                                              QString* error = nullptr);
+std::optional<QImage> parseRenderFrameResponse(const RpcResponse& response,
+                                               const QString& requestId,
+                                               int expectedFrame,
+                                               const QSize& expectedSize,
+                                               QString* error = nullptr);
 
 struct RenderExportResult final {
   QString outputPath;

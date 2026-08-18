@@ -52,6 +52,12 @@ int main() {
   assert(frame);
   assert(!edward::plugins::parseRenderFrameResult(
       QJsonObject{{"frame", 3}, {"pngBase64", QString::fromUtf8(encoded.toBase64())}}, 4, QSize(2, 2), &error));
+  const edward::plugins::RpcResponse frameResponse{
+      QStringLiteral("frame-1"),
+      QJsonObject{{"frame", 3}, {"pngBase64", QString::fromUtf8(encoded.toBase64())}},
+      {}};
+  assert(edward::plugins::parseRenderFrameResponse(frameResponse, "frame-1", 3, QSize(2, 2), &error));
+  assert(!edward::plugins::parseRenderFrameResponse(frameResponse, "frame-2", 3, QSize(2, 2), &error));
   const auto exportResult = edward::plugins::parseRenderExportResult(
       QJsonObject{{"outputPath", "exports/animation.mov"}, {"width", 1920}, {"height", 1080},
                   {"frameCount", 120}, {"hasAlpha", true}}, &error);

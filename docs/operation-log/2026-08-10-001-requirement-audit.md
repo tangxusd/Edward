@@ -1765,3 +1765,9 @@
 - 目的：把插件 `renderFrame` 返回结果接入工作台，而不是只停留在媒体层接口。
 - 修改：`WorkbenchRuntime` 新增 `loadPluginFrameJson`；读取当前播放头画布尺寸，调用统一 `parseRenderFrameResult` 校验帧号、PNG、尺寸和 Alpha，成功后写入 `RenderGraph`，失败通过既有 `operationFailed` 报告。
 - 验证：待本轮桌面目标构建并运行完整 CTest。
+
+## 204. Edward 0.3.0 renderFrame JSON-RPC 响应桥接
+
+- 目的：确保真实插件进程返回的 JSON-RPC 响应不会绕过响应 ID 和成功结果校验。
+- 修改：新增 `parseRenderFrameResponse`，校验响应 ID 与请求 ID 一致且存在成功 `result`，随后统一调用透明 PNG 帧解析器。
+- 验证：插件宿主测试覆盖匹配响应成功和 ID 不匹配失败；待本轮构建后运行完整 CTest。

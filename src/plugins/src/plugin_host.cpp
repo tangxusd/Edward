@@ -134,6 +134,18 @@ std::optional<QImage> parseRenderFrameResult(const QJsonObject& result,
   return image.convertToFormat(QImage::Format_RGBA8888);
 }
 
+std::optional<QImage> parseRenderFrameResponse(const RpcResponse& response,
+                                               const QString& requestId,
+                                               int expectedFrame,
+                                               const QSize& expectedSize,
+                                               QString* error) {
+  if (requestId.isEmpty() || response.id != requestId || response.result.isEmpty()) {
+    if (error) *error = QStringLiteral("renderFrame rpc response is not a matching success response");
+    return std::nullopt;
+  }
+  return parseRenderFrameResult(response.result, expectedFrame, expectedSize, error);
+}
+
 std::optional<RenderExportResult> parseRenderExportResult(const QJsonObject& result, QString* error) {
   const auto outputPath = result.value("outputPath").toString();
   const auto width = result.value("width");
