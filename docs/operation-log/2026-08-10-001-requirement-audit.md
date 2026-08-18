@@ -1741,3 +1741,9 @@
 - 目的：确保插件返回的组件描述在进入 Edward 编辑链前已经转换为合法 Component IR。
 - 修改：新增 `parseDescribeResult`；要求 compositionId、component 对象和已声明的 editableProps，并重新执行 Component IR schema 校验；插件库链接 `edward_core` 作为唯一组件真相源。
 - 验证：覆盖合法描述和未声明可编辑属性失败；完整 CTest `14/14` 通过；`git diff --check` 通过。
+
+## 200. Edward 0.3.0 插件 renderFrame 透明帧校验
+
+- 目的：确保外部插件返回的预览帧可以安全叠加到 Edward 的 RenderGraph。
+- 修改：新增 `parseRenderFrameResult`；校验响应帧号、PNG Base64、目标尺寸和 Alpha 通道，统一转换为 `QImage::Format_RGBA8888`；插件库增加 QtGui 依赖。
+- 验证：透明 PNG 正常解析，帧号不匹配失败；完整 CTest `14/14` 通过；`git diff --check` 通过。

@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QByteArray>
+#include <QImage>
 
 #include <filesystem>
 
@@ -31,6 +32,10 @@ bool validateRpcParams(const QString& method, const QJsonObject& params, QString
 std::optional<edward::core::ComponentIr> parseDescribeResult(const PluginManifest& manifest,
                                                              const QJsonObject& result,
                                                              QString* error = nullptr);
+std::optional<QImage> parseRenderFrameResult(const QJsonObject& result,
+                                             int expectedFrame,
+                                             const QSize& expectedSize,
+                                             QString* error = nullptr);
 
 struct RpcRequest final {
   QString id;

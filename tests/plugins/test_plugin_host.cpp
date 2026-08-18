@@ -2,6 +2,7 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QBuffer>
 
 #include <cassert>
 #include <filesystem>
@@ -40,6 +41,17 @@ int main() {
   assert(!edward::plugins::parseDescribeResult(
       *manifest, QJsonObject{{"compositionId", "comp-1"}, {"component", component},
                              {"editableProps", QJsonArray{"forbidden"}}}, &error));
+  QImage frameImage(QSize(2, 2), QImage::Format_RGBA8888);
+  frameImage.fill(Qt::transparent);
+  QByteArray encoded;
+  QBuffer buffer(&encoded);
+  buffer.open(QIODevice::WriteOnly);
+  frameImage.save(&buffer, "PNG");
+  const auto frame = edward::plugins::parseRenderFrameResult(
+      QJsonObject{{"frame", 3}, {"pngBase64", QString::fromUtf8(encoded.toBase64())}}, 3, QSize(2, 2), &error);
+  assert(frame);
+  assert(!edward::plugins::parseRenderFrameResult(
+      QJsonObject{{"frame", 3}, {"pngBase64", QString::fromUtf8(encoded.toBase64())}}, 4, QSize(2, 2), &error));
   const auto processManifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
   assert(processManifest);

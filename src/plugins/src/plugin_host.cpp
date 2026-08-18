@@ -3,6 +3,7 @@
 #include <QProcess>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QBuffer>
 
 namespace edward::plugins {
 namespace {
@@ -109,6 +110,28 @@ std::optional<edward::core::ComponentIr> parseDescribeResult(const PluginManifes
   auto parsed = edward::core::ComponentIr::parse(component.toObject());
   if (!parsed && error) *error = QStringLiteral("describe result component IR is invalid");
   return parsed;
+}
+
+std::optional<QImage> parseRenderFrameResult(const QJsonObject& result,
+                                             int expectedFrame,
+                                             const QSize& expectedSize,
+                                             QString* error) {
+  if (expectedFrame < 0 || expectedSize.isEmpty() || result.value("frame").toInt(-1) != expectedFrame) {
+    if (error) *error = QStringLiteral("renderFrame response does not match requested frame");
+    return std::nullopt;
+  }
+  const auto encoded = result.value("pngBase64").toString().toUtf8();
+  if (encoded.isEmpty()) {
+    if (error) *error = QStringLiteral("renderFrame response is missing pngBase64");
+    return std::nullopt;
+  }
+  const auto bytes = QByteArray::fromBase64(encoded);
+  QImage image;
+  if (!image.loadFromData(bytes, "PNG") || image.size() != expectedSize || !image.hasAlphaChannel()) {
+    if (error) *error = QStringLiteral("renderFrame response must be a PNG with matching size and alpha");
+    return std::nullopt;
+  }
+  return image.convertToFormat(QImage::Format_RGBA8888);
 }
 
 std::optional<RpcRequest> RpcRequest::parse(const QJsonObject& object, QString* error) {
