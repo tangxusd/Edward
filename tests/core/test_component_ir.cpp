@@ -27,6 +27,19 @@ int main() {
   assert(parsed->setNodeProperty("title", "text", "Updated"));
   assert(parsed->setNodeKeyframeNumber("title", "x", 30, 36.0));
   assert(parsed->setNodeKeyframeNumber("title", "x", 0, 12.0));
+  const auto withEasing = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject();
+  auto easingKeyframe = withEasing.value("keyframes").toObject().value("x").toArray().at(1).toObject();
+  easingKeyframe.insert("easing", "bezier");
+  easingKeyframe.insert("controlIn", 30.0);
+  easingKeyframe.insert("controlOut", 20.0);
+  const auto withEasingRoot = QJsonObject{{"id", "root"}, {"type", "container"}, {"children", QJsonArray{
+      QJsonObject{{"id", "title"}, {"type", "text"}, {"transform", withEasing.value("transform")},
+          {"properties", withEasing.value("properties")}, {"keyframes", QJsonObject{{"x", QJsonArray{
+          withEasing.value("keyframes").toObject().value("x").toArray().at(0), easingKeyframe
+      }}}}}
+  }}};
+  parsed = edward::core::ComponentIr::parse({{"version", "1"}, {"root", withEasingRoot}});
+  assert(parsed);
   assert(parsed->setNodeKeyframeNumber("title", "x", 30, 42.0));
   const auto updated = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject();
   assert(updated.value("transform").toObject().value("x").toDouble() == 12.0);
@@ -36,6 +49,8 @@ int main() {
   assert(xKeyframes.at(0).toObject().value("frame").toInt() == 0);
   assert(xKeyframes.at(1).toObject().value("frame").toInt() == 30);
   assert(xKeyframes.at(1).toObject().value("value").toDouble() == 42.0);
+  assert(xKeyframes.at(1).toObject().value("easing").toString() == "bezier");
+  assert(xKeyframes.at(1).toObject().value("controlIn").toDouble() == 30.0);
   assert(!parsed->setNodeTransformNumber("missing", "x", 1.0));
   assert(!parsed->setNodeKeyframeNumber("title", "x", -1, 1.0));
   assert(!parsed->setNodeKeyframeNumber("missing", "x", 1, 1.0));

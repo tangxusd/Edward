@@ -176,7 +176,10 @@ bool ComponentIr::setNodeKeyframeNumber(const QString& nodeId, const QString& fi
   for (auto index = 0; index < keyframes.size(); ++index) {
     const auto point = keyframes.at(index).toObject();
     if (point.value("frame").toInt(-1) == frame) {
-      keyframes.replace(index, QJsonObject{{"frame", frame}, {"value", value}});
+      auto updated = point;
+      updated.insert("frame", frame);
+      updated.insert("value", value);
+      keyframes.replace(index, updated);
       replaced = true;
       break;
     }
