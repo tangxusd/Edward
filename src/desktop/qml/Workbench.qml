@@ -178,6 +178,11 @@ ApplicationWindow {
                         color: workbenchRuntime.installedPluginAvailable
                                ? DesignTokens.textSecondary : DesignTokens.textSecondary
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "组件插件: " + workbenchRuntime.componentPluginDependencyStatus
+                        color: DesignTokens.textSecondary
+                    }
                     TextField {
                         id: compositionIdField
                         anchors.horizontalCenter: parent.horizontalCenter

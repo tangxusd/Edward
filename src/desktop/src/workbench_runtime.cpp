@@ -60,6 +60,17 @@ QString WorkbenchRuntime::installedPluginId() const {
   return installedPlugin_ ? installedPlugin_->manifest.pluginId : QString{};
 }
 
+QString WorkbenchRuntime::componentPluginDependencyStatus() const {
+  if (!demoOverlayIr_) return QStringLiteral("无组件");
+  switch (edward::plugins::dependencyStatus(*demoOverlayIr_, installedPlugin_)) {
+    case edward::plugins::PluginDependencyStatus::NotRequired: return QStringLiteral("无插件依赖");
+    case edward::plugins::PluginDependencyStatus::Available: return QStringLiteral("插件可用");
+    case edward::plugins::PluginDependencyStatus::Missing: return QStringLiteral("缺少插件");
+    case edward::plugins::PluginDependencyStatus::VersionMismatch: return QStringLiteral("插件版本不匹配");
+  }
+  return QStringLiteral("插件状态未知");
+}
+
 QVariantList WorkbenchRuntime::clips() const {
   QVariantList result;
   for (const auto& clip : timeline_.clips(videoTrack_)) {

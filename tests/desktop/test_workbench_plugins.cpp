@@ -12,6 +12,10 @@ int main() {
   edward::desktop::WorkbenchRuntime runtime;
   assert(!runtime.installedPluginAvailable());
   assert(!runtime.selectInstalledPlugin(QStringLiteral("/missing-plugin")));
+  assert(runtime.loadComponentJson(QStringLiteral(
+      "{\"version\":\"1\",\"root\":{\"id\":\"root\",\"type\":\"container\"},"
+      "\"pluginDependency\":{\"pluginId\":\"remotion\",\"version\":\"1.0.0\"}}")));
+  assert(runtime.componentPluginDependencyStatus() == QStringLiteral("缺少插件"));
 
   QTemporaryDir directory;
   assert(directory.isValid());
@@ -29,6 +33,7 @@ int main() {
   assert(runtime.selectInstalledPlugin(directory.path()));
   assert(runtime.installedPluginAvailable());
   assert(runtime.installedPluginId() == "remotion");
+  assert(runtime.componentPluginDependencyStatus() == QStringLiteral("插件可用"));
   runtime.clearInstalledPlugin();
   assert(!runtime.installedPluginAvailable());
   return 0;

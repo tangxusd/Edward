@@ -26,6 +26,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
+  Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginRenderBusy READ pluginRenderBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
 
@@ -42,6 +43,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
+  [[nodiscard]] QString componentPluginDependencyStatus() const;
   [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
   [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
   void setDemoOverlayX(int value);
