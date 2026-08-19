@@ -42,6 +42,12 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     }
     emit timelineChanged();
   });
+  connect(&pluginExportWatcher_, &QFutureWatcher<PluginExportResult>::finished, this, [this] {
+    pluginExportBusy_ = false;
+    const auto result = pluginExportWatcher_.result();
+    if (!result.error.isEmpty()) emit operationFailed(result.error);
+    emit timelineChanged();
+  });
 }
 
 void WorkbenchRuntime::refreshDemoOverlay() {
@@ -202,6 +208,37 @@ bool WorkbenchRuntime::renderInstalledPluginFrame(const QString& requestId, cons
     result.frame = edward::plugins::renderPluginFrame(plugin.manifest, plugin.root, requestId,
                                                       compositionId, frame, size, 5000, &result.error)
                        .value_or(QImage{});
+    return result;
+  }));
+  return true;
+}
+
+bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QString& compositionId,
+                                             const QString& outputPath) {
+  if (pluginExportBusy_ || pluginRenderBusy_) {
+    emit operationFailed(QStringLiteral("插件任务正在执行"));
+    return false;
+  }
+  if (!installedPlugin_ || requestId.isEmpty() || compositionId.isEmpty() || outputPath.isEmpty()) {
+    emit operationFailed(QStringLiteral("插件或导出参数不可用"));
+    return false;
+  }
+  const auto base = mltAdapter_.renderFrame(timeline_.snapshot(), controller_.playheadFrame());
+  if (!base) {
+    emit operationFailed(QStringLiteral("当前没有可用的预览画布"));
+    return false;
+  }
+  const auto plugin = *installedPlugin_;
+  const auto size = base->size();
+  pluginExportBusy_ = true;
+  emit timelineChanged();
+  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputPath, size] {
+    PluginExportResult result;
+    QString error;
+    if (!edward::plugins::exportPlugin(plugin.manifest, plugin.root, requestId, compositionId,
+                                       outputPath, size, 30000, &error)) {
+      result.error = QStringLiteral("插件导出失败：%1").arg(error);
+    }
     return result;
   }));
   return true;

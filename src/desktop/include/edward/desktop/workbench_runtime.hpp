@@ -27,6 +27,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginRenderBusy READ pluginRenderBusy NOTIFY timelineChanged)
+  Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -42,6 +43,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
   [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
+  [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
   void setDemoOverlayWidth(int value);
@@ -58,6 +60,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);
   Q_INVOKABLE void clearInstalledPlugin();
   Q_INVOKABLE bool renderInstalledPluginFrame(const QString& requestId, const QString& compositionId);
+  Q_INVOKABLE bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
+                                         const QString& outputPath);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
@@ -87,6 +91,9 @@ class WorkbenchRuntime final : public QObject {
   struct PluginFrameResult { QImage frame; QString error; };
   QFutureWatcher<PluginFrameResult> pluginFrameWatcher_;
   bool pluginRenderBusy_ = false;
+  struct PluginExportResult { QString error; };
+  QFutureWatcher<PluginExportResult> pluginExportWatcher_;
+  bool pluginExportBusy_ = false;
 };
 
 }  // namespace edward::desktop

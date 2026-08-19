@@ -193,6 +193,12 @@ ApplicationWindow {
                                         "frame-" + workbenchRuntime.playheadFrame,
                                         compositionIdField.text)
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.pluginExportBusy ? "插件导出中" : "插件导出"
+                        enabled: workbenchRuntime.installedPluginAvailable && !workbenchRuntime.pluginExportBusy
+                        onClicked: pluginExportDialog.open()
+                    }
                 }
             }
         }
@@ -210,6 +216,17 @@ ApplicationWindow {
         id: pluginDirectoryDialog
         title: "选择动画插件目录"
         onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFolder.toLocalFile())
+    }
+
+    FileDialog {
+        id: pluginExportDialog
+        title: "保存插件导出"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["视频文件 (*.mov *.mp4)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.exportInstalledPlugin(
+                         "export-" + workbenchRuntime.playheadFrame,
+                         compositionIdField.text,
+                         selectedFile.toLocalFile())
     }
 
     Dialog {
