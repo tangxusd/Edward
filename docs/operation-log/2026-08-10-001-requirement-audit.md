@@ -2187,3 +2187,9 @@
 - 修改：新增 `PluginTrustStore`，用 libsodium 验证 32 字节 Ed25519 公钥与 64 字节签名；清单增加成对出现的 `signingKeyId` 与 Base64 `signature` 字段。签名载荷以版本化、长度前缀格式编码并对列表排序，因此字段内容改动、字段顺序变化或未知密钥都会被拒绝。
 - 验证：`plugins.plugin_trust_store` 先生成临时密钥对并验证正确签名，再覆盖篡改载荷、篡改版本、未知密钥和非法 Base64；`plugins.plugin_manifest` 覆盖只提供密钥或签名的非法清单。插件组 CTest 6/6 通过。
 - 边界：本阶段尚未将真实官方公钥放入发行包，也尚未在 Release 加载路径启用该信任根；这两项必须随 M2 的打包资产和正式签名流程一起完成，不能把开发清单当作已签名发布插件。
+
+## 273. Edward Release 插件信任根拒绝条件
+
+- 目的：让 Release 构建在没有受信 Ed25519 公钥时拒绝外部 JavaScript 插件，而不是把签名工具类留在未接入状态。
+- 修改：`loadInstalledPlugin` 在 Release 下读取编译期 `EDWARD_PLUGIN_TRUSTED_KEY_ID` 与 `EDWARD_PLUGIN_TRUSTED_PUBLIC_KEY_B64`；两者缺失、Base64 公钥非法、清单未签名或验签失败均拒绝加载。Debug 保留本地适配器开发路径，避免把未发布的目录误判为官方插件。
+- 验证：以当前 Node SHA-256 显式配置 `build/macos-release`，`edward_app` 成功构建；Debug 的插件清单与签名测试通过。完整 Release CTest 暂不运行，因为现有测试夹具是故意未签名的开发插件，待正式公钥与签名夹具进入打包合同后统一补齐。

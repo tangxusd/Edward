@@ -23,6 +23,7 @@ class PluginTrustStore final {
   [[nodiscard]] bool verify(const QByteArray& bytes, const PluginSignature& signature,
                             const QString& keyId) const;
   [[nodiscard]] bool verifyManifest(const PluginManifest& manifest) const;
+  [[nodiscard]] static std::optional<PluginPublicKey> decodeBase64PublicKey(const QString& value);
   [[nodiscard]] static std::optional<PluginSignature> decodeBase64Signature(const QString& value);
 
  private:

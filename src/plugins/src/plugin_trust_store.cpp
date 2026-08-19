@@ -65,4 +65,16 @@ std::optional<PluginSignature> PluginTrustStore::decodeBase64Signature(const QSt
   return signature;
 }
 
+std::optional<PluginPublicKey> PluginTrustStore::decodeBase64PublicKey(const QString& value) {
+  PluginPublicKey key{};
+  size_t decodedLength = 0;
+  const auto encoded = value.toUtf8();
+  if (sodium_base642bin(key.data(), key.size(), encoded.constData(), encoded.size(), nullptr,
+                        &decodedLength, nullptr, sodium_base64_VARIANT_ORIGINAL) != 0 ||
+      decodedLength != key.size()) {
+    return std::nullopt;
+  }
+  return key;
+}
+
 }  // namespace edward::plugins

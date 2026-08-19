@@ -1,4 +1,5 @@
 #include "edward/plugins/installed_plugin.hpp"
+#include "edward/plugins/plugin_trust_store.hpp"
 
 #include <QFile>
 #include <QJsonDocument>
@@ -6,6 +7,31 @@
 namespace edward::plugins {
 
 namespace {
+
+bool verifyReleaseManifest(const PluginManifest& manifest, QString* error) {
+#ifdef EDWARD_RELEASE_BUILD
+#if defined(EDWARD_PLUGIN_TRUSTED_KEY_ID) && defined(EDWARD_PLUGIN_TRUSTED_PUBLIC_KEY_B64)
+  const auto publicKey = PluginTrustStore::decodeBase64PublicKey(
+      QStringLiteral(EDWARD_PLUGIN_TRUSTED_PUBLIC_KEY_B64));
+  if (!publicKey) {
+    if (error) *error = QStringLiteral("Edward plugin trust root is invalid");
+    return false;
+  }
+  PluginTrustStore store({{QStringLiteral(EDWARD_PLUGIN_TRUSTED_KEY_ID), *publicKey}});
+  if (store.verifyManifest(manifest)) return true;
+  if (error) *error = QStringLiteral("plugin manifest signature is not trusted");
+  return false;
+#else
+  Q_UNUSED(manifest);
+  if (error) *error = QStringLiteral("Edward plugin trust root is unavailable");
+  return false;
+#endif
+#else
+  Q_UNUSED(manifest);
+  Q_UNUSED(error);
+  return true;
+#endif
+}
 
 bool pathInside(const std::filesystem::path& child, const std::filesystem::path& parent) {
   auto childIt = child.begin();
@@ -52,6 +78,7 @@ std::optional<InstalledPlugin> loadInstalledPlugin(const std::filesystem::path& 
   }
   auto manifest = PluginManifest::parse(document.object(), error);
   if (!manifest) return std::nullopt;
+  if (!verifyReleaseManifest(*manifest, error)) return std::nullopt;
   const auto entryPath = root / manifest->entry.toStdString();
   std::error_code statusError;
   if (std::filesystem::is_symlink(std::filesystem::symlink_status(entryPath, statusError)) || statusError ||

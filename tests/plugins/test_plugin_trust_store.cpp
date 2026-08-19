@@ -34,6 +34,10 @@ int main() {
   assert(!store.verifyManifest(signedManifest));
   assert(!store.verify(payload + "tampered", signature, "edward-plugin-2026"));
   assert(!store.verify(payload, signature, "unknown"));
+  const auto encodedKey = QByteArray(reinterpret_cast<const char*>(publicKey.data()), publicKey.size()).toBase64();
+  assert(edward::plugins::PluginTrustStore::decodeBase64PublicKey(
+      QString::fromLatin1(encodedKey)) == publicKey);
+  assert(!edward::plugins::PluginTrustStore::decodeBase64PublicKey("invalid").has_value());
   assert(!edward::plugins::PluginTrustStore::decodeBase64Signature("invalid").has_value());
   return 0;
 }
