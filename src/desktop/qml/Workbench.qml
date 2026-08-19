@@ -198,6 +198,12 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "保存组件包"
+                        enabled: workbenchRuntime.demoOverlayEnabled
+                        onClicked: componentPackageDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "清除组件叠加"
                         enabled: workbenchRuntime.demoOverlayEnabled
                         onClicked: workbenchRuntime.clearComponentOverlay()
@@ -277,6 +283,28 @@ ApplicationWindow {
         fileMode: FileDialog.SaveFile
         nameFilters: ["组件 JSON (*.json)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.saveComponentJson(selectedFile.toLocalFile())
+    }
+
+    Dialog {
+        id: componentPackageDialog
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "保存组件包"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        contentItem: Column {
+            spacing: 10
+            TextField { id: packageResourceId; placeholderText: "资源 ID，例如 demo.card"; text: "demo.card" }
+            TextField { id: packageDisplayName; placeholderText: "显示名称"; text: "Edward 组件" }
+        }
+        onAccepted: componentPackageDirectoryDialog.open()
+    }
+
+    FolderDialog {
+        id: componentPackageDirectoryDialog
+        title: "选择组件包保存目录"
+        onAccepted: workbenchRuntime.saveComponentPackage(
+                         selectedFolder.toLocalFile(), packageResourceId.text, packageDisplayName.text)
     }
 
     FileDialog {
