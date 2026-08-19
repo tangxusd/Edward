@@ -407,7 +407,7 @@ void WorkbenchRuntime::clearComponentOverlay() {
 }
 
 void WorkbenchRuntime::setDemoOverlayX(int value) {
-  const int clamped = std::max(0, std::min(value, 640));
+  const int clamped = std::max(-640, std::min(value, 640));
   if (demoOverlayX_ == clamped) return;
   demoOverlayX_ = clamped;
   if (demoOverlayIr_) {

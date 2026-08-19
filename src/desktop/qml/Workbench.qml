@@ -111,7 +111,7 @@ ApplicationWindow {
                     Slider {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 220
-                        from: 0
+                        from: -640
                         to: 640
                         value: workbenchRuntime.demoOverlayX
                         onMoved: workbenchRuntime.demoOverlayX = value

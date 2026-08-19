@@ -43,7 +43,7 @@ int main() {
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));
   assert(runtime.setPlayhead(12));
-  runtime.setDemoOverlayX(80);
+  runtime.setDemoOverlayX(-180);
   runtime.setDemoOverlayY(-40);
   runtime.setDemoOverlayWidth(300);
   runtime.setDemoOverlayHeight(100);
@@ -53,6 +53,8 @@ int main() {
   const auto overlay = runtime.componentJson();
   const auto nodes = overlay.value("root").toObject().value("children").toArray();
   const auto box = nodes.at(0).toObject();
+  assert(runtime.demoOverlayX() == -180);
+  assert(box.value("transform").toObject().value("x").toInt() == -180);
   const auto keyframes = box.value("keyframes").toObject();
   for (const auto& field : {"x", "y", "width", "height", "scaleX", "scaleY", "rotation", "opacity"}) {
     bool atPlayhead = false;

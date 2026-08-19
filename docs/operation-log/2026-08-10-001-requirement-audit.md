@@ -2081,3 +2081,9 @@
 - 修改：扩展 `tests/plugins/rpc_fixture.cpp` 和 `tests/plugins/test_plugin_process.cpp`，通过 `EDWARD_TEST_RPC_MODE` 注入 timeout、crash、opaque 三种夹具状态；生产宿主代码未因测试而放宽校验。
 - 验证：`plugins.plugin_process` 通过；测试同时保留正常 RGBA 帧成功断言。
 - 边界：现有实现仍不是 OS 级沙盒，尚未接入插件签名包、公钥信任根或 Remotion/HyperFrames 专用适配器；这些需要独立的安全与发布合同，不能以本次回归替代。
+
+## 256. Edward 0.3.0 预览中心坐标修正
+
+- 目的：落实预览窗中心为 `(0,0)`，左/上为正、右/下为负，避免属性面板无法设置右侧位置。
+- 修改：`WorkbenchRuntime::setDemoOverlayX` 将 X 范围从 `0..640` 扩展为 `-640..640`；QML X 滑块同步允许负值；工作台测试新增负 X 写入 Component IR 的断言。
+- 验证：`desktop.workbench_plugins`、`desktop.visual_routes` 通过；完整 CTest 待本次构建后执行。
