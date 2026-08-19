@@ -1,6 +1,7 @@
 #pragma once
 
 #include "edward/plugins/plugin_manifest.hpp"
+#include "edward/core/component_ir.hpp"
 
 #include <filesystem>
 #include <optional>
@@ -12,7 +13,11 @@ struct InstalledPlugin final {
   PluginManifest manifest;
 };
 
+enum class PluginDependencyStatus { NotRequired, Available, Missing, VersionMismatch };
+
 std::optional<InstalledPlugin> loadInstalledPlugin(const std::filesystem::path& root,
                                                    QString* error = nullptr);
+PluginDependencyStatus dependencyStatus(const edward::core::ComponentIr& component,
+                                        const std::optional<InstalledPlugin>& installedPlugin);
 
 }  // namespace edward::plugins

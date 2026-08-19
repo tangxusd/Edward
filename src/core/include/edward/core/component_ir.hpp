@@ -19,6 +19,11 @@ struct ComponentNode {
   std::vector<ComponentNode> children;
 };
 
+struct PluginDependency final {
+  QString pluginId;
+  QString version;
+};
+
 class ComponentIr final {
  public:
   static std::optional<ComponentIr> parse(const QJsonObject& object);
@@ -27,14 +32,17 @@ class ComponentIr final {
   [[nodiscard]] QJsonObject toJson() const;
   [[nodiscard]] const QString& version() const { return version_; }
   [[nodiscard]] const ComponentNode& root() const { return root_; }
+  [[nodiscard]] const std::optional<PluginDependency>& pluginDependency() const { return pluginDependency_; }
   bool setNodeTransformNumber(const QString& nodeId, const QString& field, double value);
   bool setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value);
 
  private:
-  ComponentIr(QString version, ComponentNode root) : version_(std::move(version)), root_(std::move(root)) {}
+  ComponentIr(QString version, ComponentNode root, std::optional<PluginDependency> dependency)
+      : version_(std::move(version)), root_(std::move(root)), pluginDependency_(std::move(dependency)) {}
 
   QString version_;
   ComponentNode root_;
+  std::optional<PluginDependency> pluginDependency_;
 };
 
 }  // namespace edward::core

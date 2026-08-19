@@ -1,5 +1,6 @@
 #include <edward/plugins/plugin_manifest.hpp>
 #include <edward/plugins/installed_plugin.hpp>
+#include <edward/core/component_ir.hpp>
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -40,6 +41,18 @@ int main() {
   const auto installed = edward::plugins::loadInstalledPlugin(root, &error);
   assert(installed);
   assert(installed->manifest.pluginId == "remotion");
+  const auto dependent = edward::core::ComponentIr::parse(
+      QJsonObject{{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "container"}}},
+                  {"pluginDependency", QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"}}}});
+  assert(dependent);
+  assert(edward::plugins::dependencyStatus(*dependent, installed) ==
+         edward::plugins::PluginDependencyStatus::Available);
+  auto mismatch = *installed;
+  mismatch.manifest.version = "2.0.0";
+  assert(edward::plugins::dependencyStatus(*dependent, mismatch) ==
+         edward::plugins::PluginDependencyStatus::VersionMismatch);
+  assert(edward::plugins::dependencyStatus(*dependent, std::nullopt) ==
+         edward::plugins::PluginDependencyStatus::Missing);
   std::filesystem::remove(root / "host.mjs");
   assert(!edward::plugins::loadInstalledPlugin(root, &error));
   return 0;

@@ -50,6 +50,16 @@ std::optional<ComponentNode> parseNode(const QJsonObject& object) {
   return node;
 }
 
+std::optional<PluginDependency> parseDependency(const QJsonValue& value) {
+  if (value.isUndefined()) return std::nullopt;
+  if (!value.isObject()) return PluginDependency{};
+  const auto object = value.toObject();
+  const auto pluginId = object.value("pluginId").toString();
+  const auto version = object.value("version").toString();
+  if (pluginId.isEmpty() || version.isEmpty()) return PluginDependency{};
+  return PluginDependency{pluginId, version};
+}
+
 QJsonObject nodeToJson(const ComponentNode& node) {
   QJsonArray children;
   for (const auto& child : node.children) children.append(nodeToJson(child));
@@ -91,7 +101,10 @@ std::optional<ComponentIr> ComponentIr::parse(const QJsonObject& object) {
   const auto version = object.value("version").toString();
   const auto root = parseNode(object.value("root").toObject());
   if (version.isEmpty() || !root) return std::nullopt;
-  ComponentIr ir(version, *root);
+  const auto dependency = parseDependency(object.value("pluginDependency"));
+  if (!object.value("pluginDependency").isUndefined() &&
+      (!dependency || dependency->pluginId.isEmpty())) return std::nullopt;
+  ComponentIr ir(version, *root, dependency);
   return ir.validate() ? std::optional<ComponentIr>(std::move(ir)) : std::nullopt;
 }
 
@@ -104,7 +117,11 @@ bool ComponentIr::validate(QString* error) const {
   return validateNode(root_, error, ids);
 }
 
-QJsonObject ComponentIr::toJson() const { return {{"version", version_}, {"root", nodeToJson(root_)}}; }
+QJsonObject ComponentIr::toJson() const {
+  QJsonObject object{{"version", version_}, {"root", nodeToJson(root_)}};
+  if (pluginDependency_) object.insert("pluginDependency", QJsonObject{{"pluginId", pluginDependency_->pluginId}, {"version", pluginDependency_->version}});
+  return object;
+}
 
 bool ComponentIr::setNodeTransformNumber(const QString& nodeId, const QString& field, double value) {
   auto* node = findNode(root_, nodeId);

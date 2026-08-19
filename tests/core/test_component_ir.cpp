@@ -15,6 +15,14 @@ int main() {
   assert(parsed->validate());
   assert(parsed->root().children.size() == 1);
   assert(parsed->toJson().value("version").toString() == "1");
+  const auto dependent = edward::core::ComponentIr::parse(
+      {{"version", "1"}, {"root", root},
+       {"pluginDependency", QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"}}}});
+  assert(dependent);
+  assert(dependent->pluginDependency()->pluginId == "remotion");
+  assert(dependent->toJson().value("pluginDependency").toObject().value("version").toString() == "1.0.0");
+  assert(!edward::core::ComponentIr::parse(
+      {{"version", "1"}, {"root", root}, {"pluginDependency", QJsonObject{{"pluginId", "remotion"}}}}));
   assert(parsed->setNodeTransformNumber("title", "x", 12.0));
   assert(parsed->setNodeProperty("title", "text", "Updated"));
   const auto updated = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject();

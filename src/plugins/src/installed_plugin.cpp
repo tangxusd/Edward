@@ -5,6 +5,17 @@
 
 namespace edward::plugins {
 
+PluginDependencyStatus dependencyStatus(const edward::core::ComponentIr& component,
+                                        const std::optional<InstalledPlugin>& installedPlugin) {
+  const auto& dependency = component.pluginDependency();
+  if (!dependency) return PluginDependencyStatus::NotRequired;
+  if (!installedPlugin || installedPlugin->manifest.pluginId != dependency->pluginId)
+    return PluginDependencyStatus::Missing;
+  return installedPlugin->manifest.version == dependency->version
+             ? PluginDependencyStatus::Available
+             : PluginDependencyStatus::VersionMismatch;
+}
+
 std::optional<InstalledPlugin> loadInstalledPlugin(const std::filesystem::path& root, QString* error) {
   if (root.empty() || !std::filesystem::is_directory(root)) {
     if (error) *error = QStringLiteral("plugin root is unavailable");
