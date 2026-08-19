@@ -46,6 +46,15 @@ int main() {
   assert(restored->front().failureCount == 1);
   assert(restored->front().nextAttemptAt == QDateTime::fromMSecsSinceEpoch(182'000));
 
+  assert(edward::resources::ComponentUploadQueue::complete(item));
+  assert(QFile::exists(localPackage + "/manifest.json"));
+  assert(!QFile::exists(item.queuedCopyPath + "/manifest.json"));
+
+  const auto expired = edward::resources::ComponentUploadQueue::expire(item,
+      QDateTime::fromMSecsSinceEpoch(1'000 + 7LL * 24 * 60 * 60 * 1000));
+  assert(expired);
+  assert(QFile::exists(localPackage + "/manifest.json"));
+
   item.failureCount = 4;
   const auto finalFailure = edward::resources::ComponentUploadQueue::recordFailure(
       item, QDateTime::fromMSecsSinceEpoch(2'000));

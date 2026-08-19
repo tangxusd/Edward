@@ -90,6 +90,19 @@ std::optional<ComponentUploadQueueItem> ComponentUploadQueue::enqueue(
   return ComponentUploadQueueItem{resourceId, localPackagePath, queuedCopyPath, now, 0, now};
 }
 
+bool ComponentUploadQueue::complete(const ComponentUploadQueueItem& item) {
+  if (item.queuedCopyPath.isEmpty()) return false;
+  discardQueuedCopy(item.queuedCopyPath);
+  return true;
+}
+
+bool ComponentUploadQueue::expire(const ComponentUploadQueueItem& item, const QDateTime& now) {
+  if (!item.createdAt.isValid() || !now.isValid() ||
+      now < item.createdAt.addMSecs(kMaximumAgeMilliseconds))
+    return false;
+  return complete(item);
+}
+
 bool ComponentUploadQueue::readyForAttempt(const ComponentUploadQueueItem& item, const QDateTime& now) {
   return item.failureCount < kMaximumFailures && now < item.createdAt.addMSecs(kMaximumAgeMilliseconds) &&
          now >= item.nextAttemptAt;

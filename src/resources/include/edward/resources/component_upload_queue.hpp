@@ -28,6 +28,8 @@ class ComponentUploadQueue final {
                                                          const QString& resourceId,
                                                          const QDateTime& now,
                                                          QString* error = nullptr);
+  static bool complete(const ComponentUploadQueueItem& item);
+  static bool expire(const ComponentUploadQueueItem& item, const QDateTime& now);
   static bool readyForAttempt(const ComponentUploadQueueItem& item, const QDateTime& now);
   static std::optional<ComponentUploadQueueItem> recordFailure(ComponentUploadQueueItem item,
                                                                const QDateTime& now);
