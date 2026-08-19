@@ -33,6 +33,10 @@ Item {
         spacing: 8
         padding: 8
         Button {
+            text: workbenchRuntime.playing ? "暂停" : "播放"
+            onClicked: workbenchRuntime.togglePlayback()
+        }
+        Button {
             text: "分割"
             onClicked: root.splitRequested()
         }

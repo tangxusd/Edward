@@ -72,6 +72,11 @@ bool TimelineController::selectClip(edward::core::ClipId id) {
 }
 
 bool TimelineController::setPlayhead(edward::core::Frame frame) { return commands_.setPlayhead(frame); }
+bool TimelineController::advancePlayhead() {
+  const auto snapshot = timeline_.snapshot();
+  if (snapshot.playheadFrame >= snapshot.durationFrames) return false;
+  return commands_.setPlayhead(snapshot.playheadFrame + 1);
+}
 edward::core::Frame TimelineController::playheadFrame() const { return timeline_.snapshot().playheadFrame; }
 edward::core::ClipId TimelineController::selectedClip() const { return selectedClip_; }
 

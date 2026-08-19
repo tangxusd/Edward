@@ -2236,3 +2236,9 @@
 - 目的：提供比“先分割再删除”更直接的基础剪辑操作，让用户按播放头裁掉片段左侧或右侧内容。
 - 修改：`TimelineController` 将核心 `trimClip` 暴露为左裁切和右裁切；`WorkbenchRuntime` 增加对应 QML 命令与边界失败提示；时间线工具栏加入“左裁切”和“右裁切”。
 - 验证：控制器测试确认左裁切会同步移动时间线起点并更新源入点；视觉路由测试确认两个入口已绑定。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。
+
+## 281. Edward 时间线播放与自动推进
+
+- 目的：让基础时间线具备可观察的播放预览，播放头按项目 25fps 推进并在时间线末尾自动停止。
+- 修改：`TimelineController` 增加单帧推进；`WorkbenchRuntime` 增加 `playing` 状态和 40ms 播放定时器，播放/暂停通过 QML 工具栏入口控制，到达末尾自动停止。
+- 验证：控制器测试覆盖单帧推进；视觉路由测试覆盖播放入口；完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。

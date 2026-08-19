@@ -38,6 +38,16 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
       renderGraph_(mltAdapter_) {
   silentUploadRetryTimer_.setInterval(3 * 60 * 1000);
   connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
+  playbackTimer_.setInterval(40);
+  connect(&playbackTimer_, &QTimer::timeout, this, [this] {
+    if (!controller_.advancePlayhead()) {
+      playing_ = false;
+      playbackTimer_.stop();
+      emit timelineChanged();
+      return;
+    }
+    emit timelineChanged();
+  });
   connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
           &WorkbenchRuntime::timelineChanged);
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
@@ -532,6 +542,18 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
   if (!controller_.setPlayhead(frame)) return false;
   emit timelineChanged();
   return true;
+}
+
+void WorkbenchRuntime::togglePlayback() {
+  if (playing_) {
+    playing_ = false;
+    playbackTimer_.stop();
+  } else {
+    if (controller_.playheadFrame() >= timeline_.snapshot().durationFrames) controller_.setPlayhead(0);
+    playing_ = true;
+    playbackTimer_.start();
+  }
+  emit timelineChanged();
 }
 
 bool WorkbenchRuntime::splitSelected() {

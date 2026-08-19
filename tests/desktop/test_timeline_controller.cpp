@@ -32,11 +32,13 @@ int main(int argc, char** argv) {
   assert(controller.redo());
   assert(timeline.clips(tracks[1]).front().timelineStart == 10);
   assert(controller.setPlayhead(20));
+  assert(controller.advancePlayhead());
+  assert(controller.playheadFrame() == 21);
   assert(controller.splitSelectedAtPlayhead());
   assert(timeline.clips(tracks[1]).size() == 2);
   assert(controller.deleteSelected());
   assert(timeline.clips(tracks[1]).size() == 1);
-  assert(timeline.clips(tracks[1]).front().timelineStart == 20);
+  assert(timeline.clips(tracks[1]).front().timelineStart == 21);
   assert(controller.selectClip(3));
   assert(controller.rippleDeleteSelected());
   assert(timeline.clips(tracks[1]).empty());

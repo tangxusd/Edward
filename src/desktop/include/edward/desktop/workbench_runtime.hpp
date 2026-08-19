@@ -22,6 +22,7 @@ namespace edward::desktop {
 class WorkbenchRuntime final : public QObject {
   Q_OBJECT
   Q_PROPERTY(int playheadFrame READ playheadFrame NOTIFY timelineChanged)
+  Q_PROPERTY(bool playing READ playing NOTIFY timelineChanged)
   Q_PROPERTY(int videoTrackCount READ videoTrackCount NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList clips READ clips NOTIFY timelineChanged)
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
@@ -46,6 +47,7 @@ class WorkbenchRuntime final : public QObject {
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
   [[nodiscard]] int playheadFrame() const;
+  [[nodiscard]] bool playing() const { return playing_; }
   [[nodiscard]] int videoTrackCount() const;
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
@@ -101,6 +103,7 @@ class WorkbenchRuntime final : public QObject {
                                          const QString& outputPath);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
+  Q_INVOKABLE void togglePlayback();
   Q_INVOKABLE bool splitSelected();
   Q_INVOKABLE bool deleteSelected();
   Q_INVOKABLE bool rippleDeleteSelected();
@@ -147,6 +150,8 @@ class WorkbenchRuntime final : public QObject {
   std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;
+  QTimer playbackTimer_;
+  bool playing_ = false;
   void dispatchSilentComponentUploads();
 };
 
