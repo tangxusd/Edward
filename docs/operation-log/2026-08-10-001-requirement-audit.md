@@ -2150,3 +2150,9 @@
 - 修改：新增 `CMakePresets.json`，定义 `macos-debug` 与未来 Windows CI 使用的 `windows-debug` 配置、构建和测试预设；插件适配器 CTest 保持静态清单与协议验证，不再隐式依赖用户本机的 `node_modules`。
 - 验证：`cmake --preset macos-debug`、`cmake --build --preset macos-debug -j2`、`ctest --preset macos-debug --output-on-failure` 全部成功，26/26 通过；`build/macos-debug/bin/edward_app` 已生成。Remotion 与 HyperFrames 的真实 Node 适配器运行验证见第 265 节。
 - 边界：此门仅覆盖本机 `.app` 与基础剪辑链路。按当前交付决定未验证 DMG；Windows MSI、发行签名/公钥信任根和 OS 级插件沙盒仍待后续发布门完成。
+
+## 267. HyperFrames 适配器跨平台依赖锁定
+
+- 目的：让外部 HyperFrames 适配器在未来 macOS 与 Windows CI 中使用同一份完整依赖解析，而不是在不同平台补写 lockfile。
+- 修改：由 npm 补齐 `plugins/hyperframes-host/package-lock.json` 中跨平台可选 esbuild 包及已有依赖的 `resolved`/`integrity` 元数据。
+- 验证：在适配器目录执行 `npm ci --dry-run --ignore-scripts --no-audit --no-fund`，仅列出 lockfile 已声明的 25 个非当前平台可选包，无版本冲突或缺失依赖错误。
