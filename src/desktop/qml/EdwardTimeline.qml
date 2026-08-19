@@ -44,6 +44,14 @@ Item {
             text: "波纹删除"
             onClicked: root.rippleDeleteRequested()
         }
+        Button {
+            text: "撤销"
+            onClicked: workbenchRuntime.undoTimeline()
+        }
+        Button {
+            text: "重做"
+            onClicked: workbenchRuntime.redoTimeline()
+        }
         Item {
             Layout.fillWidth: true
         }

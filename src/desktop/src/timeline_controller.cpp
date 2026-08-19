@@ -47,6 +47,9 @@ bool TimelineController::moveSelectedTo(edward::core::Frame destination) {
   return selectedClip_ != 0 && commands_.moveClip(selectedClip_, destination);
 }
 
+bool TimelineController::undo() { return commands_.undo(); }
+bool TimelineController::redo() { return commands_.redo(); }
+
 bool TimelineController::selectClip(edward::core::ClipId id) {
   if (!timeline_.clip(id)) return false;
   selectedClip_ = id;

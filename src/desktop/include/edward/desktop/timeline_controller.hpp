@@ -16,6 +16,8 @@ class TimelineController {
   bool deleteSelected();
   bool rippleDeleteSelected();
   bool moveSelectedTo(edward::core::Frame destination);
+  bool undo();
+  bool redo();
   bool selectClip(edward::core::ClipId id);
   bool setPlayhead(edward::core::Frame frame);
   [[nodiscard]] edward::core::Frame playheadFrame() const;

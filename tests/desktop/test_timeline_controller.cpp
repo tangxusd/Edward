@@ -21,6 +21,10 @@ int main(int argc, char** argv) {
   assert(controller.selectedClip() == 2);
   assert(controller.moveSelectedTo(10));
   assert(timeline.clips(tracks[1]).front().timelineStart == 10);
+  assert(controller.undo());
+  assert(timeline.clips(tracks[1]).front().timelineStart == 0);
+  assert(controller.redo());
+  assert(timeline.clips(tracks[1]).front().timelineStart == 10);
   assert(controller.setPlayhead(20));
   assert(controller.splitSelectedAtPlayhead());
   assert(timeline.clips(tracks[1]).size() == 2);

@@ -570,4 +570,16 @@ bool WorkbenchRuntime::moveSelected(qlonglong destination) {
   return true;
 }
 
+bool WorkbenchRuntime::undoTimeline() {
+  if (!controller_.undo()) return false;
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::redoTimeline() {
+  if (!controller_.redo()) return false;
+  emit timelineChanged();
+  return true;
+}
+
 }  // namespace edward::desktop

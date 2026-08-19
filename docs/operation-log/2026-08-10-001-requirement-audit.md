@@ -2224,3 +2224,9 @@
 - 目的：让用户可以在时间线上拖动片段安排叠加层时序，并确保普通删除与波纹删除分别执行各自语义。
 - 修改：工作台接入 `TimelineCommands::moveClip`，片段拖动后由 C++ 校验时间线边界和同轨冲突；波纹删除入口改为调用 `rippleDeleteSelected`，不再误调用普通删除。新增失败提示，说明移动会越界或覆盖同轨片段。
 - 验证：控制器测试覆盖片段移动后再分割、普通删除保留后半段、波纹删除清除并移动后续片段；工作台测试覆盖真实 MP4 片段移动；视觉路由测试覆盖拖拽绑定。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。
+
+## 279. Edward 时间线撤销与重做入口
+
+- 目的：让用户可以安全试用移动、分割和删除等编辑操作，并回退到上一个时间线状态。
+- 修改：`TimelineController` 暴露核心 `TimelineCommands` 的撤销/重做；`WorkbenchRuntime` 增加 QML 可调用的 `undoTimeline` 与 `redoTimeline`；时间线工具栏增加“撤销”和“重做”入口。
+- 验证：控制器测试覆盖片段移动后撤销并重做；视觉路由测试覆盖两个工作台入口。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。
