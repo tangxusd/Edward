@@ -1933,3 +1933,9 @@
 - 目的：让已保存的组件包可以直接重新打开，形成保存与恢复闭环。
 - 修改：WorkbenchRuntime 新增文件读取调用并复用 `loadComponentJson` 校验链；桌面测试覆盖有效文件和缺失文件。
 - 验证：待本轮 QML 入口、完整 CTest 和启动检查。
+
+## 232. Edward 0.3.0 本地组件包基础
+
+- 目的：为后续用户上传和资源库审核提供稳定的本地组件包输入。
+- 修改：新增 `edward_resources` 模块；组件包由 `manifest.json` 与 `component.json` 组成，校验资源 ID、显示名、Component IR 和相对资源路径，支持本地保存与加载。
+- 验证：新增 `resources.component_package` 测试覆盖保存、加载、缺少 ID 和绝对路径拒绝；待本轮完整 CTest。
