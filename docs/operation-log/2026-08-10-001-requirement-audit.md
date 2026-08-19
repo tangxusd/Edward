@@ -14,6 +14,13 @@
 - 结果：新增透明 ProRes 夹具，验证普通 YUV 视频不带 Alpha、透明 MOV 带 Alpha。
 - 验证：全量 CTest 30/30 通过。
 
+## 2026-08-20：插件应用链端到端回归
+
+- 目的：验证透明插件视频从 RPC 导出、加入时间线，到普通视频导出的完整闭环。
+- 涉及文件：`tests/plugins/rpc_fixture.cpp`、`tests/desktop/test_workbench_plugins.cpp`。
+- 结果：测试插件现在生成真实透明 ProRes MOV；回归测试确认应用后占位组件清除、时间线片段增加、最终合成视频成功导出。
+- 验证：全量 CTest 30/30 通过。
+
 - 时间：2026-08-10（Asia/Shanghai）
 - 目的：记录 0.2.0 方案审计中的已确认决策，并落实“每次操作均以 Markdown 落盘记录”的项目规则。
 - 涉及文件：`AGENTS.md`；本记录文件。

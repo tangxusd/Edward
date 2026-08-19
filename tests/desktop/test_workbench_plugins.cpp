@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
   QFile rpcManifest(QString::fromStdString((root / "edward-plugin.json").string()));
   assert(rpcManifest.open(QIODevice::WriteOnly | QIODevice::Truncate));
   rpcManifest.write(QJsonDocument(QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"},
-                                               {"entry", "rpc-plugin"}, {"capabilities", QJsonArray{"describe"}},
+                                               {"entry", "rpc-plugin"}, {"capabilities", QJsonArray{"describe", "renderExport"}},
                                                {"editableProps", QJsonArray{"opacity"}}})
                         .toJson(QJsonDocument::Compact));
   rpcManifest.close();
@@ -152,6 +152,37 @@ int main(int argc, char** argv) {
   assert(!runtime.loadComponentFile(directory.path() + QStringLiteral("/missing.json")));
   edward::desktop::WorkbenchRuntime emptyRuntime;
   assert(!emptyRuntime.saveComponentJson(directory.path() + QStringLiteral("/empty.json")));
+  bool applied = false;
+  QEventLoop applyLoop;
+  QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::operationSucceeded,
+                   [&applied, &applyLoop](const QString& message) {
+                     if (message == QStringLiteral("插件动画已应用到时间线")) {
+                       applied = true;
+                       applyLoop.quit();
+                     }
+                   });
+  const auto appliedPath = directory.path() + QStringLiteral("/plugin-component.mov");
+  assert(runtime.applyInstalledPluginToTimeline(QStringLiteral("apply-12"), QStringLiteral("main"), appliedPath));
+  QTimer::singleShot(15000, &applyLoop, &QEventLoop::quit);
+  applyLoop.exec();
+  assert(applied);
+  assert(QFile::exists(appliedPath));
+  assert(!runtime.demoOverlayEnabled());
+  assert(runtime.clips().size() == 3);
+  bool pluginExported = false;
+  QEventLoop pluginExportLoop;
+  QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::operationSucceeded,
+                   [&pluginExported, &pluginExportLoop](const QString& message) {
+                     if (message.startsWith(QStringLiteral("视频已导出："))) {
+                       pluginExported = true;
+                       pluginExportLoop.quit();
+                     }
+                   });
+  const auto combinedPath = directory.path() + QStringLiteral("/plugin-component.mp4");
+  assert(runtime.exportTimeline(combinedPath));
+  QTimer::singleShot(15000, &pluginExportLoop, &QEventLoop::quit);
+  pluginExportLoop.exec();
+  assert(pluginExported && QFile::exists(combinedPath));
   runtime.clearInstalledPlugin();
   assert(!runtime.installedPluginAvailable());
   return 0;
