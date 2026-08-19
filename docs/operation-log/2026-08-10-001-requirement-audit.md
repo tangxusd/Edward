@@ -1969,3 +1969,9 @@
 - 目的：将工作台中已编辑的组件保存为可复用、可审核、可上传的标准组件包。
 - 修改：`WorkbenchRuntime::saveComponentPackage` 复用 `ComponentPackage` 校验和保存逻辑，输出 `manifest.json` 与 `component.json`。
 - 验证：工作台组件包保存和视觉路由定向测试通过；完整 CTest 19/19 通过；macOS offscreen 应用启动通过（仅保留已有字体别名和空预览帧警告）。
+
+## 238. Edward 0.3.0 内存认证会话边界
+
+- 目的：为真实登录和组件上传提供统一的当前用户会话边界。
+- 修改：新增 `AuthSessionStore`，支持设置、读取和清除用户会话；access token 仅保留在进程内，不写入磁盘。
+- 验证：会话定向测试和组件上传测试通过；待本轮完整 CTest。
