@@ -2199,3 +2199,9 @@
 - 目的：在二进制散列校验之外，确认被启动的固定 Node/Bun 运行时与已签名插件清单声明的版本一致。
 - 修改：插件清单增加 `runtimeVersion`，并纳入 Ed25519 规范化签名载荷；Release 宿主要求该字段存在，执行已解析运行时的 `--version` 并严格比较输出。探测失败或版本不一致均拒绝启动。
 - 验证：运行时解析器对本机 Node 的实际 `--version` 通过，对 `v0.0.0` 失败；签名测试与运行时解析器定向 CTest 2/2 通过。完整 Debug 回归待本次提交前执行。
+
+## 275. Edward 外部插件最小权限合同
+
+- 目的：为后续 macOS 与 Windows 原生执行器锁定相同的文件、进程和网络边界，避免协议文档允许实际产品不支持的网络能力。
+- 修改：新增 `docs/contracts/external-plugin-sandbox.md`；`plugin-host-rpc.md` 删除过时的 `request_network` 描述，明确任何插件网络请求均被拒绝。合同定义插件根、固定运行时、任务输入/输出、只读 Chromium 缓存和任务 Chromium 临时目录的权限，并要求两端验证越界文件与网络均被拒绝。
+- 验证：合同与当前 `PluginManifest` 拒绝 `network` 权限、宿主仅允许本地读写 RPC 一致；OS 级执行器测试属于下一里程碑，尚未实施。
