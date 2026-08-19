@@ -3,6 +3,8 @@
 #include "edward/resources/component_package.hpp"
 
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QObject>
 #include <QString>
 
 namespace edward::resources {
@@ -19,12 +21,21 @@ struct ComponentUploadRequest final {
   QJsonObject body;
 };
 
-class ComponentUploadClient final {
+class ComponentUploadClient final : public QObject {
+  Q_OBJECT
  public:
+  explicit ComponentUploadClient(QObject* parent = nullptr) : QObject(parent) {}
   static std::optional<ComponentUploadRequest> buildRequest(const QString& endpoint,
                                                              const ComponentPackage& package,
                                                              const AuthSession& session,
                                                              QString* error = nullptr);
+  bool submit(const QString& endpoint, const ComponentPackage& package, const AuthSession& session);
+
+ signals:
+  void completed(bool success, QString message, QJsonObject response);
+
+ private:
+  QNetworkAccessManager network_;
 };
 
 }  // namespace edward::resources

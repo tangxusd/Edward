@@ -1957,3 +1957,9 @@
 - 目的：在接入 Supabase 网络调用前，先固定用户上传的认证和元数据边界。
 - 修改：新增 `ComponentUploadClient` 请求构造；仅接受 HTTPS Edge Function、完整用户 ID/用户名/访问令牌和通过校验的组件包，提交体记录贡献者信息与组件依赖。
 - 验证：待本轮上传合同测试和完整 CTest；本次不执行外部网络上传。
+
+## 236. Edward 0.3.0 异步认证组件上传客户端
+
+- 目的：将已验证的上传请求合同接入实际网络调用，同时保持 UI 不阻塞。
+- 修改：`ComponentUploadClient` 新增异步 HTTPS POST、Bearer 令牌、JSON 响应和完成信号；校验失败不会发起网络请求。
+- 验证：上传客户端拒绝非 HTTPS 请求；组件上传定向测试通过；完整 CTest 19/19 通过；macOS offscreen 应用启动通过（仅保留已有字体别名和空预览帧警告）。

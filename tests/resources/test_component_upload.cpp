@@ -19,5 +19,7 @@ int main() {
   assert(request->body.value("userId").toString() == "user-1");
   assert(request->body.value("username").toString() == "demo@example.com");
   assert(request->body.value("component").toObject().value("version").toString() == "1");
+  edward::resources::ComponentUploadClient client;
+  assert(!client.submit("http://localhost/upload", package, session));
   return 0;
 }

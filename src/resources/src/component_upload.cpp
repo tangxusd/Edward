@@ -1,7 +1,10 @@
 #include "edward/resources/component_upload.hpp"
 
-#include <QUrl>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QUrl>
 
 namespace edward::resources {
 
@@ -30,6 +33,34 @@ std::optional<ComponentUploadRequest> ComponentUploadClient::buildRequest(const 
                   {"pluginVersion", package.pluginVersion}, {"thumbnail", package.thumbnail},
                   {"assets", assets}},
   };
+}
+
+bool ComponentUploadClient::submit(const QString& endpoint, const ComponentPackage& package,
+                                   const AuthSession& session) {
+  QString error;
+  const auto requestData = buildRequest(endpoint, package, session, &error);
+  if (!requestData) {
+    emit completed(false, error, {});
+    return false;
+  }
+  QNetworkRequest request{QUrl(requestData->endpoint)};
+  request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("Authorization", QByteArray("Bearer ") + requestData->bearerToken.toUtf8());
+  auto* reply = network_.post(request, QJsonDocument(requestData->body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const auto body = reply->readAll();
+    QJsonParseError parseError;
+    const auto response = QJsonDocument::fromJson(body, &parseError);
+    const bool success = reply->error() == QNetworkReply::NoError && status >= 200 && status < 300;
+    const auto message = success ? QStringLiteral("组件上传成功")
+                                 : (reply->error() == QNetworkReply::NoError
+                                        ? QStringLiteral("上传服务返回 HTTP %1").arg(status)
+                                        : reply->errorString());
+    emit completed(success, message, response.isObject() ? response.object() : QJsonObject{});
+    reply->deleteLater();
+  });
+  return true;
 }
 
 }  // namespace edward::resources
