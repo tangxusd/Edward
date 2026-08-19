@@ -22,6 +22,16 @@ int main(int argc, char** argv) {
   assert(frame->size() == QSize(4, 3));
   assert(frame->hasAlphaChannel());
   assert(frame->pixelColor(0, 0).green() > 200);
+  qputenv("EDWARD_TEST_RPC_MODE", "timeout");
+  assert(!edward::plugins::renderPluginFrame(
+      *manifest, root, "timeout-request", "main", 7, QSize(4, 3), 50, &error));
+  qputenv("EDWARD_TEST_RPC_MODE", "crash");
+  assert(!edward::plugins::renderPluginFrame(
+      *manifest, root, "crash-request", "main", 7, QSize(4, 3), 2000, &error));
+  qputenv("EDWARD_TEST_RPC_MODE", "opaque");
+  assert(!edward::plugins::renderPluginFrame(
+      *manifest, root, "opaque-request", "main", 7, QSize(4, 3), 2000, &error));
+  qunsetenv("EDWARD_TEST_RPC_MODE");
   const auto exported = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "fixture"}, {"version", "1.0.0"}, {"entry", "fixture"},
                   {"capabilities", QJsonArray{"renderFrame", "renderExport"}}});

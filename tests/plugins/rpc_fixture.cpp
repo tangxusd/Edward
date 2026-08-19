@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QImage>
 #include <QFile>
+#include <QThread>
 #include <iostream>
 
 int main() {
@@ -13,6 +14,12 @@ int main() {
   if (parseError.error != QJsonParseError::NoError || !request.isObject()) return 3;
   const auto object = request.object();
   const auto params = object.value("params").toObject();
+  const auto mode = qgetenv("EDWARD_TEST_RPC_MODE");
+  if (mode == "timeout") {
+    QThread::msleep(250);
+    return 0;
+  }
+  if (mode == "crash") return 6;
   if (object.value("method").toString() == "renderExport") {
     QFile output(params.value("outputPath").toString());
     if (!output.open(QIODevice::WriteOnly)) return 5;
@@ -28,7 +35,7 @@ int main() {
   const int height = params.value("height").toInt();
   const int frame = params.value("frame").toInt(-1);
   if (width <= 0 || height <= 0 || frame < 0) return 4;
-  QImage image(QSize(width, height), QImage::Format_RGBA8888);
+  QImage image(QSize(width, height), mode == "opaque" ? QImage::Format_RGB888 : QImage::Format_RGBA8888);
   image.fill(Qt::transparent);
   image.setPixelColor(0, 0, QColor(0, 255, 0, 255));
   QByteArray encoded;

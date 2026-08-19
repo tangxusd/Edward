@@ -2074,3 +2074,10 @@
 - 目的：确认工作台属性修改不会只更新显示状态，而是写入可保存、可导出的 Component IR。
 - 修改：扩展工作台测试，在第 12 帧断言位置、尺寸、双轴缩放、旋转和透明度均生成关键帧；文字继续作为离散节点属性保存。
 - 验证：工作台、RenderGraph、ExportJob 和 0.3 端到端定向测试 4/4 通过。
+
+## 255. Edward 0.3.0 插件宿主失败边界回归
+
+- 目的：覆盖外部插件进程的超时、异常退出和无 Alpha 通道响应，避免宿主将失败结果误当作可用动画帧。
+- 修改：扩展 `tests/plugins/rpc_fixture.cpp` 和 `tests/plugins/test_plugin_process.cpp`，通过 `EDWARD_TEST_RPC_MODE` 注入 timeout、crash、opaque 三种夹具状态；生产宿主代码未因测试而放宽校验。
+- 验证：`plugins.plugin_process` 通过；测试同时保留正常 RGBA 帧成功断言。
+- 边界：现有实现仍不是 OS 级沙盒，尚未接入插件签名包、公钥信任根或 Remotion/HyperFrames 专用适配器；这些需要独立的安全与发布合同，不能以本次回归替代。
