@@ -10,6 +10,9 @@
 
 int main() {
   edward::desktop::WorkbenchRuntime runtime;
+  assert(!runtime.authenticated());
+  assert(!runtime.signInWithSupabase("http://project.supabase.co", "anon-key", "demo@example.com", "password"));
+  assert(!runtime.authenticated());
   assert(!runtime.installedPluginAvailable());
   assert(!runtime.selectInstalledPlugin(QStringLiteral("/missing-plugin")));
   assert(runtime.loadComponentJson(QStringLiteral(

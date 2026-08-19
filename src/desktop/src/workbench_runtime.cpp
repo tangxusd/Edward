@@ -34,6 +34,17 @@ std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, in
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
       renderGraph_(mltAdapter_) {
+  connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
+          &WorkbenchRuntime::timelineChanged);
+  connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
+          [this](bool success, const QString& message) {
+            signInBusy_ = false;
+            if (success)
+              emit operationSucceeded(message);
+            else
+              emit operationFailed(message);
+            emit timelineChanged();
+          });
   connect(&pluginFrameWatcher_, &QFutureWatcher<PluginFrameResult>::finished, this, [this] {
     pluginRenderBusy_ = false;
     const auto result = pluginFrameWatcher_.result();
@@ -171,6 +182,24 @@ bool WorkbenchRuntime::saveComponentPackage(const QString& directory, const QStr
   edward::resources::ComponentPackage package{resourceId, displayName, *demoOverlayIr_, {}, {}, {}, {}};
   QString error;
   return package.saveLocal(directory.toStdString(), &error);
+}
+
+bool WorkbenchRuntime::signInWithSupabase(const QString& projectUrl, const QString& anonKey,
+                                          const QString& email, const QString& password) {
+  if (signInBusy_) return false;
+  signInBusy_ = true;
+  emit timelineChanged();
+  if (!authClient_.signInWithPassword({projectUrl, anonKey}, email, password, &sessions_)) {
+    signInBusy_ = false;
+    emit timelineChanged();
+    return false;
+  }
+  return true;
+}
+
+void WorkbenchRuntime::signOut() {
+  sessions_.clear();
+  emit operationSucceeded(QStringLiteral("已退出登录"));
 }
 
 bool WorkbenchRuntime::loadPluginFrameJson(const QString& requestId, const QString& json) {

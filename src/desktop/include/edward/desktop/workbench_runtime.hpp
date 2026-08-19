@@ -10,6 +10,8 @@
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/render_graph.hpp"
 #include "edward/plugins/installed_plugin.hpp"
+#include "edward/resources/auth_session_store.hpp"
+#include "edward/resources/supabase_auth_client.hpp"
 
 namespace edward::desktop {
 
@@ -31,6 +33,9 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginRenderBusy READ pluginRenderBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
+  Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
+  Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
+  Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -50,6 +55,9 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString componentPluginDependencyStatus() const;
   [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
   [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
+  [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
+  [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
+  [[nodiscard]] bool signInBusy() const { return signInBusy_; }
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -69,6 +77,9 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool saveComponentJson(const QString& path) const;
   Q_INVOKABLE bool saveComponentPackage(const QString& directory, const QString& resourceId,
                                         const QString& displayName) const;
+  Q_INVOKABLE bool signInWithSupabase(const QString& projectUrl, const QString& anonKey,
+                                      const QString& email, const QString& password);
+  Q_INVOKABLE void signOut();
   Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
   Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);
   Q_INVOKABLE void clearInstalledPlugin();
@@ -84,6 +95,7 @@ class WorkbenchRuntime final : public QObject {
  signals:
   void timelineChanged();
   void operationFailed(QString message);
+  void operationSucceeded(QString message);
 
  private:
   void refreshDemoOverlay();
@@ -109,6 +121,9 @@ class WorkbenchRuntime final : public QObject {
   struct PluginExportResult { QString error; };
   QFutureWatcher<PluginExportResult> pluginExportWatcher_;
   bool pluginExportBusy_ = false;
+  edward::resources::AuthSessionStore sessions_;
+  edward::resources::SupabaseAuthClient authClient_;
+  bool signInBusy_ = false;
 };
 
 }  // namespace edward::desktop

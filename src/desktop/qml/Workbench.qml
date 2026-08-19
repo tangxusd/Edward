@@ -36,6 +36,13 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.authenticated
+                              ? "已登录: " + workbenchRuntime.authenticatedUsername
+                              : "登录"
+                        onClicked: workbenchRuntime.authenticated ? workbenchRuntime.signOut() : signInDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "+ 导入素材"
                         onClicked: mediaDialog.open()
                     }
@@ -266,6 +273,27 @@ ApplicationWindow {
         onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFolder.toLocalFile())
     }
 
+    Dialog {
+        id: signInDialog
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "登录"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        contentItem: Column {
+            spacing: 10
+            TextField { id: supabaseProjectUrl; placeholderText: "Supabase 项目 URL" }
+            TextField { id: supabaseAnonKey; placeholderText: "Supabase anon key"; echoMode: TextInput.Password }
+            TextField { id: signInEmail; placeholderText: "邮箱" }
+            TextField { id: signInPassword; placeholderText: "密码"; echoMode: TextInput.Password }
+        }
+        onAccepted: {
+            if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text,
+                                                     signInEmail.text, signInPassword.text))
+                close()
+        }
+    }
+
     FileDialog {
         id: pluginExportDialog
         title: "保存插件导出"
@@ -350,6 +378,10 @@ ApplicationWindow {
             failureToast.text = message;
             failureToast.open();
         }
+        function onOperationSucceeded(message) {
+            successToast.text = message;
+            successToast.open();
+        }
     }
 
     Dialog {
@@ -364,5 +396,18 @@ ApplicationWindow {
             color: DesignTokens.textPrimary
             padding: 16
         }
+    }
+
+    Dialog {
+        id: successToast
+        modal: false
+        anchors.centerIn: Overlay.overlay
+        property alias text: successLabel.text
+        contentItem: Label {
+            id: successLabel
+            color: DesignTokens.textPrimary
+            padding: 16
+        }
+        Timer { interval: 5000; running: successToast.visible; repeat: false; onTriggered: successToast.close() }
     }
 }

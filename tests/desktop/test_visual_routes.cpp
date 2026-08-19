@@ -30,6 +30,8 @@ int main() {
   assert(workbench.find("保存组件 JSON") != std::string::npos);
   assert(workbench.find("保存组件包") != std::string::npos);
   assert(workbench.find("saveComponentPackage") != std::string::npos);
+  assert(workbench.find("signInWithSupabase") != std::string::npos);
+  assert(workbench.find("已登录:") != std::string::npos);
   assert(workbench.find("从文件导入组件") != std::string::npos);
   assert(workbench.find("ApplicationWindow") != std::string::npos);
   assert(timeline.find("playheadChangedByUser") != std::string::npos);

@@ -1981,3 +1981,9 @@
 - 目的：将 Supabase Auth 密码登录响应转换为 Edward 内存会话，供已认证上传直接使用。
 - 修改：新增 HTTPS `auth/v1/token?grant_type=password` 异步客户端，传入项目 URL 与 anon key；成功时提取用户 ID、邮箱和 access token 写入 `AuthSessionStore`，配置和令牌不落盘。
 - 验证：请求格式、非法 URL、缺少凭据和未登录会话路径定向测试通过；完整 CTest 21/21 通过。
+
+## 240. Edward 0.3.0 工作台登录入口
+
+- 目的：让用户能够从 Edward 工作台发起真实 Supabase 登录，并将成功会话传给后续上传流程。
+- 修改：`WorkbenchRuntime` 持有 `AuthSessionStore` 与 `SupabaseAuthClient`，提供登录、登出和状态属性；QML 新增居中登录弹窗和 5 秒成功提示。项目 URL、anon key、邮箱、密码和 token 均不落盘。
+- 验证：工作台定向测试、QML 启动检查和完整 CTest 21/21 通过。未使用真实账号请求。
