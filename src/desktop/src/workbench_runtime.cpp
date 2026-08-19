@@ -1,5 +1,6 @@
 #include "edward/desktop/workbench_runtime.hpp"
 
+#include "edward/media/export_job.hpp"
 #include "edward/plugins/plugin_host.hpp"
 #include "edward/resources/component_package.hpp"
 
@@ -103,6 +104,15 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     pluginExportBusy_ = false;
     const auto result = pluginExportWatcher_.result();
     if (!result.error.isEmpty()) emit operationFailed(result.error);
+    emit timelineChanged();
+  });
+  connect(&timelineExportWatcher_, &QFutureWatcher<TimelineExportResult>::finished, this, [this] {
+    timelineExportBusy_ = false;
+    const auto result = timelineExportWatcher_.result();
+    if (result.error.isEmpty())
+      emit operationSucceeded(QStringLiteral("视频已导出：%1").arg(result.outputPath));
+    else
+      emit operationFailed(result.error);
     emit timelineChanged();
   });
 }
@@ -467,6 +477,51 @@ bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QSt
                                        outputName, size, 30000, &error)) {
       result.error = QStringLiteral("插件导出失败：%1").arg(error);
     }
+    return result;
+  }));
+  return true;
+}
+
+bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
+  if (timelineExportBusy_) {
+    emit operationFailed(QStringLiteral("视频导出正在执行"));
+    return false;
+  }
+  if (outputPath.isEmpty()) {
+    emit operationFailed(QStringLiteral("请选择导出路径"));
+    return false;
+  }
+  auto snapshot = timeline_.snapshot();
+  if (snapshot.clips.empty()) {
+    emit operationFailed(QStringLiteral("时间线没有可导出的视频片段"));
+    return false;
+  }
+  edward::core::Frame lastFrame = 0;
+  for (const auto& clip : snapshot.clips)
+    lastFrame = std::max(lastFrame, clip.timelineStart + clip.sourceOut - clip.sourceIn);
+  snapshot.durationFrames = lastFrame;
+  const auto component = demoOverlayIr_ ? std::optional<QJsonObject>(demoOverlayIr_->toJson()) : std::nullopt;
+  const auto path = std::filesystem::path(outputPath.toStdString());
+  timelineExportBusy_ = true;
+  emit timelineChanged();
+  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, path] {
+    TimelineExportResult result;
+    edward::media::MltAdapter adapter;
+    std::optional<edward::core::ComponentIr> overlay;
+    if (component) {
+      overlay = edward::core::ComponentIr::parse(*component);
+      if (!overlay) {
+        result.error = QStringLiteral("组件数据无效，无法导出");
+        return result;
+      }
+    }
+    const edward::media::RenderGraph graph(adapter, std::move(overlay));
+    const edward::media::ExportJob job(graph);
+    const auto exported = job.run(snapshot, {path, {1920, 1080}, 25, 1});
+    if (!exported)
+      result.error = QStringLiteral("视频导出失败");
+    else
+      result.outputPath = QString::fromStdString(exported->outputPath.string());
     return result;
   }));
   return true;

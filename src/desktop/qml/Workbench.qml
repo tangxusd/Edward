@@ -56,6 +56,12 @@ ApplicationWindow {
                         text: "打开工程"
                         onClicked: projectOpenDialog.open()
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.timelineExportBusy ? "视频导出中" : "导出视频"
+                        enabled: workbenchRuntime.clips.length > 0 && !workbenchRuntime.timelineExportBusy
+                        onClicked: timelineExportDialog.open()
+                    }
                 }
             }
 
@@ -307,6 +313,14 @@ ApplicationWindow {
         fileMode: FileDialog.OpenFile
         nameFilters: ["Edward 工程 (*.edward.json *.json)"]
         onAccepted: workbenchRuntime.loadProject(selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: timelineExportDialog
+        title: "导出视频"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["MP4 视频 (*.mp4)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.exportTimeline(selectedFile.toLocalFile())
     }
 
     FolderDialog {

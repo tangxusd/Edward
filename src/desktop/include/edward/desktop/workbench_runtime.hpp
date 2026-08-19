@@ -39,6 +39,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginRenderBusy READ pluginRenderBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
+  Q_PROPERTY(bool timelineExportBusy READ timelineExportBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
@@ -64,6 +65,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString componentPluginDependencyStatus() const;
   [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
   [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
+  [[nodiscard]] bool timelineExportBusy() const { return timelineExportBusy_; }
   [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
@@ -101,6 +103,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool renderInstalledPluginFrame(const QString& requestId, const QString& compositionId);
   Q_INVOKABLE bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
                                          const QString& outputPath);
+  Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool saveProject(const QString& path) const;
@@ -145,6 +148,9 @@ class WorkbenchRuntime final : public QObject {
   struct PluginExportResult { QString error; };
   QFutureWatcher<PluginExportResult> pluginExportWatcher_;
   bool pluginExportBusy_ = false;
+  struct TimelineExportResult { QString error; QString outputPath; };
+  QFutureWatcher<TimelineExportResult> timelineExportWatcher_;
+  bool timelineExportBusy_ = false;
   edward::resources::AuthSessionStore sessions_;
   edward::resources::SupabaseAuthClient authClient_;
   bool signInBusy_ = false;

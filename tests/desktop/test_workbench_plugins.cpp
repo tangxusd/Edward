@@ -1,8 +1,11 @@
 #include <edward/desktop/workbench_runtime.hpp>
 
+#include <QCoreApplication>
 #include <QFile>
+#include <QEventLoop>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QTimer>
 #include <QTemporaryDir>
 
 #include <cassert>
@@ -10,6 +13,7 @@
 
 int main(int argc, char** argv) {
   assert(argc == 3);
+  QCoreApplication application(argc, argv);
   edward::desktop::WorkbenchRuntime runtime;
   assert(!runtime.authenticated());
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
@@ -36,6 +40,21 @@ int main(int argc, char** argv) {
   QTemporaryDir directory;
   assert(directory.isValid());
   const auto root = std::filesystem::path(directory.path().toStdString());
+  const auto exportPath = directory.path() + QStringLiteral("/timeline.mp4");
+  bool exported = false;
+  QEventLoop exportLoop;
+  QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::operationSucceeded,
+                   [&exported, &exportLoop](const QString& message) {
+                     if (message.startsWith(QStringLiteral("视频已导出："))) {
+                       exported = true;
+                       exportLoop.quit();
+                     }
+                   });
+  assert(runtime.exportTimeline(exportPath));
+  QTimer::singleShot(15000, &exportLoop, &QEventLoop::quit);
+  exportLoop.exec();
+  assert(exported);
+  assert(QFile::exists(exportPath));
   QFile entry(QString::fromStdString((root / "host.mjs").string()));
   assert(entry.open(QIODevice::WriteOnly));
   entry.close();

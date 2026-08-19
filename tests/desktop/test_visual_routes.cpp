@@ -35,6 +35,8 @@ int main() {
   assert(workbench.find("saveComponentPackage") != std::string::npos);
   assert(workbench.find("saveProject") != std::string::npos);
   assert(workbench.find("loadProject") != std::string::npos);
+  assert(workbench.find("导出视频") != std::string::npos);
+  assert(workbench.find("exportTimeline") != std::string::npos);
   assert(workbench.find("signInWithSupabase") != std::string::npos);
   assert(workbench.find("已登录:") != std::string::npos);
   assert(workbench.find("上传组件包") != std::string::npos);
