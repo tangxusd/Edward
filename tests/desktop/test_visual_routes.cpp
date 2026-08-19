@@ -20,6 +20,8 @@ int main() {
   assert(preview.find("componentDragged") != std::string::npos);
   assert(preview.find("id: componentBounds\n            z: 2") != std::string::npos);
   assert(workbench.find("demoOverlayOpacity") != std::string::npos);
+  assert(workbench.find("demoOverlayScale") != std::string::npos);
+  assert(workbench.find("demoOverlayRotation") != std::string::npos);
   assert(workbench.find("demoOverlayText") != std::string::npos);
   assert(workbench.find("导入组件草稿") != std::string::npos);
   assert(workbench.find("loadComponentJson") != std::string::npos);

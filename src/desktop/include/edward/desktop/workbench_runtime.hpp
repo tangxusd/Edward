@@ -22,6 +22,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int demoOverlayY READ demoOverlayY WRITE setDemoOverlayY NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayWidth READ demoOverlayWidth WRITE setDemoOverlayWidth NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayHeight READ demoOverlayHeight WRITE setDemoOverlayHeight NOTIFY timelineChanged)
+  Q_PROPERTY(double demoOverlayScale READ demoOverlayScale WRITE setDemoOverlayScale NOTIFY timelineChanged)
+  Q_PROPERTY(double demoOverlayRotation READ demoOverlayRotation WRITE setDemoOverlayRotation NOTIFY timelineChanged)
   Q_PROPERTY(double demoOverlayOpacity READ demoOverlayOpacity WRITE setDemoOverlayOpacity NOTIFY timelineChanged)
   Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
@@ -39,6 +41,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int demoOverlayY() const { return demoOverlayY_; }
   [[nodiscard]] int demoOverlayWidth() const { return demoOverlayWidth_; }
   [[nodiscard]] int demoOverlayHeight() const { return demoOverlayHeight_; }
+  [[nodiscard]] double demoOverlayScale() const { return demoOverlayScale_; }
+  [[nodiscard]] double demoOverlayRotation() const { return demoOverlayRotation_; }
   [[nodiscard]] double demoOverlayOpacity() const { return demoOverlayOpacity_; }
   [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
@@ -51,6 +55,8 @@ class WorkbenchRuntime final : public QObject {
   void setDemoOverlayY(int value);
   void setDemoOverlayWidth(int value);
   void setDemoOverlayHeight(int value);
+  void setDemoOverlayScale(double value);
+  void setDemoOverlayRotation(double value);
   void setDemoOverlayOpacity(double value);
   void setDemoOverlayText(const QString& value);
   [[nodiscard]] QImage previewFrame() const;
@@ -88,6 +94,8 @@ class WorkbenchRuntime final : public QObject {
   int demoOverlayY_ = 24;
   int demoOverlayWidth_ = 220;
   int demoOverlayHeight_ = 72;
+  double demoOverlayScale_ = 1.0;
+  double demoOverlayRotation_ = 0.0;
   double demoOverlayOpacity_ = 0.82;
   QString demoOverlayText_ = QStringLiteral("Edward Component");
   std::optional<edward::plugins::InstalledPlugin> installedPlugin_;

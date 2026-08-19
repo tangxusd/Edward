@@ -321,6 +321,28 @@ void WorkbenchRuntime::setDemoOverlayHeight(int value) {
   emit timelineChanged();
 }
 
+void WorkbenchRuntime::setDemoOverlayScale(double value) {
+  demoOverlayScale_ = std::max(0.1, std::min(value, 3.0));
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "scaleX", demoOverlayScale_);
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "scaleY", demoOverlayScale_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "scaleX", playheadFrame(), demoOverlayScale_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "scaleY", playheadFrame(), demoOverlayScale_);
+  }
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayRotation(double value) {
+  demoOverlayRotation_ = std::max(-180.0, std::min(value, 180.0));
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "rotation", demoOverlayRotation_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "rotation", playheadFrame(), demoOverlayRotation_);
+  }
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
 void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
   demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
   if (demoOverlayIr_) {

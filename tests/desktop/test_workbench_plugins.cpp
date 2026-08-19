@@ -46,6 +46,11 @@ int main() {
     xAtPlayhead = xAtPlayhead || keyframe.toObject().value("frame").toInt() == 12;
   assert(xAtPlayhead);
   assert(box.value("keyframes").toObject().value("opacity").toArray().last().toObject().value("value").toDouble() == 0.5);
+  runtime.setDemoOverlayScale(1.5);
+  runtime.setDemoOverlayRotation(30.0);
+  const auto transformedBox = runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject();
+  assert(transformedBox.value("transform").toObject().value("scaleX").toDouble() == 1.5);
+  assert(transformedBox.value("transform").toObject().value("rotation").toDouble() == 30.0);
   runtime.clearInstalledPlugin();
   assert(!runtime.installedPluginAvailable());
   return 0;

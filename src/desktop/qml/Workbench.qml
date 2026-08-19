@@ -136,6 +136,32 @@ ApplicationWindow {
                     }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "缩放: " + workbenchRuntime.demoOverlayScale.toFixed(2)
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 0.1
+                        to: 3
+                        value: workbenchRuntime.demoOverlayScale
+                        onMoved: workbenchRuntime.demoOverlayScale = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "旋转: " + workbenchRuntime.demoOverlayRotation.toFixed(0) + "°"
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: -180
+                        to: 180
+                        value: workbenchRuntime.demoOverlayRotation
+                        onMoved: workbenchRuntime.demoOverlayRotation = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "透明度: " + workbenchRuntime.demoOverlayOpacity.toFixed(2)
                         color: DesignTokens.textSecondary
                     }
