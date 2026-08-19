@@ -12,6 +12,13 @@ int main() {
   if (parseError.error != QJsonParseError::NoError || !request.isObject()) return 3;
   const auto object = request.object();
   const auto params = object.value("params").toObject();
+  if (object.value("method").toString() == "renderExport") {
+    const QJsonObject result{{"outputPath", params.value("outputPath")}, {"width", params.value("width")},
+                             {"height", params.value("height")}, {"frameCount", 24}, {"hasAlpha", true}};
+    const QJsonObject response{{"jsonrpc", "2.0"}, {"id", object.value("id")}, {"result", result}};
+    std::cout << QJsonDocument(response).toJson(QJsonDocument::Compact).toStdString() << '\n';
+    return 0;
+  }
   const int width = params.value("width").toInt();
   const int height = params.value("height").toInt();
   const int frame = params.value("frame").toInt(-1);

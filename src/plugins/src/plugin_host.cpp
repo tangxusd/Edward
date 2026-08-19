@@ -279,4 +279,28 @@ std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
   return parseRenderFrameResponse(*response, requestId, frame, size, error);
 }
 
+std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
+                                               const std::filesystem::path& pluginRoot,
+                                               const QString& requestId,
+                                               const QString& compositionId,
+                                               const QString& outputPath,
+                                               const QSize& size,
+                                               int timeoutMs,
+                                               QString* error) {
+  if (requestId.isEmpty() || compositionId.isEmpty() || outputPath.isEmpty() || size.isEmpty()) {
+    if (error) *error = QStringLiteral("renderExport request is incomplete");
+    return std::nullopt;
+  }
+  const RpcRequest request{requestId, QStringLiteral("renderExport"),
+                           {{"compositionId", compositionId}, {"outputPath", outputPath},
+                            {"width", size.width()}, {"height", size.height()}}};
+  const auto response = callPlugin(manifest, pluginRoot, request, timeoutMs, error);
+  if (!response) return std::nullopt;
+  if (response->id != requestId || response->result.isEmpty()) {
+    if (error) *error = QStringLiteral("renderExport rpc response is not a matching success response");
+    return std::nullopt;
+  }
+  return parseRenderExportResult(response->result, error);
+}
+
 }  // namespace edward::plugins

@@ -22,5 +22,14 @@ int main(int argc, char** argv) {
   assert(frame->size() == QSize(4, 3));
   assert(frame->hasAlphaChannel());
   assert(frame->pixelColor(0, 0).green() > 200);
+  const auto exported = edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "fixture"}, {"version", "1.0.0"}, {"entry", "fixture"},
+                  {"capabilities", QJsonArray{"renderFrame", "renderExport"}}});
+  assert(exported);
+  const auto exportResult = edward::plugins::exportPlugin(
+      *exported, root, "request-2", "main", "exports/main.mov", QSize(4, 3), 2000, &error);
+  assert(exportResult);
+  assert(exportResult->outputPath == "exports/main.mov");
+  assert(exportResult->frameCount == 24);
   return 0;
 }
