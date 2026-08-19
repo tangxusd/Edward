@@ -71,6 +71,10 @@ QString WorkbenchRuntime::componentPluginDependencyStatus() const {
   return QStringLiteral("插件状态未知");
 }
 
+QJsonObject WorkbenchRuntime::componentJson() const {
+  return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
+}
+
 QVariantList WorkbenchRuntime::clips() const {
   QVariantList result;
   for (const auto& clip : timeline_.clips(videoTrack_)) {
@@ -276,6 +280,8 @@ void WorkbenchRuntime::setDemoOverlayX(int value) {
   if (demoOverlayIr_) {
     demoOverlayIr_->setNodeTransformNumber("demo-box", "x", demoOverlayX_);
     demoOverlayIr_->setNodeTransformNumber("demo-text", "x", demoOverlayX_ + 20);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "x", playheadFrame(), demoOverlayX_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-text", "x", playheadFrame(), demoOverlayX_ + 20);
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -288,6 +294,8 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
   if (demoOverlayIr_) {
     demoOverlayIr_->setNodeTransformNumber("demo-box", "y", demoOverlayY_);
     demoOverlayIr_->setNodeTransformNumber("demo-text", "y", demoOverlayY_ - 20);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "y", playheadFrame(), demoOverlayY_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-text", "y", playheadFrame(), demoOverlayY_ - 20);
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -295,21 +303,30 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
 
 void WorkbenchRuntime::setDemoOverlayWidth(int value) {
   demoOverlayWidth_ = std::max(40, std::min(value, 640));
-  if (demoOverlayIr_) demoOverlayIr_->setNodeTransformNumber("demo-box", "width", demoOverlayWidth_);
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "width", demoOverlayWidth_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "width", playheadFrame(), demoOverlayWidth_);
+  }
   refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayHeight(int value) {
   demoOverlayHeight_ = std::max(24, std::min(value, 360));
-  if (demoOverlayIr_) demoOverlayIr_->setNodeTransformNumber("demo-box", "height", demoOverlayHeight_);
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeTransformNumber("demo-box", "height", demoOverlayHeight_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "height", playheadFrame(), demoOverlayHeight_);
+  }
   refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
   demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
-  if (demoOverlayIr_) demoOverlayIr_->setNodeProperty("demo-box", "opacity", demoOverlayOpacity_);
+  if (demoOverlayIr_) {
+    demoOverlayIr_->setNodeProperty("demo-box", "opacity", demoOverlayOpacity_);
+    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "opacity", playheadFrame(), demoOverlayOpacity_);
+  }
   refreshDemoOverlay();
   emit timelineChanged();
 }

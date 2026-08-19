@@ -130,6 +130,33 @@ bool ComponentIr::setNodeTransformNumber(const QString& nodeId, const QString& f
   return true;
 }
 
+bool ComponentIr::setNodeKeyframeNumber(const QString& nodeId, const QString& field, int frame, double value) {
+  auto* node = findNode(root_, nodeId);
+  if (!node || field.isEmpty() || frame < 0) return false;
+
+  auto keyframes = node->keyframes.value(field).toArray();
+  bool replaced = false;
+  for (auto index = 0; index < keyframes.size(); ++index) {
+    const auto point = keyframes.at(index).toObject();
+    if (point.value("frame").toInt(-1) == frame) {
+      keyframes.replace(index, QJsonObject{{"frame", frame}, {"value", value}});
+      replaced = true;
+      break;
+    }
+  }
+  if (!replaced) keyframes.append(QJsonObject{{"frame", frame}, {"value", value}});
+  std::vector<QJsonValue> ordered;
+  ordered.reserve(keyframes.size());
+  for (const auto& keyframe : keyframes) ordered.push_back(keyframe);
+  std::sort(ordered.begin(), ordered.end(), [](const QJsonValue& left, const QJsonValue& right) {
+    return left.toObject().value("frame").toInt() < right.toObject().value("frame").toInt();
+  });
+  QJsonArray sorted;
+  for (const auto& keyframe : ordered) sorted.append(keyframe);
+  node->keyframes.insert(field, sorted);
+  return true;
+}
+
 bool ComponentIr::setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value) {
   auto* node = findNode(root_, nodeId);
   if (!node || field.isEmpty()) return false;

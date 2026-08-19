@@ -34,6 +34,7 @@ class ComponentIr final {
   [[nodiscard]] const ComponentNode& root() const { return root_; }
   [[nodiscard]] const std::optional<PluginDependency>& pluginDependency() const { return pluginDependency_; }
   bool setNodeTransformNumber(const QString& nodeId, const QString& field, double value);
+  bool setNodeKeyframeNumber(const QString& nodeId, const QString& field, int frame, double value);
   bool setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value);
 
  private:

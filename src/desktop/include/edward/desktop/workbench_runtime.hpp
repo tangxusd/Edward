@@ -46,6 +46,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString componentPluginDependencyStatus() const;
   [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
   [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
+  [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
   void setDemoOverlayWidth(int value);

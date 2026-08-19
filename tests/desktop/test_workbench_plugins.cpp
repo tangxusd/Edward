@@ -34,6 +34,18 @@ int main() {
   assert(runtime.installedPluginAvailable());
   assert(runtime.installedPluginId() == "remotion");
   assert(runtime.componentPluginDependencyStatus() == QStringLiteral("插件可用"));
+  runtime.generateComponentDraft();
+  assert(runtime.setPlayhead(12));
+  runtime.setDemoOverlayX(80);
+  runtime.setDemoOverlayOpacity(0.5);
+  const auto overlay = runtime.componentJson();
+  const auto nodes = overlay.value("root").toObject().value("children").toArray();
+  const auto box = nodes.at(0).toObject();
+  bool xAtPlayhead = false;
+  for (const auto& keyframe : box.value("keyframes").toObject().value("x").toArray())
+    xAtPlayhead = xAtPlayhead || keyframe.toObject().value("frame").toInt() == 12;
+  assert(xAtPlayhead);
+  assert(box.value("keyframes").toObject().value("opacity").toArray().last().toObject().value("value").toDouble() == 0.5);
   runtime.clearInstalledPlugin();
   assert(!runtime.installedPluginAvailable());
   return 0;

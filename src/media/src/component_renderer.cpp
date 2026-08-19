@@ -61,8 +61,8 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
   const auto& properties = node.properties;
   const double x = animatedNumber(node.keyframes, "x", frame, number(transform, "x", 0));
   const double y = animatedNumber(node.keyframes, "y", frame, number(transform, "y", 0));
-  const double width = number(transform, "width", 0);
-  const double height = number(transform, "height", 0);
+  const double width = animatedNumber(node.keyframes, "width", frame, number(transform, "width", 0));
+  const double height = animatedNumber(node.keyframes, "height", frame, number(transform, "height", 0));
   const double opacity = std::clamp(animatedNumber(node.keyframes, "opacity", frame, number(properties, "opacity", 1)), 0.0, 1.0);
 
   painter.save();
