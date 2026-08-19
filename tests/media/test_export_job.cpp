@@ -35,6 +35,7 @@ int main(int argc, char** argv) {
   assert(info.has_value());
   assert(info->width == 1920 && info->height == 1080);
   assert(info->durationFrames == 25);
+  assert(info->hasAudio);
   edward::core::Timeline renderedTimeline(25);
   const auto renderedTrack = renderedTimeline.addVideoTrack();
   assert(renderedTimeline.insertClip({1, renderedTrack, output, 0, 25, 0}));

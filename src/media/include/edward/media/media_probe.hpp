@@ -12,6 +12,7 @@ struct MediaInfo {
   std::int32_t fpsNumerator = 0;
   std::int32_t fpsDenominator = 1;
   std::int64_t durationFrames = 0;
+  bool hasAudio = false;
 };
 
 class MediaProbe {

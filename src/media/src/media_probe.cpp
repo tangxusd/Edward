@@ -14,8 +14,8 @@ std::optional<MediaInfo> MediaProbe::probe(const std::filesystem::path &path) {
   if (path.empty() || !std::filesystem::is_regular_file(path)) return std::nullopt;
   QProcess process;
   process.start(QStringLiteral("ffprobe"), {
-    QStringLiteral("-v"), QStringLiteral("error"), QStringLiteral("-select_streams"), QStringLiteral("v:0"),
-    QStringLiteral("-show_entries"), QStringLiteral("stream=width,height,r_frame_rate:format=duration"),
+    QStringLiteral("-v"), QStringLiteral("error"),
+    QStringLiteral("-show_entries"), QStringLiteral("stream=codec_type,width,height,r_frame_rate:format=duration"),
     QStringLiteral("-of"), QStringLiteral("json"), QString::fromStdString(path.string())});
   if (!process.waitForStarted(1000) || !process.waitForFinished(5000) ||
       process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) return std::nullopt;
@@ -24,8 +24,16 @@ std::optional<MediaInfo> MediaProbe::probe(const std::filesystem::path &path) {
   if (error.error != QJsonParseError::NoError || !document.isObject()) return std::nullopt;
   const auto root = document.object();
   const auto streams = root.value(QStringLiteral("streams")).toArray();
-  if (streams.isEmpty() || !streams.first().isObject()) return std::nullopt;
-  const auto stream = streams.first().toObject();
+  QJsonObject stream;
+  bool hasAudio = false;
+  for (const auto& value : streams) {
+    if (!value.isObject()) continue;
+    const auto candidate = value.toObject();
+    const auto codecType = candidate.value(QStringLiteral("codec_type")).toString();
+    if (codecType == QStringLiteral("audio")) hasAudio = true;
+    if (codecType == QStringLiteral("video") && stream.isEmpty()) stream = candidate;
+  }
+  if (stream.isEmpty()) return std::nullopt;
   const int width = stream.value(QStringLiteral("width")).toInt();
   const int height = stream.value(QStringLiteral("height")).toInt();
   const auto parts = stream.value(QStringLiteral("r_frame_rate")).toString().split(QLatin1Char('/'));
@@ -39,7 +47,7 @@ std::optional<MediaInfo> MediaProbe::probe(const std::filesystem::path &path) {
     .value(QStringLiteral("duration")).toString().toDouble();
   if (!(seconds > 0.0)) return std::nullopt;
   MediaInfo info{width, height, numerator, denominator,
-    static_cast<std::int64_t>(std::ceil(seconds * numerator / denominator))};
+    static_cast<std::int64_t>(std::ceil(seconds * numerator / denominator)), hasAudio};
   return info.durationFrames > 0 ? std::optional<MediaInfo>(info) : std::nullopt;
 }
 
