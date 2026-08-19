@@ -1939,3 +1939,9 @@
 - 目的：为后续用户上传和资源库审核提供稳定的本地组件包输入。
 - 修改：新增 `edward_resources` 模块；组件包由 `manifest.json` 与 `component.json` 组成，校验资源 ID、显示名、Component IR 和相对资源路径，支持本地保存与加载。
 - 验证：新增 `resources.component_package` 测试覆盖保存、加载、缺少 ID 和绝对路径拒绝；待本轮完整 CTest。
+
+## 233. Edward 0.3.0 组件包 JSON Schema
+
+- 目的：为本地保存、用户上传和管理员审核提供统一的包清单合同。
+- 修改：新增 `docs/contracts/component-package.schema.json`，定义资源 ID、显示名、缩略图和唯一相对资源路径；新增合同测试接入 CTest。
+- 验证：待本轮合同测试和完整 CTest。

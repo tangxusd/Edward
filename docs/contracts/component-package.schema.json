@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Edward Component Package Manifest",
+  "type": "object",
+  "required": ["resourceId", "displayName", "assets"],
+  "properties": {
+    "resourceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "thumbnail": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).*$" },
+    "assets": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+$" },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}
