@@ -8,7 +8,8 @@
 #include <cassert>
 #include <filesystem>
 
-int main() {
+int main(int argc, char** argv) {
+  assert(argc == 2);
   edward::desktop::WorkbenchRuntime runtime;
   assert(!runtime.authenticated());
   assert(!runtime.signInWithSupabase("http://project.supabase.co", "anon-key", "demo@example.com", "password"));
@@ -40,6 +41,20 @@ int main() {
   assert(runtime.installedPluginId() == "remotion");
   assert(runtime.componentPluginDependencyStatus() == QStringLiteral("插件可用"));
   assert(!runtime.describeInstalledPlugin(QStringLiteral("main")));
+  std::filesystem::copy_file(argv[1], root / "rpc-plugin");
+  QFile rpcManifest(QString::fromStdString((root / "edward-plugin.json").string()));
+  assert(rpcManifest.open(QIODevice::WriteOnly | QIODevice::Truncate));
+  rpcManifest.write(QJsonDocument(QJsonObject{{"pluginId", "remotion"}, {"version", "1.0.0"},
+                                               {"entry", "rpc-plugin"}, {"capabilities", QJsonArray{"describe"}},
+                                               {"editableProps", QJsonArray{"opacity"}}})
+                        .toJson(QJsonDocument::Compact));
+  rpcManifest.close();
+  assert(runtime.selectInstalledPlugin(directory.path()));
+  assert(runtime.describeInstalledPlugin(QStringLiteral("main")));
+  assert(runtime.demoOverlayEnabled());
+  assert(runtime.componentJson().value("root").toObject().value("id") == "root");
+  assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
+  assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
   runtime.generateComponentDraft();
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));

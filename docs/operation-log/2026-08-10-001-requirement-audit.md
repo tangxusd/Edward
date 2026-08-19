@@ -2112,3 +2112,9 @@
 - 目的：防止用户选择的插件目录通过入口符号链接启动目录外的文件，扩大本地批准范围。
 - 修改：`loadInstalledPlugin` 拒绝符号链接入口，并以规范路径确认入口仍位于选定插件根目录内。
 - 验证：manifest 测试先复现符号链接被接受，再验证修复；插件和工作台相关测试 4/4 通过，完整 CTest 待本次提交后执行。
+
+## 261. Edward 0.3.0 工作台插件组件成功链路
+
+- 目的：验证工作台不仅能显示插件描述入口，还能将实际 RPC 插件返回的组件草稿接入可编辑 IR，并保留插件依赖。
+- 修改：桌面测试复用 RPC 插件夹具；描述成功后宿主以已选 manifest 强制写入 `pluginDependency.pluginId/version`，再重新校验为 Component IR。插件不自行决定来源依赖。
+- 验证：桌面测试先验证描述成功但依赖缺失的失败状态，再验证依赖写入；`desktop.workbench_plugins` 与 `plugins.plugin_process` 通过，完整 CTest 待本次提交后执行。

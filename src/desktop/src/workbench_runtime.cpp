@@ -345,7 +345,15 @@ bool WorkbenchRuntime::describeInstalledPlugin(const QString& compositionId) {
     emit operationFailed(QStringLiteral("插件组件描述失败：%1").arg(error));
     return false;
   }
-  demoOverlayIr_ = *component;
+  auto componentJson = component->toJson();
+  componentJson.insert("pluginDependency", QJsonObject{{"pluginId", installedPlugin_->manifest.pluginId},
+                                                        {"version", installedPlugin_->manifest.version}});
+  auto dependentComponent = edward::core::ComponentIr::parse(componentJson);
+  if (!dependentComponent) {
+    emit operationFailed(QStringLiteral("插件组件依赖信息无效"));
+    return false;
+  }
+  demoOverlayIr_ = std::move(*dependentComponent);
   demoOverlayEnabled_ = true;
   refreshDemoOverlay();
   emit operationSucceeded(QStringLiteral("插件组件已载入，可继续调整属性和关键帧"));
