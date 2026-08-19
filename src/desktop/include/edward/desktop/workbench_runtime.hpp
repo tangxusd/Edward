@@ -93,6 +93,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
   Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);
   Q_INVOKABLE void clearInstalledPlugin();
+  Q_INVOKABLE bool describeInstalledPlugin(const QString& compositionId);
   Q_INVOKABLE bool renderInstalledPluginFrame(const QString& requestId, const QString& compositionId);
   Q_INVOKABLE bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
                                          const QString& outputPath);

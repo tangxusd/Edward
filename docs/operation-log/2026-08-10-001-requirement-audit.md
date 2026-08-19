@@ -2100,3 +2100,9 @@
 - 目的：让外部插件先返回标准 Component IR，再进入 Edward 的统一属性与关键帧编辑链路。
 - 修改：新增 `describePlugin`，复用 JSON-RPC、超时回收、manifest 可编辑属性校验，并要求响应的 `compositionId` 与请求一致；插件夹具覆盖正常描述和组件 ID 篡改失败。
 - 验证：`plugins.plugin_host`、`plugins.plugin_process` 通过；完整 CTest 待本次提交后执行。
+
+## 259. Edward 0.3.0 工作台插件描述入口
+
+- 目的：将插件描述桥接从底层 API 接入实际工作台，使外部插件生成的组件进入统一 Component IR 编辑链路。
+- 修改：`WorkbenchRuntime::describeInstalledPlugin` 新增同步描述入口；QML 插件区域新增“读取插件组件”按钮。成功时载入描述返回的 IR 并刷新预览，失败时保留现有草稿并显示错误。
+- 验证：`desktop.workbench_plugins`、`desktop.visual_routes` 通过；完整 CTest 待本次提交后执行。

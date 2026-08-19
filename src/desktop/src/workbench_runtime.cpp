@@ -332,6 +332,27 @@ void WorkbenchRuntime::clearInstalledPlugin() {
   emit timelineChanged();
 }
 
+bool WorkbenchRuntime::describeInstalledPlugin(const QString& compositionId) {
+  if (!installedPlugin_ || compositionId.isEmpty()) {
+    emit operationFailed(QStringLiteral("插件或组件 ID 不可用"));
+    return false;
+  }
+  QString error;
+  const auto component = edward::plugins::describePlugin(
+      installedPlugin_->manifest, installedPlugin_->root,
+      QStringLiteral("describe-%1").arg(QDateTime::currentMSecsSinceEpoch()), compositionId, 5000, &error);
+  if (!component) {
+    emit operationFailed(QStringLiteral("插件组件描述失败：%1").arg(error));
+    return false;
+  }
+  demoOverlayIr_ = *component;
+  demoOverlayEnabled_ = true;
+  refreshDemoOverlay();
+  emit operationSucceeded(QStringLiteral("插件组件已载入，可继续调整属性和关键帧"));
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::renderInstalledPluginFrame(const QString& requestId, const QString& compositionId) {
   if (pluginRenderBusy_) {
     emit operationFailed(QStringLiteral("插件预览正在渲染"));

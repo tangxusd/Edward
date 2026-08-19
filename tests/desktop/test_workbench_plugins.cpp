@@ -39,6 +39,7 @@ int main() {
   assert(runtime.installedPluginAvailable());
   assert(runtime.installedPluginId() == "remotion");
   assert(runtime.componentPluginDependencyStatus() == QStringLiteral("插件可用"));
+  assert(!runtime.describeInstalledPlugin(QStringLiteral("main")));
   runtime.generateComponentDraft();
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));

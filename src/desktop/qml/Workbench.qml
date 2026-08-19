@@ -250,6 +250,12 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "读取插件组件"
+                        enabled: workbenchRuntime.installedPluginAvailable
+                        onClicked: workbenchRuntime.describeInstalledPlugin(compositionIdField.text)
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: workbenchRuntime.pluginRenderBusy ? "插件渲染中" : "插件预览"
                         enabled: workbenchRuntime.installedPluginAvailable && !workbenchRuntime.pluginRenderBusy
                         onClicked: workbenchRuntime.renderInstalledPluginFrame(
