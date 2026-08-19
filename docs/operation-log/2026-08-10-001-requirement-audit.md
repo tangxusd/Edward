@@ -2005,3 +2005,22 @@
 - 目的：确认用户上传是否被服务端记录为待审核组件，而不是只显示笼统的 HTTP 成功。
 - 修改：新增上传回执解析，读取服务端返回的资源 ID、状态和版本；工作台提示真实状态，缺少扩展字段时兼容普通 2xx 响应。
 - 验证：上传回执合同和工作台定向测试通过；完整 CTest 21/21 和 macOS offscreen 应用启动检查通过。
+
+## 244. Edward 0.3.0 无界面登录与上传链路代码验证
+
+- 目的：在尚无 Edward 登录界面的情况下，验证认证客户端、内存会话和上传请求合同。
+- 验证：`cmake --build build/0.3-runtime -j2` 成功；`resources.supabase_auth_client`、`resources.component_upload`、`resources.auth_session_store`、`desktop.workbench_plugins` 共 4 项定向测试全部通过。
+- 网络探针：对已部署的 `component-upload` 使用无认证请求，服务端返回 HTTP 401 `UNAUTHORIZED_NO_AUTH_HEADER`；这确认 Supabase 网关已启用认证保护，未执行真实账号登录或上传。
+
+## 245. Edward 0.3.0 Supabase 真实登录与组件上传冒烟验证
+
+- 目的：在 Edward 登录界面尚未接入当前测试构建的前提下，直接验证实际 Supabase Auth 与受保护上传函数的完整链路。
+- 外部状态：使用已创建的测试用户完成密码登录；仅在进程内使用 public key、测试密码和短期 access token，未写入项目文件、配置或 Git。
+- 验证：Auth 返回有效用户 ID 与匹配邮箱；带 Bearer token 调用 `component-upload` 成功，创建资源 ID `smoke-test-ebgp-20260819`，服务端回执为 `pending_review`、版本 `1`。
+
+## 246. Edward 0.3.0 静默上传队列失败边界
+
+- 目的：固定组件静默上传的本地保留、重试和失败清理规则。
+- 修改：新增 `ComponentUploadQueue`；任务状态包含资源 ID、本地组件路径、待上传副本路径、创建时间、失败次数和下次尝试时间；状态以原子 JSON 文件保存/恢复。
+- 规则：每次失败间隔 3 分钟；创建后 7 天到期；最多失败 5 次；第 5 次失败只删除待上传副本，不删除本地组件。
+- 验证：新增 `resources.component_upload_queue` 红灯后绿灯；组件包、上传、认证会话和 Supabase 登录请求定向测试共 5 项全部通过。
