@@ -1,10 +1,10 @@
 #include "edward/plugins/plugin_host.hpp"
+#include "edward/plugins/plugin_runtime_resolver.hpp"
 
 #include <QProcess>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QBuffer>
-#include <QStandardPaths>
 
 namespace edward::plugins {
 namespace {
@@ -49,12 +49,19 @@ bool configureProcess(QProcess& process, const PluginManifest& manifest,
     process.setProgram(QString::fromStdString(entry.string()));
     return true;
   }
-  const auto runtime = QStandardPaths::findExecutable(manifest.runtime);
-  if (runtime.isEmpty()) {
-    if (error) *error = QStringLiteral("plugin runtime is unavailable: %1").arg(manifest.runtime);
-    return false;
+  PluginRuntimeResolution resolution;
+  const auto configuredRoot = qEnvironmentVariable("EDWARD_PLUGIN_RUNTIME_ROOT");
+  if (!configuredRoot.isEmpty()) {
+    resolution.bundledRoot = std::filesystem::path(configuredRoot.toStdString());
   }
-  process.setProgram(runtime);
+#ifdef EDWARD_RELEASE_BUILD
+  resolution.allowDevelopmentPath = false;
+#else
+  resolution.allowDevelopmentPath = true;
+#endif
+  const auto runtime = resolvePluginRuntime(manifest, resolution, error);
+  if (!runtime) return false;
+  process.setProgram(*runtime);
   process.setArguments({QString::fromStdString(entry.string())});
   return true;
 }

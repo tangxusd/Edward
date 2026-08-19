@@ -17,3 +17,7 @@ add_executable(test_plugin_adapters test_plugin_adapters.cpp)
 target_link_libraries(test_plugin_adapters PRIVATE edward_plugins Qt6::Core)
 target_compile_definitions(test_plugin_adapters PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME plugins.plugin_adapters COMMAND test_plugin_adapters)
+
+add_executable(test_plugin_runtime_resolver test_plugin_runtime_resolver.cpp)
+target_link_libraries(test_plugin_runtime_resolver PRIVATE edward_plugins Qt6::Core)
+add_test(NAME plugins.plugin_runtime_resolver COMMAND test_plugin_runtime_resolver)

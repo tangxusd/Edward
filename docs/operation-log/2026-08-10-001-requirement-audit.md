@@ -2162,3 +2162,15 @@
 - 目的：把外部适配器从当前受控子进程升级为可验证运行时、OS 级最小权限和正式发行门，避免将 PATH Node 或普通 QProcess 误认为沙盒。
 - 修改：新增 `docs/superpowers/plans/2026-08-19-external-plugin-release-security.md`，拆分安全合同、固定运行时与签名信任根、macOS 执行器、Windows AppContainer 执行器和发行验收五个里程碑。
 - 结果：已确认现有实现仍继承用户权限；macOS 本机存在 `sandbox-exec`，但其单平台性质与当前 PATH 运行时不满足发布级要求，因此未接入为临时替代方案。
+
+## 269. Edward 外部插件运行时发行决策
+
+- 目的：固定外部插件的运行时边界，避免把插件 npm 依赖误打进主程序。
+- 决策：Edward 正式包自带一份可校验的 Node 运行时；Remotion/HyperFrames 及其 npm 依赖由用户在插件目录安装；Chromium 作为两者共用的首次启用缓存运行时下载。
+- 结果：后续 M2 实现固定 Node 解析和完整性校验；发行打包只纳入 Node、宿主安全策略、公钥和信任配置，不纳入插件 `node_modules`。
+
+## 270. Edward 固定插件运行时解析
+
+- 目的：让正式构建只使用 Edward 分发的 Node/Bun 运行时，避免通过用户 PATH 启动不可验证的解释器。
+- 修改：新增 `PluginRuntimeResolution` 与解析器；指定 `EDWARD_PLUGIN_RUNTIME_ROOT` 时只从该目录查找运行时，Release 构建缺少该目录时拒绝 JavaScript 插件。Debug 构建保留 PATH 解析，供本地适配器开发和测试使用。
+- 验证：解析器定向测试覆盖发布构建无 bundled runtime、指定目录缺少可执行文件和开发 PATH 三种状态；现有 `plugins.plugin_host`、`plugins.plugin_process`、`plugins.plugin_runtime_resolver` 均通过。
