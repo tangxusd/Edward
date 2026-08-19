@@ -21,6 +21,13 @@
 - 结果：测试插件现在生成真实透明 ProRes MOV；回归测试确认应用后占位组件清除、时间线片段增加、最终合成视频成功导出。
 - 验证：全量 CTest 30/30 通过。
 
+## 2026-08-20：标准组件文字关键帧
+
+- 目的：让统一 Component IR 支持文字等非数值属性的关键帧，为属性面板和 AI 编辑共用同一数据层。
+- 涉及文件：`src/core/include/edward/core/component_ir.hpp`、`src/core/src/component_ir.cpp`、`src/media/src/component_renderer.cpp`、`tests/core/test_component_ir.cpp`、`tests/media/test_component_renderer.cpp`、`tests/media/CMakeLists.txt`。
+- 结果：新增通用关键帧值写入接口，保留原数值接口兼容；文字渲染按当前帧读取字符串关键帧；测试运行时固定 Qt offscreen 平台。
+- 验证：定向测试通过；全量 CTest 30/30 通过。
+
 - 时间：2026-08-10（Asia/Shanghai）
 - 目的：记录 0.2.0 方案审计中的已确认决策，并落实“每次操作均以 Markdown 落盘记录”的项目规则。
 - 涉及文件：`AGENTS.md`；本记录文件。

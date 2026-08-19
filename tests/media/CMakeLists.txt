@@ -52,3 +52,4 @@ add_test(NAME media.export_job COMMAND test_export_job ${EDWARD_MEDIA_AUDIO_FIXT
 add_executable(test_component_renderer test_component_renderer.cpp)
 target_link_libraries(test_component_renderer PRIVATE edward_media)
 add_test(NAME media.component_renderer COMMAND test_component_renderer)
+set_tests_properties(media.component_renderer PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

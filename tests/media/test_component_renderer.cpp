@@ -3,9 +3,11 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QGuiApplication>
 #include <cassert>
 
-int main() {
+int main(int argc, char** argv) {
+  QGuiApplication application(argc, argv);
   const QJsonObject root{{"id", "root"}, {"type", "container"}, {"children", QJsonArray{
       QJsonObject{{"id", "box"}, {"type", "shape"},
                    {"transform", QJsonObject{{"x", 10}, {"y", 10}, {"width", 40}, {"height", 40}}},
@@ -41,5 +43,15 @@ int main() {
   const auto scaledImage = edward::media::ComponentRenderer{}.render(*scaled, 0, {100, 100});
   assert(scaledImage.pixelColor(40, 50).green() > 0);
   assert(scaledImage.pixelColor(39, 50).alpha() == 0);
+
+  const QJsonObject textRoot{{"id", "root"}, {"type", "text"},
+      {"transform", QJsonObject{{"x", 0}, {"y", 0}, {"width", 80}, {"height", 30}}},
+      {"properties", QJsonObject{{"text", "Before"}, {"fontSize", 16}, {"color", "#ffffff"}}},
+      {"keyframes", QJsonObject{{"text", QJsonArray{QJsonObject{{"frame", 10}, {"value", "After"}}}}}}};
+  const auto text = edward::core::ComponentIr::parse({{"version", "1"}, {"root", textRoot}});
+  assert(text);
+  const auto before = edward::media::ComponentRenderer{}.render(*text, 0, {100, 100});
+  const auto after = edward::media::ComponentRenderer{}.render(*text, 10, {100, 100});
+  assert(before != after);
   return 0;
 }

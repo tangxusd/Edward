@@ -51,6 +51,21 @@ double animatedNumber(const QJsonObject& keyframes, const QString& property, int
   return fallback;
 }
 
+QString animatedString(const QJsonObject& keyframes, const QString& property, int frame, const QString& fallback) {
+  const auto frames = keyframes.value(property).toArray();
+  QString result = fallback;
+  int bestFrame = -1;
+  for (const auto& value : frames) {
+    const auto item = value.toObject();
+    const int itemFrame = item.value("frame").toInt(-1);
+    if (itemFrame >= 0 && itemFrame <= frame && itemFrame >= bestFrame && item.value("value").isString()) {
+      bestFrame = itemFrame;
+      result = item.value("value").toString();
+    }
+  }
+  return result;
+}
+
 QColor color(const QJsonObject& properties, const char* key, const QColor& fallback) {
   const QColor parsed(properties.value(QLatin1String(key)).toString());
   return parsed.isValid() ? parsed : fallback;
@@ -81,7 +96,8 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
       QFont font;
       font.setPixelSize(static_cast<int>(number(properties, "fontSize", 24)));
       painter.setFont(font);
-      painter.drawText(bounds, Qt::AlignLeft | Qt::AlignTop, properties.value("text").toString());
+      painter.drawText(bounds, Qt::AlignLeft | Qt::AlignTop,
+                       animatedString(node.keyframes, "text", frame, properties.value("text").toString()));
       break;
     }
     case edward::core::ComponentNodeType::Shape:

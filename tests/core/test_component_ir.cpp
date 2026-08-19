@@ -27,6 +27,7 @@ int main() {
   assert(parsed->setNodeProperty("title", "text", "Updated"));
   assert(parsed->setNodeKeyframeNumber("title", "x", 30, 36.0));
   assert(parsed->setNodeKeyframeNumber("title", "x", 0, 12.0));
+  assert(parsed->setNodeKeyframeValue("title", "text", 15, "Animated"));
   const auto withEasing = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject();
   auto easingKeyframe = withEasing.value("keyframes").toObject().value("x").toArray().at(1).toObject();
   easingKeyframe.insert("easing", "bezier");
@@ -54,6 +55,7 @@ int main() {
   assert(!parsed->setNodeTransformNumber("missing", "x", 1.0));
   assert(!parsed->setNodeKeyframeNumber("title", "x", -1, 1.0));
   assert(!parsed->setNodeKeyframeNumber("missing", "x", 1, 1.0));
+  assert(!parsed->setNodeKeyframeValue("title", "text", -1, "bad"));
 
   const auto unorderedKeyframes = edward::core::ComponentIr::parse(
       {{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "shape"},

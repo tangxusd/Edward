@@ -39,7 +39,9 @@ std::optional<QJsonObject> normalizeKeyframes(const QJsonValue& value) {
     for (const auto& pointValue : iterator.value().toArray()) {
       if (!pointValue.isObject()) return std::nullopt;
       const auto point = pointValue.toObject();
-      if (!point.value("frame").isDouble() || !point.value("value").isDouble() ||
+      if (!point.value("frame").isDouble() ||
+          (!point.value("value").isDouble() && !point.value("value").isString() &&
+           !point.value("value").isBool()) ||
           point.value("frame").toInt() < 0) return std::nullopt;
       const auto easing = point.value("easing").toString();
       if (!easing.isEmpty() && easing != "linear" && easing != "bezier") return std::nullopt;
@@ -168,8 +170,13 @@ bool ComponentIr::setNodeTransformNumber(const QString& nodeId, const QString& f
 }
 
 bool ComponentIr::setNodeKeyframeNumber(const QString& nodeId, const QString& field, int frame, double value) {
+  return setNodeKeyframeValue(nodeId, field, frame, value);
+}
+
+bool ComponentIr::setNodeKeyframeValue(const QString& nodeId, const QString& field, int frame, const QJsonValue& value) {
   auto* node = findNode(root_, nodeId);
-  if (!node || field.isEmpty() || frame < 0) return false;
+  if (!node || field.isEmpty() || frame < 0 ||
+      (!value.isDouble() && !value.isString() && !value.isBool())) return false;
 
   auto keyframes = node->keyframes.value(field).toArray();
   bool replaced = false;
