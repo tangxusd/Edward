@@ -1,0 +1,69 @@
+#include "edward/resources/supabase_auth_client.hpp"
+
+#include <QJsonDocument>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QPointer>
+#include <QUrl>
+
+namespace edward::resources {
+
+std::optional<SupabaseSignInRequest> SupabaseAuthClient::buildPasswordSignInRequest(
+    const SupabaseAuthConfig& config, const QString& email, const QString& password, QString* error) {
+  const auto fail = [error](const QString& message) -> std::optional<SupabaseSignInRequest> {
+    if (error) *error = message;
+    return std::nullopt;
+  };
+  const QUrl projectUrl(config.projectUrl);
+  if (!projectUrl.isValid() || projectUrl.scheme() != QStringLiteral("https") ||
+      projectUrl.host().isEmpty() || (!projectUrl.path().isEmpty() && projectUrl.path() != QStringLiteral("/")))
+    return fail(QStringLiteral("Supabase project URL must be an HTTPS origin"));
+  if (config.anonKey.isEmpty()) return fail(QStringLiteral("Supabase anon key is required"));
+  if (email.isEmpty() || password.isEmpty()) return fail(QStringLiteral("email and password are required"));
+  QUrl endpoint(projectUrl);
+  endpoint.setPath(QStringLiteral("/auth/v1/token"));
+  endpoint.setQuery(QStringLiteral("grant_type=password"));
+  return SupabaseSignInRequest{endpoint.toString(), config.anonKey,
+                               QJsonObject{{"email", email}, {"password", password}}};
+}
+
+bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, const QString& email,
+                                            const QString& password, AuthSessionStore* sessions) {
+  if (!sessions) {
+    emit completed(false, QStringLiteral("登录会话不可用"));
+    return false;
+  }
+  QString error;
+  const auto requestData = buildPasswordSignInRequest(config, email, password, &error);
+  if (!requestData) {
+    emit completed(false, error);
+    return false;
+  }
+  QNetworkRequest request{QUrl(requestData->endpoint)};
+  request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("apikey", requestData->anonKey.toUtf8());
+  auto* reply = network_.post(request, QJsonDocument(requestData->body).toJson(QJsonDocument::Compact));
+  QPointer<AuthSessionStore> sessionStore(sessions);
+  connect(reply, &QNetworkReply::finished, this, [this, reply, sessionStore] {
+    const auto body = reply->readAll();
+    QJsonParseError parseError;
+    const auto response = QJsonDocument::fromJson(body, &parseError);
+    const auto object = response.isObject() ? response.object() : QJsonObject{};
+    const auto userId = object.value("user").toObject().value("id").toString();
+    const auto username = object.value("user").toObject().value("email").toString();
+    const auto accessToken = object.value("access_token").toString();
+    const bool success = reply->error() == QNetworkReply::NoError && !userId.isEmpty() &&
+                         !username.isEmpty() && !accessToken.isEmpty();
+    if (success && sessionStore) sessionStore->setSession({userId, username, accessToken});
+    const auto message = success ? QStringLiteral("登录成功")
+                                 : (reply->error() == QNetworkReply::NoError
+                                        ? QStringLiteral("登录响应缺少会话字段")
+                                        : reply->errorString());
+    emit completed(success && !sessionStore.isNull(),
+                   sessionStore ? message : QStringLiteral("登录会话已关闭"));
+    reply->deleteLater();
+  });
+  return true;
+}
+
+}  // namespace edward::resources

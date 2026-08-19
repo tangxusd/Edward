@@ -1974,4 +1974,10 @@
 
 - 目的：为真实登录和组件上传提供统一的当前用户会话边界。
 - 修改：新增 `AuthSessionStore`，支持设置、读取和清除用户会话；access token 仅保留在进程内，不写入磁盘。
-- 验证：会话定向测试和组件上传测试通过；待本轮完整 CTest。
+- 验证：会话定向测试和组件上传测试通过；完整 CTest 21/21 通过。
+
+## 239. Edward 0.3.0 Supabase 密码登录客户端
+
+- 目的：将 Supabase Auth 密码登录响应转换为 Edward 内存会话，供已认证上传直接使用。
+- 修改：新增 HTTPS `auth/v1/token?grant_type=password` 异步客户端，传入项目 URL 与 anon key；成功时提取用户 ID、邮箱和 access token 写入 `AuthSessionStore`，配置和令牌不落盘。
+- 验证：请求格式、非法 URL、缺少凭据和未登录会话路径定向测试通过；完整 CTest 21/21 通过。
