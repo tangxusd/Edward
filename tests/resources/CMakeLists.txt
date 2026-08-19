@@ -1,3 +1,6 @@
 add_executable(test_component_package test_component_package.cpp)
 target_link_libraries(test_component_package PRIVATE edward_resources)
 add_test(NAME resources.component_package COMMAND test_component_package)
+add_executable(test_component_upload test_component_upload.cpp)
+target_link_libraries(test_component_upload PRIVATE edward_resources)
+add_test(NAME resources.component_upload COMMAND test_component_upload)
