@@ -187,6 +187,12 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "保存组件 JSON"
+                        enabled: workbenchRuntime.demoOverlayEnabled
+                        onClicked: componentSaveDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "清除组件叠加"
                         enabled: workbenchRuntime.demoOverlayEnabled
                         onClicked: workbenchRuntime.clearComponentOverlay()
@@ -258,6 +264,14 @@ ApplicationWindow {
                          "export-" + workbenchRuntime.playheadFrame,
                          compositionIdField.text,
                          selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: componentSaveDialog
+        title: "保存组件 JSON"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["组件 JSON (*.json)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.saveComponentJson(selectedFile.toLocalFile())
     }
 
     Dialog {

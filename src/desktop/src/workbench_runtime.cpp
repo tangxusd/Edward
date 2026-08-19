@@ -3,6 +3,7 @@
 #include "edward/plugins/plugin_host.hpp"
 
 #include <QVariantMap>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -143,6 +144,14 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
+}
+
+bool WorkbenchRuntime::saveComponentJson(const QString& path) const {
+  if (path.isEmpty() || !demoOverlayIr_) return false;
+  QFile file(path);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+  const auto bytes = QJsonDocument(demoOverlayIr_->toJson()).toJson(QJsonDocument::Indented);
+  return file.write(bytes) == bytes.size();
 }
 
 bool WorkbenchRuntime::loadPluginFrameJson(const QString& requestId, const QString& json) {

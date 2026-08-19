@@ -51,6 +51,13 @@ int main() {
   const auto transformedBox = runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject();
   assert(transformedBox.value("transform").toObject().value("scaleX").toDouble() == 1.5);
   assert(transformedBox.value("transform").toObject().value("rotation").toDouble() == 30.0);
+  const auto savedPath = directory.path() + QStringLiteral("/component.json");
+  assert(runtime.saveComponentJson(savedPath));
+  QFile saved(savedPath);
+  assert(saved.open(QIODevice::ReadOnly));
+  assert(QJsonDocument::fromJson(saved.readAll()).object().value("version").toString() == "1");
+  edward::desktop::WorkbenchRuntime emptyRuntime;
+  assert(!emptyRuntime.saveComponentJson(directory.path() + QStringLiteral("/empty.json")));
   runtime.clearInstalledPlugin();
   assert(!runtime.installedPluginAvailable());
   return 0;
