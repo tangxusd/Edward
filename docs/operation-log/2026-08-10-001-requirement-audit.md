@@ -1819,3 +1819,9 @@
 - 目的：修复新增插件入口在实际 QML 加载时的属性错误。
 - 修改：将未定义的 `DesignTokens.textMuted` 改为已有文本颜色；将不支持目录模式的 `FileDialog` 替换为 `FolderDialog`，使用 `selectedFolder` 传入插件根目录。
 - 验证：待本轮离屏启动和完整 CTest。
+
+## 213. Edward 0.3.0 插件进程端到端预览测试
+
+- 目的：验证真实独立插件进程能够被宿主启动，并返回透明预览帧进入统一解析链。
+- 修改：新增测试 RPC 插件进程和 `plugins.plugin_process`；测试创建临时安装目录、复制插件入口、发起 `renderFrame` 并校验返回 PNG 尺寸与 Alpha。
+- 验证：待本轮构建与完整 CTest。
