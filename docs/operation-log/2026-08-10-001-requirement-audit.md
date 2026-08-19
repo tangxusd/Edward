@@ -2156,3 +2156,9 @@
 - 目的：让外部 HyperFrames 适配器在未来 macOS 与 Windows CI 中使用同一份完整依赖解析，而不是在不同平台补写 lockfile。
 - 修改：由 npm 补齐 `plugins/hyperframes-host/package-lock.json` 中跨平台可选 esbuild 包及已有依赖的 `resolved`/`integrity` 元数据。
 - 验证：在适配器目录执行 `npm ci --dry-run --ignore-scripts --no-audit --no-fund`，仅列出 lockfile 已声明的 25 个非当前平台可选包，无版本冲突或缺失依赖错误。
+
+## 268. Edward 外部插件发布安全门规划
+
+- 目的：把外部适配器从当前受控子进程升级为可验证运行时、OS 级最小权限和正式发行门，避免将 PATH Node 或普通 QProcess 误认为沙盒。
+- 修改：新增 `docs/superpowers/plans/2026-08-19-external-plugin-release-security.md`，拆分安全合同、固定运行时与签名信任根、macOS 执行器、Windows AppContainer 执行器和发行验收五个里程碑。
+- 结果：已确认现有实现仍继承用户权限；macOS 本机存在 `sandbox-exec`，但其单平台性质与当前 PATH 运行时不满足发布级要求，因此未接入为临时替代方案。
