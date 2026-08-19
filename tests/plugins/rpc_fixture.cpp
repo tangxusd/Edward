@@ -35,7 +35,7 @@ int main() {
     output.write("edward-plugin-export");
     output.close();
     const QJsonObject result{{"outputPath", params.value("outputPath")}, {"width", params.value("width")},
-                             {"height", params.value("height")}, {"frameCount", 24}, {"hasAlpha", true}};
+                             {"height", params.value("height")}, {"frameCount", params.value("frameCount")}, {"hasAlpha", true}};
     const QJsonObject response{{"jsonrpc", "2.0"}, {"id", object.value("id")}, {"result", result}};
     std::cout << QJsonDocument(response).toJson(QJsonDocument::Compact).toStdString() << '\n';
     return 0;

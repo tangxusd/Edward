@@ -64,8 +64,10 @@ int main(int argc, char** argv) {
       QJsonObject{{"pluginId", "fixture"}, {"version", "1.0.0"}, {"entry", "fixture"},
                   {"capabilities", QJsonArray{"renderFrame", "renderExport"}}});
   assert(exported);
+  const edward::plugins::RenderExportRequest exportRequest{
+      "request-2", "main", "main.mov", QSize(4, 3), 24, 25, 1, 2000};
   const auto exportResult = edward::plugins::exportPlugin(
-      *exported, root, root, "request-2", "main", "main.mov", QSize(4, 3), 2000, &error);
+      *exported, root, root, exportRequest, &error);
   assert(exportResult);
   assert(exportResult->outputPath == "main.mov");
   assert(exportResult->frameCount == 24);

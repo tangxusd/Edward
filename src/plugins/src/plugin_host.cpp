@@ -127,8 +127,9 @@ bool validateRpcParams(const QString& method, const QJsonObject& params, QString
   if (method == "renderExport") {
     const auto output = params.value("outputPath").toString();
     if (output.isEmpty() || output.startsWith('/') || output.contains("..") || output.contains("\\") ||
-        !positiveInt("width") || !positiveInt("height")) {
-      if (error) *error = QStringLiteral("renderExport requires safe outputPath and positive width/height");
+        !positiveInt("width") || !positiveInt("height") || !positiveInt("frameCount") ||
+        !positiveInt("fpsNumerator") || !positiveInt("fpsDenominator")) {
+      if (error) *error = QStringLiteral("renderExport requires safe outputPath, size, frameCount and frame rate");
       return false;
     }
     return true;
@@ -364,23 +365,23 @@ std::optional<edward::core::ComponentIr> describePlugin(const PluginManifest& ma
 std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
                                                const std::filesystem::path& pluginRoot,
                                                const std::filesystem::path& outputRoot,
-                                               const QString& requestId,
-                                               const QString& compositionId,
-                                               const QString& outputPath,
-                                               const QSize& size,
-                                               int timeoutMs,
+                                               const RenderExportRequest& request,
                                                QString* error) {
-  if (requestId.isEmpty() || compositionId.isEmpty() || outputPath.isEmpty() || size.isEmpty() ||
-      outputRoot.empty() || !std::filesystem::is_directory(outputRoot)) {
+  if (request.requestId.isEmpty() || request.compositionId.isEmpty() || request.outputPath.isEmpty() ||
+      request.size.isEmpty() || request.frameCount <= 0 || request.fpsNumerator <= 0 ||
+      request.fpsDenominator <= 0 || request.timeoutMs <= 0 || outputRoot.empty() ||
+      !std::filesystem::is_directory(outputRoot)) {
     if (error) *error = QStringLiteral("renderExport request is incomplete");
     return std::nullopt;
   }
-  const RpcRequest request{requestId, QStringLiteral("renderExport"),
-                           {{"compositionId", compositionId}, {"outputPath", outputPath},
-                            {"width", size.width()}, {"height", size.height()}}};
-  const auto response = callPlugin(manifest, pluginRoot, outputRoot, request, timeoutMs, error);
+  const RpcRequest rpc{request.requestId, QStringLiteral("renderExport"),
+                       {{"compositionId", request.compositionId}, {"outputPath", request.outputPath},
+                        {"width", request.size.width()}, {"height", request.size.height()},
+                        {"frameCount", request.frameCount}, {"fpsNumerator", request.fpsNumerator},
+                        {"fpsDenominator", request.fpsDenominator}}};
+  const auto response = callPlugin(manifest, pluginRoot, outputRoot, rpc, request.timeoutMs, error);
   if (!response) return std::nullopt;
-  if (response->id != requestId || response->result.isEmpty()) {
+  if (response->id != request.requestId || response->result.isEmpty()) {
     if (error) *error = QStringLiteral("renderExport rpc response is not a matching success response");
     return std::nullopt;
   }
@@ -388,8 +389,9 @@ std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
   if (!result) return std::nullopt;
   const auto outputFile = outputRoot / result->outputPath.toStdString();
   std::error_code sizeError;
-  if (result->outputPath != outputPath || !std::filesystem::is_regular_file(outputFile) ||
-      std::filesystem::file_size(outputFile, sizeError) == 0 || sizeError) {
+  if (result->outputPath != request.outputPath || result->size != request.size ||
+      result->frameCount != request.frameCount || !result->hasAlpha ||
+      !std::filesystem::is_regular_file(outputFile) || std::filesystem::file_size(outputFile, sizeError) == 0 || sizeError) {
     if (error) *error = QStringLiteral("plugin export output is unavailable or does not match request");
     return std::nullopt;
   }

@@ -10,6 +10,19 @@
     "params": {"type": "object"}
   },
   "$defs": {
+    "renderExportParams": {
+      "type": "object",
+      "required": ["compositionId", "outputPath", "width", "height", "frameCount", "fpsNumerator", "fpsDenominator"],
+      "properties": {
+        "compositionId": {"type": "string", "minLength": 1},
+        "outputPath": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.?(/|$)).+"},
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "frameCount": {"type": "integer", "minimum": 1},
+        "fpsNumerator": {"type": "integer", "minimum": 1},
+        "fpsDenominator": {"type": "integer", "minimum": 1}
+      }
+    },
     "renderExportResult": {
       "type": "object",
       "required": ["outputPath", "width", "height", "frameCount", "hasAlpha"],

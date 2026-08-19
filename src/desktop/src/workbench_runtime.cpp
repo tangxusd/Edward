@@ -470,11 +470,17 @@ bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QSt
   }
   pluginExportBusy_ = true;
   emit timelineChanged();
-  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputRoot, outputName, size] {
+  const auto snapshot = timeline_.snapshot();
+  edward::core::Frame frameCount = 0;
+  for (const auto& clip : snapshot.clips)
+    frameCount = std::max(frameCount, clip.timelineStart + clip.sourceOut - clip.sourceIn);
+  if (frameCount <= 0) frameCount = 1;
+  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputRoot, outputName, size, frameCount] {
     PluginExportResult result;
     QString error;
-    if (!edward::plugins::exportPlugin(plugin.manifest, plugin.root, outputRoot, requestId, compositionId,
-                                       outputName, size, 30000, &error)) {
+    const edward::plugins::RenderExportRequest request{requestId, compositionId, outputName, size,
+                                                        static_cast<int>(frameCount), 25, 1, 30000};
+    if (!edward::plugins::exportPlugin(plugin.manifest, plugin.root, outputRoot, request, &error)) {
       result.error = QStringLiteral("插件导出失败：%1").arg(error);
     }
     return result;

@@ -32,7 +32,9 @@ int main() {
   assert(!edward::plugins::validateRpcMethod(*manifest, "deleteProject", &error));
   assert(edward::plugins::validateRpcParams("renderFrame", QJsonObject{{"frame", 0}, {"width", 1920}, {"height", 1080}}));
   assert(!edward::plugins::validateRpcParams("renderFrame", QJsonObject{{"frame", -1}, {"width", 1920}, {"height", 1080}}, &error));
-  assert(!edward::plugins::validateRpcParams("renderExport", QJsonObject{{"outputPath", "../out.mov"}, {"width", 1920}, {"height", 1080}}, &error));
+  assert(edward::plugins::validateRpcParams("renderExport", QJsonObject{{"outputPath", "out.mov"}, {"width", 1920}, {"height", 1080}, {"frameCount", 120}, {"fpsNumerator", 25}, {"fpsDenominator", 1}}));
+  assert(!edward::plugins::validateRpcParams("renderExport", QJsonObject{{"outputPath", "../out.mov"}, {"width", 1920}, {"height", 1080}, {"frameCount", 120}, {"fpsNumerator", 25}, {"fpsDenominator", 1}}, &error));
+  assert(!edward::plugins::validateRpcParams("renderExport", QJsonObject{{"outputPath", "out.mov"}, {"width", 1920}, {"height", 1080}, {"frameCount", 120}}, &error));
   const QJsonObject component{{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "container"}}}};
   const auto described = edward::plugins::parseDescribeResult(
       *manifest, QJsonObject{{"compositionId", "comp-1"}, {"component", component},

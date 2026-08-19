@@ -2272,3 +2272,10 @@
 - 目的：防止插件依赖组件只在工作台预览显示单帧，而普通项目导出静默遗漏其完整动画，造成用户误以为成片正确。
 - 修改：普通“导出视频”在 Component IR 声明外部插件依赖时明确拒绝执行，并提示该动画必须先经过透明渲染合成路径；普通本地组件与无组件视频导出不受影响。
 - 验证：工作台测试覆盖普通视频异步导出成功、载入插件组件后普通导出被拒绝。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。
+
+## 2026-08-19 插件透明视频导出适配器
+
+- 目的：把 Remotion/HyperFrames 的动画从“单帧预览”推进到可验证的透明视频产物，为后续接入 Edward RenderGraph 的叠加层做准备。
+- 修改：两份插件 manifest 增加 `renderExport` 能力；Remotion 使用官方 `renderMedia` 输出 ProRes 4444、PNG 捕获和 `yuva444p10le`；HyperFrames 使用官方 `createRenderJob`/`executeRenderJob` 的 `mov` Alpha 管线。两者均校验相对输出路径、尺寸、帧数和有理帧率，并返回统一结果结构。Remotion 要求宿主通过 `EDWARD_CHROMIUM_EXECUTABLE` 提供固定 Chromium，缺失时拒绝渲染，不自动下载运行时。
+- 验证：Node 语法检查通过；Remotion 实际生成 160x90、2 帧、25fps、`yuva444p12le` MOV；HyperFrames 实际生成 160x90、2 帧、25fps、`yuva444p12le` MOV；插件宿主/进程/工作台插件 CTest 3/3 通过。Remotion 在未配置固定 Chromium 时沿用开发环境渲染器发现流程；发行执行器仍需注入固定 Chromium 路径。
+- 未完成：透明中间素材尚未接入普通工程导出，当前包含外部插件依赖的普通“导出视频”仍会明确拒绝，避免静默漏掉动画。

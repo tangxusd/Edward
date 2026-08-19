@@ -50,6 +50,17 @@ struct RenderExportResult final {
   bool hasAlpha = false;
 };
 
+struct RenderExportRequest final {
+  QString requestId;
+  QString compositionId;
+  QString outputPath;
+  QSize size;
+  int frameCount = 0;
+  int fpsNumerator = 0;
+  int fpsDenominator = 1;
+  int timeoutMs = 0;
+};
+
 std::optional<RenderExportResult> parseRenderExportResult(const QJsonObject& result,
                                                           QString* error = nullptr);
 
@@ -109,11 +120,7 @@ std::optional<edward::core::ComponentIr> describePlugin(const PluginManifest& ma
 std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
                                                const std::filesystem::path& pluginRoot,
                                                const std::filesystem::path& outputRoot,
-                                               const QString& requestId,
-                                               const QString& compositionId,
-                                               const QString& outputPath,
-                                               const QSize& size,
-                                               int timeoutMs,
+                                               const RenderExportRequest& request,
                                                QString* error = nullptr);
 
 }  // namespace edward::plugins
