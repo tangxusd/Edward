@@ -4,11 +4,13 @@ add_library(edward_plugins STATIC
   include/edward/plugins/installed_plugin.hpp
   include/edward/plugins/plugin_runtime_resolver.hpp
   include/edward/plugins/plugin_trust_store.hpp
+  include/edward/plugins/plugin_sandbox_policy.hpp
   src/plugin_manifest.cpp
   src/plugin_host.cpp
   src/installed_plugin.cpp
   src/plugin_runtime_resolver.cpp
   src/plugin_trust_store.cpp
+  src/plugin_sandbox_policy.cpp
 )
 target_include_directories(edward_plugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(edward_plugins PUBLIC edward_core Qt6::Core Qt6::Gui PkgConfig::EDWARD_SODIUM)

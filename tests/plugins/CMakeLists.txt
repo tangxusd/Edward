@@ -25,3 +25,6 @@ add_test(NAME plugins.plugin_runtime_resolver COMMAND test_plugin_runtime_resolv
 add_executable(test_plugin_trust_store test_plugin_trust_store.cpp)
 target_link_libraries(test_plugin_trust_store PRIVATE edward_plugins Qt6::Core)
 add_test(NAME plugins.plugin_trust_store COMMAND test_plugin_trust_store)
+add_executable(test_plugin_sandbox_policy test_plugin_sandbox_policy.cpp)
+target_link_libraries(test_plugin_sandbox_policy PRIVATE edward_plugins Qt6::Core)
+add_test(NAME plugins.plugin_sandbox_policy COMMAND test_plugin_sandbox_policy)

@@ -2205,3 +2205,10 @@
 - 目的：为后续 macOS 与 Windows 原生执行器锁定相同的文件、进程和网络边界，避免协议文档允许实际产品不支持的网络能力。
 - 修改：新增 `docs/contracts/external-plugin-sandbox.md`；`plugin-host-rpc.md` 删除过时的 `request_network` 描述，明确任何插件网络请求均被拒绝。合同定义插件根、固定运行时、任务输入/输出、只读 Chromium 缓存和任务 Chromium 临时目录的权限，并要求两端验证越界文件与网络均被拒绝。
 - 验证：合同与当前 `PluginManifest` 拒绝 `network` 权限、宿主仅允许本地读写 RPC 一致；OS 级执行器测试属于下一里程碑，尚未实施。
+
+## 276. Edward macOS 插件沙盒策略与 API 验证
+
+- 目的：为 macOS/Windows 后续执行器提供同一份最小权限路径策略，并验证 macOS 旧 Seatbelt API 是否可以承载发行合同。
+- 修改：新增 `PluginSandboxPaths` 与 macOS Seatbelt profile 生成器，定向测试固定只读插件根、固定运行时、任务输入、Chromium 缓存，以及只写任务输出和 Chromium 临时目录；网络和用户目录不进入规则。
+- 验证：`plugins.plugin_sandbox_policy` 通过。另以本机 `edward_plugin_runner` 原型调用 `sandbox_init` 验证，SDK 仅允许其加载系统命名 profile，拒绝动态规则字符串，且 API 标记为“不再支持”；原型未提交并已删除。
+- 结论：不得以 `sandbox_init` 或 `sandbox-exec` 降级实现 M3。正式 macOS 执行器需采用 Apple App Sandbox helper、受控安全范围路径及可用的签名/provisioning；该外部签名条件尚未具备，M3 不标记完成。

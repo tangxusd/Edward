@@ -62,6 +62,8 @@
 
 ### M3：macOS 最小权限执行器
 
+**当前进度：** 已落地并测试跨平台共用的最小权限路径策略。经本机验证，旧 `sandbox_init` API 只能使用系统预置 profile、已在 SDK 中标记为不支持，不能表达任务目录白名单，因此不采用。正式实现改为 Apple App Sandbox helper 与受控安全范围路径；这要求配置可用于该 entitlement 的 macOS 签名与 provisioning，当前本机尚未具备。
+
 **涉及文件：**
 
 - Create: `src/plugins/include/edward/plugins/plugin_sandbox_runner.hpp`
