@@ -40,6 +40,7 @@ int main(int argc, char** argv) {
   QTemporaryDir directory;
   assert(directory.isValid());
   const auto root = std::filesystem::path(directory.path().toStdString());
+  runtime.clearComponentOverlay();
   const auto exportPath = directory.path() + QStringLiteral("/timeline.mp4");
   bool exported = false;
   QEventLoop exportLoop;
@@ -65,6 +66,9 @@ int main(int argc, char** argv) {
                      .toJson(QJsonDocument::Compact));
   manifest.close();
 
+  assert(runtime.loadComponentJson(QStringLiteral(
+      "{\"version\":\"1\",\"root\":{\"id\":\"root\",\"type\":\"container\"},"
+      "\"pluginDependency\":{\"pluginId\":\"remotion\",\"version\":\"1.0.0\"}}")));
   assert(runtime.selectInstalledPlugin(directory.path()));
   assert(runtime.installedPluginAvailable());
   assert(runtime.installedPluginId() == "remotion");
@@ -84,6 +88,7 @@ int main(int argc, char** argv) {
   assert(runtime.componentJson().value("root").toObject().value("id") == "root");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
+  assert(!runtime.exportTimeline(directory.path() + QStringLiteral("/plugin-component.mp4")));
   runtime.generateComponentDraft();
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));

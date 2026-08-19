@@ -496,6 +496,10 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
     emit operationFailed(QStringLiteral("时间线没有可导出的视频片段"));
     return false;
   }
+  if (demoOverlayIr_ && demoOverlayIr_->pluginDependency()) {
+    emit operationFailed(QStringLiteral("当前插件动画尚未完成透明渲染合成，不能导出缺失动画的视频"));
+    return false;
+  }
   edward::core::Frame lastFrame = 0;
   for (const auto& clip : snapshot.clips)
     lastFrame = std::max(lastFrame, clip.timelineStart + clip.sourceOut - clip.sourceIn);
