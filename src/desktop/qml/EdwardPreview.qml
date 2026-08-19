@@ -88,6 +88,7 @@ Item {
 
         Rectangle {
             id: componentBounds
+            z: 2
             visible: root.componentOverlayEnabled
             x: canvas.width / 2 - root.componentX - width / 2
             y: canvas.height / 2 - root.componentY - height / 2
