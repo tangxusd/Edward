@@ -2230,3 +2230,9 @@
 - 目的：让用户可以安全试用移动、分割和删除等编辑操作，并回退到上一个时间线状态。
 - 修改：`TimelineController` 暴露核心 `TimelineCommands` 的撤销/重做；`WorkbenchRuntime` 增加 QML 可调用的 `undoTimeline` 与 `redoTimeline`；时间线工具栏增加“撤销”和“重做”入口。
 - 验证：控制器测试覆盖片段移动后撤销并重做；视觉路由测试覆盖两个工作台入口。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。
+
+## 280. Edward 播放头裁切入口
+
+- 目的：提供比“先分割再删除”更直接的基础剪辑操作，让用户按播放头裁掉片段左侧或右侧内容。
+- 修改：`TimelineController` 将核心 `trimClip` 暴露为左裁切和右裁切；`WorkbenchRuntime` 增加对应 QML 命令与边界失败提示；时间线工具栏加入“左裁切”和“右裁切”。
+- 验证：控制器测试确认左裁切会同步移动时间线起点并更新源入点；视觉路由测试确认两个入口已绑定。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。

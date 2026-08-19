@@ -570,6 +570,24 @@ bool WorkbenchRuntime::moveSelected(qlonglong destination) {
   return true;
 }
 
+bool WorkbenchRuntime::trimSelectedLeft() {
+  if (!controller_.trimSelectedLeftToPlayhead()) {
+    emit operationFailed(QStringLiteral("播放头必须位于选中片段内部"));
+    return false;
+  }
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::trimSelectedRight() {
+  if (!controller_.trimSelectedRightToPlayhead()) {
+    emit operationFailed(QStringLiteral("播放头必须位于选中片段内部"));
+    return false;
+  }
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::undoTimeline() {
   if (!controller_.undo()) return false;
   emit timelineChanged();

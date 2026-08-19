@@ -47,6 +47,21 @@ bool TimelineController::moveSelectedTo(edward::core::Frame destination) {
   return selectedClip_ != 0 && commands_.moveClip(selectedClip_, destination);
 }
 
+bool TimelineController::trimSelectedLeftToPlayhead() {
+  const auto selected = timeline_.clip(selectedClip_);
+  if (!selected) return false;
+  const auto playhead = timeline_.snapshot().playheadFrame;
+  const auto end = selected->timelineStart + selected->sourceOut - selected->sourceIn;
+  return commands_.trimClip(selectedClip_, playhead, end);
+}
+
+bool TimelineController::trimSelectedRightToPlayhead() {
+  const auto selected = timeline_.clip(selectedClip_);
+  if (!selected) return false;
+  const auto playhead = timeline_.snapshot().playheadFrame;
+  return commands_.trimClip(selectedClip_, selected->timelineStart, playhead);
+}
+
 bool TimelineController::undo() { return commands_.undo(); }
 bool TimelineController::redo() { return commands_.redo(); }
 

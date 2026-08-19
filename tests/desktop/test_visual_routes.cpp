@@ -51,6 +51,8 @@ int main() {
   assert(timeline.find("moveSelected") != std::string::npos);
   assert(timeline.find("undoTimeline") != std::string::npos);
   assert(timeline.find("redoTimeline") != std::string::npos);
+  assert(timeline.find("trimSelectedLeft") != std::string::npos);
+  assert(timeline.find("trimSelectedRight") != std::string::npos);
   assert(timeline.find("property int videoTrackCount") != std::string::npos);
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);
   assert(preview.find("预览窗") != std::string::npos);

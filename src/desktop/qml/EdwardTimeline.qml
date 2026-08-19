@@ -45,6 +45,14 @@ Item {
             onClicked: root.rippleDeleteRequested()
         }
         Button {
+            text: "左裁切"
+            onClicked: workbenchRuntime.trimSelectedLeft()
+        }
+        Button {
+            text: "右裁切"
+            onClicked: workbenchRuntime.trimSelectedRight()
+        }
+        Button {
             text: "撤销"
             onClicked: workbenchRuntime.undoTimeline()
         }

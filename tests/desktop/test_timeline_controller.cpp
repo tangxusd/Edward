@@ -19,6 +19,12 @@ int main(int argc, char** argv) {
   assert(timeline.clips(tracks[0]).size() == 1);
   assert(timeline.clips(tracks[1]).size() == 1);
   assert(controller.selectedClip() == 2);
+  assert(controller.selectClip(1));
+  assert(controller.setPlayhead(10));
+  assert(controller.trimSelectedLeftToPlayhead());
+  assert(timeline.clip(1)->timelineStart == 10);
+  assert(timeline.clip(1)->sourceIn == 10);
+  assert(controller.selectClip(2));
   assert(controller.moveSelectedTo(10));
   assert(timeline.clips(tracks[1]).front().timelineStart == 10);
   assert(controller.undo());
