@@ -6,6 +6,7 @@ Item {
     property int playheadFrame: 0
     property int durationFrames: 1
     property url source
+    property bool hasFrame: false
     property bool componentOverlayEnabled: false
     property int componentX: 0
     property int componentY: 0
@@ -116,7 +117,8 @@ Item {
 
         Image {
             anchors.fill: parent
-            source: root.source.toString() !== "" ? root.source : ("image://edward/frame?frame=" + root.playheadFrame)
+            source: root.source.toString() !== "" ? root.source :
+                    (root.hasFrame ? "image://edward/frame?frame=" + root.playheadFrame : "")
             cache: false
             fillMode: Image.PreserveAspectFit
             visible: status === Image.Ready || source !== ""

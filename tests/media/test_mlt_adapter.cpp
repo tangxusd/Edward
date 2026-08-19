@@ -17,6 +17,13 @@ int main(int argc, char** argv) {
   assert(later.has_value());
   assert(first->width() == 16 && first->height() == 16);
   assert(later->size() == first->size());
+  edward::core::Timeline timelineWithGap(25);
+  const auto gapTrack = timelineWithGap.addVideoTrack();
+  assert(timelineWithGap.insertClip({1, gapTrack, argv[1], 0, 12, 0}));
+  const auto gapFrame = adapter.renderFrame(timelineWithGap.snapshot(), 20);
+  assert(gapFrame.has_value());
+  assert(gapFrame->size() == first->size());
+  assert(gapFrame->pixelColor(0, 0) == QColor(Qt::black));
   assert(!adapter.renderFrame(timeline.snapshot(), 25).has_value());
   return 0;
 }

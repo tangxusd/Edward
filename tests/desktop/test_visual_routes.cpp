@@ -19,6 +19,9 @@ int main() {
   assert(workbench.find("demoOverlayX") != std::string::npos);
   assert(preview.find("componentDragged") != std::string::npos);
   assert(preview.find("id: componentBounds\n            z: 2") != std::string::npos);
+  assert(preview.find("property bool hasFrame") != std::string::npos);
+  assert(preview.find("root.hasFrame ? \"image://edward") != std::string::npos);
+  assert(workbench.find("hasFrame: workbenchRuntime.clips.length > 0") != std::string::npos);
   assert(workbench.find("demoOverlayOpacity") != std::string::npos);
   assert(workbench.find("demoOverlayScale") != std::string::npos);
   assert(workbench.find("demoOverlayRotation") != std::string::npos);

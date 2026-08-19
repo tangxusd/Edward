@@ -57,6 +57,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     playheadFrame: workbenchRuntime.playheadFrame
+                    hasFrame: workbenchRuntime.clips.length > 0
                     componentOverlayEnabled: workbenchRuntime.demoOverlayEnabled
                     componentX: workbenchRuntime.demoOverlayX
                     componentY: workbenchRuntime.demoOverlayY

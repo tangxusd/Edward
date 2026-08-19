@@ -24,11 +24,12 @@ std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapsh
     const auto duration = candidate.sourceOut - candidate.sourceIn;
     return frame >= candidate.timelineStart && frame < candidate.timelineStart + duration;
   });
-  if (clip == snapshot.clips.end()) return std::nullopt;
+  const auto reference = clip == snapshot.clips.end() ? snapshot.clips.begin() : clip;
+  if (reference == snapshot.clips.end()) return std::nullopt;
 
   const auto profile = mlt_profile_init(nullptr);
   if (!profile) return std::nullopt;
-  const auto resource = clip->source.string();
+  const auto resource = reference->source.string();
   const auto producer = mlt_factory_producer(profile, nullptr, resource.c_str());
   if (!producer) {
     mlt_profile_close(profile);
@@ -36,6 +37,17 @@ std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapsh
   }
 
   mlt_profile_from_producer(profile, producer);
+  if (clip == snapshot.clips.end()) {
+    std::optional<QImage> result;
+    if (profile->width > 0 && profile->height > 0) {
+      QImage blackFrame(profile->width, profile->height, QImage::Format_RGBA8888);
+      blackFrame.fill(Qt::black);
+      result = std::move(blackFrame);
+    }
+    mlt_producer_close(producer);
+    mlt_profile_close(profile);
+    return result;
+  }
   const auto sourceFrame = clip->sourceIn + frame - clip->timelineStart;
   mlt_producer_seek(producer, sourceFrame);
   mlt_frame nativeFrame = nullptr;
