@@ -66,14 +66,6 @@ int main(int argc, char** argv) {
   assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
   runtime.generateComponentDraft();
-  const auto projectPath = directory.path() + QStringLiteral("/project.edward.json");
-  assert(runtime.saveProject(projectPath));
-  edward::desktop::WorkbenchRuntime restoredRuntime;
-  assert(restoredRuntime.loadProject(projectPath));
-  assert(restoredRuntime.videoTrackCount() == 2);
-  assert(restoredRuntime.clips().size() == 2);
-  assert(!restoredRuntime.componentJson().isEmpty());
-  assert(!restoredRuntime.loadProject(directory.path() + QStringLiteral("/missing.edward.json")));
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));
   assert(runtime.setPlayhead(12));
@@ -100,6 +92,21 @@ int main(int argc, char** argv) {
   const auto transformedBox = runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject();
   assert(transformedBox.value("transform").toObject().value("scaleX").toDouble() == 1.5);
   assert(transformedBox.value("transform").toObject().value("rotation").toDouble() == 30.0);
+  const auto projectPath = directory.path() + QStringLiteral("/project.edward.json");
+  assert(runtime.saveProject(projectPath));
+  edward::desktop::WorkbenchRuntime restoredRuntime;
+  assert(restoredRuntime.loadProject(projectPath));
+  assert(restoredRuntime.videoTrackCount() == 2);
+  assert(restoredRuntime.clips().size() == 2);
+  assert(restoredRuntime.demoOverlayX() == -180);
+  assert(restoredRuntime.demoOverlayY() == -40);
+  assert(restoredRuntime.demoOverlayWidth() == 300);
+  assert(restoredRuntime.demoOverlayHeight() == 100);
+  assert(restoredRuntime.demoOverlayOpacity() == 0.5);
+  assert(restoredRuntime.demoOverlayScale() == 1.5);
+  assert(restoredRuntime.demoOverlayRotation() == 30.0);
+  assert(!restoredRuntime.componentJson().isEmpty());
+  assert(!restoredRuntime.loadProject(directory.path() + QStringLiteral("/missing.edward.json")));
   const auto savedPath = directory.path() + QStringLiteral("/component.json");
   assert(runtime.saveComponentJson(savedPath));
   const auto packagePath = directory.path() + QStringLiteral("/package");

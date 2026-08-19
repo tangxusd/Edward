@@ -122,6 +122,7 @@ class WorkbenchRuntime final : public QObject {
 
  private:
   void refreshDemoOverlay();
+  void syncDemoOverlayProperties(const QJsonObject& component);
   edward::core::Timeline timeline_;
   edward::core::TrackId videoTrack_;
   TimelineController controller_;

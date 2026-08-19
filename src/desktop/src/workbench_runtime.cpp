@@ -32,6 +32,15 @@ std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, in
   const QJsonObject root{{"id", "demo-root"}, {"type", "container"}, {"children", QJsonArray{box, text}}};
   return edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
 }
+
+std::optional<QJsonObject> findNode(const QJsonObject& node, const QString& id) {
+  if (node.value("id").toString() == id) return node;
+  for (const auto& child : node.value("children").toArray()) {
+    if (!child.isObject()) continue;
+    if (const auto result = findNode(child.toObject(), id)) return result;
+  }
+  return std::nullopt;
+}
 }  // namespace
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
@@ -100,6 +109,23 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
 
 void WorkbenchRuntime::refreshDemoOverlay() {
   if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlayIr_);
+}
+
+void WorkbenchRuntime::syncDemoOverlayProperties(const QJsonObject& component) {
+  const auto box = findNode(component.value("root").toObject(), QStringLiteral("demo-box"));
+  if (!box) return;
+  const auto transform = box->value("transform").toObject();
+  const auto properties = box->value("properties").toObject();
+  if (transform.value("x").isDouble()) demoOverlayX_ = transform.value("x").toInt();
+  if (transform.value("y").isDouble()) demoOverlayY_ = transform.value("y").toInt();
+  if (transform.value("width").isDouble()) demoOverlayWidth_ = transform.value("width").toInt();
+  if (transform.value("height").isDouble()) demoOverlayHeight_ = transform.value("height").toInt();
+  if (transform.value("scaleX").isDouble()) demoOverlayScale_ = transform.value("scaleX").toDouble();
+  if (transform.value("rotation").isDouble()) demoOverlayRotation_ = transform.value("rotation").toDouble();
+  if (properties.value("opacity").isDouble()) demoOverlayOpacity_ = properties.value("opacity").toDouble();
+  const auto text = findNode(component.value("root").toObject(), QStringLiteral("demo-text"));
+  if (text && text->value("properties").toObject().value("text").isString())
+    demoOverlayText_ = text->value("properties").toObject().value("text").toString();
 }
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
@@ -193,6 +219,7 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
     return false;
   }
   demoOverlayIr_ = std::move(component);
+  syncDemoOverlayProperties(document.object());
   demoOverlayEnabled_ = true;
   refreshDemoOverlay();
   emit timelineChanged();
@@ -603,6 +630,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   }
   if (!timeline_.restore(snapshot)) return false;
   demoOverlayIr_ = std::move(component);
+  if (demoOverlayIr_) syncDemoOverlayProperties(project.value("component").toObject());
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
   renderGraph_.setOverlay(demoOverlayIr_);
   emit timelineChanged();
