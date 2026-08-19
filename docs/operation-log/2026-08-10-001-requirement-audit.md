@@ -1987,3 +1987,9 @@
 - 目的：让用户能够从 Edward 工作台发起真实 Supabase 登录，并将成功会话传给后续上传流程。
 - 修改：`WorkbenchRuntime` 持有 `AuthSessionStore` 与 `SupabaseAuthClient`，提供登录、登出和状态属性；QML 新增居中登录弹窗和 5 秒成功提示。项目 URL、anon key、邮箱、密码和 token 均不落盘。
 - 验证：工作台定向测试、QML 启动检查和完整 CTest 21/21 通过。未使用真实账号请求。
+
+## 241. Edward 0.3.0 已认证组件上传入口
+
+- 目的：将工作台当前组件、登录会话和异步上传客户端连接为可操作的用户上传路径。
+- 修改：`WorkbenchRuntime` 增加认证保护的当前组件上传入口，自动带入 Component IR 插件依赖；QML 增加上传地址、资源 ID、显示名称弹窗。未登录、无组件、重复上传均在本地拒绝。
+- 验证：工作台、上传合同和视觉路由定向测试通过；完整 CTest 21/21 和 macOS offscreen 应用启动检查通过。未执行真实网络上传。

@@ -45,6 +45,15 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
               emit operationFailed(message);
             emit timelineChanged();
           });
+  connect(&componentUploadClient_, &edward::resources::ComponentUploadClient::completed, this,
+          [this](bool success, const QString& message, const QJsonObject&) {
+            componentUploadBusy_ = false;
+            if (success)
+              emit operationSucceeded(message);
+            else
+              emit operationFailed(message);
+            emit timelineChanged();
+          });
   connect(&pluginFrameWatcher_, &QFutureWatcher<PluginFrameResult>::finished, this, [this] {
     pluginRenderBusy_ = false;
     const auto result = pluginFrameWatcher_.result();
@@ -200,6 +209,27 @@ bool WorkbenchRuntime::signInWithSupabase(const QString& projectUrl, const QStri
 void WorkbenchRuntime::signOut() {
   sessions_.clear();
   emit operationSucceeded(QStringLiteral("已退出登录"));
+}
+
+bool WorkbenchRuntime::uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
+                                              const QString& displayName) {
+  if (componentUploadBusy_ || !demoOverlayIr_ || !sessions_.authenticated()) {
+    emit operationFailed(QStringLiteral("需要已登录的当前组件才能上传"));
+    return false;
+  }
+  edward::resources::ComponentPackage package{resourceId, displayName, *demoOverlayIr_, {}, {}, {}, {}};
+  if (const auto dependency = demoOverlayIr_->pluginDependency()) {
+    package.pluginId = dependency->pluginId;
+    package.pluginVersion = dependency->version;
+  }
+  componentUploadBusy_ = true;
+  emit timelineChanged();
+  if (!componentUploadClient_.submit(endpoint, package, sessions_.session())) {
+    componentUploadBusy_ = false;
+    emit timelineChanged();
+    return false;
+  }
+  return true;
 }
 
 bool WorkbenchRuntime::loadPluginFrameJson(const QString& requestId, const QString& json) {

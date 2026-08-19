@@ -13,6 +13,8 @@ int main() {
   assert(!runtime.authenticated());
   assert(!runtime.signInWithSupabase("http://project.supabase.co", "anon-key", "demo@example.com", "password"));
   assert(!runtime.authenticated());
+  assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
+                                         "demo.component", "Demo component"));
   assert(!runtime.installedPluginAvailable());
   assert(!runtime.selectInstalledPlugin(QStringLiteral("/missing-plugin")));
   assert(runtime.loadComponentJson(QStringLiteral(
@@ -38,6 +40,8 @@ int main() {
   assert(runtime.installedPluginId() == "remotion");
   assert(runtime.componentPluginDependencyStatus() == QStringLiteral("插件可用"));
   runtime.generateComponentDraft();
+  assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
+                                         "demo.component", "Demo component"));
   assert(runtime.setPlayhead(12));
   runtime.setDemoOverlayX(80);
   runtime.setDemoOverlayOpacity(0.5);

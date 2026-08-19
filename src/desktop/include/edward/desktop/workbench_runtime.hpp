@@ -11,6 +11,7 @@
 #include "edward/media/render_graph.hpp"
 #include "edward/plugins/installed_plugin.hpp"
 #include "edward/resources/auth_session_store.hpp"
+#include "edward/resources/component_upload.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
 
 namespace edward::desktop {
@@ -36,6 +37,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
+  Q_PROPERTY(bool componentUploadBusy READ componentUploadBusy NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -58,6 +60,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
+  [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -80,6 +83,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool signInWithSupabase(const QString& projectUrl, const QString& anonKey,
                                       const QString& email, const QString& password);
   Q_INVOKABLE void signOut();
+  Q_INVOKABLE bool uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
+                                          const QString& displayName);
   Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
   Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);
   Q_INVOKABLE void clearInstalledPlugin();
@@ -124,6 +129,8 @@ class WorkbenchRuntime final : public QObject {
   edward::resources::AuthSessionStore sessions_;
   edward::resources::SupabaseAuthClient authClient_;
   bool signInBusy_ = false;
+  edward::resources::ComponentUploadClient componentUploadClient_;
+  bool componentUploadBusy_ = false;
 };
 
 }  // namespace edward::desktop

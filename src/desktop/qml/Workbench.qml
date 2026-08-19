@@ -211,6 +211,13 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.componentUploadBusy ? "组件上传中" : "上传组件包"
+                        enabled: workbenchRuntime.authenticated && workbenchRuntime.demoOverlayEnabled
+                                 && !workbenchRuntime.componentUploadBusy
+                        onClicked: componentUploadDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "清除组件叠加"
                         enabled: workbenchRuntime.demoOverlayEnabled
                         onClicked: workbenchRuntime.clearComponentOverlay()
@@ -271,6 +278,27 @@ ApplicationWindow {
         id: pluginDirectoryDialog
         title: "选择动画插件目录"
         onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFolder.toLocalFile())
+    }
+
+    Dialog {
+        id: componentUploadDialog
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "上传组件包"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        contentItem: Column {
+            spacing: 10
+            TextField { id: componentUploadEndpoint; placeholderText: "Supabase Edge Function HTTPS 地址" }
+            TextField { id: componentUploadResourceId; placeholderText: "资源 ID，例如 demo.card"; text: "demo.card" }
+            TextField { id: componentUploadDisplayName; placeholderText: "显示名称"; text: "Edward 组件" }
+        }
+        onAccepted: {
+            if (workbenchRuntime.uploadCurrentComponent(componentUploadEndpoint.text,
+                                                        componentUploadResourceId.text,
+                                                        componentUploadDisplayName.text))
+                close()
+        }
     }
 
     Dialog {
