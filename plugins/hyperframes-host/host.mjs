@@ -1,12 +1,16 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
-import { captureFrameToBuffer, closeCaptureSession, createCaptureSession, createFileServer, initializeSession } from "@hyperframes/producer";
+import { closeCaptureSession, createCaptureSession, createFileServer, initializeSession } from "@hyperframes/producer";
 
 const projectDir = fileURLToPath(new URL("./composition", import.meta.url));
+const adapterDir = fileURLToPath(new URL(".", import.meta.url));
 let server;
 let session;
 let sessionSize;
+const runtimeSource = await fs.readFile(path.join(adapterDir, "node_modules/@hyperframes/producer/dist/hyperframe.runtime.iife.js"), "utf8");
+const gsapSource = await fs.readFile(path.join(adapterDir, "node_modules/gsap/dist/gsap.min.js"), "utf8");
 const component = { version: "1", root: { id: "root", type: "container", children: [{ id: "card", type: "shape", properties: { color: "#151515", borderColor: "#ff9966", borderWidth: 3 }, transform: { x: 0, y: 0, width: 520, height: 320 } }] } };
 
 function response(id, result) { return { jsonrpc: "2.0", id, result }; }
@@ -15,8 +19,11 @@ function failure(id, message) { return { jsonrpc: "2.0", id, error: { code: "ada
 async function ensureSession(width, height) {
   if (session && sessionSize?.width === width && sessionSize?.height === height) return;
   if (session) { await closeCaptureSession(session); session = undefined; }
-  server ??= await createFileServer({ projectDir });
-  session = await createCaptureSession(server.url, projectDir, { width, height, fps: { num: 30, den: 1 }, format: "png", captureBeyondViewport: true });
+  server ??= await createFileServer({ projectDir, headScripts: [gsapSource, runtimeSource] });
+  session = await createCaptureSession(server.url, projectDir, {
+    width, height, fps: { num: 30, den: 1 }, format: "png", captureBeyondViewport: true,
+    config: { forceScreenshot: true },
+  });
   await initializeSession(session);
   sessionSize = { width, height };
 }
@@ -31,8 +38,9 @@ async function handle(request) {
   const { compositionId, frame, width, height } = request.params;
   if (compositionId !== "EdwardCard" || !Number.isInteger(frame) || frame < 0 || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) throw new Error("invalid_render_frame_request");
   await ensureSession(width, height);
-  const captured = await captureFrameToBuffer(session, frame, frame / 30);
-  return response(request.id, { frame, pngBase64: Buffer.from(captured.buffer).toString("base64") });
+  await session.page.evaluate((time) => window.__hf?.seek?.(time), frame / 30);
+  const png = await session.page.screenshot({ type: "png", omitBackground: true });
+  return response(request.id, { frame, pngBase64: png.toString("base64") });
 }
 
 const input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });

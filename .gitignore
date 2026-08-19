@@ -2,6 +2,8 @@
 .archives/
 .worktrees/
 build/
+plugins/*/node_modules/
+.remotion/
 
 # macOS metadata
 .DS_Store

@@ -2137,3 +2137,9 @@
 - 修改：新增 `plugins/remotion-host` 与 `plugins/hyperframes-host` 两个安装目录，各自提供固定版本依赖、Node 入口和 Edward manifest。两者都仅声明 `describe`、`renderFrame`、受限读写权限，以及可映射到 Component IR 的属性；描述结果进入 Edward 标准 Component IR，帧结果必须为透明 PNG Base64。
 - 验证：新增 `plugins.plugin_adapters`，校验两个清单均可解析、仅以 Node 启动、声明描述和透明帧能力及允许权限；`node --check` 两个入口通过；插件定向 CTest 4/4 通过。
 - 边界：适配器运行时依赖仍由用户在各自目录内安装；当前宿主尚未提供 OS 级沙盒、发布签名或网络代理，不能将这一接入视为这些发布与安全能力已经完成。
+
+## 265. Edward 0.3.0 外部适配器运行时验证
+
+- 目的：验证外部适配器不止能通过 manifest 静态检查，而能在用户独立安装运行时后返回可叠加的真实透明帧。
+- 修改：Remotion 适配器锁定 npm 依赖并完成 Chrome Headless Shell 下载；HyperFrames 组合根节点补充有限 `data-duration="5"` 与 `data-no-timeline`。后者避免未使用 GSAP 子时间线时等待默认 45 秒；适配器继续由 HyperFrames 自己创建浏览器、初始化运行时与定位时间，再使用同一会话透明截图返回 PNG。
+- 验证：Remotion 的 `describe` 返回标准 Component IR，`renderFrame(64×36, frame 0)` 返回透明 PNG Base64；HyperFrames 的同等 `describe` 和 `renderFrame` 也返回透明 PNG Base64。`plugins.plugin_adapters` 同时验证两端真实 `describe`，并固定 HyperFrames 时长与无子时间线标记。浏览器与 `node_modules` 是本机产物，均已 Git 忽略。
