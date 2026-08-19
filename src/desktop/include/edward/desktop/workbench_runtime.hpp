@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QVariantList>
 #include <QImage>
+#include <QFutureWatcher>
 
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/render_graph.hpp"
@@ -25,6 +26,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
+  Q_PROPERTY(bool pluginRenderBusy READ pluginRenderBusy NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -39,6 +41,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
+  [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
   void setDemoOverlayWidth(int value);
@@ -54,6 +57,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
   Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);
   Q_INVOKABLE void clearInstalledPlugin();
+  Q_INVOKABLE bool renderInstalledPluginFrame(const QString& requestId, const QString& compositionId);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool splitSelected();
@@ -80,6 +84,9 @@ class WorkbenchRuntime final : public QObject {
   double demoOverlayOpacity_ = 0.82;
   QString demoOverlayText_ = QStringLiteral("Edward Component");
   std::optional<edward::plugins::InstalledPlugin> installedPlugin_;
+  struct PluginFrameResult { QImage frame; QString error; };
+  QFutureWatcher<PluginFrameResult> pluginFrameWatcher_;
+  bool pluginRenderBusy_ = false;
 };
 
 }  // namespace edward::desktop

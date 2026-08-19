@@ -1801,3 +1801,9 @@
 - 目的：让工作台只保存经过安装加载器验证的插件，而不是暴露任意可执行路径给 QML。
 - 修改：新增工作台已安装插件可用状态与插件 ID；`selectInstalledPlugin` 验证根目录后保存对象，`clearInstalledPlugin` 同时清除插件预览帧。
 - 验证：新增桌面测试覆盖无效目录拒绝、有效插件选择与清除状态；待本轮完整 CTest。
+
+## 210. Edward 0.3.0 插件预览后台渲染
+
+- 目的：插件进程渲染不能阻塞工作台 UI，也不能让并发请求覆盖预览状态。
+- 修改：引入 Qt6 Concurrent 与 `QFutureWatcher`；新增 `renderInstalledPluginFrame`，单任务后台调用统一 `renderPluginFrame`，完成后在主线程更新 RenderGraph，重复请求被拒绝。
+- 验证：待本轮构建与完整 CTest。

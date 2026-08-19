@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
 
@@ -30,7 +31,18 @@ std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, in
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
-      renderGraph_(mltAdapter_) {}
+      renderGraph_(mltAdapter_) {
+  connect(&pluginFrameWatcher_, &QFutureWatcher<PluginFrameResult>::finished, this, [this] {
+    pluginRenderBusy_ = false;
+    const auto result = pluginFrameWatcher_.result();
+    if (!result.error.isEmpty()) {
+      emit operationFailed(result.error);
+    } else if (!result.frame.isNull()) {
+      renderGraph_.setPluginFrame(result.frame);
+    }
+    emit timelineChanged();
+  });
+}
 
 void WorkbenchRuntime::refreshDemoOverlay() {
   if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlayIr_);
@@ -164,6 +176,35 @@ void WorkbenchRuntime::clearInstalledPlugin() {
   installedPlugin_.reset();
   renderGraph_.setPluginFrame(std::nullopt);
   emit timelineChanged();
+}
+
+bool WorkbenchRuntime::renderInstalledPluginFrame(const QString& requestId, const QString& compositionId) {
+  if (pluginRenderBusy_) {
+    emit operationFailed(QStringLiteral("插件预览正在渲染"));
+    return false;
+  }
+  if (!installedPlugin_ || requestId.isEmpty() || compositionId.isEmpty()) {
+    emit operationFailed(QStringLiteral("插件或渲染请求参数不可用"));
+    return false;
+  }
+  const auto base = mltAdapter_.renderFrame(timeline_.snapshot(), controller_.playheadFrame());
+  if (!base) {
+    emit operationFailed(QStringLiteral("当前没有可用的预览画布"));
+    return false;
+  }
+  const auto plugin = *installedPlugin_;
+  const int frame = controller_.playheadFrame();
+  const auto size = base->size();
+  pluginRenderBusy_ = true;
+  emit timelineChanged();
+  pluginFrameWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, frame, size] {
+    PluginFrameResult result;
+    result.frame = edward::plugins::renderPluginFrame(plugin.manifest, plugin.root, requestId,
+                                                      compositionId, frame, size, 5000, &result.error)
+                       .value_or(QImage{});
+    return result;
+  }));
+  return true;
 }
 
 void WorkbenchRuntime::clearComponentOverlay() {
