@@ -194,7 +194,7 @@ std::optional<RenderExportResult> parseRenderExportResult(const QJsonObject& res
   const auto hasAlpha = result.value("hasAlpha");
   if (!safeRelative(outputPath) || !width.isDouble() || !height.isDouble() ||
       !frameCount.isDouble() || !hasAlpha.isBool() || width.toInt() <= 0 ||
-      height.toInt() <= 0 || frameCount.toInt() <= 0) {
+      height.toInt() <= 0 || frameCount.toInt() <= 0 || !hasAlpha.toBool()) {
     if (error) *error = QStringLiteral("renderExport result requires safe outputPath, positive size/frameCount and hasAlpha");
     return std::nullopt;
   }

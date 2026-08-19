@@ -2124,3 +2124,9 @@
 - 目的：避免绕过工作台加载器，直接调用底层 RPC 宿主时执行插件根目录外的符号链接。
 - 修改：`plugin_host` 的统一进程配置路径拒绝符号链接，并校验入口规范路径仍位于插件根目录；新增直接 `renderPluginFrame` 绕过加载器的失败回归。
 - 验证：插件 manifest/host/process 定向测试 3/3 通过；完整 CTest 待本次提交后执行。
+
+## 263. Edward 0.3.0 插件导出 Alpha 合同
+
+- 目的：确保插件导出结果确实是可叠加动画，而不是把不透明视频误当作透明组件素材。
+- 修改：`parseRenderExportResult` 现在要求 `hasAlpha` 字段为布尔值且必须为 `true`；新增 `false` 回归测试。
+- 验证：`plugins.plugin_host`、`plugins.plugin_process` 通过；完整 CTest 待本次提交后执行。

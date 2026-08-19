@@ -75,6 +75,9 @@ int main() {
   assert(!edward::plugins::parseRenderExportResult(
       QJsonObject{{"outputPath", "exports/animation.mov"}, {"width", 0}, {"height", 1080},
                   {"frameCount", 120}, {"hasAlpha", true}}, &error));
+  assert(!edward::plugins::parseRenderExportResult(
+      QJsonObject{{"outputPath", "exports/animation.mov"}, {"width", 1920}, {"height", 1080},
+                  {"frameCount", 120}, {"hasAlpha", false}}, &error));
   const auto processManifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "true"}, {"version", "1.0.0"}, {"entry", "true"}});
   assert(processManifest);
