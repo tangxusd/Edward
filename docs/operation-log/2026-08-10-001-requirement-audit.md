@@ -2068,3 +2068,9 @@
 - 目的：禁止把 macOS 媒体构建或测试结果误作为 Windows 发布证据。
 - 修改：新增 `docs/contracts/windows-media-validation.md`，固定同一 MSVC x64 媒体前缀、DLL 来源、完整 CTest、1080p 导出和干净 Windows 启动检查要求。
 - 结果：已记录 Windows 验证合同；尚未执行 Windows/MSI 验证。
+
+## 254. Edward 0.3.0 组件关键帧回归覆盖
+
+- 目的：确认工作台属性修改不会只更新显示状态，而是写入可保存、可导出的 Component IR。
+- 修改：扩展工作台测试，在第 12 帧断言位置、尺寸、双轴缩放、旋转和透明度均生成关键帧；文字继续作为离散节点属性保存。
+- 验证：工作台、RenderGraph、ExportJob 和 0.3 端到端定向测试 4/4 通过。

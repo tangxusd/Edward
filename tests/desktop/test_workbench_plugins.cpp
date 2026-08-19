@@ -44,17 +44,23 @@ int main() {
                                          "demo.component", "Demo component"));
   assert(runtime.setPlayhead(12));
   runtime.setDemoOverlayX(80);
+  runtime.setDemoOverlayY(-40);
+  runtime.setDemoOverlayWidth(300);
+  runtime.setDemoOverlayHeight(100);
   runtime.setDemoOverlayOpacity(0.5);
+  runtime.setDemoOverlayScale(1.5);
+  runtime.setDemoOverlayRotation(30.0);
   const auto overlay = runtime.componentJson();
   const auto nodes = overlay.value("root").toObject().value("children").toArray();
   const auto box = nodes.at(0).toObject();
-  bool xAtPlayhead = false;
-  for (const auto& keyframe : box.value("keyframes").toObject().value("x").toArray())
-    xAtPlayhead = xAtPlayhead || keyframe.toObject().value("frame").toInt() == 12;
-  assert(xAtPlayhead);
-  assert(box.value("keyframes").toObject().value("opacity").toArray().last().toObject().value("value").toDouble() == 0.5);
-  runtime.setDemoOverlayScale(1.5);
-  runtime.setDemoOverlayRotation(30.0);
+  const auto keyframes = box.value("keyframes").toObject();
+  for (const auto& field : {"x", "y", "width", "height", "scaleX", "scaleY", "rotation", "opacity"}) {
+    bool atPlayhead = false;
+    for (const auto& keyframe : keyframes.value(field).toArray())
+      atPlayhead = atPlayhead || keyframe.toObject().value("frame").toInt() == 12;
+    assert(atPlayhead);
+  }
+  assert(keyframes.value("opacity").toArray().last().toObject().value("value").toDouble() == 0.5);
   const auto transformedBox = runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject();
   assert(transformedBox.value("transform").toObject().value("scaleX").toDouble() == 1.5);
   assert(transformedBox.value("transform").toObject().value("rotation").toDouble() == 30.0);
