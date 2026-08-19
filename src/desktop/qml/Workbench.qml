@@ -165,6 +165,34 @@ ApplicationWindow {
                         enabled: workbenchRuntime.demoOverlayEnabled
                         onClicked: workbenchRuntime.clearComponentOverlay()
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选择动画插件目录"
+                        onClicked: pluginDirectoryDialog.open()
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.installedPluginAvailable
+                              ? "插件: " + workbenchRuntime.installedPluginId
+                              : "未选择动画插件"
+                        color: workbenchRuntime.installedPluginAvailable
+                               ? DesignTokens.textSecondary : DesignTokens.textMuted
+                    }
+                    TextField {
+                        id: compositionIdField
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        placeholderText: "组件 ID"
+                        text: "main"
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.pluginRenderBusy ? "插件渲染中" : "插件预览"
+                        enabled: workbenchRuntime.installedPluginAvailable && !workbenchRuntime.pluginRenderBusy
+                        onClicked: workbenchRuntime.renderInstalledPluginFrame(
+                                        "frame-" + workbenchRuntime.playheadFrame,
+                                        compositionIdField.text)
+                    }
                 }
             }
         }
@@ -176,6 +204,13 @@ ApplicationWindow {
         fileMode: FileDialog.OpenFile
         nameFilters: ["视频文件 (*.mp4 *.mov *.mkv *.webm)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.importMedia(selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: pluginDirectoryDialog
+        title: "选择动画插件目录"
+        fileMode: FileDialog.OpenDirectory
+        onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFile.toLocalFile())
     }
 
     Dialog {

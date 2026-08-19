@@ -1807,3 +1807,9 @@
 - 目的：插件进程渲染不能阻塞工作台 UI，也不能让并发请求覆盖预览状态。
 - 修改：引入 Qt6 Concurrent 与 `QFutureWatcher`；新增 `renderInstalledPluginFrame`，单任务后台调用统一 `renderPluginFrame`，完成后在主线程更新 RenderGraph，重复请求被拒绝。
 - 验证：待本轮构建与完整 CTest。
+
+## 211. Edward 0.3.0 工作台插件预览入口
+
+- 目的：让已验证插件可以从工作台实际触发后台预览，而不是只有 C++ 接口。
+- 修改：AI 面板新增插件目录选择、组件 ID 输入和插件预览按钮；按钮绑定已安装插件状态与后台忙碌状态，使用当前播放头生成请求 ID。
+- 验证：待本轮 QML 加载检查、构建和完整 CTest。
