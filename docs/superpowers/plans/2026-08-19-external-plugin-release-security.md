@@ -42,6 +42,8 @@
 
 ### M2：固定运行时与签名信任根
 
+**当前进度：** 固定 Node 目录和 SHA-256 校验、清单 Ed25519 规范化验签原语均已完成并有定向测试；真实发行公钥资产、Release 加载强制校验和运行时版本探测仍待完成。
+
 **涉及文件：**
 
 - Create: `src/plugins/include/edward/plugins/plugin_trust_store.hpp`

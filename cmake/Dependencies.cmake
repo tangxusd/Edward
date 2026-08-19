@@ -4,6 +4,7 @@ find_package(PkgConfig REQUIRED)
 find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent)
 pkg_check_modules(EDWARD_FFMPEG REQUIRED IMPORTED_TARGET
   libavformat libavcodec libavfilter libavutil libswresample libswscale)
+pkg_check_modules(EDWARD_SODIUM REQUIRED IMPORTED_TARGET libsodium)
 
 find_package(Mlt7 7.40 CONFIG REQUIRED)
 

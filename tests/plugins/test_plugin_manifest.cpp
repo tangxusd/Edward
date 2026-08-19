@@ -35,6 +35,12 @@ int main() {
   assert(nodeManifest && nodeManifest->runtime == "node");
   assert(!edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "remotion"}, {"version", "1"}, {"entry", "host.mjs"},
+                  {"signingKeyId", "edward-plugin-2026"}}, &error));
+  assert(!edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "remotion"}, {"version", "1"}, {"entry", "host.mjs"},
+                  {"signature", "signature-without-key"}}, &error));
+  assert(!edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "remotion"}, {"version", "1"}, {"entry", "host.mjs"},
                   {"runtime", "python"}}, &error));
   QTemporaryDir installedDirectory;
   assert(installedDirectory.isValid());

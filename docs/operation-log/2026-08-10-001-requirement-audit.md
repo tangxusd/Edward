@@ -2180,3 +2180,10 @@
 - 目的：防止发布构建仅按路径信任 Node，导致已替换的运行时被启动。
 - 修改：运行时解析器对 bundled binary 流式计算 SHA-256；Release 构建要求编译期 `EDWARD_PLUGIN_NODE_SHA256`，缺少散列或散列不匹配均拒绝 Node 插件。该值将由后续打包步骤对 Edward 内置 Node 生成。
 - 验证：解析器测试先确认“要求完整性但无散列”与“错误散列”失败，再确认正确散列通过。以当前 Node 二进制 SHA-256 配置 `build/macos-release`，在 `EDWARD_PLUGIN_RUNTIME_ROOT` 指向该二进制目录时 `plugins.plugin_process` 通过；Debug 定向插件测试也通过。
+
+## 272. Edward 插件清单签名信任原语
+
+- 目的：使插件的身份、版本、入口、运行时、能力、权限与可编辑属性绑定到 Ed25519 签名，防止已获批准的插件目录被静默篡改。
+- 修改：新增 `PluginTrustStore`，用 libsodium 验证 32 字节 Ed25519 公钥与 64 字节签名；清单增加成对出现的 `signingKeyId` 与 Base64 `signature` 字段。签名载荷以版本化、长度前缀格式编码并对列表排序，因此字段内容改动、字段顺序变化或未知密钥都会被拒绝。
+- 验证：`plugins.plugin_trust_store` 先生成临时密钥对并验证正确签名，再覆盖篡改载荷、篡改版本、未知密钥和非法 Base64；`plugins.plugin_manifest` 覆盖只提供密钥或签名的非法清单。插件组 CTest 6/6 通过。
+- 边界：本阶段尚未将真实官方公钥放入发行包，也尚未在 Release 加载路径启用该信任根；这两项必须随 M2 的打包资产和正式签名流程一起完成，不能把开发清单当作已签名发布插件。

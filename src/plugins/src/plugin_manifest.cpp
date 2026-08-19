@@ -41,6 +41,12 @@ std::optional<PluginManifest> PluginManifest::parse(const QJsonObject& object, Q
       return std::nullopt;
     }
   }
+  manifest.signingKeyId = object.value("signingKeyId").toString();
+  manifest.signatureBase64 = object.value("signature").toString();
+  if (manifest.signingKeyId.isEmpty() != manifest.signatureBase64.isEmpty()) {
+    if (error) *error = QStringLiteral("manifest signing key and signature must be supplied together");
+    return std::nullopt;
+  }
   if (manifest.entry.startsWith('/') || manifest.entry.contains(QStringLiteral(".."))) {
     if (error) *error = QStringLiteral("manifest entry must be a relative path");
     return std::nullopt;
