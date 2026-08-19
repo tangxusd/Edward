@@ -2130,3 +2130,10 @@
 - 目的：确保插件导出结果确实是可叠加动画，而不是把不透明视频误当作透明组件素材。
 - 修改：`parseRenderExportResult` 现在要求 `hasAlpha` 字段为布尔值且必须为 `true`；新增 `false` 回归测试。
 - 验证：`plugins.plugin_host`、`plugins.plugin_process` 通过；完整 CTest 待本次提交后执行。
+
+## 264. Edward 0.3.0 Remotion 与 HyperFrames 外部适配器
+
+- 目的：让用户独立安装的 Remotion 或 HyperFrames 通过受控 Node 子进程接入 Edward，而不是将其运行时代码纳入主程序或工程编辑真相源。
+- 修改：新增 `plugins/remotion-host` 与 `plugins/hyperframes-host` 两个安装目录，各自提供固定版本依赖、Node 入口和 Edward manifest。两者都仅声明 `describe`、`renderFrame`、受限读写权限，以及可映射到 Component IR 的属性；描述结果进入 Edward 标准 Component IR，帧结果必须为透明 PNG Base64。
+- 验证：新增 `plugins.plugin_adapters`，校验两个清单均可解析、仅以 Node 启动、声明描述和透明帧能力及允许权限；`node --check` 两个入口通过；插件定向 CTest 4/4 通过。
+- 边界：适配器运行时依赖仍由用户在各自目录内安装；当前宿主尚未提供 OS 级沙盒、发布签名或网络代理，不能将这一接入视为这些发布与安全能力已经完成。

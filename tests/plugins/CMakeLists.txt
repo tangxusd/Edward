@@ -12,3 +12,8 @@ add_executable(test_plugin_process test_plugin_process.cpp)
 target_link_libraries(test_plugin_process PRIVATE edward_plugins Qt6::Core Qt6::Gui)
 add_dependencies(test_plugin_process test_rpc_plugin)
 add_test(NAME plugins.plugin_process COMMAND test_plugin_process $<TARGET_FILE:test_rpc_plugin>)
+
+add_executable(test_plugin_adapters test_plugin_adapters.cpp)
+target_link_libraries(test_plugin_adapters PRIVATE edward_plugins Qt6::Core)
+target_compile_definitions(test_plugin_adapters PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME plugins.plugin_adapters COMMAND test_plugin_adapters)
