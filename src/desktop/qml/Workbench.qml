@@ -187,6 +187,11 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "从文件导入组件"
+                        onClicked: componentFileDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "保存组件 JSON"
                         enabled: workbenchRuntime.demoOverlayEnabled
                         onClicked: componentSaveDialog.open()
@@ -272,6 +277,14 @@ ApplicationWindow {
         fileMode: FileDialog.SaveFile
         nameFilters: ["组件 JSON (*.json)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.saveComponentJson(selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: componentFileDialog
+        title: "打开组件 JSON"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["组件 JSON (*.json)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.loadComponentFile(selectedFile.toLocalFile())
     }
 
     Dialog {

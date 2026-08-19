@@ -146,6 +146,16 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   return true;
 }
 
+bool WorkbenchRuntime::loadComponentFile(const QString& path) {
+  if (path.isEmpty()) return false;
+  QFile file(path);
+  if (!file.open(QIODevice::ReadOnly)) {
+    emit operationFailed(QStringLiteral("组件文件无法读取"));
+    return false;
+  }
+  return loadComponentJson(QString::fromUtf8(file.readAll()));
+}
+
 bool WorkbenchRuntime::saveComponentJson(const QString& path) const {
   if (path.isEmpty() || !demoOverlayIr_) return false;
   QFile file(path);

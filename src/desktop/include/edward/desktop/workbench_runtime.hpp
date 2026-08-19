@@ -65,6 +65,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool loadComponentJson(const QString& json);
+  Q_INVOKABLE bool loadComponentFile(const QString& path);
   Q_INVOKABLE bool saveComponentJson(const QString& path) const;
   Q_INVOKABLE bool loadPluginFrameJson(const QString& requestId, const QString& json);
   Q_INVOKABLE bool selectInstalledPlugin(const QString& rootPath);

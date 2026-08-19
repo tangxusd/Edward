@@ -56,6 +56,8 @@ int main() {
   QFile saved(savedPath);
   assert(saved.open(QIODevice::ReadOnly));
   assert(QJsonDocument::fromJson(saved.readAll()).object().value("version").toString() == "1");
+  assert(runtime.loadComponentFile(savedPath));
+  assert(!runtime.loadComponentFile(directory.path() + QStringLiteral("/missing.json")));
   edward::desktop::WorkbenchRuntime emptyRuntime;
   assert(!emptyRuntime.saveComponentJson(directory.path() + QStringLiteral("/empty.json")));
   runtime.clearInstalledPlugin();
