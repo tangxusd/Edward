@@ -99,6 +99,13 @@ std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
                                         int timeoutMs,
                                         QString* error = nullptr);
 
+std::optional<edward::core::ComponentIr> describePlugin(const PluginManifest& manifest,
+                                                         const std::filesystem::path& pluginRoot,
+                                                         const QString& requestId,
+                                                         const QString& compositionId,
+                                                         int timeoutMs,
+                                                         QString* error = nullptr);
+
 std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
                                                const std::filesystem::path& pluginRoot,
                                                const std::filesystem::path& outputRoot,

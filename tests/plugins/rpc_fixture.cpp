@@ -1,5 +1,6 @@
 #include <QBuffer>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QImage>
 #include <QFile>
@@ -20,6 +21,14 @@ int main() {
     return 0;
   }
   if (mode == "crash") return 6;
+  if (object.value("method").toString() == "describe") {
+    const QJsonObject component{{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "container"}}}};
+    const QJsonObject result{{"compositionId", mode == "describe-mismatch" ? "other" : params.value("compositionId").toString()}, {"component", component},
+                             {"editableProps", QJsonArray{"opacity"}}};
+    const QJsonObject response{{"jsonrpc", "2.0"}, {"id", object.value("id")}, {"result", result}};
+    std::cout << QJsonDocument(response).toJson(QJsonDocument::Compact).toStdString() << '\n';
+    return 0;
+  }
   if (object.value("method").toString() == "renderExport") {
     QFile output(params.value("outputPath").toString());
     if (!output.open(QIODevice::WriteOnly)) return 5;

@@ -2094,3 +2094,9 @@
 - 修改：插件 manifest 增加可选 `runtime` 字段，默认 `native`，仅接受 `native`、`node`、`bun`；宿主从系统 PATH 解析固定运行时并只将 manifest 内相对入口作为脚本参数，拒绝其它运行时名称和任意解释器路径。
 - 验证：manifest 回归覆盖默认值、Node 与非法运行时；进程回归创建并启动实际 Node `.mjs` 脚本，插件定向测试 3/3 通过；完整 CTest 待本次提交前执行。
 - 边界：该运行时选择不构成 OS 沙盒，也不替代签名目录、官方发布包或网络代理权限。
+
+## 258. Edward 0.3.0 插件描述桥接
+
+- 目的：让外部插件先返回标准 Component IR，再进入 Edward 的统一属性与关键帧编辑链路。
+- 修改：新增 `describePlugin`，复用 JSON-RPC、超时回收、manifest 可编辑属性校验，并要求响应的 `compositionId` 与请求一致；插件夹具覆盖正常描述和组件 ID 篡改失败。
+- 验证：`plugins.plugin_host`、`plugins.plugin_process` 通过；完整 CTest 待本次提交后执行。

@@ -13,7 +13,8 @@ int main(int argc, char** argv) {
   assert(std::filesystem::copy_file(argv[1], root / "fixture"));
   const auto manifest = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "fixture"}, {"version", "1.0.0"}, {"entry", "fixture"},
-                  {"capabilities", QJsonArray{"renderFrame"}}});
+                  {"capabilities", QJsonArray{"describe", "renderFrame"}},
+                  {"editableProps", QJsonArray{"opacity"}}});
   assert(manifest);
   QString error;
   const auto frame = edward::plugins::renderPluginFrame(
@@ -22,6 +23,13 @@ int main(int argc, char** argv) {
   assert(frame->size() == QSize(4, 3));
   assert(frame->hasAlphaChannel());
   assert(frame->pixelColor(0, 0).green() > 200);
+  const auto described = edward::plugins::describePlugin(
+      *manifest, root, "describe-1", "main", 2000, &error);
+  assert(described);
+  assert(described->toJson().value("root").toObject().value("id") == "root");
+  qputenv("EDWARD_TEST_RPC_MODE", "describe-mismatch");
+  assert(!edward::plugins::describePlugin(*manifest, root, "describe-2", "main", 2000, &error));
+  qunsetenv("EDWARD_TEST_RPC_MODE");
   qputenv("EDWARD_TEST_RPC_MODE", "timeout");
   assert(!edward::plugins::renderPluginFrame(
       *manifest, root, "timeout-request", "main", 7, QSize(4, 3), 50, &error));

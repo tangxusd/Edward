@@ -304,6 +304,30 @@ std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
   return parseRenderFrameResponse(*response, requestId, frame, size, error);
 }
 
+std::optional<edward::core::ComponentIr> describePlugin(const PluginManifest& manifest,
+                                                         const std::filesystem::path& pluginRoot,
+                                                         const QString& requestId,
+                                                         const QString& compositionId,
+                                                         int timeoutMs,
+                                                         QString* error) {
+  if (requestId.isEmpty() || compositionId.isEmpty()) {
+    if (error) *error = QStringLiteral("describe request is incomplete");
+    return std::nullopt;
+  }
+  const RpcRequest request{requestId, QStringLiteral("describe"), {{"compositionId", compositionId}}};
+  const auto response = callPlugin(manifest, pluginRoot, pluginRoot, request, timeoutMs, error);
+  if (!response) return std::nullopt;
+  if (response->id != requestId || response->result.isEmpty()) {
+    if (error) *error = QStringLiteral("describe rpc response is not a matching success response");
+    return std::nullopt;
+  }
+  if (response->result.value("compositionId").toString() != compositionId) {
+    if (error) *error = QStringLiteral("describe response composition ID mismatch");
+    return std::nullopt;
+  }
+  return parseDescribeResult(manifest, response->result, error);
+}
+
 std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
                                                const std::filesystem::path& pluginRoot,
                                                const std::filesystem::path& outputRoot,
