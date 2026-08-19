@@ -15,7 +15,7 @@ std::optional<MediaInfo> MediaProbe::probe(const std::filesystem::path &path) {
   QProcess process;
   process.start(QStringLiteral("ffprobe"), {
     QStringLiteral("-v"), QStringLiteral("error"),
-    QStringLiteral("-show_entries"), QStringLiteral("stream=codec_type,width,height,r_frame_rate:format=duration"),
+    QStringLiteral("-show_entries"), QStringLiteral("stream=codec_type,width,height,r_frame_rate,pix_fmt:format=duration"),
     QStringLiteral("-of"), QStringLiteral("json"), QString::fromStdString(path.string())});
   if (!process.waitForStarted(1000) || !process.waitForFinished(5000) ||
       process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) return std::nullopt;
@@ -26,12 +26,19 @@ std::optional<MediaInfo> MediaProbe::probe(const std::filesystem::path &path) {
   const auto streams = root.value(QStringLiteral("streams")).toArray();
   QJsonObject stream;
   bool hasAudio = false;
+  bool hasAlpha = false;
   for (const auto& value : streams) {
     if (!value.isObject()) continue;
     const auto candidate = value.toObject();
     const auto codecType = candidate.value(QStringLiteral("codec_type")).toString();
     if (codecType == QStringLiteral("audio")) hasAudio = true;
-    if (codecType == QStringLiteral("video") && stream.isEmpty()) stream = candidate;
+    if (codecType == QStringLiteral("video") && stream.isEmpty()) {
+      stream = candidate;
+      const auto pixelFormat = candidate.value(QStringLiteral("pix_fmt")).toString();
+      hasAlpha = pixelFormat.startsWith(QStringLiteral("yuva")) ||
+                 pixelFormat.startsWith(QStringLiteral("rgba")) ||
+                 pixelFormat.startsWith(QStringLiteral("argb"));
+    }
   }
   if (stream.isEmpty()) return std::nullopt;
   const int width = stream.value(QStringLiteral("width")).toInt();
@@ -47,7 +54,7 @@ std::optional<MediaInfo> MediaProbe::probe(const std::filesystem::path &path) {
     .value(QStringLiteral("duration")).toString().toDouble();
   if (!(seconds > 0.0)) return std::nullopt;
   MediaInfo info{width, height, numerator, denominator,
-    static_cast<std::int64_t>(std::ceil(seconds * numerator / denominator)), hasAudio};
+    static_cast<std::int64_t>(std::ceil(seconds * numerator / denominator)), hasAudio, hasAlpha};
   return info.durationFrames > 0 ? std::optional<MediaInfo>(info) : std::nullopt;
 }
 

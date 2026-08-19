@@ -103,6 +103,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool renderInstalledPluginFrame(const QString& requestId, const QString& compositionId);
   Q_INVOKABLE bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
                                          const QString& outputPath);
+  Q_INVOKABLE bool applyInstalledPluginToTimeline(const QString& requestId, const QString& compositionId,
+                                                  const QString& outputPath);
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
@@ -124,6 +126,8 @@ class WorkbenchRuntime final : public QObject {
   void operationSucceeded(QString message);
 
  private:
+  bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
+                             const QString& outputPath, bool applyToTimeline);
   void refreshDemoOverlay();
   void syncDemoOverlayProperties(const QJsonObject& component);
   edward::core::Timeline timeline_;
@@ -145,7 +149,11 @@ class WorkbenchRuntime final : public QObject {
   struct PluginFrameResult { QImage frame; QString error; };
   QFutureWatcher<PluginFrameResult> pluginFrameWatcher_;
   bool pluginRenderBusy_ = false;
-  struct PluginExportResult { QString error; };
+  struct PluginExportResult {
+    QString error;
+    QString outputPath;
+    bool applyToTimeline = false;
+  };
   QFutureWatcher<PluginExportResult> pluginExportWatcher_;
   bool pluginExportBusy_ = false;
   struct TimelineExportResult { QString error; QString outputPath; };

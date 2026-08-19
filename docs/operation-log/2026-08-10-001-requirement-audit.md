@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：插件透明视频接入时间线
+
+- 目的：将已验证的插件透明 MOV 纳入 Edward 普通多轨合成与导出链，避免插件动画只能单独导出。
+- 涉及文件：`src/media/include/edward/media/media_probe.hpp`、`src/media/src/media_probe.cpp`、`src/desktop/include/edward/desktop/workbench_runtime.hpp`、`src/desktop/src/workbench_runtime.cpp`、`src/desktop/qml/Workbench.qml`。
+- 结果：媒体探测新增 Alpha 像素格式识别；新增“应用到时间线”入口，导出并验证透明通道后复用现有播放头插入/冲突加轨逻辑；应用成功后移除插件占位层，普通导出继续走既有 MLT 多轨合成；独立“插件导出”保留。
+- 验证：`cmake --build build/0.3-runtime -j2` 通过；全量 CTest 29/29 通过。
+
 - 时间：2026-08-10（Asia/Shanghai）
 - 目的：记录 0.2.0 方案审计中的已确认决策，并落实“每次操作均以 Markdown 落盘记录”的项目规则。
 - 涉及文件：`AGENTS.md`；本记录文件。

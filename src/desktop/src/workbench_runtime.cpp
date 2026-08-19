@@ -103,7 +103,24 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   connect(&pluginExportWatcher_, &QFutureWatcher<PluginExportResult>::finished, this, [this] {
     pluginExportBusy_ = false;
     const auto result = pluginExportWatcher_.result();
-    if (!result.error.isEmpty()) emit operationFailed(result.error);
+    if (!result.error.isEmpty()) {
+      emit operationFailed(result.error);
+    } else if (result.applyToTimeline) {
+      const auto info = edward::media::MediaProbe::probe(result.outputPath.toStdString());
+      if (!info || !info->hasAlpha) {
+        emit operationFailed(QStringLiteral("插件导出结果不包含透明通道，未应用到时间线"));
+      } else if (!controller_.dropMediaAtPlayhead(result.outputPath)) {
+        emit operationFailed(QStringLiteral("插件动画无法加入当前播放头位置，可能超出时长或轨道冲突"));
+      } else {
+        demoOverlayIr_.reset();
+        demoOverlayEnabled_ = false;
+        renderGraph_.setOverlay(std::nullopt);
+        renderGraph_.setPluginFrame(std::nullopt);
+        emit operationSucceeded(QStringLiteral("插件动画已应用到时间线"));
+      }
+    } else {
+      emit operationSucceeded(QStringLiteral("插件视频已导出：%1").arg(result.outputPath));
+    }
     emit timelineChanged();
   });
   connect(&timelineExportWatcher_, &QFutureWatcher<TimelineExportResult>::finished, this, [this] {
@@ -446,6 +463,16 @@ bool WorkbenchRuntime::renderInstalledPluginFrame(const QString& requestId, cons
 
 bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QString& compositionId,
                                              const QString& outputPath) {
+  return exportInstalledPlugin(requestId, compositionId, outputPath, false);
+}
+
+bool WorkbenchRuntime::applyInstalledPluginToTimeline(const QString& requestId, const QString& compositionId,
+                                                     const QString& outputPath) {
+  return exportInstalledPlugin(requestId, compositionId, outputPath, true);
+}
+
+bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QString& compositionId,
+                                             const QString& outputPath, bool applyToTimeline) {
   if (pluginExportBusy_ || pluginRenderBusy_) {
     emit operationFailed(QStringLiteral("插件任务正在执行"));
     return false;
@@ -475,8 +502,10 @@ bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QSt
   for (const auto& clip : snapshot.clips)
     frameCount = std::max(frameCount, clip.timelineStart + clip.sourceOut - clip.sourceIn);
   if (frameCount <= 0) frameCount = 1;
-  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputRoot, outputName, size, frameCount] {
+  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputRoot, outputName, size, frameCount, applyToTimeline, outputPath] {
     PluginExportResult result;
+    result.outputPath = outputPath;
+    result.applyToTimeline = applyToTimeline;
     QString error;
     const edward::plugins::RenderExportRequest request{requestId, compositionId, outputName, size,
                                                         static_cast<int>(frameCount), 25, 1, 30000};
@@ -503,7 +532,7 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
     return false;
   }
   if (demoOverlayIr_ && demoOverlayIr_->pluginDependency()) {
-    emit operationFailed(QStringLiteral("当前插件动画尚未完成透明渲染合成，不能导出缺失动画的视频"));
+    emit operationFailed(QStringLiteral("当前插件动画尚未应用到时间线，不能导出缺失动画的视频"));
     return false;
   }
   edward::core::Frame lastFrame = 0;

@@ -286,6 +286,12 @@ ApplicationWindow {
                         enabled: workbenchRuntime.installedPluginAvailable && !workbenchRuntime.pluginExportBusy
                         onClicked: pluginExportDialog.open()
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.pluginExportBusy ? "插件应用中" : "应用到时间线"
+                        enabled: workbenchRuntime.installedPluginAvailable && !workbenchRuntime.pluginExportBusy
+                        onClicked: pluginApplyDialog.open()
+                    }
                 }
             }
         }
@@ -378,6 +384,17 @@ ApplicationWindow {
         nameFilters: ["视频文件 (*.mov *.mp4)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.exportInstalledPlugin(
                          "export-" + workbenchRuntime.playheadFrame,
+                         compositionIdField.text,
+                         selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: pluginApplyDialog
+        title: "导出并应用插件动画"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["透明视频 (*.mov)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.applyInstalledPluginToTimeline(
+                         "apply-" + workbenchRuntime.playheadFrame,
                          compositionIdField.text,
                          selectedFile.toLocalFile())
     }
