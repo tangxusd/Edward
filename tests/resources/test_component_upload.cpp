@@ -19,6 +19,11 @@ int main() {
   assert(request->body.value("userId").toString() == "user-1");
   assert(request->body.value("username").toString() == "demo@example.com");
   assert(request->body.value("component").toObject().value("version").toString() == "1");
+  const auto receipt = edward::resources::ComponentUploadClient::parseReceipt(
+      QJsonObject{{"resourceId", "demo.card"}, {"status", "pending_review"}, {"revision", 1}}, &error);
+  assert(receipt);
+  assert(receipt->status == "pending_review");
+  assert(!edward::resources::ComponentUploadClient::parseReceipt(QJsonObject{{"status", "pending_review"}}, &error));
   edward::resources::ComponentUploadClient client;
   assert(!client.submit("http://localhost/upload", package, session));
   return 0;

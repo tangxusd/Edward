@@ -8,6 +8,22 @@
 
 namespace edward::resources {
 
+std::optional<ComponentUploadReceipt> ComponentUploadClient::parseReceipt(const QJsonObject& response,
+                                                                          QString* error) {
+  const auto resourceId = response.value("resourceId").toString();
+  const auto status = response.value("status").toString();
+  if (resourceId.isEmpty() || status.isEmpty()) {
+    if (error) *error = QStringLiteral("upload response is missing resourceId or status");
+    return std::nullopt;
+  }
+  const auto revisionValue = response.value("revision");
+  if (!revisionValue.isUndefined() && (!revisionValue.isDouble() || revisionValue.toInt() < 1)) {
+    if (error) *error = QStringLiteral("upload response revision is invalid");
+    return std::nullopt;
+  }
+  return ComponentUploadReceipt{resourceId, status, revisionValue.toInt()};
+}
+
 std::optional<ComponentUploadRequest> ComponentUploadClient::buildRequest(const QString& endpoint,
                                                                             const ComponentPackage& package,
                                                                             const AuthSession& session,

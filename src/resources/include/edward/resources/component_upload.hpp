@@ -21,6 +21,12 @@ struct ComponentUploadRequest final {
   QJsonObject body;
 };
 
+struct ComponentUploadReceipt final {
+  QString resourceId;
+  QString status;
+  int revision = 0;
+};
+
 class ComponentUploadClient final : public QObject {
   Q_OBJECT
  public:
@@ -29,6 +35,8 @@ class ComponentUploadClient final : public QObject {
                                                              const ComponentPackage& package,
                                                              const AuthSession& session,
                                                              QString* error = nullptr);
+  static std::optional<ComponentUploadReceipt> parseReceipt(const QJsonObject& response,
+                                                            QString* error = nullptr);
   bool submit(const QString& endpoint, const ComponentPackage& package, const AuthSession& session);
 
  signals:

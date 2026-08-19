@@ -46,12 +46,22 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
             emit timelineChanged();
           });
   connect(&componentUploadClient_, &edward::resources::ComponentUploadClient::completed, this,
-          [this](bool success, const QString& message, const QJsonObject&) {
+          [this](bool success, const QString& message, const QJsonObject& response) {
             componentUploadBusy_ = false;
-            if (success)
-              emit operationSucceeded(message);
-            else
+            if (!success) {
               emit operationFailed(message);
+            } else {
+              QString receiptError;
+              const auto receipt = edward::resources::ComponentUploadClient::parseReceipt(response, &receiptError);
+              if (receipt) {
+                emit operationSucceeded(QStringLiteral("组件已上传，状态：%1，版本：%2")
+                                            .arg(receipt->status)
+                                            .arg(receipt->revision > 0 ? QString::number(receipt->revision)
+                                                                        : QStringLiteral("未返回")));
+              } else {
+                emit operationSucceeded(message);
+              }
+            }
             emit timelineChanged();
           });
   connect(&pluginFrameWatcher_, &QFutureWatcher<PluginFrameResult>::finished, this, [this] {
