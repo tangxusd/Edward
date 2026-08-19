@@ -2,6 +2,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QImage>
+#include <QFile>
 #include <iostream>
 
 int main() {
@@ -13,6 +14,10 @@ int main() {
   const auto object = request.object();
   const auto params = object.value("params").toObject();
   if (object.value("method").toString() == "renderExport") {
+    QFile output(params.value("outputPath").toString());
+    if (!output.open(QIODevice::WriteOnly)) return 5;
+    output.write("edward-plugin-export");
+    output.close();
     const QJsonObject result{{"outputPath", params.value("outputPath")}, {"width", params.value("width")},
                              {"height", params.value("height")}, {"frameCount", 24}, {"hasAlpha", true}};
     const QJsonObject response{{"jsonrpc", "2.0"}, {"id", object.value("id")}, {"result", result}};

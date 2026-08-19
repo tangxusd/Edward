@@ -308,7 +308,14 @@ std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
     if (error) *error = QStringLiteral("renderExport rpc response is not a matching success response");
     return std::nullopt;
   }
-  return parseRenderExportResult(response->result, error);
+  const auto result = parseRenderExportResult(response->result, error);
+  if (!result) return std::nullopt;
+  if (result->outputPath != outputPath ||
+      !std::filesystem::is_regular_file(outputRoot / result->outputPath.toStdString())) {
+    if (error) *error = QStringLiteral("plugin export output is unavailable or does not match request");
+    return std::nullopt;
+  }
+  return result;
 }
 
 }  // namespace edward::plugins
