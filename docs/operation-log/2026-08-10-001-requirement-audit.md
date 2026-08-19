@@ -1963,3 +1963,9 @@
 - 目的：将已验证的上传请求合同接入实际网络调用，同时保持 UI 不阻塞。
 - 修改：`ComponentUploadClient` 新增异步 HTTPS POST、Bearer 令牌、JSON 响应和完成信号；校验失败不会发起网络请求。
 - 验证：上传客户端拒绝非 HTTPS 请求；组件上传定向测试通过；完整 CTest 19/19 通过；macOS offscreen 应用启动通过（仅保留已有字体别名和空预览帧警告）。
+
+## 237. Edward 0.3.0 工作台标准组件包保存入口
+
+- 目的：将工作台中已编辑的组件保存为可复用、可审核、可上传的标准组件包。
+- 修改：`WorkbenchRuntime::saveComponentPackage` 复用 `ComponentPackage` 校验和保存逻辑，输出 `manifest.json` 与 `component.json`。
+- 验证：工作台组件包保存定向测试通过；待本轮完整 CTest。

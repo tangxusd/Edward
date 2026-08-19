@@ -53,6 +53,10 @@ int main() {
   assert(transformedBox.value("transform").toObject().value("rotation").toDouble() == 30.0);
   const auto savedPath = directory.path() + QStringLiteral("/component.json");
   assert(runtime.saveComponentJson(savedPath));
+  const auto packagePath = directory.path() + QStringLiteral("/package");
+  assert(runtime.saveComponentPackage(packagePath, QStringLiteral("demo.component"), QStringLiteral("Demo component")));
+  assert(QFile::exists(packagePath + QStringLiteral("/manifest.json")));
+  assert(QFile::exists(packagePath + QStringLiteral("/component.json")));
   QFile saved(savedPath);
   assert(saved.open(QIODevice::ReadOnly));
   assert(QJsonDocument::fromJson(saved.readAll()).object().value("version").toString() == "1");

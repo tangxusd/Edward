@@ -1,6 +1,7 @@
 #include "edward/desktop/workbench_runtime.hpp"
 
 #include "edward/plugins/plugin_host.hpp"
+#include "edward/resources/component_package.hpp"
 
 #include <QVariantMap>
 #include <QFile>
@@ -162,6 +163,14 @@ bool WorkbenchRuntime::saveComponentJson(const QString& path) const {
   if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
   const auto bytes = QJsonDocument(demoOverlayIr_->toJson()).toJson(QJsonDocument::Indented);
   return file.write(bytes) == bytes.size();
+}
+
+bool WorkbenchRuntime::saveComponentPackage(const QString& directory, const QString& resourceId,
+                                            const QString& displayName) const {
+  if (directory.isEmpty() || !demoOverlayIr_) return false;
+  edward::resources::ComponentPackage package{resourceId, displayName, *demoOverlayIr_, {}, {}, {}, {}};
+  QString error;
+  return package.saveLocal(directory.toStdString(), &error);
 }
 
 bool WorkbenchRuntime::loadPluginFrameJson(const QString& requestId, const QString& json) {

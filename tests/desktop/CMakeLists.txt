@@ -7,5 +7,5 @@ target_compile_definitions(test_visual_routes PRIVATE EDWARD_DESKTOP_QML_DIR="${
 add_test(NAME desktop.visual_routes COMMAND test_visual_routes)
 
 add_executable(test_workbench_plugins test_workbench_plugins.cpp)
-target_link_libraries(test_workbench_plugins PRIVATE edward_desktop Qt6::Core)
+target_link_libraries(test_workbench_plugins PRIVATE edward_desktop edward_resources Qt6::Core)
 add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins)
