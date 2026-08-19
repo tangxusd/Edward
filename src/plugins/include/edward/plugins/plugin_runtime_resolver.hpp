@@ -11,6 +11,8 @@ namespace edward::plugins {
 
 struct PluginRuntimeResolution final {
   std::filesystem::path bundledRoot;
+  QString expectedSha256;
+  bool requireIntegrity = false;
   bool allowDevelopmentPath = false;
 };
 

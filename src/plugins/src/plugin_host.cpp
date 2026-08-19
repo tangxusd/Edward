@@ -56,6 +56,12 @@ bool configureProcess(QProcess& process, const PluginManifest& manifest,
   }
 #ifdef EDWARD_RELEASE_BUILD
   resolution.allowDevelopmentPath = false;
+  resolution.requireIntegrity = true;
+#ifdef EDWARD_PLUGIN_NODE_SHA256
+  if (manifest.runtime == QStringLiteral("node")) {
+    resolution.expectedSha256 = QStringLiteral(EDWARD_PLUGIN_NODE_SHA256);
+  }
+#endif
 #else
   resolution.allowDevelopmentPath = true;
 #endif

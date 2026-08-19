@@ -2174,3 +2174,9 @@
 - 目的：让正式构建只使用 Edward 分发的 Node/Bun 运行时，避免通过用户 PATH 启动不可验证的解释器。
 - 修改：新增 `PluginRuntimeResolution` 与解析器；指定 `EDWARD_PLUGIN_RUNTIME_ROOT` 时只从该目录查找运行时，Release 构建缺少该目录时拒绝 JavaScript 插件。Debug 构建保留 PATH 解析，供本地适配器开发和测试使用。
 - 验证：解析器定向测试覆盖发布构建无 bundled runtime、指定目录缺少可执行文件和开发 PATH 三种状态；现有 `plugins.plugin_host`、`plugins.plugin_process`、`plugins.plugin_runtime_resolver` 均通过。
+
+## 271. Edward 固定 Node SHA-256 校验
+
+- 目的：防止发布构建仅按路径信任 Node，导致已替换的运行时被启动。
+- 修改：运行时解析器对 bundled binary 流式计算 SHA-256；Release 构建要求编译期 `EDWARD_PLUGIN_NODE_SHA256`，缺少散列或散列不匹配均拒绝 Node 插件。该值将由后续打包步骤对 Edward 内置 Node 生成。
+- 验证：解析器测试先确认“要求完整性但无散列”与“错误散列”失败，再确认正确散列通过。以当前 Node 二进制 SHA-256 配置 `build/macos-release`，在 `EDWARD_PLUGIN_RUNTIME_ROOT` 指向该二进制目录时 `plugins.plugin_process` 通过；Debug 定向插件测试也通过。

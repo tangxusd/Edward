@@ -26,6 +26,13 @@ int main() {
   bundled.write("runtime");
   bundled.close();
   release.bundledRoot = runtimeRoot;
+  release.requireIntegrity = true;
+  assert(!edward::plugins::resolvePluginRuntime(*node, release, &error));
+  assert(error == "bundled plugin runtime checksum is required");
+  release.expectedSha256 = "3f0a377ba0a4a460ecb378c1012e6557653a7427d7dc761f7c1c6a4e58f0fcb7";
+  assert(!edward::plugins::resolvePluginRuntime(*node, release, &error));
+  assert(error == "bundled plugin runtime checksum mismatch");
+  release.expectedSha256 = "d92c6a81b2ff50096bcda80885427d1f59a25b5f483f7055523504925d16ab23";
   const auto resolved = edward::plugins::resolvePluginRuntime(*node, release, &error);
   assert(resolved && std::filesystem::path(resolved->toStdString()) == runtimeRoot / "node");
 

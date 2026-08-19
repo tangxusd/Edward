@@ -11,3 +11,7 @@ add_library(edward_plugins STATIC
 target_include_directories(edward_plugins PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(edward_plugins PUBLIC edward_core Qt6::Core Qt6::Gui)
 target_compile_definitions(edward_plugins PRIVATE $<$<CONFIG:Release>:EDWARD_RELEASE_BUILD>)
+set(EDWARD_PLUGIN_NODE_SHA256 "" CACHE STRING "SHA-256 of the Node runtime bundled with Edward")
+if(EDWARD_PLUGIN_NODE_SHA256)
+  target_compile_definitions(edward_plugins PRIVATE EDWARD_PLUGIN_NODE_SHA256="${EDWARD_PLUGIN_NODE_SHA256}")
+endif()
