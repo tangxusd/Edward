@@ -28,6 +28,41 @@ QString typeName(ComponentNodeType type) {
   return {};
 }
 
+std::optional<QJsonObject> normalizeKeyframes(const QJsonValue& value) {
+  if (value.isUndefined()) return QJsonObject{};
+  if (!value.isObject()) return std::nullopt;
+  QJsonObject normalized;
+  const auto source = value.toObject();
+  for (auto iterator = source.constBegin(); iterator != source.constEnd(); ++iterator) {
+    if (!iterator.value().isArray()) return std::nullopt;
+    std::vector<QJsonValue> points;
+    for (const auto& pointValue : iterator.value().toArray()) {
+      if (!pointValue.isObject()) return std::nullopt;
+      const auto point = pointValue.toObject();
+      if (!point.value("frame").isDouble() || !point.value("value").isDouble() ||
+          point.value("frame").toInt() < 0) return std::nullopt;
+      const auto easing = point.value("easing").toString();
+      if (!easing.isEmpty() && easing != "linear" && easing != "bezier") return std::nullopt;
+      if ((!point.value("controlIn").isUndefined() && !point.value("controlIn").isDouble()) ||
+          (!point.value("controlOut").isUndefined() && !point.value("controlOut").isDouble())) return std::nullopt;
+      points.push_back(point);
+    }
+    std::sort(points.begin(), points.end(), [](const QJsonValue& left, const QJsonValue& right) {
+      return left.toObject().value("frame").toInt() < right.toObject().value("frame").toInt();
+    });
+    QJsonArray sorted;
+    int previousFrame = -1;
+    for (const auto& point : points) {
+      const int frame = point.toObject().value("frame").toInt();
+      if (frame == previousFrame) return std::nullopt;
+      sorted.append(point);
+      previousFrame = frame;
+    }
+    normalized.insert(iterator.key(), sorted);
+  }
+  return normalized;
+}
+
 std::optional<ComponentNode> parseNode(const QJsonObject& object) {
   const auto id = object.value("id").toString();
   const auto type = parseType(object.value("type").toString());
@@ -38,7 +73,9 @@ std::optional<ComponentNode> parseNode(const QJsonObject& object) {
   node.type = *type;
   node.properties = object.value("properties").toObject();
   node.transform = object.value("transform").toObject();
-  node.keyframes = object.value("keyframes").toObject();
+  const auto keyframes = normalizeKeyframes(object.value("keyframes"));
+  if (!keyframes) return std::nullopt;
+  node.keyframes = *keyframes;
 
   const auto children = object.value("children");
   if (!children.isUndefined() && !children.isArray()) return std::nullopt;

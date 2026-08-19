@@ -39,6 +39,31 @@ int main() {
   assert(!parsed->setNodeTransformNumber("missing", "x", 1.0));
   assert(!parsed->setNodeKeyframeNumber("title", "x", -1, 1.0));
   assert(!parsed->setNodeKeyframeNumber("missing", "x", 1, 1.0));
+
+  const auto unorderedKeyframes = edward::core::ComponentIr::parse(
+      {{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "shape"},
+          {"keyframes", QJsonObject{{"x", QJsonArray{
+              QJsonObject{{"frame", 10}, {"value", 10.0}},
+              QJsonObject{{"frame", 0}, {"value", 0.0}}
+          }}}}}}});
+  assert(unorderedKeyframes);
+  const auto normalized = unorderedKeyframes->toJson().value("root").toObject()
+                              .value("keyframes").toObject().value("x").toArray();
+  assert(normalized.at(0).toObject().value("frame").toInt() == 0);
+  assert(!edward::core::ComponentIr::parse(
+      {{"version", "1"}, {"root", QJsonObject{{"id", "root"}, {"type", "shape"},
+          {"keyframes", QJsonObject{{"x", QJsonArray{
+              QJsonObject{{"frame", 1}, {"value", 1.0}},
+              QJsonObject{{"frame", 1}, {"value", 2.0}}
+          }}}}}}}));
+  const QJsonObject negativeFrameRoot{
+      {"id", "root"}, {"type", "shape"},
+      {"keyframes", QJsonObject{{"x", QJsonArray{QJsonObject{{"frame", -1}, {"value", 1.0}}}}}}};
+  assert(!edward::core::ComponentIr::parse({{"version", "1"}, {"root", negativeFrameRoot}}));
+  const QJsonObject missingValueRoot{
+      {"id", "root"}, {"type", "shape"},
+      {"keyframes", QJsonObject{{"x", QJsonArray{QJsonObject{{"frame", 1}}}}}}};
+  assert(!edward::core::ComponentIr::parse({{"version", "1"}, {"root", missingValueRoot}}));
   assert(!parsed->setNodeProperty("title", "", "ignored"));
 
   assert(!edward::core::ComponentIr::parse({{"version", "2"}, {"root", root}}));
