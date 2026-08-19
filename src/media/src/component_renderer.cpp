@@ -63,11 +63,16 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
   const double y = animatedNumber(node.keyframes, "y", frame, number(transform, "y", 0));
   const double width = animatedNumber(node.keyframes, "width", frame, number(transform, "width", 0));
   const double height = animatedNumber(node.keyframes, "height", frame, number(transform, "height", 0));
+  const double scaleX = animatedNumber(node.keyframes, "scaleX", frame, number(transform, "scaleX", 1));
+  const double scaleY = animatedNumber(node.keyframes, "scaleY", frame, number(transform, "scaleY", 1));
+  const double rotation = animatedNumber(node.keyframes, "rotation", frame, number(transform, "rotation", 0));
   const double opacity = std::clamp(animatedNumber(node.keyframes, "opacity", frame, number(properties, "opacity", 1)), 0.0, 1.0);
 
   painter.save();
   // Edward preview coordinates use the canvas center as (0, 0): left/up are positive.
   painter.translate(-x, -y);
+  painter.rotate(-rotation);
+  painter.scale(scaleX, scaleY);
   painter.setOpacity(painter.opacity() * opacity);
   const QRectF bounds(-width / 2.0, -height / 2.0, width, height);
   switch (node.type) {

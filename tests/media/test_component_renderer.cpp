@@ -32,5 +32,14 @@ int main() {
   assert(nestedImage.pixelColor(35, 50).red() > 0);
   assert(nestedImage.pixelColor(35, 50).alpha() > 0 && nestedImage.pixelColor(35, 50).alpha() < 255);
   assert(nestedImage.pixelColor(45, 50).alpha() == 0);
+
+  const QJsonObject scaledRoot{{"id", "root"}, {"type", "shape"},
+      {"transform", QJsonObject{{"x", 0}, {"y", 0}, {"width", 10}, {"height", 10}, {"scaleX", 2}, {"scaleY", 2}}},
+      {"properties", QJsonObject{{"fill", "#00ff00"}}}};
+  const auto scaled = edward::core::ComponentIr::parse({{"version", "1"}, {"root", scaledRoot}});
+  assert(scaled);
+  const auto scaledImage = edward::media::ComponentRenderer{}.render(*scaled, 0, {100, 100});
+  assert(scaledImage.pixelColor(40, 50).green() > 0);
+  assert(scaledImage.pixelColor(39, 50).alpha() == 0);
   return 0;
 }
