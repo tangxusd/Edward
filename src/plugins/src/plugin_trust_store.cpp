@@ -29,6 +29,7 @@ QByteArray canonicalPluginManifestPayload(const PluginManifest& manifest) {
   appendField(payload, manifest.version);
   appendField(payload, manifest.entry);
   appendField(payload, manifest.runtime);
+  appendField(payload, manifest.runtimeVersion);
   appendList(payload, manifest.capabilities);
   appendList(payload, manifest.permissions);
   appendList(payload, manifest.editableProps);

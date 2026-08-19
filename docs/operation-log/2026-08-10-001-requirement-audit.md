@@ -2193,3 +2193,9 @@
 - 目的：让 Release 构建在没有受信 Ed25519 公钥时拒绝外部 JavaScript 插件，而不是把签名工具类留在未接入状态。
 - 修改：`loadInstalledPlugin` 在 Release 下读取编译期 `EDWARD_PLUGIN_TRUSTED_KEY_ID` 与 `EDWARD_PLUGIN_TRUSTED_PUBLIC_KEY_B64`；两者缺失、Base64 公钥非法、清单未签名或验签失败均拒绝加载。Debug 保留本地适配器开发路径，避免把未发布的目录误判为官方插件。
 - 验证：以当前 Node SHA-256 显式配置 `build/macos-release`，`edward_app` 成功构建；Debug 的插件清单与签名测试通过。完整 Release CTest 暂不运行，因为现有测试夹具是故意未签名的开发插件，待正式公钥与签名夹具进入打包合同后统一补齐。
+
+## 274. Edward 固定插件运行时版本校验
+
+- 目的：在二进制散列校验之外，确认被启动的固定 Node/Bun 运行时与已签名插件清单声明的版本一致。
+- 修改：插件清单增加 `runtimeVersion`，并纳入 Ed25519 规范化签名载荷；Release 宿主要求该字段存在，执行已解析运行时的 `--version` 并严格比较输出。探测失败或版本不一致均拒绝启动。
+- 验证：运行时解析器对本机 Node 的实际 `--version` 通过，对 `v0.0.0` 失败；签名测试与运行时解析器定向 CTest 2/2 通过。完整 Debug 回归待本次提交前执行。

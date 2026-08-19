@@ -2,6 +2,7 @@
 
 #include <QCryptographicHash>
 #include <QFile>
+#include <QProcess>
 #include <QStandardPaths>
 
 namespace edward::plugins {
@@ -59,7 +60,14 @@ std::optional<QString> resolvePluginRuntime(const PluginManifest& manifest,
         return std::nullopt;
       }
     }
-    return QString::fromStdString(bundled.string());
+    const auto resolved = QString::fromStdString(bundled.string());
+    if (resolution.requireVersion && resolution.expectedVersion.isEmpty()) {
+      if (error) *error = QStringLiteral("bundled plugin runtime version is required");
+      return std::nullopt;
+    }
+    if (!resolution.expectedVersion.isEmpty() &&
+        !verifyPluginRuntimeVersion(resolved, resolution.expectedVersion, error)) return std::nullopt;
+    return resolved;
   }
   if (!resolution.allowDevelopmentPath) {
     if (error) *error = QStringLiteral("bundled plugin runtime is required");
@@ -70,7 +78,30 @@ std::optional<QString> resolvePluginRuntime(const PluginManifest& manifest,
     if (error) *error = QStringLiteral("development plugin runtime is unavailable: %1").arg(manifest.runtime);
     return std::nullopt;
   }
+  if (!resolution.expectedVersion.isEmpty() && !verifyPluginRuntimeVersion(path, resolution.expectedVersion, error))
+    return std::nullopt;
   return path;
+}
+
+bool verifyPluginRuntimeVersion(const QString& executable, const QString& expectedVersion, QString* error) {
+  if (executable.isEmpty() || expectedVersion.isEmpty()) {
+    if (error) *error = QStringLiteral("plugin runtime version is required");
+    return false;
+  }
+  QProcess process;
+  process.setProgram(executable);
+  process.setArguments({QStringLiteral("--version")});
+  process.start();
+  if (!process.waitForStarted(1000) || !process.waitForFinished(3000) ||
+      process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+    if (error) *error = QStringLiteral("bundled plugin runtime version probe failed");
+    return false;
+  }
+  if (QString::fromUtf8(process.readAllStandardOutput()).trimmed() != expectedVersion) {
+    if (error) *error = QStringLiteral("bundled plugin runtime version mismatch");
+    return false;
+  }
+  return true;
 }
 
 }  // namespace edward::plugins

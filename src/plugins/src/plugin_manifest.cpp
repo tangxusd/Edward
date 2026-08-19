@@ -43,6 +43,7 @@ std::optional<PluginManifest> PluginManifest::parse(const QJsonObject& object, Q
   }
   manifest.signingKeyId = object.value("signingKeyId").toString();
   manifest.signatureBase64 = object.value("signature").toString();
+  manifest.runtimeVersion = object.value("runtimeVersion").toString();
   if (manifest.signingKeyId.isEmpty() != manifest.signatureBase64.isEmpty()) {
     if (error) *error = QStringLiteral("manifest signing key and signature must be supplied together");
     return std::nullopt;

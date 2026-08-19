@@ -2,6 +2,8 @@
 
 #include <QFile>
 #include <QJsonObject>
+#include <QProcess>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 #include <cassert>
@@ -42,6 +44,16 @@ int main() {
 
   edward::plugins::PluginRuntimeResolution development;
   development.allowDevelopmentPath = true;
-  assert(edward::plugins::resolvePluginRuntime(*node, development, &error));
+  const auto developmentRuntime = edward::plugins::resolvePluginRuntime(*node, development, &error);
+  assert(developmentRuntime);
+  QProcess versionProbe;
+  versionProbe.setProgram(*developmentRuntime);
+  versionProbe.setArguments({"--version"});
+  versionProbe.start();
+  assert(versionProbe.waitForFinished(3000));
+  const auto version = QString::fromUtf8(versionProbe.readAllStandardOutput()).trimmed();
+  assert(edward::plugins::verifyPluginRuntimeVersion(*developmentRuntime, version, &error));
+  assert(!edward::plugins::verifyPluginRuntimeVersion(*developmentRuntime, "v0.0.0", &error));
+  assert(error == "bundled plugin runtime version mismatch");
   return 0;
 }
