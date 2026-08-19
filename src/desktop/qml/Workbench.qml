@@ -405,10 +405,12 @@ ApplicationWindow {
         function onOperationFailed(message) {
             failureToast.text = message;
             failureToast.open();
+            failureTimer.restart();
         }
         function onOperationSucceeded(message) {
             successToast.text = message;
             successToast.open();
+            successTimer.restart();
         }
     }
 
@@ -424,6 +426,7 @@ ApplicationWindow {
             color: DesignTokens.textPrimary
             padding: 16
         }
+        Timer { id: failureTimer; interval: 5000; repeat: false; onTriggered: failureToast.close() }
     }
 
     Dialog {
@@ -436,6 +439,6 @@ ApplicationWindow {
             color: DesignTokens.textPrimary
             padding: 16
         }
-        Timer { interval: 5000; running: successToast.visible; repeat: false; onTriggered: successToast.close() }
+        Timer { id: successTimer; interval: 5000; repeat: false; onTriggered: successToast.close() }
     }
 }
