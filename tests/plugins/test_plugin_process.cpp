@@ -32,5 +32,6 @@ int main(int argc, char** argv) {
   assert(exportResult->outputPath == "main.mov");
   assert(exportResult->frameCount == 24);
   assert(std::filesystem::is_regular_file(root / "main.mov"));
+  assert(std::filesystem::file_size(root / "main.mov") > 0);
   return 0;
 }

@@ -310,8 +310,10 @@ std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
   }
   const auto result = parseRenderExportResult(response->result, error);
   if (!result) return std::nullopt;
-  if (result->outputPath != outputPath ||
-      !std::filesystem::is_regular_file(outputRoot / result->outputPath.toStdString())) {
+  const auto outputFile = outputRoot / result->outputPath.toStdString();
+  std::error_code sizeError;
+  if (result->outputPath != outputPath || !std::filesystem::is_regular_file(outputFile) ||
+      std::filesystem::file_size(outputFile, sizeError) == 0 || sizeError) {
     if (error) *error = QStringLiteral("plugin export output is unavailable or does not match request");
     return std::nullopt;
   }
