@@ -14,8 +14,14 @@ bool TimelineController::dropMediaAtPlayhead(const QString& path) {
   if (!info || info->durationFrames <= 0) return false;
   const auto snapshot = timeline_.snapshot();
   const auto start = snapshot.playheadFrame;
+  if (start + info->durationFrames > snapshot.durationFrames) return false;
   const auto id = nextClipId();
-  if (!timeline_.insertClip({id, trackId_, path.toStdString(), 0, info->durationFrames, start})) return false;
+  const edward::core::TimelineClip clip{id, trackId_, path.toStdString(), 0, info->durationFrames, start};
+  if (!timeline_.insertClip(clip)) {
+    const auto alternateTrack = timeline_.addVideoTrack();
+    if (!timeline_.insertClip({id, alternateTrack, path.toStdString(), 0, info->durationFrames, start})) return false;
+    trackId_ = alternateTrack;
+  }
   selectedClip_ = id;
   return true;
 }
@@ -24,8 +30,15 @@ bool TimelineController::splitSelectedAtPlayhead() {
   return selectedClip_ != 0 && commands_.splitClipAtPlayhead(selectedClip_);
 }
 
+bool TimelineController::deleteSelected() {
+  if (selectedClip_ == 0 || !commands_.deleteClip(selectedClip_)) return false;
+  selectedClip_ = 0;
+  return true;
+}
+
 bool TimelineController::rippleDeleteSelected() {
-  if (selectedClip_ == 0 || !commands_.rippleDelete(trackId_, selectedClip_)) return false;
+  const auto selected = timeline_.clip(selectedClip_);
+  if (!selected || !commands_.rippleDelete(selected->trackId, selectedClip_)) return false;
   selectedClip_ = 0;
   return true;
 }

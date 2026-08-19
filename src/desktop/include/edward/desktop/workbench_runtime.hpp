@@ -22,6 +22,7 @@ namespace edward::desktop {
 class WorkbenchRuntime final : public QObject {
   Q_OBJECT
   Q_PROPERTY(int playheadFrame READ playheadFrame NOTIFY timelineChanged)
+  Q_PROPERTY(int videoTrackCount READ videoTrackCount NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList clips READ clips NOTIFY timelineChanged)
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayX READ demoOverlayX WRITE setDemoOverlayX NOTIFY timelineChanged)
@@ -45,6 +46,7 @@ class WorkbenchRuntime final : public QObject {
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
   [[nodiscard]] int playheadFrame() const;
+  [[nodiscard]] int videoTrackCount() const;
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
   [[nodiscard]] int demoOverlayX() const { return demoOverlayX_; }

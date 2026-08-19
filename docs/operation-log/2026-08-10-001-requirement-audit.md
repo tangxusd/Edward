@@ -2212,3 +2212,9 @@
 - 修改：新增 `PluginSandboxPaths` 与 macOS Seatbelt profile 生成器，定向测试固定只读插件根、固定运行时、任务输入、Chromium 缓存，以及只写任务输出和 Chromium 临时目录；网络和用户目录不进入规则。
 - 验证：`plugins.plugin_sandbox_policy` 通过。另以本机 `edward_plugin_runner` 原型调用 `sandbox_init` 验证，SDK 仅允许其加载系统命名 profile，拒绝动态规则字符串，且 API 标记为“不再支持”；原型未提交并已删除。
 - 结论：不得以 `sandbox_init` 或 `sandbox-exec` 降级实现 M3。正式 macOS 执行器需采用 Apple App Sandbox helper、受控安全范围路径及可用的签名/provisioning；该外部签名条件尚未具备，M3 不标记完成。
+
+## 277. Edward 基础剪辑自动增轨与多轨合成
+
+- 目的：使重复素材或同一播放头的叠加素材能够直接加入时间线，而不是因 V1 已占用而失败；保证新增轨道同时进入工作台预览和导出共用的渲染链。
+- 修改：`TimelineController` 在合法媒体与时间线范围内遇到轨道冲突时自动建立下一个视频轨；普通删除改为仅删除选中片段，波纹删除继续只影响选中片段所在轨道。`WorkbenchRuntime` 向 QML 暴露所有视频轨片段及轨道数量；时间线根据实际轨道数量显示 V1、V2 等轨道。`MltAdapter` 对同一帧的全部活动视频轨按轨道顺序 Alpha 合成，后轨覆盖前轨。
+- 验证：工作台测试使用真实 MP4 两次导入，确认生成 V1/V2 及两个可见片段；MLT 像素回归确认红色 V2 覆盖黑色 V1；`desktop.timeline_controller`、`desktop.workbench_plugins`、`desktop.visual_routes`、`media.mlt_adapter` 定向测试通过。`cmake --build --preset macos-debug -j2` 成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。

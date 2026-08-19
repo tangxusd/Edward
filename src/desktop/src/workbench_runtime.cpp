@@ -92,6 +92,9 @@ void WorkbenchRuntime::refreshDemoOverlay() {
 }
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
+int WorkbenchRuntime::videoTrackCount() const {
+  return static_cast<int>(timeline_.snapshot().videoTracks.size());
+}
 
 QString WorkbenchRuntime::installedPluginId() const {
   return installedPlugin_ ? installedPlugin_->manifest.pluginId : QString{};
@@ -114,16 +117,19 @@ QJsonObject WorkbenchRuntime::componentJson() const {
 
 QVariantList WorkbenchRuntime::clips() const {
   QVariantList result;
-  for (const auto& clip : timeline_.clips(videoTrack_)) {
-    QVariantMap item;
-    item.insert(QStringLiteral("id"), static_cast<qlonglong>(clip.id));
-    item.insert(QStringLiteral("trackIndex"), 0);
-    item.insert(QStringLiteral("timelineStart"), static_cast<qlonglong>(clip.timelineStart));
-    item.insert(QStringLiteral("sourceIn"), static_cast<qlonglong>(clip.sourceIn));
-    item.insert(QStringLiteral("sourceOut"), static_cast<qlonglong>(clip.sourceOut));
-    item.insert(QStringLiteral("name"), QString::fromStdString(clip.source.filename().string()));
-    item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
-    result.push_back(item);
+  const auto snapshot = timeline_.snapshot();
+  for (std::size_t trackIndex = 0; trackIndex < snapshot.videoTracks.size(); ++trackIndex) {
+    for (const auto& clip : timeline_.clips(snapshot.videoTracks[trackIndex])) {
+      QVariantMap item;
+      item.insert(QStringLiteral("id"), static_cast<qlonglong>(clip.id));
+      item.insert(QStringLiteral("trackIndex"), static_cast<int>(trackIndex));
+      item.insert(QStringLiteral("timelineStart"), static_cast<qlonglong>(clip.timelineStart));
+      item.insert(QStringLiteral("sourceIn"), static_cast<qlonglong>(clip.sourceIn));
+      item.insert(QStringLiteral("sourceOut"), static_cast<qlonglong>(clip.sourceOut));
+      item.insert(QStringLiteral("name"), QString::fromStdString(clip.source.filename().string()));
+      item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
+      result.push_back(item);
+    }
   }
   return result;
 }
@@ -538,7 +544,7 @@ bool WorkbenchRuntime::splitSelected() {
 }
 
 bool WorkbenchRuntime::deleteSelected() {
-  if (!controller_.rippleDeleteSelected()) {
+  if (!controller_.deleteSelected()) {
     emit operationFailed(QStringLiteral("没有可删除的片段"));
     return false;
   }

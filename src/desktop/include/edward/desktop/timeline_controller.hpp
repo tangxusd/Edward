@@ -13,6 +13,7 @@ class TimelineController {
 
   bool dropMediaAtPlayhead(const QString& path);
   bool splitSelectedAtPlayhead();
+  bool deleteSelected();
   bool rippleDeleteSelected();
   bool selectClip(edward::core::ClipId id);
   bool setPlayhead(edward::core::Frame frame);

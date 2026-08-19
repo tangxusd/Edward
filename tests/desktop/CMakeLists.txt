@@ -8,5 +8,6 @@ add_test(NAME desktop.visual_routes COMMAND test_visual_routes)
 
 add_executable(test_workbench_plugins test_workbench_plugins.cpp)
 target_link_libraries(test_workbench_plugins PRIVATE edward_desktop edward_resources Qt6::Core)
-add_dependencies(test_workbench_plugins test_rpc_plugin)
-add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins $<TARGET_FILE:test_rpc_plugin>)
+add_dependencies(test_workbench_plugins test_rpc_plugin media_fixture)
+add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins
+  $<TARGET_FILE:test_rpc_plugin> ${CMAKE_BINARY_DIR}/tests/media/fixture.mp4)

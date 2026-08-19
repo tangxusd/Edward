@@ -7,6 +7,7 @@ Item {
     id: root
     property int durationFrames: 300
     property int playheadFrame: 0
+    property int videoTrackCount: 1
     property var clips: []
     signal playheadChangedByUser(int frame)
     signal splitRequested
@@ -91,12 +92,13 @@ Item {
         spacing: 1
 
         Repeater {
-            model: ["V1", "A1"]
+            model: root.videoTrackCount + 1
             delegate: Item {
-                height: (tracks.height - 1) / 2
+                readonly property bool videoTrack: index < root.videoTrackCount
+                height: (tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1)
                 Rectangle {
                     anchors.fill: parent
-                    color: index === 0 ? "#151515" : "#191919"
+                    color: videoTrack ? "#151515" : "#191919"
                 }
                 Rectangle {
                     width: root.rulerWidth
@@ -105,8 +107,10 @@ Item {
                     color: DesignTokens.panelRaised
                 }
                 Text {
-                    anchors.centerIn: parent
-                    text: modelData
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: videoTrack ? "V" + (root.videoTrackCount - index) : "A1"
                     color: DesignTokens.textPrimary
                     font.pixelSize: 12
                 }
@@ -118,9 +122,10 @@ Item {
         model: root.clips
         delegate: Rectangle {
             x: root.frameToX(modelData.timelineStart)
-            y: ruler.height + toolbar.height + (modelData.trackIndex === 1 ? tracks.height / 2 : 0) + 3
+            y: ruler.height + toolbar.height +
+               (root.videoTrackCount - 1 - modelData.trackIndex) * ((tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1)) + 3
             width: Math.max(3, (modelData.sourceOut - modelData.sourceIn) * root.pixelsPerFrame)
-            height: Math.max(18, tracks.height / 2 - 6)
+            height: Math.max(18, (tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1) - 6)
             color: DesignTokens.videoClip
             border.color: modelData.selected ? DesignTokens.accent : "#0a0a0a"
             border.width: modelData.selected ? 2 : 1

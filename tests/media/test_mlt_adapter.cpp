@@ -5,7 +5,7 @@
 #include <filesystem>
 
 int main(int argc, char** argv) {
-  assert(argc == 2);
+  assert(argc == 3);
   edward::core::Timeline timeline(25);
   const auto track = timeline.addVideoTrack();
   assert(timeline.insertClip({1, track, argv[1], 0, 25, 0}));
@@ -24,6 +24,17 @@ int main(int argc, char** argv) {
   assert(gapFrame.has_value());
   assert(gapFrame->size() == first->size());
   assert(gapFrame->pixelColor(0, 0) == QColor(Qt::black));
+  const auto overlayTrack = timeline.addVideoTrack();
+  assert(timeline.insertClip({2, overlayTrack, argv[2], 0, 25, 0}));
+  edward::core::Timeline overlayOnlyTimeline(25);
+  const auto overlayOnlyTrack = overlayOnlyTimeline.addVideoTrack();
+  assert(overlayOnlyTimeline.insertClip({1, overlayOnlyTrack, argv[2], 0, 25, 0}));
+  const auto overlayOnly = adapter.renderFrame(overlayOnlyTimeline.snapshot(), 12);
+  assert(overlayOnly.has_value());
+  assert(overlayOnly->pixelColor(8, 8).red() > overlayOnly->pixelColor(8, 8).green());
+  const auto composited = adapter.renderFrame(timeline.snapshot(), 12);
+  assert(composited.has_value());
+  assert(composited->pixelColor(8, 8).red() > composited->pixelColor(8, 8).green());
   assert(!adapter.renderFrame(timeline.snapshot(), 25).has_value());
   return 0;
 }

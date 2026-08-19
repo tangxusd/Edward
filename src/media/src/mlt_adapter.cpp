@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <mutex>
 
+#include <QPainter>
+
 namespace edward::media {
 namespace {
 
@@ -15,49 +17,19 @@ bool ensureMltRuntime() {
   return ready;
 }
 
-}  // namespace
-
-std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapshot& snapshot,
-                                              edward::core::Frame frame) const {
-  if (!ensureMltRuntime() || frame < 0 || frame >= snapshot.durationFrames) return std::nullopt;
-  const auto clip = std::ranges::find_if(snapshot.clips, [frame](const auto& candidate) {
-    const auto duration = candidate.sourceOut - candidate.sourceIn;
-    return frame >= candidate.timelineStart && frame < candidate.timelineStart + duration;
-  });
-  const auto reference = clip == snapshot.clips.end() ? snapshot.clips.begin() : clip;
-  if (reference == snapshot.clips.end()) return std::nullopt;
-
-  const auto profile = mlt_profile_init(nullptr);
-  if (!profile) return std::nullopt;
-  const auto resource = reference->source.string();
+std::optional<QImage> readClipFrame(mlt_profile profile, const edward::core::TimelineClip& clip,
+                                    edward::core::Frame frame) {
+  const auto resource = clip.source.string();
   const auto producer = mlt_factory_producer(profile, nullptr, resource.c_str());
-  if (!producer) {
-    mlt_profile_close(profile);
-    return std::nullopt;
-  }
-
-  mlt_profile_from_producer(profile, producer);
-  if (clip == snapshot.clips.end()) {
-    std::optional<QImage> result;
-    if (profile->width > 0 && profile->height > 0) {
-      QImage blackFrame(profile->width, profile->height, QImage::Format_RGBA8888);
-      blackFrame.fill(Qt::black);
-      result = std::move(blackFrame);
-    }
-    mlt_producer_close(producer);
-    mlt_profile_close(profile);
-    return result;
-  }
-  const auto sourceFrame = clip->sourceIn + frame - clip->timelineStart;
+  if (!producer) return std::nullopt;
+  const auto sourceFrame = clip.sourceIn + frame - clip.timelineStart;
   mlt_producer_seek(producer, sourceFrame);
   mlt_frame nativeFrame = nullptr;
   const auto frameError = mlt_service_get_frame(MLT_PRODUCER_SERVICE(producer), &nativeFrame, 0);
   if (frameError != 0 || !nativeFrame) {
     mlt_producer_close(producer);
-    mlt_profile_close(profile);
     return std::nullopt;
   }
-
   mlt_image_format format = mlt_image_rgba;
   uint8_t* pixels = nullptr;
   int width = 0;
@@ -69,8 +41,46 @@ std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapsh
   }
   mlt_frame_close(nativeFrame);
   mlt_producer_close(producer);
-  mlt_profile_close(profile);
   return result;
+}
+
+}  // namespace
+
+std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapshot& snapshot,
+                                              edward::core::Frame frame) const {
+  if (!ensureMltRuntime() || frame < 0 || frame >= snapshot.durationFrames) return std::nullopt;
+  std::vector<const edward::core::TimelineClip*> active;
+  for (const auto track : snapshot.videoTracks) {
+    const auto clip = std::ranges::find_if(snapshot.clips, [frame, track](const auto& candidate) {
+      const auto duration = candidate.sourceOut - candidate.sourceIn;
+      return candidate.trackId == track && frame >= candidate.timelineStart && frame < candidate.timelineStart + duration;
+    });
+    if (clip != snapshot.clips.end()) active.push_back(&*clip);
+  }
+  const auto reference = active.empty() ? (snapshot.clips.empty() ? nullptr : &snapshot.clips.front()) : active.front();
+  if (!reference) return std::nullopt;
+
+  const auto profile = mlt_profile_init(nullptr);
+  if (!profile) return std::nullopt;
+  const auto resource = reference->source.string();
+  const auto producer = mlt_factory_producer(profile, nullptr, resource.c_str());
+  if (!producer) {
+    mlt_profile_close(profile);
+    return std::nullopt;
+  }
+
+  mlt_profile_from_producer(profile, producer);
+  QImage result(profile->width, profile->height, QImage::Format_RGBA8888);
+  result.fill(Qt::black);
+  mlt_producer_close(producer);
+  for (const auto* clip : active) {
+    const auto image = readClipFrame(profile, *clip, frame);
+    if (!image) continue;
+    QPainter painter(&result);
+    painter.drawImage(result.rect(), *image);
+  }
+  mlt_profile_close(profile);
+  return result.isNull() ? std::nullopt : std::optional<QImage>(std::move(result));
 }
 
 }  // namespace edward::media

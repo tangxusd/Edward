@@ -13,11 +13,20 @@ int main(int argc, char** argv) {
   assert(controller.selectedClip() == 1);
   assert(controller.selectClip(1));
   assert(!controller.selectClip(999));
-  assert(!controller.dropMediaAtPlayhead(argv[1]));
+  assert(controller.dropMediaAtPlayhead(argv[1]));
+  const auto tracks = timeline.snapshot().videoTracks;
+  assert(tracks.size() == 2);
+  assert(timeline.clips(tracks[0]).size() == 1);
+  assert(timeline.clips(tracks[1]).size() == 1);
+  assert(controller.selectedClip() == 2);
   assert(controller.setPlayhead(10));
   assert(controller.splitSelectedAtPlayhead());
-  assert(timeline.clips(track).size() == 2);
+  assert(timeline.clips(tracks[1]).size() == 2);
+  assert(controller.deleteSelected());
+  assert(timeline.clips(tracks[1]).size() == 1);
+  assert(timeline.clips(tracks[1]).front().timelineStart == 10);
+  assert(controller.selectClip(3));
   assert(controller.rippleDeleteSelected());
-  assert(timeline.clips(track).size() == 1);
+  assert(timeline.clips(tracks[1]).empty());
   return 0;
 }

@@ -9,9 +9,16 @@
 #include <filesystem>
 
 int main(int argc, char** argv) {
-  assert(argc == 2);
+  assert(argc == 3);
   edward::desktop::WorkbenchRuntime runtime;
   assert(!runtime.authenticated());
+  assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
+  assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
+  assert(runtime.videoTrackCount() == 2);
+  const auto timelineClips = runtime.clips();
+  assert(timelineClips.size() == 2);
+  assert(timelineClips.at(0).toMap().value("trackIndex").toInt() == 0);
+  assert(timelineClips.at(1).toMap().value("trackIndex").toInt() == 1);
   assert(!runtime.signInWithSupabase("http://project.supabase.co", "anon-key", "demo@example.com", "password"));
   assert(!runtime.authenticated());
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
