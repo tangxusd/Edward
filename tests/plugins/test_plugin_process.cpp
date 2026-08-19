@@ -40,6 +40,14 @@ int main(int argc, char** argv) {
   assert(!edward::plugins::renderPluginFrame(
       *manifest, root, "opaque-request", "main", 7, QSize(4, 3), 2000, &error));
   qunsetenv("EDWARD_TEST_RPC_MODE");
+  std::filesystem::create_symlink(argv[1], root / "outside-entry");
+  const auto outsideManifest = edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "outside"}, {"version", "1.0.0"}, {"entry", "outside-entry"},
+                  {"capabilities", QJsonArray{"renderFrame"}}}, &error);
+  assert(outsideManifest);
+  assert(!edward::plugins::renderPluginFrame(
+      *outsideManifest, root, "outside-request", "main", 7, QSize(4, 3), 2000, &error));
+  std::filesystem::remove(root / "outside-entry");
   QFile nodeEntry(QString::fromStdString((root / "node-fixture.mjs").string()));
   assert(nodeEntry.open(QIODevice::WriteOnly));
   nodeEntry.write("process.stdout.write('node-ok\\n');\n");

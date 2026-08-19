@@ -2118,3 +2118,9 @@
 - 目的：验证工作台不仅能显示插件描述入口，还能将实际 RPC 插件返回的组件草稿接入可编辑 IR，并保留插件依赖。
 - 修改：桌面测试复用 RPC 插件夹具；描述成功后宿主以已选 manifest 强制写入 `pluginDependency.pluginId/version`，再重新校验为 Component IR。插件不自行决定来源依赖。
 - 验证：桌面测试先验证描述成功但依赖缺失的失败状态，再验证依赖写入；`desktop.workbench_plugins` 与 `plugins.plugin_process` 通过，完整 CTest 待本次提交后执行。
+
+## 262. Edward 0.3.0 插件宿主底层目录边界
+
+- 目的：避免绕过工作台加载器，直接调用底层 RPC 宿主时执行插件根目录外的符号链接。
+- 修改：`plugin_host` 的统一进程配置路径拒绝符号链接，并校验入口规范路径仍位于插件根目录；新增直接 `renderPluginFrame` 绕过加载器的失败回归。
+- 验证：插件 manifest/host/process 定向测试 3/3 通过；完整 CTest 待本次提交后执行。

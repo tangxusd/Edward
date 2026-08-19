@@ -20,11 +20,29 @@ bool fail(QString* error, const QString& message) {
   return false;
 }
 
+bool pathInside(const std::filesystem::path& child, const std::filesystem::path& parent) {
+  auto childIt = child.begin();
+  auto parentIt = parent.begin();
+  for (; parentIt != parent.end(); ++parentIt, ++childIt) {
+    if (childIt == child.end() || *childIt != *parentIt) return false;
+  }
+  return true;
+}
+
 bool configureProcess(QProcess& process, const PluginManifest& manifest,
                       const std::filesystem::path& pluginRoot, QString* error) {
   const auto entry = pluginRoot / manifest.entry.toStdString();
-  if (!std::filesystem::is_regular_file(entry)) {
+  std::error_code statusError;
+  if (std::filesystem::is_symlink(std::filesystem::symlink_status(entry, statusError)) || statusError ||
+      !std::filesystem::is_regular_file(entry)) {
     if (error) *error = QStringLiteral("plugin entry is unavailable");
+    return false;
+  }
+  std::error_code canonicalError;
+  const auto canonicalRoot = std::filesystem::canonical(pluginRoot, canonicalError);
+  const auto canonicalEntry = std::filesystem::canonical(entry, canonicalError);
+  if (canonicalError || !pathInside(canonicalEntry, canonicalRoot)) {
+    if (error) *error = QStringLiteral("plugin entry must stay inside plugin root");
     return false;
   }
   if (manifest.runtime == QStringLiteral("native")) {
