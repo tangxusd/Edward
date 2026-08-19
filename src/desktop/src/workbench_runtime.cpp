@@ -8,6 +8,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
+#include <QDateTime>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -34,6 +36,8 @@ std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, in
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
       renderGraph_(mltAdapter_) {
+  silentUploadRetryTimer_.setInterval(3 * 60 * 1000);
+  connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
   connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
           &WorkbenchRuntime::timelineChanged);
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
@@ -43,6 +47,7 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
               emit operationSucceeded(message);
             else
               emit operationFailed(message);
+            if (success) dispatchSilentComponentUploads();
             emit timelineChanged();
           });
   connect(&componentUploadClient_, &edward::resources::ComponentUploadClient::completed, this,
@@ -196,11 +201,42 @@ bool WorkbenchRuntime::saveComponentJson(const QString& path) const {
 }
 
 bool WorkbenchRuntime::saveComponentPackage(const QString& directory, const QString& resourceId,
-                                            const QString& displayName) const {
+                                            const QString& displayName) {
   if (directory.isEmpty() || !demoOverlayIr_) return false;
   edward::resources::ComponentPackage package{resourceId, displayName, *demoOverlayIr_, {}, {}, {}, {}};
   QString error;
-  return package.saveLocal(directory.toStdString(), &error);
+  if (!package.saveLocal(directory.toStdString(), &error)) return false;
+  if (silentUploadDispatcher_ && sessions_.authenticated() &&
+      silentUploadDispatcher_->enqueue(directory, resourceId, QDateTime::currentDateTimeUtc(), &error)) {
+    dispatchSilentComponentUploads();
+  }
+  return true;
+}
+
+bool WorkbenchRuntime::configureSilentComponentUploads(const QString& endpoint, const QString& statePath,
+                                                       const QString& pendingRoot) {
+  const QUrl url(endpoint);
+  if (!url.isValid() || url.scheme().compare(QStringLiteral("https"), Qt::CaseInsensitive) != 0 ||
+      url.host().isEmpty() || statePath.isEmpty() || pendingRoot.isEmpty()) {
+    return false;
+  }
+  auto dispatcher = std::make_unique<edward::resources::ComponentUploadDispatcher>(statePath, pendingRoot, this);
+  QString error;
+  if (!dispatcher->restore(QDateTime::currentDateTimeUtc(), &error)) return false;
+  connect(dispatcher.get(), &edward::resources::ComponentUploadDispatcher::finished, this,
+          [this](bool, const QString&) { dispatchSilentComponentUploads(); });
+  silentUploadEndpoint_ = endpoint;
+  silentUploadDispatcher_ = std::move(dispatcher);
+  silentUploadRetryTimer_.start();
+  dispatchSilentComponentUploads();
+  return true;
+}
+
+void WorkbenchRuntime::dispatchSilentComponentUploads() {
+  if (!silentUploadDispatcher_ || !sessions_.authenticated() || silentUploadDispatcher_->busy()) return;
+  QString error;
+  silentUploadDispatcher_->dispatchNext(silentUploadEndpoint_, sessions_.session(),
+                                        QDateTime::currentDateTimeUtc(), &error);
 }
 
 bool WorkbenchRuntime::signInWithSupabase(const QString& projectUrl, const QString& anonKey,

@@ -6,12 +6,15 @@
 #include <QVariantList>
 #include <QImage>
 #include <QFutureWatcher>
+#include <QTimer>
+#include <memory>
 
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/render_graph.hpp"
 #include "edward/plugins/installed_plugin.hpp"
 #include "edward/resources/auth_session_store.hpp"
 #include "edward/resources/component_upload.hpp"
+#include "edward/resources/component_upload_dispatcher.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
 
 namespace edward::desktop {
@@ -79,7 +82,9 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool loadComponentFile(const QString& path);
   Q_INVOKABLE bool saveComponentJson(const QString& path) const;
   Q_INVOKABLE bool saveComponentPackage(const QString& directory, const QString& resourceId,
-                                        const QString& displayName) const;
+                                        const QString& displayName);
+  Q_INVOKABLE bool configureSilentComponentUploads(const QString& endpoint, const QString& statePath,
+                                                    const QString& pendingRoot);
   Q_INVOKABLE bool signInWithSupabase(const QString& projectUrl, const QString& anonKey,
                                       const QString& email, const QString& password);
   Q_INVOKABLE void signOut();
@@ -131,6 +136,10 @@ class WorkbenchRuntime final : public QObject {
   bool signInBusy_ = false;
   edward::resources::ComponentUploadClient componentUploadClient_;
   bool componentUploadBusy_ = false;
+  std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
+  QString silentUploadEndpoint_;
+  QTimer silentUploadRetryTimer_;
+  void dispatchSilentComponentUploads();
 };
 
 }  // namespace edward::desktop

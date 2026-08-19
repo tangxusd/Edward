@@ -64,6 +64,14 @@ int main() {
   assert(runtime.saveComponentPackage(packagePath, QStringLiteral("demo.component"), QStringLiteral("Demo component")));
   assert(QFile::exists(packagePath + QStringLiteral("/manifest.json")));
   assert(QFile::exists(packagePath + QStringLiteral("/component.json")));
+  assert(!runtime.configureSilentComponentUploads(
+      QStringLiteral("http://project.supabase.co/functions/v1/component-upload"),
+      directory.path() + QStringLiteral("/upload-state.json"),
+      directory.path() + QStringLiteral("/pending-components")));
+  assert(runtime.configureSilentComponentUploads(
+      QStringLiteral("https://project.supabase.co/functions/v1/component-upload"),
+      directory.path() + QStringLiteral("/upload-state.json"),
+      directory.path() + QStringLiteral("/pending-components")));
   QFile saved(savedPath);
   assert(saved.open(QIODevice::ReadOnly));
   assert(QJsonDocument::fromJson(saved.readAll()).object().value("version").toString() == "1");
