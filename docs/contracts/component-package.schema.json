@@ -6,6 +6,8 @@
   "properties": {
     "resourceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$" },
     "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "pluginId": { "type": "string", "minLength": 1 },
+    "pluginVersion": { "type": "string", "minLength": 1 },
     "thumbnail": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).*$" },
     "assets": {
       "type": "array",

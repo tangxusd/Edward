@@ -14,6 +14,8 @@ struct ComponentPackage final {
   QString resourceId;
   QString displayName;
   edward::core::ComponentIr component;
+  QString pluginId;
+  QString pluginVersion;
   QString thumbnail;
   std::vector<QString> assets;
 

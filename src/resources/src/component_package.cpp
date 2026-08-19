@@ -6,6 +6,7 @@
 #include <QJsonObject>
 
 #include <fstream>
+#include <QRegularExpression>
 
 namespace edward::resources {
 namespace {
@@ -13,6 +14,9 @@ bool relativePath(const QString& value) {
   if (value.isEmpty()) return false;
   const auto path = std::filesystem::path(value.toStdString());
   return !path.is_absolute() && value != "." && !value.contains("..") && !value.startsWith('/');
+}
+bool validResourceId(const QString& value) {
+  return QRegularExpression(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$")).match(value).hasMatch();
 }
 void setError(QString* error, const QString& value) { if (error) *error = value; }
 }
@@ -39,6 +43,8 @@ std::optional<ComponentPackage> ComponentPackage::load(const std::filesystem::pa
   if (!component) { setError(error, "component ir is invalid"); return std::nullopt; }
   ComponentPackage package{manifestJson.object().value("resourceId").toString(),
                            manifestJson.object().value("displayName").toString(), *component,
+                           manifestJson.object().value("pluginId").toString(),
+                           manifestJson.object().value("pluginVersion").toString(),
                            manifestJson.object().value("thumbnail").toString(), {}};
   for (const auto& asset : manifestJson.object().value("assets").toArray()) package.assets.push_back(asset.toString());
   if (!package.validate(error)) return std::nullopt;
@@ -46,10 +52,27 @@ std::optional<ComponentPackage> ComponentPackage::load(const std::filesystem::pa
 }
 
 bool ComponentPackage::validate(QString* error) const {
-  if (resourceId.isEmpty() || displayName.isEmpty()) { setError(error, "resource id and display name are required"); return false; }
+  if (!validResourceId(resourceId) || displayName.isEmpty()) { setError(error, "resource id or display name is invalid"); return false; }
   if (!component.validate(error)) return false;
+  const auto dependency = component.pluginDependency();
+  if (dependency) {
+    if (pluginId != dependency->pluginId || pluginVersion != dependency->version) {
+      setError(error, "package plugin dependency does not match component");
+      return false;
+    }
+  } else if (!pluginId.isEmpty() || !pluginVersion.isEmpty()) {
+    setError(error, "package declares an unexpected plugin dependency");
+    return false;
+  }
   if (!thumbnail.isEmpty() && !relativePath(thumbnail)) { setError(error, "thumbnail must be relative"); return false; }
-  for (const auto& asset : assets) if (!relativePath(asset)) { setError(error, "asset path must be relative"); return false; }
+  std::vector<QString> uniqueAssets;
+  for (const auto& asset : assets) {
+    if (!relativePath(asset) || uniqueAssets.end() != std::find(uniqueAssets.begin(), uniqueAssets.end(), asset)) {
+      setError(error, "asset path must be relative and unique");
+      return false;
+    }
+    uniqueAssets.push_back(asset);
+  }
   return true;
 }
 
@@ -67,6 +90,7 @@ bool ComponentPackage::saveLocal(const std::filesystem::path& directory, QString
   QJsonArray assetsJson;
   for (const auto& asset : assets) assetsJson.append(asset);
   manifest.write(QJsonDocument(QJsonObject{{"resourceId", resourceId}, {"displayName", displayName},
+                                            {"pluginId", pluginId}, {"pluginVersion", pluginVersion},
                                             {"thumbnail", thumbnail}, {"assets", assetsJson}}).toJson(QJsonDocument::Indented));
   componentFile.write(QJsonDocument(component.toJson()).toJson(QJsonDocument::Indented));
   return true;
