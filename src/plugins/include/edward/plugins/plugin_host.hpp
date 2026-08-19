@@ -85,6 +85,7 @@ ProcessResult launchPluginProcess(const PluginManifest& manifest,
 
 std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
                                       const std::filesystem::path& pluginRoot,
+                                      const std::filesystem::path& workingDirectory,
                                       const RpcRequest& request,
                                       int timeoutMs,
                                       QString* error = nullptr);
@@ -100,6 +101,7 @@ std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
 
 std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
                                                const std::filesystem::path& pluginRoot,
+                                               const std::filesystem::path& outputRoot,
                                                const QString& requestId,
                                                const QString& compositionId,
                                                const QString& outputPath,

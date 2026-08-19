@@ -216,6 +216,7 @@ ProcessResult launchPluginProcess(const PluginManifest& manifest,
 
 std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
                                       const std::filesystem::path& pluginRoot,
+                                      const std::filesystem::path& workingDirectory,
                                       const RpcRequest& request,
                                       int timeoutMs,
                                       QString* error) {
@@ -225,6 +226,10 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
   }
   if (!validateRpcMethod(manifest, request.method, error)) return std::nullopt;
   if (!validateRpcParams(request.method, request.params, error)) return std::nullopt;
+  if (workingDirectory.empty() || !std::filesystem::is_directory(workingDirectory)) {
+    if (error) *error = QStringLiteral("plugin working directory is unavailable");
+    return std::nullopt;
+  }
   const auto executable = pluginRoot / manifest.entry.toStdString();
   if (!std::filesystem::is_regular_file(executable)) {
     if (error) *error = QStringLiteral("plugin entry is unavailable");
@@ -232,6 +237,7 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
   }
   QProcess process;
   process.setProgram(QString::fromStdString(executable.string()));
+  process.setWorkingDirectory(QString::fromStdString(workingDirectory.string()));
   process.start();
   if (!process.waitForStarted(1000)) {
     if (error) *error = process.errorString();
@@ -274,27 +280,29 @@ std::optional<QImage> renderPluginFrame(const PluginManifest& manifest,
   const RpcRequest request{requestId, QStringLiteral("renderFrame"),
                            {{"compositionId", compositionId}, {"frame", frame},
                             {"width", size.width()}, {"height", size.height()}}};
-  const auto response = callPlugin(manifest, pluginRoot, request, timeoutMs, error);
+  const auto response = callPlugin(manifest, pluginRoot, pluginRoot, request, timeoutMs, error);
   if (!response) return std::nullopt;
   return parseRenderFrameResponse(*response, requestId, frame, size, error);
 }
 
 std::optional<RenderExportResult> exportPlugin(const PluginManifest& manifest,
                                                const std::filesystem::path& pluginRoot,
+                                               const std::filesystem::path& outputRoot,
                                                const QString& requestId,
                                                const QString& compositionId,
                                                const QString& outputPath,
                                                const QSize& size,
                                                int timeoutMs,
                                                QString* error) {
-  if (requestId.isEmpty() || compositionId.isEmpty() || outputPath.isEmpty() || size.isEmpty()) {
+  if (requestId.isEmpty() || compositionId.isEmpty() || outputPath.isEmpty() || size.isEmpty() ||
+      outputRoot.empty() || !std::filesystem::is_directory(outputRoot)) {
     if (error) *error = QStringLiteral("renderExport request is incomplete");
     return std::nullopt;
   }
   const RpcRequest request{requestId, QStringLiteral("renderExport"),
                            {{"compositionId", compositionId}, {"outputPath", outputPath},
                             {"width", size.width()}, {"height", size.height()}}};
-  const auto response = callPlugin(manifest, pluginRoot, request, timeoutMs, error);
+  const auto response = callPlugin(manifest, pluginRoot, outputRoot, request, timeoutMs, error);
   if (!response) return std::nullopt;
   if (response->id != requestId || response->result.isEmpty()) {
     if (error) *error = QStringLiteral("renderExport rpc response is not a matching success response");

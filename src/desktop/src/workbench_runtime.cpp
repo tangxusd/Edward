@@ -230,13 +230,20 @@ bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QSt
   }
   const auto plugin = *installedPlugin_;
   const auto size = base->size();
+  const auto selectedPath = std::filesystem::path(outputPath.toStdString());
+  const auto outputRoot = selectedPath.parent_path();
+  const auto outputName = QString::fromStdString(selectedPath.filename().string());
+  if (outputRoot.empty() || outputName.isEmpty()) {
+    emit operationFailed(QStringLiteral("插件导出路径不可用"));
+    return false;
+  }
   pluginExportBusy_ = true;
   emit timelineChanged();
-  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputPath, size] {
+  pluginExportWatcher_.setFuture(QtConcurrent::run([plugin, requestId, compositionId, outputRoot, outputName, size] {
     PluginExportResult result;
     QString error;
-    if (!edward::plugins::exportPlugin(plugin.manifest, plugin.root, requestId, compositionId,
-                                       outputPath, size, 30000, &error)) {
+    if (!edward::plugins::exportPlugin(plugin.manifest, plugin.root, outputRoot, requestId, compositionId,
+                                       outputName, size, 30000, &error)) {
       result.error = QStringLiteral("插件导出失败：%1").arg(error);
     }
     return result;

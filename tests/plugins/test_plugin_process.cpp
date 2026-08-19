@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
                   {"capabilities", QJsonArray{"renderFrame", "renderExport"}}});
   assert(exported);
   const auto exportResult = edward::plugins::exportPlugin(
-      *exported, root, "request-2", "main", "exports/main.mov", QSize(4, 3), 2000, &error);
+      *exported, root, root, "request-2", "main", "exports/main.mov", QSize(4, 3), 2000, &error);
   assert(exportResult);
   assert(exportResult->outputPath == "exports/main.mov");
   assert(exportResult->frameCount == 24);
