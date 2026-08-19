@@ -1,6 +1,10 @@
 #include "edward/resources/component_upload_queue.hpp"
 
+#include "edward/resources/component_package.hpp"
+
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -11,6 +15,29 @@ namespace {
 
 void setError(QString* error, const QString& value) {
   if (error) *error = value;
+}
+
+bool copyDirectory(const QString& sourcePath, const QString& destinationPath) {
+  const QDir source(sourcePath);
+  if (!source.exists() || !QDir().mkpath(destinationPath)) return false;
+  const auto entries = source.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
+  for (const auto& entry : entries) {
+    const auto target = QDir(destinationPath).filePath(entry.fileName());
+    if (entry.isDir()) {
+      if (!copyDirectory(entry.filePath(), target)) return false;
+    } else if (!QFile::copy(entry.filePath(), target)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void discardQueuedCopy(const QString& path) {
+  const QFileInfo info(path);
+  if (info.isDir())
+    QDir(path).removeRecursively();
+  else
+    QFile::remove(path);
 }
 
 QJsonObject toJson(const ComponentUploadQueueItem& item) {
@@ -41,6 +68,28 @@ std::optional<ComponentUploadQueueItem> fromJson(const QJsonObject& object) {
 
 }  // namespace
 
+std::optional<ComponentUploadQueueItem> ComponentUploadQueue::enqueue(
+    const QString& localPackagePath, const QString& pendingRoot, const QString& resourceId,
+    const QDateTime& now, QString* error) {
+  if (localPackagePath.isEmpty() || pendingRoot.isEmpty() || !now.isValid()) {
+    setError(error, QStringLiteral("upload queue paths or creation time are invalid"));
+    return std::nullopt;
+  }
+  const auto localPackage = ComponentPackage::load(localPackagePath.toStdString(), error);
+  if (!localPackage || localPackage->resourceId != resourceId) {
+    if (localPackage && error) *error = QStringLiteral("queued resource id does not match local package");
+    return std::nullopt;
+  }
+  const auto queuedCopyPath = QDir(pendingRoot).filePath(
+      QStringLiteral("%1-%2").arg(resourceId).arg(now.toMSecsSinceEpoch()));
+  if (QFileInfo::exists(queuedCopyPath) || !copyDirectory(localPackagePath, queuedCopyPath)) {
+    discardQueuedCopy(queuedCopyPath);
+    setError(error, QStringLiteral("upload queue snapshot cannot be created"));
+    return std::nullopt;
+  }
+  return ComponentUploadQueueItem{resourceId, localPackagePath, queuedCopyPath, now, 0, now};
+}
+
 bool ComponentUploadQueue::readyForAttempt(const ComponentUploadQueueItem& item, const QDateTime& now) {
   return item.failureCount < kMaximumFailures && now < item.createdAt.addMSecs(kMaximumAgeMilliseconds) &&
          now >= item.nextAttemptAt;
@@ -50,7 +99,7 @@ std::optional<ComponentUploadQueueItem> ComponentUploadQueue::recordFailure(
     ComponentUploadQueueItem item, const QDateTime& now) {
   ++item.failureCount;
   if (item.failureCount >= kMaximumFailures) {
-    QFile::remove(item.queuedCopyPath);
+    discardQueuedCopy(item.queuedCopyPath);
     return std::nullopt;
   }
   item.nextAttemptAt = now.addMSecs(kRetryIntervalMilliseconds);
