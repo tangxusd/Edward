@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QBuffer>
+#include <QStandardPaths>
 
 namespace edward::plugins {
 namespace {
@@ -17,6 +18,27 @@ bool safeRelative(const QString& value) {
 bool fail(QString* error, const QString& message) {
   if (error) *error = message;
   return false;
+}
+
+bool configureProcess(QProcess& process, const PluginManifest& manifest,
+                      const std::filesystem::path& pluginRoot, QString* error) {
+  const auto entry = pluginRoot / manifest.entry.toStdString();
+  if (!std::filesystem::is_regular_file(entry)) {
+    if (error) *error = QStringLiteral("plugin entry is unavailable");
+    return false;
+  }
+  if (manifest.runtime == QStringLiteral("native")) {
+    process.setProgram(QString::fromStdString(entry.string()));
+    return true;
+  }
+  const auto runtime = QStandardPaths::findExecutable(manifest.runtime);
+  if (runtime.isEmpty()) {
+    if (error) *error = QStringLiteral("plugin runtime is unavailable: %1").arg(manifest.runtime);
+    return false;
+  }
+  process.setProgram(runtime);
+  process.setArguments({QString::fromStdString(entry.string())});
+  return true;
 }
 
 }  // namespace
@@ -192,11 +214,13 @@ ProcessResult launchPluginProcess(const PluginManifest& manifest,
                                   int timeoutMs) {
   ProcessResult result;
   if (timeoutMs <= 0 || pluginRoot.empty()) return result;
-  const auto executable = pluginRoot / manifest.entry.toStdString();
-  if (!std::filesystem::is_regular_file(executable)) return result;
   QProcess process;
-  process.setProgram(QString::fromStdString(executable.string()));
-  process.setArguments(arguments);
+  QString error;
+  if (!configureProcess(process, manifest, pluginRoot, &error)) {
+    result.standardError = error.toUtf8();
+    return result;
+  }
+  process.setArguments(process.arguments() + arguments);
   process.start();
   result.started = process.waitForStarted(1000);
   if (!result.started) {
@@ -230,13 +254,8 @@ std::optional<RpcResponse> callPlugin(const PluginManifest& manifest,
     if (error) *error = QStringLiteral("plugin working directory is unavailable");
     return std::nullopt;
   }
-  const auto executable = pluginRoot / manifest.entry.toStdString();
-  if (!std::filesystem::is_regular_file(executable)) {
-    if (error) *error = QStringLiteral("plugin entry is unavailable");
-    return std::nullopt;
-  }
   QProcess process;
-  process.setProgram(QString::fromStdString(executable.string()));
+  if (!configureProcess(process, manifest, pluginRoot, error)) return std::nullopt;
   process.setWorkingDirectory(QString::fromStdString(workingDirectory.string()));
   process.start();
   if (!process.waitForStarted(1000)) {

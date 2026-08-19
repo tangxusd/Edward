@@ -33,6 +33,14 @@ std::optional<PluginManifest> PluginManifest::parse(const QJsonObject& object, Q
   if (!requiredText(object, "pluginId", manifest.pluginId, error) ||
       !requiredText(object, "version", manifest.version, error) ||
       !requiredText(object, "entry", manifest.entry, error)) return std::nullopt;
+  if (object.contains("runtime")) {
+    manifest.runtime = object.value("runtime").toString();
+    if (manifest.runtime != QStringLiteral("native") && manifest.runtime != QStringLiteral("node") &&
+        manifest.runtime != QStringLiteral("bun")) {
+      if (error) *error = QStringLiteral("manifest runtime is not supported");
+      return std::nullopt;
+    }
+  }
   if (manifest.entry.startsWith('/') || manifest.entry.contains(QStringLiteral(".."))) {
     if (error) *error = QStringLiteral("manifest entry must be a relative path");
     return std::nullopt;

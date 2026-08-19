@@ -2087,3 +2087,10 @@
 - 目的：落实预览窗中心为 `(0,0)`，左/上为正、右/下为负，避免属性面板无法设置右侧位置。
 - 修改：`WorkbenchRuntime::setDemoOverlayX` 将 X 范围从 `0..640` 扩展为 `-640..640`；QML X 滑块同步允许负值；工作台测试新增负 X 写入 Component IR 的断言。
 - 验证：`desktop.workbench_plugins`、`desktop.visual_routes` 通过；完整 CTest 待本次构建后执行。
+
+## 257. Edward 0.3.0 外部 JavaScript 插件运行时
+
+- 目的：使用户自行安装的 Remotion/HyperFrames JavaScript 入口可由受控宿主启动，不将 `.mjs` 当作原生二进制直接执行。
+- 修改：插件 manifest 增加可选 `runtime` 字段，默认 `native`，仅接受 `native`、`node`、`bun`；宿主从系统 PATH 解析固定运行时并只将 manifest 内相对入口作为脚本参数，拒绝其它运行时名称和任意解释器路径。
+- 验证：manifest 回归覆盖默认值、Node 与非法运行时；进程回归创建并启动实际 Node `.mjs` 脚本，插件定向测试 3/3 通过；完整 CTest 待本次提交前执行。
+- 边界：该运行时选择不构成 OS 沙盒，也不替代签名目录、官方发布包或网络代理权限。

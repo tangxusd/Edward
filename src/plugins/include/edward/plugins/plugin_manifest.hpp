@@ -11,6 +11,7 @@ struct PluginManifest final {
   QString pluginId;
   QString version;
   QString entry;
+  QString runtime = QStringLiteral("native");
   QStringList capabilities;
   QStringList permissions;
   QStringList editableProps;

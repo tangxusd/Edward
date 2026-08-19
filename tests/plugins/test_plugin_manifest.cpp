@@ -19,6 +19,7 @@ int main() {
   QString error;
   const auto manifest = edward::plugins::PluginManifest::parse(valid, &error);
   assert(manifest);
+  assert(manifest->runtime == "native");
   assert(manifest->allows("read_input_asset"));
   assert(!manifest->allows("network"));
 
@@ -28,6 +29,13 @@ int main() {
   assert(!edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "remotion"}, {"version", "1"}, {"entry", "host.mjs"},
                   {"permissions", QJsonArray{"network"}}}, &error));
+  const auto nodeManifest = edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "remotion"}, {"version", "1"}, {"entry", "host.mjs"},
+                  {"runtime", "node"}}, &error);
+  assert(nodeManifest && nodeManifest->runtime == "node");
+  assert(!edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "remotion"}, {"version", "1"}, {"entry", "host.mjs"},
+                  {"runtime", "python"}}, &error));
   QTemporaryDir installedDirectory;
   assert(installedDirectory.isValid());
   const auto root = std::filesystem::path(installedDirectory.path().toStdString());

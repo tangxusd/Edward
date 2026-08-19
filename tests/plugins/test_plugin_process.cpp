@@ -32,6 +32,18 @@ int main(int argc, char** argv) {
   assert(!edward::plugins::renderPluginFrame(
       *manifest, root, "opaque-request", "main", 7, QSize(4, 3), 2000, &error));
   qunsetenv("EDWARD_TEST_RPC_MODE");
+  QFile nodeEntry(QString::fromStdString((root / "node-fixture.mjs").string()));
+  assert(nodeEntry.open(QIODevice::WriteOnly));
+  nodeEntry.write("process.stdout.write('node-ok\\n');\n");
+  nodeEntry.close();
+  const auto nodeManifest = edward::plugins::PluginManifest::parse(
+      QJsonObject{{"pluginId", "node-fixture"}, {"version", "1.0.0"},
+                  {"entry", "node-fixture.mjs"}, {"runtime", "node"}}, &error);
+  assert(nodeManifest);
+  const auto nodeResult = edward::plugins::launchPluginProcess(
+      *nodeManifest, root, {}, 2000);
+  assert(nodeResult.started && nodeResult.exitCode == 0);
+  assert(nodeResult.standardOutput.contains("node-ok"));
   const auto exported = edward::plugins::PluginManifest::parse(
       QJsonObject{{"pluginId", "fixture"}, {"version", "1.0.0"}, {"entry", "fixture"},
                   {"capabilities", QJsonArray{"renderFrame", "renderExport"}}});
