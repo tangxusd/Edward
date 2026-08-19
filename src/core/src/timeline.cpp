@@ -54,12 +54,18 @@ TimelineSnapshot Timeline::snapshot() const { return {durationFrames_, playheadF
 
 bool Timeline::restore(const TimelineSnapshot& snapshot) {
   if (snapshot.durationFrames != durationFrames_ || snapshot.playheadFrame < 0 || snapshot.playheadFrame > durationFrames_) return false;
+  if (snapshot.videoTracks.empty()) return false;
+  for (const auto track : snapshot.videoTracks)
+    if (track == 0 || std::ranges::count(snapshot.videoTracks, track) != 1) return false;
   for (const auto& clip : snapshot.clips) {
-    if (!isValid(clip)) return false;
+    const auto duration = clip.sourceOut - clip.sourceIn;
+    if (clip.id == 0 || std::ranges::find(snapshot.videoTracks, clip.trackId) == snapshot.videoTracks.end() || clip.source.empty() ||
+        clip.sourceIn < 0 || duration <= 0 || clip.timelineStart < 0 ||
+        clip.timelineStart + duration > durationFrames_) return false;
     for (const auto& other : snapshot.clips) {
-      if (clip.id != other.id && clip.trackId == other.trackId &&
+      if (&clip != &other && (clip.id == other.id || (clip.trackId == other.trackId &&
           clip.timelineStart < other.timelineStart + (other.sourceOut - other.sourceIn) &&
-          other.timelineStart < clip.timelineStart + (clip.sourceOut - clip.sourceIn)) return false;
+          other.timelineStart < clip.timelineStart + (clip.sourceOut - clip.sourceIn)))) return false;
     }
   }
   videoTracks_ = snapshot.videoTracks;

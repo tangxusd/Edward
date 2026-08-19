@@ -30,5 +30,9 @@ int main() {
   assert(timeline.clip(2)->timelineStart == 150);
   assert(commands.redo());
   assert(timeline.clip(2)->timelineStart == 110);
+  Timeline restored(300);
+  restored.addVideoTrack();
+  assert(restored.restore({300, 0, {1, 2}, {{9, 2, "overlay.mp4", 0, 30, 0}}}));
+  assert(restored.clips(2).size() == 1);
   return 0;
 }

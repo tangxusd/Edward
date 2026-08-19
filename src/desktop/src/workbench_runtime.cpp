@@ -5,6 +5,7 @@
 
 #include <QVariantMap>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -540,6 +541,70 @@ void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
 
 bool WorkbenchRuntime::setPlayhead(int frame) {
   if (!controller_.setPlayhead(frame)) return false;
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::saveProject(const QString& path) const {
+  if (path.isEmpty()) return false;
+  const auto snapshot = timeline_.snapshot();
+  QJsonArray tracks;
+  for (const auto track : snapshot.videoTracks) tracks.append(static_cast<qint64>(track));
+  QJsonArray clips;
+  for (const auto& clip : snapshot.clips) {
+    clips.append(QJsonObject{{"id", static_cast<qint64>(clip.id)},
+                             {"trackId", static_cast<qint64>(clip.trackId)},
+                             {"source", QString::fromStdString(clip.source.string())},
+                             {"sourceIn", static_cast<qint64>(clip.sourceIn)},
+                             {"sourceOut", static_cast<qint64>(clip.sourceOut)},
+                             {"timelineStart", static_cast<qint64>(clip.timelineStart)}});
+  }
+  QJsonObject project{{"version", 1}, {"durationFrames", static_cast<qint64>(snapshot.durationFrames)},
+                      {"playheadFrame", static_cast<qint64>(snapshot.playheadFrame)},
+                      {"videoTracks", tracks}, {"clips", clips}};
+  if (demoOverlayIr_) project.insert("component", demoOverlayIr_->toJson());
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(project).toJson(QJsonDocument::Compact)) < 0) return false;
+  return file.commit();
+}
+
+bool WorkbenchRuntime::loadProject(const QString& path) {
+  QFile file(path);
+  if (!file.open(QIODevice::ReadOnly)) return false;
+  QJsonParseError error;
+  const auto document = QJsonDocument::fromJson(file.readAll(), &error);
+  if (error.error != QJsonParseError::NoError || !document.isObject()) return false;
+  const auto project = document.object();
+  if (project.value("version").toInt() != 1 || !project.value("durationFrames").isDouble() ||
+      !project.value("playheadFrame").isDouble() || !project.value("videoTracks").isArray() ||
+      !project.value("clips").isArray()) return false;
+  edward::core::TimelineSnapshot snapshot;
+  snapshot.durationFrames = project.value("durationFrames").toInteger();
+  snapshot.playheadFrame = project.value("playheadFrame").toInteger();
+  for (const auto value : project.value("videoTracks").toArray()) {
+    if (!value.isDouble()) return false;
+    snapshot.videoTracks.push_back(value.toInteger());
+  }
+  for (const auto value : project.value("clips").toArray()) {
+    if (!value.isObject()) return false;
+    const auto clip = value.toObject();
+    if (!clip.value("id").isDouble() || !clip.value("trackId").isDouble() || !clip.value("source").isString() ||
+        !clip.value("sourceIn").isDouble() || !clip.value("sourceOut").isDouble() || !clip.value("timelineStart").isDouble()) return false;
+    snapshot.clips.push_back({static_cast<edward::core::ClipId>(clip.value("id").toInteger()),
+                              static_cast<edward::core::TrackId>(clip.value("trackId").toInteger()),
+                              clip.value("source").toString().toStdString(), clip.value("sourceIn").toInteger(),
+                              clip.value("sourceOut").toInteger(), clip.value("timelineStart").toInteger()});
+  }
+  std::optional<edward::core::ComponentIr> component;
+  if (!project.value("component").isUndefined()) {
+    if (!project.value("component").isObject()) return false;
+    component = edward::core::ComponentIr::parse(project.value("component").toObject());
+    if (!component) return false;
+  }
+  if (!timeline_.restore(snapshot)) return false;
+  demoOverlayIr_ = std::move(component);
+  demoOverlayEnabled_ = demoOverlayIr_.has_value();
+  renderGraph_.setOverlay(demoOverlayIr_);
   emit timelineChanged();
   return true;
 }

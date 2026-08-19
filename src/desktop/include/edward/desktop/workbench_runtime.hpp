@@ -103,6 +103,8 @@ class WorkbenchRuntime final : public QObject {
                                          const QString& outputPath);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
+  Q_INVOKABLE bool saveProject(const QString& path) const;
+  Q_INVOKABLE bool loadProject(const QString& path);
   Q_INVOKABLE void togglePlayback();
   Q_INVOKABLE bool splitSelected();
   Q_INVOKABLE bool deleteSelected();

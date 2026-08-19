@@ -66,6 +66,14 @@ int main(int argc, char** argv) {
   assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
   runtime.generateComponentDraft();
+  const auto projectPath = directory.path() + QStringLiteral("/project.edward.json");
+  assert(runtime.saveProject(projectPath));
+  edward::desktop::WorkbenchRuntime restoredRuntime;
+  assert(restoredRuntime.loadProject(projectPath));
+  assert(restoredRuntime.videoTrackCount() == 2);
+  assert(restoredRuntime.clips().size() == 2);
+  assert(!restoredRuntime.componentJson().isEmpty());
+  assert(!restoredRuntime.loadProject(directory.path() + QStringLiteral("/missing.edward.json")));
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));
   assert(runtime.setPlayhead(12));

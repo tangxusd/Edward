@@ -46,6 +46,16 @@ ApplicationWindow {
                         text: "+ 导入素材"
                         onClicked: mediaDialog.open()
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "保存工程"
+                        onClicked: projectSaveDialog.open()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "打开工程"
+                        onClicked: projectOpenDialog.open()
+                    }
                 }
             }
 
@@ -281,6 +291,22 @@ ApplicationWindow {
         fileMode: FileDialog.OpenFile
         nameFilters: ["视频文件 (*.mp4 *.mov *.mkv *.webm)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.importMedia(selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: projectSaveDialog
+        title: "保存 Edward 工程"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Edward 工程 (*.edward.json)", "JSON 文件 (*.json)"]
+        onAccepted: workbenchRuntime.saveProject(selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: projectOpenDialog
+        title: "打开 Edward 工程"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["Edward 工程 (*.edward.json *.json)"]
+        onAccepted: workbenchRuntime.loadProject(selectedFile.toLocalFile())
     }
 
     FolderDialog {
