@@ -11,6 +11,13 @@ int main(int argc, char **argv) {
     assert(info->width == 16 && info->height == 16);
     assert(info->fpsNumerator == 25 && info->fpsDenominator == 1);
     assert(info->durationFrames == 25);
+  } else if (argc == 3) {
+    const auto info = edward::media::MediaProbe::probe(argv[1]);
+    assert(info && !info->hasAlpha);
+    const auto alphaInfo = edward::media::MediaProbe::probe(argv[2]);
+    assert(alphaInfo && alphaInfo->hasAlpha);
+    assert(alphaInfo->width == 16 && alphaInfo->height == 16);
+    assert(alphaInfo->fpsNumerator == 25 && alphaInfo->fpsDenominator == 1);
   }
   return 0;
 }

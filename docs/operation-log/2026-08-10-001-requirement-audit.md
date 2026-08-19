@@ -7,6 +7,13 @@
 - 结果：媒体探测新增 Alpha 像素格式识别；新增“应用到时间线”入口，导出并验证透明通道后复用现有播放头插入/冲突加轨逻辑；应用成功后移除插件占位层，普通导出继续走既有 MLT 多轨合成；独立“插件导出”保留。
 - 验证：`cmake --build build/0.3-runtime -j2` 通过；全量 CTest 29/29 通过。
 
+## 2026-08-20：Alpha 探测回归夹具
+
+- 目的：固定透明插件视频的媒体探测行为，防止 Alpha 识别回归。
+- 涉及文件：`tests/media/test_media_probe.cpp`、`tests/media/CMakeLists.txt`。
+- 结果：新增透明 ProRes 夹具，验证普通 YUV 视频不带 Alpha、透明 MOV 带 Alpha。
+- 验证：全量 CTest 30/30 通过。
+
 - 时间：2026-08-10（Asia/Shanghai）
 - 目的：记录 0.2.0 方案审计中的已确认决策，并落实“每次操作均以 Markdown 落盘记录”的项目规则。
 - 涉及文件：`AGENTS.md`；本记录文件。

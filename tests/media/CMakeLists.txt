@@ -2,6 +2,7 @@ find_program(EDWARD_FFMPEG_EXECUTABLE ffmpeg REQUIRED)
 set(EDWARD_MEDIA_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/fixture.mp4)
 set(EDWARD_MEDIA_OVERLAY_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/overlay.mp4)
 set(EDWARD_MEDIA_AUDIO_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/audio-fixture.mp4)
+set(EDWARD_MEDIA_ALPHA_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/alpha-fixture.mov)
 add_custom_command(OUTPUT ${EDWARD_MEDIA_FIXTURE}
   COMMAND ${EDWARD_FFMPEG_EXECUTABLE} -hide_banner -loglevel error
     -f lavfi -i color=c=black:s=16x16:r=25:d=1
@@ -21,10 +22,18 @@ add_custom_command(OUTPUT ${EDWARD_MEDIA_AUDIO_FIXTURE}
     -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac -y ${EDWARD_MEDIA_AUDIO_FIXTURE}
   VERBATIM)
 add_custom_target(media_audio_fixture ALL DEPENDS ${EDWARD_MEDIA_AUDIO_FIXTURE})
+add_custom_command(OUTPUT ${EDWARD_MEDIA_ALPHA_FIXTURE}
+  COMMAND ${EDWARD_FFMPEG_EXECUTABLE} -hide_banner -loglevel error
+    -f lavfi -i color=c=black@0.0:s=16x16:r=25:d=1
+    -vf format=rgba -c:v prores_ks -profile:v 4 -pix_fmt yuva444p10le -an -y ${EDWARD_MEDIA_ALPHA_FIXTURE}
+  VERBATIM)
+add_custom_target(media_alpha_fixture ALL DEPENDS ${EDWARD_MEDIA_ALPHA_FIXTURE})
 add_executable(test_media_probe test_media_probe.cpp)
 target_link_libraries(test_media_probe PRIVATE edward_media)
 add_test(NAME media.media_probe COMMAND test_media_probe)
 add_test(NAME media.media_probe_fixture COMMAND test_media_probe ${EDWARD_MEDIA_FIXTURE})
+add_dependencies(test_media_probe media_alpha_fixture)
+add_test(NAME media.media_probe_alpha_fixture COMMAND test_media_probe ${EDWARD_MEDIA_FIXTURE} ${EDWARD_MEDIA_ALPHA_FIXTURE})
 
 add_executable(test_mlt_adapter test_mlt_adapter.cpp)
 target_link_libraries(test_mlt_adapter PRIVATE edward_media)
