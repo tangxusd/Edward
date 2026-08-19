@@ -2062,3 +2062,9 @@
 - 目的：确认最小剪辑、组件合成与 1080p 导出在本机形成可执行闭环。
 - 结果：导入、分割、波纹删除、组件叠加、1920×1080 H.264 导出、输出重新探测均通过；macOS offscreen QML 启动无 QML 错误或空图像请求。
 - 记录：阶段门审计写入 `docs/superpowers/audits/2026-08-19-edward-0.3.0-stage-gate.md`；Windows 打包验证仍保留为后续 GitHub/Windows 门。
+
+## 253. Edward Windows 媒体验证边界
+
+- 目的：禁止把 macOS 媒体构建或测试结果误作为 Windows 发布证据。
+- 修改：新增 `docs/contracts/windows-media-validation.md`，固定同一 MSVC x64 媒体前缀、DLL 来源、完整 CTest、1080p 导出和干净 Windows 启动检查要求。
+- 结果：已记录 Windows 验证合同；尚未执行 Windows/MSI 验证。
