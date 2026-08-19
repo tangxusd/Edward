@@ -176,7 +176,7 @@ ApplicationWindow {
                               ? "插件: " + workbenchRuntime.installedPluginId
                               : "未选择动画插件"
                         color: workbenchRuntime.installedPluginAvailable
-                               ? DesignTokens.textSecondary : DesignTokens.textMuted
+                               ? DesignTokens.textSecondary : DesignTokens.textSecondary
                     }
                     TextField {
                         id: compositionIdField
@@ -206,11 +206,10 @@ ApplicationWindow {
         onAccepted: workbenchRuntime.importMedia(selectedFile.toLocalFile())
     }
 
-    FileDialog {
+    FolderDialog {
         id: pluginDirectoryDialog
         title: "选择动画插件目录"
-        fileMode: FileDialog.OpenDirectory
-        onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFile.toLocalFile())
+        onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFolder.toLocalFile())
     }
 
     Dialog {
