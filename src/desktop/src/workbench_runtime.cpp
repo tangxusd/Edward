@@ -3,6 +3,7 @@
 #include "edward/media/export_job.hpp"
 #include "edward/plugins/plugin_host.hpp"
 #include "edward/resources/component_package.hpp"
+#include "edward/core/component_edit_command.hpp"
 
 #include <QVariantMap>
 #include <QFile>
@@ -655,7 +656,13 @@ void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
 
 void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   demoOverlayText_ = value.left(120);
-  if (demoOverlayIr_) demoOverlayIr_->setNodeProperty("demo-text", "text", demoOverlayText_);
+  if (demoOverlayIr_) {
+    edward::core::ComponentEditCommand::apply(
+        *demoOverlayIr_, {edward::core::ComponentEditKind::SetProperty, "demo-text", "text", 0, demoOverlayText_});
+    edward::core::ComponentEditCommand::apply(
+        *demoOverlayIr_, {edward::core::ComponentEditKind::SetKeyframeValue, "demo-text", "text",
+                          playheadFrame(), demoOverlayText_});
+  }
   refreshDemoOverlay();
   emit timelineChanged();
 }

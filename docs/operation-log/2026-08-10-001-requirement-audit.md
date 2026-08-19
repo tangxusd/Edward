@@ -28,6 +28,13 @@
 - 结果：新增通用关键帧值写入接口，保留原数值接口兼容；文字渲染按当前帧读取字符串关键帧；测试运行时固定 Qt offscreen 平台。
 - 验证：定向测试通过；全量 CTest 30/30 通过。
 
+## 2026-08-20：统一组件编辑命令
+
+- 目的：为属性面板、预览拖拽和 AI 编辑提供同一条 Component IR 修改入口。
+- 涉及文件：`src/core/include/edward/core/component_edit_command.hpp`、`src/core/src/component_edit_command.cpp`、`src/desktop/src/workbench_runtime.cpp`、`tests/core/test_component_edit_command.cpp`。
+- 结果：新增变换数值、普通属性、关键帧值三类命令及统一校验；工作台文字属性更新已切换到该命令接口。
+- 验证：全量 CTest 30/30 通过。
+
 - 时间：2026-08-10（Asia/Shanghai）
 - 目的：记录 0.2.0 方案审计中的已确认决策，并落实“每次操作均以 Markdown 落盘记录”的项目规则。
 - 涉及文件：`AGENTS.md`；本记录文件。

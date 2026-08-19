@@ -9,3 +9,7 @@ add_test(NAME core.timeline_commands COMMAND test_timeline_commands)
 add_executable(test_component_ir test_component_ir.cpp)
 target_link_libraries(test_component_ir PRIVATE edward_core Qt6::Core)
 add_test(NAME core.component_ir COMMAND test_component_ir)
+
+add_executable(test_component_edit_command test_component_edit_command.cpp)
+target_link_libraries(test_component_edit_command PRIVATE edward_core)
+add_test(NAME core.component_edit_command COMMAND test_component_edit_command)
