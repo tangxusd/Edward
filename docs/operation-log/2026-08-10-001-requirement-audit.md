@@ -2142,4 +2142,11 @@
 
 - 目的：验证外部适配器不止能通过 manifest 静态检查，而能在用户独立安装运行时后返回可叠加的真实透明帧。
 - 修改：Remotion 适配器锁定 npm 依赖并完成 Chrome Headless Shell 下载；HyperFrames 组合根节点补充有限 `data-duration="5"` 与 `data-no-timeline`。后者避免未使用 GSAP 子时间线时等待默认 45 秒；适配器继续由 HyperFrames 自己创建浏览器、初始化运行时与定位时间，再使用同一会话透明截图返回 PNG。
-- 验证：Remotion 的 `describe` 返回标准 Component IR，`renderFrame(64×36, frame 0)` 返回透明 PNG Base64；HyperFrames 的同等 `describe` 和 `renderFrame` 也返回透明 PNG Base64。`plugins.plugin_adapters` 同时验证两端真实 `describe`，并固定 HyperFrames 时长与无子时间线标记。浏览器与 `node_modules` 是本机产物，均已 Git 忽略。
+- 验证：Remotion 的 `describe` 返回标准 Component IR，`renderFrame(64×36, frame 0)` 返回透明 PNG Base64；HyperFrames 的同等 `describe` 和 `renderFrame` 也返回透明 PNG Base64。`plugins.plugin_adapters` 固定验证两端 manifest、权限与协议源内容，并固定 HyperFrames 时长与无子时间线标记；真实运行验证作为安装依赖后的本机集成步骤执行。浏览器与 `node_modules` 是本机产物，均已 Git 忽略。
+
+## 266. Edward 0.3.0 macOS 基础剪辑阶段门刷新
+
+- 目的：以可复现的 macOS CMake 预设重新验证基础剪辑 MVP，并避免可选外部插件依赖污染干净 CI。
+- 修改：新增 `CMakePresets.json`，定义 `macos-debug` 与未来 Windows CI 使用的 `windows-debug` 配置、构建和测试预设；插件适配器 CTest 保持静态清单与协议验证，不再隐式依赖用户本机的 `node_modules`。
+- 验证：`cmake --preset macos-debug`、`cmake --build --preset macos-debug -j2`、`ctest --preset macos-debug --output-on-failure` 全部成功，26/26 通过；`build/macos-debug/bin/edward_app` 已生成。Remotion 与 HyperFrames 的真实 Node 适配器运行验证见第 265 节。
+- 边界：此门仅覆盖本机 `.app` 与基础剪辑链路。按当前交付决定未验证 DMG；Windows MSI、发行签名/公钥信任根和 OS 级插件沙盒仍待后续发布门完成。
