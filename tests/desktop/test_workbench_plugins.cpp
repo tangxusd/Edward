@@ -19,6 +19,9 @@ int main(int argc, char** argv) {
   assert(timelineClips.size() == 2);
   assert(timelineClips.at(0).toMap().value("trackIndex").toInt() == 0);
   assert(timelineClips.at(1).toMap().value("trackIndex").toInt() == 1);
+  assert(runtime.selectClip(timelineClips.at(1).toMap().value("id").toLongLong()));
+  assert(runtime.moveSelected(10));
+  assert(runtime.clips().at(1).toMap().value("timelineStart").toLongLong() == 10);
   assert(!runtime.signInWithSupabase("http://project.supabase.co", "anon-key", "demo@example.com", "password"));
   assert(!runtime.authenticated());
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",

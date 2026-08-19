@@ -104,6 +104,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool splitSelected();
   Q_INVOKABLE bool deleteSelected();
   Q_INVOKABLE bool rippleDeleteSelected();
+  Q_INVOKABLE bool moveSelected(qlonglong destination);
 
  signals:
   void timelineChanged();

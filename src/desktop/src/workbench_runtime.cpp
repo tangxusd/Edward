@@ -552,6 +552,22 @@ bool WorkbenchRuntime::deleteSelected() {
   return true;
 }
 
-bool WorkbenchRuntime::rippleDeleteSelected() { return deleteSelected(); }
+bool WorkbenchRuntime::rippleDeleteSelected() {
+  if (!controller_.rippleDeleteSelected()) {
+    emit operationFailed(QStringLiteral("没有可波纹删除的片段"));
+    return false;
+  }
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::moveSelected(qlonglong destination) {
+  if (!controller_.moveSelectedTo(static_cast<edward::core::Frame>(destination))) {
+    emit operationFailed(QStringLiteral("片段移动后会超出时间线或覆盖同轨片段"));
+    return false;
+  }
+  emit timelineChanged();
+  return true;
+}
 
 }  // namespace edward::desktop

@@ -2218,3 +2218,9 @@
 - 目的：使重复素材或同一播放头的叠加素材能够直接加入时间线，而不是因 V1 已占用而失败；保证新增轨道同时进入工作台预览和导出共用的渲染链。
 - 修改：`TimelineController` 在合法媒体与时间线范围内遇到轨道冲突时自动建立下一个视频轨；普通删除改为仅删除选中片段，波纹删除继续只影响选中片段所在轨道。`WorkbenchRuntime` 向 QML 暴露所有视频轨片段及轨道数量；时间线根据实际轨道数量显示 V1、V2 等轨道。`MltAdapter` 对同一帧的全部活动视频轨按轨道顺序 Alpha 合成，后轨覆盖前轨。
 - 验证：工作台测试使用真实 MP4 两次导入，确认生成 V1/V2 及两个可见片段；MLT 像素回归确认红色 V2 覆盖黑色 V1；`desktop.timeline_controller`、`desktop.workbench_plugins`、`desktop.visual_routes`、`media.mlt_adapter` 定向测试通过。`cmake --build --preset macos-debug -j2` 成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。
+
+## 278. Edward 时间线片段移动与删除语义修正
+
+- 目的：让用户可以在时间线上拖动片段安排叠加层时序，并确保普通删除与波纹删除分别执行各自语义。
+- 修改：工作台接入 `TimelineCommands::moveClip`，片段拖动后由 C++ 校验时间线边界和同轨冲突；波纹删除入口改为调用 `rippleDeleteSelected`，不再误调用普通删除。新增失败提示，说明移动会越界或覆盖同轨片段。
+- 验证：控制器测试覆盖片段移动后再分割、普通删除保留后半段、波纹删除清除并移动后续片段；工作台测试覆盖真实 MP4 片段移动；视觉路由测试覆盖拖拽绑定。完整构建成功，`ctest --preset macos-debug --output-on-failure` 全部 29/29 通过。

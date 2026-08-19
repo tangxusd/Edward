@@ -43,6 +43,10 @@ bool TimelineController::rippleDeleteSelected() {
   return true;
 }
 
+bool TimelineController::moveSelectedTo(edward::core::Frame destination) {
+  return selectedClip_ != 0 && commands_.moveClip(selectedClip_, destination);
+}
+
 bool TimelineController::selectClip(edward::core::ClipId id) {
   if (!timeline_.clip(id)) return false;
   selectedClip_ = id;

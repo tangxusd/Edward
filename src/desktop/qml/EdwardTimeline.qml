@@ -131,7 +131,13 @@ Item {
             border.width: modelData.selected ? 2 : 1
             MouseArea {
                 anchors.fill: parent
+                drag.target: parent
+                drag.axis: Drag.XAxis
+                drag.minimumX: root.rulerWidth
+                drag.maximumX: root.frameToX(root.durationFrames) - parent.width
+                onPressed: workbenchRuntime.selectClip(modelData.id)
                 onClicked: workbenchRuntime.selectClip(modelData.id)
+                onReleased: workbenchRuntime.moveSelected(Math.max(0, Math.min(root.durationFrames, Math.round((parent.x - root.rulerWidth) / root.pixelsPerFrame))))
             }
             Text {
                 anchors.centerIn: parent

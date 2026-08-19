@@ -73,6 +73,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 220
                     playheadFrame: workbenchRuntime.playheadFrame
+                    videoTrackCount: workbenchRuntime.videoTrackCount
                     clips: workbenchRuntime.clips
                     onPlayheadChangedByUser: workbenchRuntime.setPlayhead(frame)
                     onSplitRequested: workbenchRuntime.splitSelected()

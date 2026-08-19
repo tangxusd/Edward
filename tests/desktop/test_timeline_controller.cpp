@@ -5,7 +5,7 @@
 
 int main(int argc, char** argv) {
   assert(argc == 2);
-  edward::core::Timeline timeline(25);
+  edward::core::Timeline timeline(50);
   const auto track = timeline.addVideoTrack();
   edward::desktop::TimelineController controller(timeline, track);
   assert(controller.dropMediaAtPlayhead(argv[1]));
@@ -19,12 +19,14 @@ int main(int argc, char** argv) {
   assert(timeline.clips(tracks[0]).size() == 1);
   assert(timeline.clips(tracks[1]).size() == 1);
   assert(controller.selectedClip() == 2);
-  assert(controller.setPlayhead(10));
+  assert(controller.moveSelectedTo(10));
+  assert(timeline.clips(tracks[1]).front().timelineStart == 10);
+  assert(controller.setPlayhead(20));
   assert(controller.splitSelectedAtPlayhead());
   assert(timeline.clips(tracks[1]).size() == 2);
   assert(controller.deleteSelected());
   assert(timeline.clips(tracks[1]).size() == 1);
-  assert(timeline.clips(tracks[1]).front().timelineStart == 10);
+  assert(timeline.clips(tracks[1]).front().timelineStart == 20);
   assert(controller.selectClip(3));
   assert(controller.rippleDeleteSelected());
   assert(timeline.clips(tracks[1]).empty());
