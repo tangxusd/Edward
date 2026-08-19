@@ -5,6 +5,19 @@
 
 namespace edward::plugins {
 
+namespace {
+
+bool pathInside(const std::filesystem::path& child, const std::filesystem::path& parent) {
+  auto childIt = child.begin();
+  auto parentIt = parent.begin();
+  for (; parentIt != parent.end(); ++parentIt, ++childIt) {
+    if (childIt == child.end() || *childIt != *parentIt) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 PluginDependencyStatus dependencyStatus(const edward::core::ComponentIr& component,
                                         const std::optional<InstalledPlugin>& installedPlugin) {
   const auto& dependency = component.pluginDependency();
@@ -39,8 +52,18 @@ std::optional<InstalledPlugin> loadInstalledPlugin(const std::filesystem::path& 
   }
   auto manifest = PluginManifest::parse(document.object(), error);
   if (!manifest) return std::nullopt;
-  if (!std::filesystem::is_regular_file(root / manifest->entry.toStdString())) {
+  const auto entryPath = root / manifest->entry.toStdString();
+  std::error_code statusError;
+  if (std::filesystem::is_symlink(std::filesystem::symlink_status(entryPath, statusError)) || statusError ||
+      !std::filesystem::is_regular_file(entryPath)) {
     if (error) *error = QStringLiteral("plugin entry is unavailable");
+    return std::nullopt;
+  }
+  std::error_code canonicalError;
+  const auto canonicalRoot = std::filesystem::canonical(root, canonicalError);
+  const auto canonicalEntry = std::filesystem::canonical(entryPath, canonicalError);
+  if (canonicalError || !pathInside(canonicalEntry, canonicalRoot)) {
+    if (error) *error = QStringLiteral("plugin entry must stay inside plugin root");
     return std::nullopt;
   }
   return InstalledPlugin{root, std::move(*manifest)};

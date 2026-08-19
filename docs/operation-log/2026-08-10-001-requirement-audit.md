@@ -2106,3 +2106,9 @@
 - 目的：将插件描述桥接从底层 API 接入实际工作台，使外部插件生成的组件进入统一 Component IR 编辑链路。
 - 修改：`WorkbenchRuntime::describeInstalledPlugin` 新增同步描述入口；QML 插件区域新增“读取插件组件”按钮。成功时载入描述返回的 IR 并刷新预览，失败时保留现有草稿并显示错误。
 - 验证：`desktop.workbench_plugins`、`desktop.visual_routes` 通过；完整 CTest 待本次提交后执行。
+
+## 260. Edward 0.3.0 插件入口目录边界
+
+- 目的：防止用户选择的插件目录通过入口符号链接启动目录外的文件，扩大本地批准范围。
+- 修改：`loadInstalledPlugin` 拒绝符号链接入口，并以规范路径确认入口仍位于选定插件根目录内。
+- 验证：manifest 测试先复现符号链接被接受，再验证修复；插件和工作台相关测试 4/4 通过，完整 CTest 待本次提交后执行。

@@ -62,6 +62,9 @@ int main() {
   assert(edward::plugins::dependencyStatus(*dependent, std::nullopt) ==
          edward::plugins::PluginDependencyStatus::Missing);
   std::filesystem::remove(root / "host.mjs");
+  std::filesystem::create_symlink("/usr/bin/true", root / "host.mjs");
+  assert(!edward::plugins::loadInstalledPlugin(root, &error));
+  std::filesystem::remove(root / "host.mjs");
   assert(!edward::plugins::loadInstalledPlugin(root, &error));
   return 0;
 }
