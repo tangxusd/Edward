@@ -187,8 +187,11 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
-  Q_INVOKABLE bool saveProject(const QString& path) const;
+  Q_INVOKABLE bool saveProject(const QString& path);
   Q_INVOKABLE bool loadProject(const QString& path);
+  Q_INVOKABLE bool hasProjectRecovery(const QString& path) const;
+  Q_INVOKABLE bool recoverProject(const QString& path);
+  Q_INVOKABLE bool discardProjectRecovery(const QString& path);
   Q_INVOKABLE void togglePlayback();
   Q_INVOKABLE bool splitSelected();
   Q_INVOKABLE bool deleteSelected();
@@ -216,6 +219,10 @@ class WorkbenchRuntime final : public QObject {
   void requestClipThumbnail(const edward::core::TimelineClip& clip);
   void refreshClipThumbnails();
   void syncDemoOverlayProperties(const QJsonObject& component);
+  [[nodiscard]] QString recoveryPathForProject(const QString& path) const;
+  [[nodiscard]] bool writeProject(const QString& path) const;
+  void scheduleProjectAutosave();
+  void saveProjectRecovery();
   [[nodiscard]] int componentKeyframeFrame() const;
   edward::core::Timeline timeline_;
   edward::core::TrackId videoTrack_;
@@ -267,6 +274,9 @@ class WorkbenchRuntime final : public QObject {
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;
   QTimer playbackTimer_;
+  QTimer projectAutosaveTimer_;
+  QString activeProjectPath_;
+  bool loadingProject_ = false;
   edward::media::AudioPreview audioPreview_;
   QHash<qint64, QVariantList> clipWaveforms_;
   quint64 waveformGeneration_ = 0;

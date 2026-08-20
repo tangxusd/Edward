@@ -215,7 +215,26 @@ int main(int argc, char** argv) {
   assert(transformedBox.value("transform").toObject().value("scaleX").toDouble() == 1.5);
   assert(transformedBox.value("transform").toObject().value("rotation").toDouble() == 30.0);
   const auto projectPath = directory.path() + QStringLiteral("/project.edward.json");
+  runtime.setDemoOverlayText(QStringLiteral("手动保存基线"));
   assert(runtime.saveProject(projectPath));
+  runtime.setDemoOverlayText(QStringLiteral("自动保存草稿"));
+  QEventLoop autosaveLoop;
+  QTimer::singleShot(1500, &autosaveLoop, &QEventLoop::quit);
+  autosaveLoop.exec();
+  assert(runtime.hasProjectRecovery(projectPath));
+  QFile officialProject(projectPath);
+  assert(officialProject.open(QIODevice::ReadOnly));
+  const auto officialComponent = QJsonDocument::fromJson(officialProject.readAll()).object()
+                                   .value("component").toObject().value("root").toObject()
+                                   .value("children").toArray().at(1).toObject()
+                                   .value("properties").toObject().value("text").toString();
+  assert(officialComponent == QStringLiteral("手动保存基线"));
+  edward::desktop::WorkbenchRuntime recoveredRuntime;
+  assert(recoveredRuntime.recoverProject(projectPath));
+  assert(recoveredRuntime.demoOverlayText() == QStringLiteral("自动保存草稿"));
+  assert(recoveredRuntime.discardProjectRecovery(projectPath));
+  assert(!recoveredRuntime.hasProjectRecovery(projectPath));
+  runtime.setDemoOverlayText(QStringLiteral("手动保存基线"));
   edward::desktop::WorkbenchRuntime restoredRuntime;
   assert(restoredRuntime.loadProject(projectPath));
   assert(restoredRuntime.videoTrackCount() == 2);

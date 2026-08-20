@@ -2720,3 +2720,9 @@
 - 目的：防止基础编辑命令只在少量片段时可用，覆盖较长项目中的分割、裁切、移动、撤销重做和工程快照恢复。
 - 修改：新增 5 条视频轨、每轨 20 个片段的核心压力用例；分割后按时间线位置定位实际生成的右侧片段，不假定内部片段 ID。
 - 验证：`core.timeline_stress` 通过；`core.timeline_commands`、`media.mlt_adapter`、`media.audio_waveform`、`media.audio_preview`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 共 9/9 通过，`git diff --check` 通过。
+
+## 2026-08-20 工程自动保存与恢复
+
+- 目的：降低工程在异常退出或未手动保存后的编辑丢失风险，同时保证自动副本不会静默覆盖用户正式工程。
+- 修改：已保存工程在编辑停止 1 秒后，以原子写入在同目录生成 `.autosave` 副本；打开时仅当副本比正式工程更新才显示恢复选择。用户可恢复副本或丢弃副本后打开正式工程；再次手动保存会清理副本。
+- 验证：测试直接确认正式 JSON 保持手动保存基线、恢复工程读到自动保存内容、丢弃后副本消失；`core.timeline_stress`、`media.mlt_adapter`、`media.audio_waveform`、`media.audio_preview`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 8/8 通过，`git diff --check` 通过。离屏 QML 启动另行复核。

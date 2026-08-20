@@ -9,6 +9,7 @@
 
 #include <QVariantMap>
 #include <QFile>
+#include <QFileInfo>
 #include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -147,6 +148,10 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     }
     emit timelineChanged();
   });
+  projectAutosaveTimer_.setSingleShot(true);
+  projectAutosaveTimer_.setInterval(1000);
+  connect(&projectAutosaveTimer_, &QTimer::timeout, this, &WorkbenchRuntime::saveProjectRecovery);
+  connect(this, &WorkbenchRuntime::timelineChanged, this, &WorkbenchRuntime::scheduleProjectAutosave);
   connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
           &WorkbenchRuntime::timelineChanged);
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
@@ -1387,7 +1392,7 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
   return true;
 }
 
-bool WorkbenchRuntime::saveProject(const QString& path) const {
+bool WorkbenchRuntime::writeProject(const QString& path) const {
   if (path.isEmpty()) return false;
   const auto snapshot = timeline_.snapshot();
   QJsonArray tracks;
@@ -1412,6 +1417,49 @@ bool WorkbenchRuntime::saveProject(const QString& path) const {
   QSaveFile file(path);
   if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(project).toJson(QJsonDocument::Compact)) < 0) return false;
   return file.commit();
+}
+
+QString WorkbenchRuntime::recoveryPathForProject(const QString& path) const {
+  return path + QStringLiteral(".autosave");
+}
+
+bool WorkbenchRuntime::saveProject(const QString& path) {
+  if (!writeProject(path)) return false;
+  activeProjectPath_ = path;
+  projectAutosaveTimer_.stop();
+  QFile::remove(recoveryPathForProject(path));
+  return true;
+}
+
+bool WorkbenchRuntime::hasProjectRecovery(const QString& path) const {
+  if (path.isEmpty()) return false;
+  const QFileInfo project(path);
+  const QFileInfo recovery(recoveryPathForProject(path));
+  return project.exists() && recovery.exists() && recovery.lastModified() > project.lastModified();
+}
+
+bool WorkbenchRuntime::recoverProject(const QString& path) {
+  if (!hasProjectRecovery(path)) return false;
+  if (!loadProject(recoveryPathForProject(path))) return false;
+  activeProjectPath_ = path;
+  return true;
+}
+
+bool WorkbenchRuntime::discardProjectRecovery(const QString& path) {
+  if (path.isEmpty()) return false;
+  const auto recovery = recoveryPathForProject(path);
+  return !QFile::exists(recovery) || QFile::remove(recovery);
+}
+
+void WorkbenchRuntime::scheduleProjectAutosave() {
+  if (loadingProject_ || activeProjectPath_.isEmpty()) return;
+  projectAutosaveTimer_.start();
+}
+
+void WorkbenchRuntime::saveProjectRecovery() {
+  if (activeProjectPath_.isEmpty()) return;
+  const auto saved = writeProject(recoveryPathForProject(activeProjectPath_));
+  if (!saved) emit operationFailed(QStringLiteral("工程自动保存失败"));
 }
 
 bool WorkbenchRuntime::loadProject(const QString& path) {
@@ -1482,7 +1530,10 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   if (demoOverlayIr_) syncDemoOverlayProperties(project.value("component").toObject());
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
   refreshDemoOverlay();
+  activeProjectPath_ = path;
+  loadingProject_ = true;
   emit timelineChanged();
+  loadingProject_ = false;
   return true;
 }
 

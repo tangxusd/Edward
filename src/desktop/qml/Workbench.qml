@@ -7,6 +7,7 @@ import "."
 ApplicationWindow {
     id: window
     property var importedMediaClips: workbenchRuntime.clips.filter(function(clip) { return clip.kind === "media"; })
+    property string recoveryProjectPath: ""
     visible: true
     title: "Edward"
     color: DesignTokens.background
@@ -656,7 +657,50 @@ ApplicationWindow {
         title: "打开 Edward 工程"
         fileMode: FileDialog.OpenFile
         nameFilters: ["Edward 工程 (*.edward.json *.json)"]
-        onAccepted: workbenchRuntime.loadProject(selectedFile.toLocalFile())
+        onAccepted: {
+            const path = selectedFile.toLocalFile()
+            if (workbenchRuntime.hasProjectRecovery(path)) {
+                window.recoveryProjectPath = path
+                projectRecoveryDialog.open()
+            } else {
+                workbenchRuntime.loadProject(path)
+            }
+        }
+    }
+
+    Dialog {
+        id: projectRecoveryDialog
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "发现自动保存副本"
+        standardButtons: Dialog.NoButton
+        contentItem: Label {
+            text: "此工程存在比正式文件更新的自动保存副本。恢复不会覆盖正式工程，直到你再次保存。"
+            color: DesignTokens.textSecondary
+            wrapMode: Text.Wrap
+            padding: 16
+        }
+        footer: RowLayout {
+            spacing: 8
+            Button {
+                Layout.fillWidth: true
+                text: "丢弃副本并打开正式工程"
+                onClicked: {
+                    workbenchRuntime.discardProjectRecovery(window.recoveryProjectPath)
+                    workbenchRuntime.loadProject(window.recoveryProjectPath)
+                    projectRecoveryDialog.close()
+                }
+            }
+            Button {
+                Layout.fillWidth: true
+                text: "恢复自动保存"
+                onClicked: {
+                    workbenchRuntime.recoverProject(window.recoveryProjectPath)
+                    projectRecoveryDialog.close()
+                }
+            }
+        }
     }
 
     FileDialog {
