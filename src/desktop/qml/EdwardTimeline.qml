@@ -5,6 +5,21 @@ import "."
 
 Item {
     id: root
+    focus: true
+    Keys.onSpacePressed: {
+        workbenchRuntime.togglePlayback();
+        event.accepted = true;
+    }
+    Keys.onPressed: {
+        if (event.key === Qt.Key_S && !event.modifiers) {
+            root.splitRequested();
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Delete) {
+            if (event.modifiers & Qt.ShiftModifier) root.rippleDeleteRequested();
+            else root.deleteRequested();
+            event.accepted = true;
+        }
+    }
     property int durationFrames: 300
     property int playheadFrame: 0
     property int videoTrackCount: 1
@@ -111,6 +126,7 @@ Item {
         clip: true
         MouseArea {
             anchors.fill: parent
+            onPressed: root.forceActiveFocus()
             onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
         }
         Repeater {

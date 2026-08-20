@@ -2648,3 +2648,9 @@
 - 目的：让用户能够主动组织多轨时间线，而不是只能在素材冲突时被动自动新增轨道。
 - 修改：时间线工具栏增加“新增视频轨”按钮，调用工作台新增轨道接口并刷新轨道视图；轨道底层仍复用现有 `Timeline::addVideoTrack()`。
 - 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。
+
+## 2026-08-20 时间线键盘快捷键
+
+- 目的：减少播放、分割和删除操作对工具栏的依赖，贴近基础剪辑工作流。
+- 修改：时间线获得焦点时支持空格播放/暂停、`S` 分割、`Delete` 删除、`Shift+Delete` 波纹删除；文本输入等其他面板不受影响。
+- 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。

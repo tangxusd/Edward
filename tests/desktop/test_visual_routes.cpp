@@ -64,6 +64,9 @@ int main() {
   assert(timeline.find("undoTimeline") != std::string::npos);
   assert(timeline.find("redoTimeline") != std::string::npos);
   assert(timeline.find("addVideoTrack") != std::string::npos);
+  assert(timeline.find("Keys.onSpacePressed") != std::string::npos);
+  assert(timeline.find("Qt.Key_Delete") != std::string::npos);
+  assert(timeline.find("Qt.ShiftModifier") != std::string::npos);
   assert(timeline.find("trimSelectedLeft") != std::string::npos);
   assert(timeline.find("trimSelectedRight") != std::string::npos);
   assert(timeline.find("cursorShape: Qt.SizeHorCursor") != std::string::npos);
