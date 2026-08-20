@@ -967,19 +967,26 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
       }
     }
     edward::media::RenderGraph graph(adapter);
+    std::vector<edward::media::ComponentLayer> componentLayers;
+    for (const auto& clip : snapshot.clips) {
+      if (clip.kind != edward::core::TimelineClipKind::Component || !clip.component) continue;
+      componentLayers.push_back({clip.timelineStart,
+                                 clip.timelineStart + clip.sourceOut - clip.sourceIn,
+                                 *clip.component});
+    }
     if (overlay && componentClipId != 0) {
       const auto clip = std::ranges::find_if(snapshot.clips, [componentClipId](const auto& candidate) {
         return candidate.id == componentClipId;
       });
-      if (clip != snapshot.clips.end()) {
-        graph.setComponentLayers({{clip->timelineStart,
-                                   clip->timelineStart + clip->sourceOut - clip->sourceIn,
-                                   *overlay}});
-      } else {
+      if (clip == snapshot.clips.end()) {
         result.error = QStringLiteral("组件绑定的时间线片段不存在");
         return result;
       }
-    } else if (overlay) {
+    }
+    if (!componentLayers.empty()) {
+      graph.setComponentLayers(std::move(componentLayers));
+    }
+    if (overlay && componentClipId == 0) {
       graph.setOverlay(std::move(overlay));
     }
     const edward::media::ExportJob job(graph);
