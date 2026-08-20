@@ -200,6 +200,7 @@ class WorkbenchRuntime final : public QObject {
                              const QString& outputPath, bool applyToTimeline);
   void refreshDemoOverlay();
   void syncDemoOverlayProperties(const QJsonObject& component);
+  [[nodiscard]] int componentKeyframeFrame() const;
   edward::core::Timeline timeline_;
   edward::core::TrackId videoTrack_;
   TimelineController controller_;

@@ -266,6 +266,15 @@ void WorkbenchRuntime::syncDemoOverlayProperties(const QJsonObject& component) {
 }
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
+
+int WorkbenchRuntime::componentKeyframeFrame() const {
+  const auto clipId = editingComponentClipId_ != 0 ? editingComponentClipId_ : componentClipId_;
+  if (clipId != 0) {
+    if (const auto clip = timeline_.clip(clipId))
+      return std::max(0, playheadFrame() - static_cast<int>(clip->timelineStart));
+  }
+  return playheadFrame();
+}
 int WorkbenchRuntime::videoTrackCount() const {
   return static_cast<int>(timeline_.snapshot().videoTracks.size());
 }
@@ -1066,8 +1075,8 @@ void WorkbenchRuntime::setDemoOverlayX(int value) {
   if (demoOverlayX_ == clamped) return;
   demoOverlayX_ = clamped;
   if (demoOverlayIr_) {
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "x", demoOverlayX_, playheadFrame());
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-text", "x", demoOverlayX_ + 20, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "x", demoOverlayX_, componentKeyframeFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-text", "x", demoOverlayX_ + 20, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1078,8 +1087,8 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
   if (demoOverlayY_ == clamped) return;
   demoOverlayY_ = clamped;
   if (demoOverlayIr_) {
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "y", demoOverlayY_, playheadFrame());
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-text", "y", demoOverlayY_ - 20, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "y", demoOverlayY_, componentKeyframeFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-text", "y", demoOverlayY_ - 20, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1088,7 +1097,7 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
 void WorkbenchRuntime::setDemoOverlayWidth(int value) {
   demoOverlayWidth_ = std::max(40, std::min(value, 640));
   if (demoOverlayIr_) {
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "width", demoOverlayWidth_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "width", demoOverlayWidth_, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1097,7 +1106,7 @@ void WorkbenchRuntime::setDemoOverlayWidth(int value) {
 void WorkbenchRuntime::setDemoOverlayHeight(int value) {
   demoOverlayHeight_ = std::max(24, std::min(value, 360));
   if (demoOverlayIr_) {
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "height", demoOverlayHeight_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "height", demoOverlayHeight_, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1106,8 +1115,8 @@ void WorkbenchRuntime::setDemoOverlayHeight(int value) {
 void WorkbenchRuntime::setDemoOverlayScale(double value) {
   demoOverlayScale_ = std::max(0.1, std::min(value, 3.0));
   if (demoOverlayIr_) {
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleX", demoOverlayScale_, playheadFrame());
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleY", demoOverlayScale_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleX", demoOverlayScale_, componentKeyframeFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleY", demoOverlayScale_, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1116,7 +1125,7 @@ void WorkbenchRuntime::setDemoOverlayScale(double value) {
 void WorkbenchRuntime::setDemoOverlayRotation(double value) {
   demoOverlayRotation_ = std::max(-180.0, std::min(value, 180.0));
   if (demoOverlayIr_) {
-    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "rotation", demoOverlayRotation_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "rotation", demoOverlayRotation_, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1125,7 +1134,7 @@ void WorkbenchRuntime::setDemoOverlayRotation(double value) {
 void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
   demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
   if (demoOverlayIr_) {
-    setPropertyAndKeyframe(*demoOverlayIr_, "demo-box", "opacity", demoOverlayOpacity_, playheadFrame());
+    setPropertyAndKeyframe(*demoOverlayIr_, "demo-box", "opacity", demoOverlayOpacity_, componentKeyframeFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -1135,7 +1144,7 @@ void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   demoOverlayText_ = value.left(120);
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
-                           "text", demoOverlayText_, playheadFrame());
+                           "text", demoOverlayText_, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1144,7 +1153,7 @@ void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
   demoOverlayFontSize_ = std::max(8, std::min(value, 96));
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
-                           "fontSize", demoOverlayFontSize_, playheadFrame());
+                           "fontSize", demoOverlayFontSize_, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1153,7 +1162,7 @@ void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
   demoOverlayBorderWidth_ = std::max(0, std::min(value, 32));
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
-                           "borderWidth", demoOverlayBorderWidth_, playheadFrame());
+                           "borderWidth", demoOverlayBorderWidth_, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1161,7 +1170,7 @@ void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
 void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("x"),
-                          std::max(-640, std::min(value, 640)), playheadFrame());
+                          std::max(-640, std::min(value, 640)), componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1169,7 +1178,7 @@ void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
 void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("y"),
-                          std::max(-360, std::min(value, 360)), playheadFrame());
+                          std::max(-360, std::min(value, 360)), componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1177,7 +1186,7 @@ void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
 void WorkbenchRuntime::setSelectedComponentNodeWidth(int value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("width"),
-                          std::max(1, std::min(value, 640)), playheadFrame());
+                          std::max(1, std::min(value, 640)), componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1185,7 +1194,7 @@ void WorkbenchRuntime::setSelectedComponentNodeWidth(int value) {
 void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("height"),
-                          std::max(1, std::min(value, 360)), playheadFrame());
+                          std::max(1, std::min(value, 360)), componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1194,7 +1203,7 @@ void WorkbenchRuntime::setSelectedComponentNodeRotation(double value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto clamped = std::max(-180.0, std::min(value, 180.0));
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("rotation"),
-                          clamped, playheadFrame());
+                          clamped, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1203,7 +1212,7 @@ void WorkbenchRuntime::setSelectedComponentNodeOpacity(double value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto clamped = std::max(0.0, std::min(value, 1.0));
   setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("opacity"),
-                         clamped, playheadFrame());
+                         clamped, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1215,7 +1224,7 @@ void WorkbenchRuntime::setSelectedComponentNodeColor(const QString& value) {
   const auto field = type == QStringLiteral("shape") ? QStringLiteral("fill") : QStringLiteral("color");
   const auto color = value.trimmed().left(32);
   if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
-  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, field, color, playheadFrame());
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, field, color, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1226,7 +1235,7 @@ void WorkbenchRuntime::setSelectedComponentNodeBorderColor(const QString& value)
   if (!node || node->value("type").toString() != QStringLiteral("shape")) return;
   const auto color = value.trimmed().left(32);
   if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
-  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("borderColor"), color, playheadFrame());
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("borderColor"), color, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1237,7 +1246,7 @@ void WorkbenchRuntime::setSelectedComponentNodeFontFamily(const QString& value) 
   if (!node || node->value("type").toString() != QStringLiteral("text")) return;
   const auto family = value.trimmed().left(120);
   if (family.isEmpty() || family.contains(QRegularExpression(QStringLiteral("[\\r\\n]")))) return;
-  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("fontFamily"), family, playheadFrame());
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("fontFamily"), family, componentKeyframeFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }

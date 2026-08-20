@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
   for (const auto& field : {"x", "y", "width", "height", "scaleX", "scaleY", "rotation", "opacity"}) {
     bool atPlayhead = false;
     for (const auto& keyframe : keyframes.value(field).toArray())
-      atPlayhead = atPlayhead || keyframe.toObject().value("frame").toInt() == 12;
+      atPlayhead = atPlayhead || keyframe.toObject().value("frame").toInt() == 2;
     assert(atPlayhead);
   }
   assert(keyframes.value("opacity").toArray().last().toObject().value("value").toDouble() == 0.5);
@@ -280,6 +280,15 @@ int main(int argc, char** argv) {
   const auto componentClipId = componentTimelineRuntime.clips().last().toMap().value("id").toLongLong();
   assert(componentTimelineRuntime.selectClip(componentClipId));
   assert(componentTimelineRuntime.demoOverlayEnabled());
+  assert(componentTimelineRuntime.moveSelected(30));
+  assert(componentTimelineRuntime.setPlayhead(35));
+  componentTimelineRuntime.setDemoOverlayX(-135);
+  const auto localTimeBox = componentTimelineRuntime.componentJson().value("root").toObject()
+                                .value("children").toArray().at(0).toObject();
+  bool hasLocalFrame = false;
+  for (const auto& keyframe : localTimeBox.value("keyframes").toObject().value("x").toArray())
+    hasLocalFrame = hasLocalFrame || keyframe.toObject().value("frame").toInt(-1) == 5;
+  assert(hasLocalFrame);
   componentTimelineRuntime.setDemoOverlayText(QStringLiteral("编辑后的组件"));
   assert(componentTimelineRuntime.demoOverlayText() == QStringLiteral("编辑后的组件"));
   assert(componentTimelineRuntime.saveProject(componentTimelineProject));
