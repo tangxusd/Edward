@@ -120,6 +120,10 @@ Item {
             onClicked: workbenchRuntime.trimSelectedRight()
         }
         Button {
+            text: "添加叠化"
+            onClicked: workbenchRuntime.addDissolveToSelected()
+        }
+        Button {
             text: "撤销"
             onClicked: workbenchRuntime.undoTimeline()
         }

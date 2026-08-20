@@ -451,9 +451,6 @@ int main(int argc, char** argv) {
   transitionClips.replace(0, transitionLeft);
   transitionClips.replace(1, transitionRight);
   transitionProject.insert("clips", transitionClips);
-  transitionProject.insert("transitions", QJsonArray{QJsonObject{
-      {"type", "flash_black"}, {"leftClipId", transitionLeft.value("id")},
-      {"rightClipId", transitionRight.value("id")}, {"startFrame", 5}, {"durationFrames", 5}}});
   const auto transitionPath = directory.path() + QStringLiteral("/transition-project.edward.json");
   QFile transitionInput(transitionPath);
   assert(transitionInput.open(QIODevice::WriteOnly));
@@ -461,6 +458,8 @@ int main(int argc, char** argv) {
   transitionInput.close();
   edward::desktop::WorkbenchRuntime transitionRuntime;
   assert(transitionRuntime.loadProject(transitionPath));
+  assert(transitionRuntime.selectClip(transitionLeft.value("id").toInteger()));
+  assert(transitionRuntime.addDissolveToSelected());
   const auto transitionOutput = directory.path() + QStringLiteral("/transition-output.edward.json");
   assert(transitionRuntime.saveProject(transitionOutput));
   QFile transitionSaved(transitionOutput);

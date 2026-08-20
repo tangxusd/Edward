@@ -207,6 +207,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool moveSelected(qlonglong destination);
   Q_INVOKABLE bool trimSelectedLeft();
   Q_INVOKABLE bool trimSelectedRight();
+  Q_INVOKABLE bool addDissolveToSelected();
   Q_INVOKABLE bool addVideoTrack();
   Q_INVOKABLE bool removeEmptyVideoTrack();
   Q_INVOKABLE bool selectVideoTrack(int index);

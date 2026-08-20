@@ -92,6 +92,7 @@ int main() {
   assert(timeline.find("cursorShape: Qt.SizeHorCursor") != std::string::npos);
   assert(timeline.find("onReleased: workbenchRuntime.trimSelectedLeft()") != std::string::npos);
   assert(timeline.find("onReleased: workbenchRuntime.trimSelectedRight()") != std::string::npos);
+  assert(timeline.find("workbenchRuntime.addDissolveToSelected()") != std::string::npos);
   assert(timeline.find("anchors.leftMargin: root.rulerWidth") != std::string::npos);
   assert(timeline.find("function frameAtX(x)") != std::string::npos);
   assert(timeline.find("function snapFrame(frame, clipId)") != std::string::npos);

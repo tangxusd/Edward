@@ -1434,6 +1434,23 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
   return true;
 }
 
+bool WorkbenchRuntime::addDissolveToSelected() {
+  const auto selected = timeline_.clip(controller_.selectedClip());
+  if (!selected) return false;
+  const auto trackClips = timeline_.clips(selected->trackId);
+  const auto adjacent = std::ranges::find_if(trackClips, [&](const auto& candidate) {
+    return candidate.timelineStart == selected->timelineStart + (selected->sourceOut - selected->sourceIn);
+  });
+  if (adjacent == trackClips.end()) return false;
+  const auto duration = std::min<edward::core::Frame>(15,
+      std::min(selected->sourceOut - selected->sourceIn, adjacent->sourceOut - adjacent->sourceIn));
+  const auto transition = timeline_.addTransition(edward::core::TransitionType::Dissolve,
+                                                  selected->id, adjacent->id, duration);
+  if (!transition) return false;
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::writeProject(const QString& path) const {
   if (path.isEmpty()) return false;
   const auto snapshot = timeline_.snapshot();
