@@ -16,6 +16,7 @@ int main() {
   assert(workbench.find("EdwardPreview") != std::string::npos);
   assert(workbench.find("EdwardTimeline") != std::string::npos);
   assert(workbench.find("generateComponentDraft") != std::string::npos);
+  assert(workbench.find("aiConversation") != std::string::npos);
   assert(workbench.find("demoOverlayX") != std::string::npos);
   assert(preview.find("componentDragged") != std::string::npos);
   assert(preview.find("id: componentBounds\n            z: 2") != std::string::npos);

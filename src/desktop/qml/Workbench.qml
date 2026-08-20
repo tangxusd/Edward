@@ -153,6 +153,25 @@ ApplicationWindow {
                         text: workbenchRuntime.aiComponentDraftAvailable ? "有待确认草案" : "无待确认草案"
                         color: workbenchRuntime.aiComponentDraftAvailable ? DesignTokens.accent : DesignTokens.textSecondary
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "组件 AI 会话"
+                        color: DesignTokens.textSecondary
+                    }
+                    TextArea {
+                        id: aiConversationView
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        height: 82
+                        readOnly: true
+                        textFormat: TextEdit.PlainText
+                        wrapMode: TextEdit.Wrap
+                        text: workbenchRuntime.aiConversation.length > 0
+                              ? workbenchRuntime.aiConversation
+                              : "暂无会话"
+                        color: DesignTokens.textPrimary
+                        placeholderText: "暂无会话"
+                    }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: workbenchRuntime.aiRequestBusy ? "AI 请求中" : "使用模型生成草案"
