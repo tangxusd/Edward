@@ -173,9 +173,9 @@ Item {
     Rectangle {
         id: playhead
         x: root.frameToX(root.playheadFrame)
-        y: ruler.y
+        y: ruler.y + 7
         width: 1
-        height: root.height - ruler.y
+        height: root.height - ruler.y - 7
         color: DesignTokens.playhead
         z: 10
         MouseArea {
@@ -185,6 +185,26 @@ Item {
             drag.axis: Drag.XAxis
             onPositionChanged: if (drag.active)
                 root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((playhead.x - root.rulerWidth) / root.pixelsPerFrame))))
+        }
+    }
+
+    Canvas {
+        id: playheadMarker
+        x: root.frameToX(root.playheadFrame) - 6
+        y: ruler.y
+        width: 12
+        height: 9
+        z: 11
+        onPaint: {
+            var context = getContext("2d");
+            context.reset();
+            context.fillStyle = DesignTokens.playhead;
+            context.beginPath();
+            context.moveTo(0, 0);
+            context.lineTo(width, 0);
+            context.lineTo(width / 2, height);
+            context.closePath();
+            context.fill();
         }
     }
 }
