@@ -296,6 +296,12 @@ int WorkbenchRuntime::videoTrackCount() const {
   return static_cast<int>(timeline_.snapshot().videoTracks.size());
 }
 
+int WorkbenchRuntime::selectedVideoTrackIndex() const {
+  const auto tracks = timeline_.snapshot().videoTracks;
+  const auto it = std::ranges::find(tracks, controller_.targetTrack());
+  return it == tracks.end() ? 0 : static_cast<int>(std::distance(tracks.begin(), it));
+}
+
 QString WorkbenchRuntime::installedPluginId() const {
   return installedPlugin_ ? installedPlugin_->manifest.pluginId : QString{};
 }
@@ -1470,6 +1476,8 @@ bool WorkbenchRuntime::removeEmptyVideoTrack() {
   const auto tracks = timeline_.snapshot().videoTracks;
   for (auto it = tracks.rbegin(); it != tracks.rend(); ++it) {
     if (timeline_.removeEmptyVideoTrack(*it)) {
+      const auto remaining = timeline_.snapshot().videoTracks;
+      if (controller_.targetTrack() == *it) controller_.setTargetTrack(remaining.front());
       emit timelineChanged();
       emit operationSucceeded(QStringLiteral("已删除空视频轨"));
       return true;
@@ -1477,6 +1485,13 @@ bool WorkbenchRuntime::removeEmptyVideoTrack() {
   }
   emit operationFailed(QStringLiteral("只能删除额外的空视频轨"));
   return false;
+}
+
+bool WorkbenchRuntime::selectVideoTrack(int index) {
+  const auto tracks = timeline_.snapshot().videoTracks;
+  if (index < 0 || index >= static_cast<int>(tracks.size()) || !controller_.setTargetTrack(tracks[index])) return false;
+  emit timelineChanged();
+  return true;
 }
 
 bool WorkbenchRuntime::undoTimeline() {

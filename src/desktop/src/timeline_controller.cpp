@@ -90,6 +90,12 @@ bool TimelineController::selectClip(edward::core::ClipId id) {
 }
 
 bool TimelineController::setPlayhead(edward::core::Frame frame) { return commands_.setPlayhead(frame); }
+bool TimelineController::setTargetTrack(edward::core::TrackId trackId) {
+  const auto tracks = timeline_.snapshot().videoTracks;
+  if (std::ranges::find(tracks, trackId) == tracks.end()) return false;
+  trackId_ = trackId;
+  return true;
+}
 bool TimelineController::advancePlayhead() {
   const auto snapshot = timeline_.snapshot();
   if (snapshot.playheadFrame >= snapshot.durationFrames) return false;
@@ -97,6 +103,7 @@ bool TimelineController::advancePlayhead() {
 }
 edward::core::Frame TimelineController::playheadFrame() const { return timeline_.snapshot().playheadFrame; }
 edward::core::ClipId TimelineController::selectedClip() const { return selectedClip_; }
+edward::core::TrackId TimelineController::targetTrack() const { return trackId_; }
 
 edward::core::ClipId TimelineController::nextClipId() const {
   edward::core::ClipId maximum = 0;

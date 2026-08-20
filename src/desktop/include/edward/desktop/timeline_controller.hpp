@@ -23,9 +23,11 @@ class TimelineController {
   bool redo();
   bool selectClip(edward::core::ClipId id);
   bool setPlayhead(edward::core::Frame frame);
+  bool setTargetTrack(edward::core::TrackId trackId);
   bool advancePlayhead();
   [[nodiscard]] edward::core::Frame playheadFrame() const;
   [[nodiscard]] edward::core::ClipId selectedClip() const;
+  [[nodiscard]] edward::core::TrackId targetTrack() const;
 
  private:
   edward::core::ClipId nextClipId() const;

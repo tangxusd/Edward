@@ -2672,3 +2672,9 @@
 - 目的：补齐基础时间线的轨道新增/删除能力，同时避免删除片段或形成无视频轨工程。
 - 修改：核心时间线新增仅删除空视频轨的接口；拒绝删除最后一条视频轨以及包含任意片段的轨道。工作台工具栏提供“删除空视频轨”，从末尾查找可删除空轨。
 - 验证：先新增核心失败测试，确认接口缺失时构建失败；实现后 `core.timeline_commands`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 5/5 通过，`git diff --check` 通过。
+
+## 2026-08-20 时间线目标轨选择
+
+- 目的：让新增的多轨可以被主动使用，避免导入只能落到控制器上一次隐式选择的轨道。
+- 修改：点击视频轨轨道头选中目标轨并高亮；后续导入素材或组件优先使用该轨，冲突时仍保留既有自动新增轨道策略。删除当前目标空轨后自动回退到剩余首轨。
+- 验证：先新增 `TimelineController` 目标轨切换失败测试，确认接口缺失时构建失败；实现后 `core.timeline_commands`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 5/5 通过，`git diff --check` 通过。

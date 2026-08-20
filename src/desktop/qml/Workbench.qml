@@ -152,11 +152,13 @@ ApplicationWindow {
                     durationFrames: workbenchRuntime.timelineDurationFrames
                     playheadFrame: workbenchRuntime.playheadFrame
                     videoTrackCount: workbenchRuntime.videoTrackCount
+                    selectedVideoTrackIndex: workbenchRuntime.selectedVideoTrackIndex
                     clips: workbenchRuntime.clips
                     onPlayheadChangedByUser: workbenchRuntime.setPlayhead(frame)
                     onSplitRequested: workbenchRuntime.splitSelected()
                     onDeleteRequested: workbenchRuntime.deleteSelected()
                     onRippleDeleteRequested: workbenchRuntime.rippleDeleteSelected()
+                    onVideoTrackSelected: workbenchRuntime.selectVideoTrack(trackIndex)
                 }
             }
 

@@ -23,11 +23,13 @@ Item {
     property int durationFrames: 300
     property int playheadFrame: 0
     property int videoTrackCount: 1
+    property int selectedVideoTrackIndex: 0
     property var clips: []
     signal playheadChangedByUser(int frame)
     signal splitRequested
     signal deleteRequested
     signal rippleDeleteRequested
+    signal videoTrackSelected(int trackIndex)
 
     function frameToX(frame) {
         return rulerWidth + frame * pixelsPerFrame;
@@ -186,7 +188,8 @@ Item {
                     width: root.rulerWidth
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    color: DesignTokens.panelRaised
+                    color: videoTrack && root.selectedVideoTrackIndex === root.videoTrackCount - 1 - index
+                           ? DesignTokens.selection : DesignTokens.panelRaised
                 }
                 Rectangle {
                     x: root.rulerWidth - 1
@@ -202,6 +205,14 @@ Item {
                     text: videoTrack ? "V" + (root.videoTrackCount - index) : "A1"
                     color: DesignTokens.textPrimary
                     font.pixelSize: 12
+                }
+                MouseArea {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: root.rulerWidth
+                    enabled: videoTrack
+                    onClicked: root.videoTrackSelected(root.videoTrackCount - 1 - index)
                 }
                 Text {
                     anchors.left: parent.left
