@@ -2606,3 +2606,9 @@
 - 目的：提升时间线轨道辨识度，使视频轨、音频轨和组件片段在当前简化编辑器中可快速区分。
 - 修改：轨道头增加视频/音频类型标识与分隔线；组件片段使用青色顶部标识，普通媒体片段使用蓝色顶部标识；不改变片段编辑行为。
 - 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过。
+
+## 2026-08-20 时间线片段边缘裁切热区
+
+- 目的：让左右裁切不仅依赖工具栏按钮，也符合视频编辑器直接拖拽片段边缘的操作习惯。
+- 修改：片段左右边缘增加水平调整光标和拖拽热区；拖拽过程中更新播放头，释放时调用现有左裁切或右裁切命令，未新增独立裁切逻辑。
+- 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。

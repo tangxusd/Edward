@@ -182,6 +182,34 @@ Item {
                 onClicked: workbenchRuntime.selectClip(modelData.id)
                 onReleased: workbenchRuntime.moveSelected(Math.max(0, Math.min(root.durationFrames, Math.round((parent.x - root.rulerWidth) / root.pixelsPerFrame))))
             }
+            MouseArea {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: Math.min(9, parent.width / 3)
+                cursorShape: Qt.SizeHorCursor
+                onPressed: workbenchRuntime.selectClip(modelData.id)
+                onPositionChanged: if (pressed) {
+                    var frame = Math.max(0, Math.min(root.durationFrames,
+                        Math.round((parent.x + mouse.x - root.rulerWidth) / root.pixelsPerFrame)))
+                    root.playheadChangedByUser(frame)
+                }
+                onReleased: workbenchRuntime.trimSelectedLeft()
+            }
+            MouseArea {
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: Math.min(9, parent.width / 3)
+                cursorShape: Qt.SizeHorCursor
+                onPressed: workbenchRuntime.selectClip(modelData.id)
+                onPositionChanged: if (pressed) {
+                    var frame = Math.max(0, Math.min(root.durationFrames,
+                        Math.round((parent.x + mouse.x - root.rulerWidth) / root.pixelsPerFrame)))
+                    root.playheadChangedByUser(frame)
+                }
+                onReleased: workbenchRuntime.trimSelectedRight()
+            }
             Text {
                 anchors.centerIn: parent
                 text: modelData.name || "素材"

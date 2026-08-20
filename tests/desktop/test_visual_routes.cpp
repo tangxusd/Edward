@@ -65,6 +65,9 @@ int main() {
   assert(timeline.find("redoTimeline") != std::string::npos);
   assert(timeline.find("trimSelectedLeft") != std::string::npos);
   assert(timeline.find("trimSelectedRight") != std::string::npos);
+  assert(timeline.find("cursorShape: Qt.SizeHorCursor") != std::string::npos);
+  assert(timeline.find("onReleased: workbenchRuntime.trimSelectedLeft()") != std::string::npos);
+  assert(timeline.find("onReleased: workbenchRuntime.trimSelectedRight()") != std::string::npos);
   assert(timeline.find("togglePlayback") != std::string::npos);
   assert(timeline.find("property int videoTrackCount") != std::string::npos);
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);
