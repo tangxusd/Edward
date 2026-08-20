@@ -445,6 +445,7 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
     return false;
   }
   emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("素材已加入时间线"));
   return true;
 }
 
