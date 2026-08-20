@@ -47,6 +47,16 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     if (request.frame >= componentLayer.startFrame && request.frame < componentLayer.endFrame)
       renderOverlay(componentLayer.component, componentLayer.sourceIn + request.frame - componentLayer.startFrame);
   }
+  for (const auto& transition : snapshot.transitions) {
+    const auto endFrame = transition.startFrame + transition.durationFrames;
+    if (request.frame < transition.startFrame || request.frame >= endFrame) continue;
+    if (transition.type == edward::core::TransitionType::FlashBlack ||
+        transition.type == edward::core::TransitionType::FlashWhite) {
+      QPainter painter(&*frame);
+      painter.fillRect(frame->rect(), transition.type == edward::core::TransitionType::FlashBlack
+                                      ? QColor(Qt::black) : QColor(Qt::white));
+    }
+  }
   if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
     QPainter painter(&*frame);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);

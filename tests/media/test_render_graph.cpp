@@ -126,6 +126,22 @@ int main(int argc, char** argv) {
   const auto unchanged = graph.build(timeline.snapshot(), {0});
   assert(unchanged.has_value());
   assert(unchanged->frame == baseline->frame);
+
+  edward::core::Timeline transitionTimeline(20);
+  const auto transitionTrack = transitionTimeline.addVideoTrack();
+  assert(transitionTimeline.insertClip({21, transitionTrack, {}, 0, 10, 0,
+                                        edward::core::TimelineClipKind::Component, *blue}));
+  assert(transitionTimeline.insertClip({22, transitionTrack, {}, 0, 10, 10,
+                                        edward::core::TimelineClipKind::Component, *animated}));
+  assert(transitionTimeline.addTransition(edward::core::TransitionType::FlashBlack, 21, 22, 6));
+  const edward::media::RenderGraph transitionGraph(adapter);
+  const auto transitionBefore = transitionGraph.build(transitionTimeline.snapshot(), {11});
+  const auto transitionDuring = transitionGraph.build(transitionTimeline.snapshot(), {15});
+  assert(transitionBefore && transitionDuring);
+  assert(transitionBefore->frame.pixelColor(960, 540).green() > 150);
+  assert(transitionDuring->frame.pixelColor(960, 540).red() < 10 &&
+         transitionDuring->frame.pixelColor(960, 540).green() < 10 &&
+         transitionDuring->frame.pixelColor(960, 540).blue() < 10);
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }

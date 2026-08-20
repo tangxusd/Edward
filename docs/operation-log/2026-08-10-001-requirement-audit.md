@@ -2802,3 +2802,9 @@
 - 修改：新增 `TransitionType::{FlashBlack, FlashWhite, Dissolve}` 与 `Transition`；`Timeline::addTransition` 仅接受同轨首尾相接片段，时长按两侧片段长度钳制；转场写入 `TimelineSnapshot` 并在恢复时校验。
 - 边界：本次只落地数据合同与校验，转场画面混合将在 RenderGraph 阶段实现，避免预览与导出出现两套行为。
 - 验证：新增 `core.timeline_transitions`；完整 CTest 38/38 通过。
+
+## 2026-08-21 闪黑闪白转场进入 RenderGraph
+
+- 目的：让已保存的基础转场状态开始影响预览与导出共用的统一画面求值入口。
+- 修改：`RenderGraph` 在组件与插件图层合成后读取转场区间；闪黑、闪白在半开区间内覆盖完整画布。叠化仍保留为下一步的独立实现，不用空实现冒充已完成。
+- 验证：`media.render_graph` 新增转场帧边界断言；完整 CTest 38/38 通过。
