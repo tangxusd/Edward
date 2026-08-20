@@ -35,6 +35,15 @@ int main(int argc, char** argv) {
   assert(nestedImage.pixelColor(35, 50).alpha() > 0 && nestedImage.pixelColor(35, 50).alpha() < 255);
   assert(nestedImage.pixelColor(45, 50).alpha() == 0);
 
+  const QJsonObject borderedRoot{{"id", "bordered"}, {"type", "shape"},
+      {"transform", QJsonObject{{"x", 0}, {"y", 0}, {"width", 40}, {"height", 40}}},
+      {"properties", QJsonObject{{"fill", "#000000"}, {"borderColor", "#ff0000"}, {"borderWidth", 4}}}};
+  const auto bordered = edward::core::ComponentIr::parse({{"version", "1"}, {"root", borderedRoot}});
+  assert(bordered);
+  const auto borderedImage = edward::media::ComponentRenderer{}.render(*bordered, 0, {100, 100});
+  assert(borderedImage.pixelColor(30, 50).red() > 200);
+  assert(borderedImage.pixelColor(30, 50).green() < 80);
+
   const QJsonObject scaledRoot{{"id", "root"}, {"type", "shape"},
       {"transform", QJsonObject{{"x", 0}, {"y", 0}, {"width", 10}, {"height", 10}, {"scaleX", 2}, {"scaleY", 2}}},
       {"properties", QJsonObject{{"fill", "#00ff00"}}}};

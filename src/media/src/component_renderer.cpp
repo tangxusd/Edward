@@ -100,12 +100,18 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
                        animatedString(node.keyframes, "text", frame, properties.value("text").toString()));
       break;
     }
-    case edward::core::ComponentNodeType::Shape:
-      painter.setPen(Qt::NoPen);
+    case edward::core::ComponentNodeType::Shape: {
+      const double borderWidth = std::max(0.0, number(properties, "borderWidth", 0));
+      if (borderWidth > 0) {
+        painter.setPen(QPen(color(properties, "borderColor", Qt::white), borderWidth));
+      } else {
+        painter.setPen(Qt::NoPen);
+      }
       painter.setBrush(color(properties, "fill", Qt::white));
       if (properties.value("shape").toString() == "ellipse") painter.drawEllipse(bounds);
       else painter.drawRect(bounds);
       break;
+    }
     case edward::core::ComponentNodeType::Image: {
       const QImage image(properties.value("source").toString());
       if (!image.isNull()) painter.drawImage(bounds, image);
