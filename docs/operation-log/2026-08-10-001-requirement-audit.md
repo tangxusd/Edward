@@ -2678,3 +2678,9 @@
 - 目的：让新增的多轨可以被主动使用，避免导入只能落到控制器上一次隐式选择的轨道。
 - 修改：点击视频轨轨道头选中目标轨并高亮；后续导入素材或组件优先使用该轨，冲突时仍保留既有自动新增轨道策略。删除当前目标空轨后自动回退到剩余首轨。
 - 验证：先新增 `TimelineController` 目标轨切换失败测试，确认接口缺失时构建失败；实现后 `core.timeline_commands`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 5/5 通过，`git diff --check` 通过。
+
+## 2026-08-20 真实音频波形
+
+- 目的：落实已确认的时间线音频波形需求，避免使用仅具装饰性的伪波形。
+- 修改：新增 `AudioWaveformExtractor`，先用 ffprobe 读取音频采样率与时长，再由 FFmpeg 解码单声道 PCM，流式汇总为固定桶数的归一化峰值；支持源文件任意时间区间。工作台对有音频的媒体片段异步提取 96 个峰值，时间线 Canvas 绘制波形；分割、裁切和重开工程会作废旧任务并按新的源区间重新计算。
+- 验证：新测试覆盖无音频、无效桶数、无效区间、音频夹具和半段提取；工作台回归等待实际异步波形进入片段模型。`media.audio_waveform`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 5/5 通过，构建和 `git diff --check` 通过。

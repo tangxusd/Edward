@@ -1,4 +1,5 @@
 add_library(edward_media STATIC
+  src/audio_waveform.cpp
   src/media_probe.cpp
   src/mlt_adapter.cpp
   src/render_graph.cpp

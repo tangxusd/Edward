@@ -1,6 +1,7 @@
 #include "edward/desktop/workbench_runtime.hpp"
 
 #include "edward/media/export_job.hpp"
+#include "edward/media/audio_waveform.hpp"
 #include "edward/plugins/plugin_host.hpp"
 #include "edward/resources/component_package.hpp"
 #include "edward/core/component_edit_command.hpp"
@@ -434,6 +435,7 @@ QVariantList WorkbenchRuntime::clips() const {
       if (clip.kind == edward::core::TimelineClipKind::Component)
         item.insert(QStringLiteral("name"), QStringLiteral("组件"));
       item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
+      item.insert(QStringLiteral("waveform"), clipWaveforms_.value(static_cast<qint64>(clip.id)));
       result.push_back(item);
     }
   }
@@ -450,9 +452,42 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
     emit operationFailed(QStringLiteral("素材无法添加：播放头位置存在冲突，或媒体不可读"));
     return false;
   }
+  if (const auto clip = timeline_.clip(controller_.selectedClip())) requestClipWaveform(*clip);
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("素材已加入时间线"));
   return true;
+}
+
+void WorkbenchRuntime::requestClipWaveform(const edward::core::TimelineClip& clip) {
+  if (clip.kind != edward::core::TimelineClipKind::Media || clip.source.empty() ||
+      clipWaveforms_.contains(static_cast<qint64>(clip.id))) return;
+  const auto info = edward::media::MediaProbe::probe(clip.source);
+  if (!info || !info->hasAudio) return;
+  const auto start = static_cast<double>(clip.sourceIn) * info->fpsDenominator / info->fpsNumerator;
+  const auto end = static_cast<double>(clip.sourceOut) * info->fpsDenominator / info->fpsNumerator;
+  const auto clipId = clip.id;
+  const auto generation = waveformGeneration_;
+  auto* watcher = new QFutureWatcher<QVariantList>(this);
+  connect(watcher, &QFutureWatcher<QVariantList>::finished, this, [this, watcher, clipId, generation] {
+    const auto peaks = watcher->result();
+    watcher->deleteLater();
+    if (generation != waveformGeneration_ || peaks.isEmpty() || !timeline_.clip(clipId)) return;
+    clipWaveforms_.insert(static_cast<qint64>(clipId), peaks);
+    emit timelineChanged();
+  });
+  watcher->setFuture(QtConcurrent::run([source = clip.source, start, end] {
+    QVariantList peaks;
+    const auto waveform = edward::media::AudioWaveformExtractor::extract(source, 96, start, end);
+    if (!waveform) return peaks;
+    for (const auto peak : waveform->peaks) peaks.push_back(peak);
+    return peaks;
+  }));
+}
+
+void WorkbenchRuntime::refreshClipWaveforms() {
+  ++waveformGeneration_;
+  clipWaveforms_.clear();
+  for (const auto& clip : timeline_.snapshot().clips) requestClipWaveform(clip);
 }
 
 bool WorkbenchRuntime::selectClip(qlonglong id) {
@@ -1378,6 +1413,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
         })) return false;
   }
   if (!timeline_.restore(snapshot)) return false;
+  refreshClipWaveforms();
   demoOverlayIr_ = std::move(component);
   componentClipId_ = demoOverlayIr_ ? componentClipId : 0;
   aiConversation_ = std::move(conversation);
@@ -1406,6 +1442,7 @@ bool WorkbenchRuntime::splitSelected() {
     emit operationFailed(QStringLiteral("播放头不在选中片段内部"));
     return false;
   }
+  refreshClipWaveforms();
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
@@ -1446,6 +1483,7 @@ bool WorkbenchRuntime::trimSelectedLeft() {
     emit operationFailed(QStringLiteral("播放头必须位于选中片段内部"));
     return false;
   }
+  refreshClipWaveforms();
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
@@ -1456,6 +1494,7 @@ bool WorkbenchRuntime::trimSelectedRight() {
     emit operationFailed(QStringLiteral("播放头必须位于选中片段内部"));
     return false;
   }
+  refreshClipWaveforms();
   refreshDemoOverlay();
   emit timelineChanged();
   return true;

@@ -12,7 +12,7 @@
 #include <filesystem>
 
 int main(int argc, char** argv) {
-  assert(argc == 3);
+  assert(argc == 4);
   qputenv("QT_QPA_PLATFORM", "offscreen");
   QGuiApplication application(argc, argv);
   edward::desktop::WorkbenchRuntime runtime;
@@ -349,5 +349,20 @@ int main(int argc, char** argv) {
   assert(pluginExported && QFile::exists(combinedPath));
   runtime.clearInstalledPlugin();
   assert(!runtime.installedPluginAvailable());
+  edward::desktop::WorkbenchRuntime waveformRuntime;
+  bool waveformReady = false;
+  QEventLoop waveformLoop;
+  QObject::connect(&waveformRuntime, &edward::desktop::WorkbenchRuntime::timelineChanged,
+                   [&waveformRuntime, &waveformReady, &waveformLoop] {
+                     const auto clips = waveformRuntime.clips();
+                     if (!clips.empty() && clips.front().toMap().value("waveform").toList().size() == 96) {
+                       waveformReady = true;
+                       waveformLoop.quit();
+                     }
+                   });
+  assert(waveformRuntime.importMedia(QString::fromLocal8Bit(argv[3])));
+  QTimer::singleShot(5000, &waveformLoop, &QEventLoop::quit);
+  waveformLoop.exec();
+  assert(waveformReady);
   return 0;
 }

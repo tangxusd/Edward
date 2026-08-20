@@ -245,6 +245,33 @@ Item {
                 height: 3
                 color: modelData.kind === "component" ? DesignTokens.accent : "#4c9ac1"
             }
+            Canvas {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.topMargin: 5
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 4
+                visible: modelData.kind === "media" && modelData.waveform && modelData.waveform.length > 0
+                z: 1
+                onPaint: {
+                    var values = modelData.waveform;
+                    if (!values || values.length === 0) return;
+                    var context = getContext("2d");
+                    context.reset();
+                    context.strokeStyle = "#143641";
+                    context.lineWidth = 1;
+                    var center = height / 2;
+                    for (var i = 0; i < values.length; ++i) {
+                        var x = values.length === 1 ? width / 2 : i * width / (values.length - 1);
+                        var amplitude = Math.max(1, values[i] * Math.max(1, center - 1));
+                        context.beginPath();
+                        context.moveTo(x, center - amplitude);
+                        context.lineTo(x, center + amplitude);
+                        context.stroke();
+                    }
+                }
+            }
             Text {
                 anchors.left: parent.left
                 anchors.leftMargin: 5
@@ -300,6 +327,7 @@ Item {
             }
             Text {
                 anchors.centerIn: parent
+                z: 2
                 text: modelData.name || "素材"
                 color: "#ffffff"
                 font.pixelSize: 11

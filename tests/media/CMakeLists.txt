@@ -49,6 +49,11 @@ target_link_libraries(test_export_job PRIVATE edward_media)
 add_dependencies(test_export_job media_audio_fixture)
 add_test(NAME media.export_job COMMAND test_export_job ${EDWARD_MEDIA_AUDIO_FIXTURE} ${CMAKE_CURRENT_BINARY_DIR}/export.mp4)
 
+add_executable(test_audio_waveform test_audio_waveform.cpp)
+target_link_libraries(test_audio_waveform PRIVATE edward_media)
+add_dependencies(test_audio_waveform media_audio_fixture)
+add_test(NAME media.audio_waveform COMMAND test_audio_waveform ${EDWARD_MEDIA_AUDIO_FIXTURE} ${EDWARD_MEDIA_FIXTURE})
+
 add_executable(test_component_renderer test_component_renderer.cpp)
 target_link_libraries(test_component_renderer PRIVATE edward_media)
 add_test(NAME media.component_renderer COMMAND test_component_renderer)

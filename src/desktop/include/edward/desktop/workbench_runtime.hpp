@@ -6,6 +6,7 @@
 #include <QVariantList>
 #include <QImage>
 #include <QFutureWatcher>
+#include <QHash>
 #include <QTimer>
 #include <memory>
 
@@ -208,6 +209,8 @@ class WorkbenchRuntime final : public QObject {
   bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
                              const QString& outputPath, bool applyToTimeline);
   void refreshDemoOverlay();
+  void requestClipWaveform(const edward::core::TimelineClip& clip);
+  void refreshClipWaveforms();
   void syncDemoOverlayProperties(const QJsonObject& component);
   [[nodiscard]] int componentKeyframeFrame() const;
   edward::core::Timeline timeline_;
@@ -260,6 +263,8 @@ class WorkbenchRuntime final : public QObject {
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;
   QTimer playbackTimer_;
+  QHash<qint64, QVariantList> clipWaveforms_;
+  quint64 waveformGeneration_ = 0;
   bool playing_ = false;
   void dispatchSilentComponentUploads();
 };

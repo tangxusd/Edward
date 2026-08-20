@@ -56,6 +56,8 @@ int main() {
   assert(workbench.find("selectedVideoTrackIndex: workbenchRuntime.selectedVideoTrackIndex") != std::string::npos);
   assert(workbench.find("importedMediaClips") != std::string::npos);
   assert(workbench.find("已导入素材") != std::string::npos);
+  assert(timeline.find("modelData.waveform") != std::string::npos);
+  assert(timeline.find("Canvas {") != std::string::npos);
   assert(workbench.find("durationFrames: workbenchRuntime.timelineDurationFrames") != std::string::npos);
   assert(timeline.find("playheadChangedByUser") != std::string::npos);
   assert(timeline.find("selectClip") != std::string::npos);
