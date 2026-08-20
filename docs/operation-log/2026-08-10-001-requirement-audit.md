@@ -2714,3 +2714,9 @@
 - 目的：让长项目可放大查看并横向浏览，同时消除缩略图异步任务与预览解码进入同一 MLT 全局运行时的竞争。
 - 修改：时间线以 `zoomFactor` 和 `viewStartFrame` 计算可视坐标；Ctrl+滚轮缩放、普通滚轮平移，播放头、标尺、拖动与裁切统一改走同一坐标换算。MLT 两类解码入口共用串行锁。
 - 验证：连续执行工作台异步缩略图回归 3 次均通过；随后 `media.mlt_adapter`、`media.audio_waveform`、`media.audio_preview`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 7/7 通过，离屏启动无 QML 加载错误，`git diff --check` 通过。
+
+## 2026-08-20 长时间线编辑稳定性回归
+
+- 目的：防止基础编辑命令只在少量片段时可用，覆盖较长项目中的分割、裁切、移动、撤销重做和工程快照恢复。
+- 修改：新增 5 条视频轨、每轨 20 个片段的核心压力用例；分割后按时间线位置定位实际生成的右侧片段，不假定内部片段 ID。
+- 验证：`core.timeline_stress` 通过；`core.timeline_commands`、`media.mlt_adapter`、`media.audio_waveform`、`media.audio_preview`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 共 9/9 通过，`git diff --check` 通过。
