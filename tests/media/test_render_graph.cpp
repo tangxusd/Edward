@@ -184,6 +184,25 @@ int main(int argc, char** argv) {
   const auto mediaDissolveScene = transitionGraph.build(mediaDissolveTimeline.snapshot(), {7});
   assert(mediaDissolveScene);
   assert(mediaDissolveScene->frame.pixelColor(8, 8).red() > 50);
+  edward::core::Timeline mediaToComponentTimeline(20);
+  const auto mediaToComponentTrack = mediaToComponentTimeline.addVideoTrack();
+  assert(mediaToComponentTimeline.insertClip({51, mediaToComponentTrack, argv[1], 0, 10, 0}));
+  assert(mediaToComponentTimeline.insertClip({52, mediaToComponentTrack, {}, 0, 10, 10,
+                                              edward::core::TimelineClipKind::Component, *red}));
+  assert(mediaToComponentTimeline.addTransition(edward::core::TransitionType::Dissolve, 51, 52, 6));
+  const auto mediaToComponentScene = transitionGraph.build(mediaToComponentTimeline.snapshot(), {7});
+  assert(mediaToComponentScene);
+  assert(mediaToComponentScene->frame.pixelColor(8, 8).red() > 50);
+  edward::core::Timeline componentToMediaTimeline(20);
+  const auto componentToMediaTrack = componentToMediaTimeline.addVideoTrack();
+  assert(componentToMediaTimeline.insertClip({61, componentToMediaTrack, {}, 0, 10, 0,
+                                              edward::core::TimelineClipKind::Component, *red}));
+  assert(componentToMediaTimeline.insertClip({62, componentToMediaTrack, argv[1], 0, 10, 10}));
+  assert(componentToMediaTimeline.addTransition(edward::core::TransitionType::Dissolve, 61, 62, 6));
+  const auto componentToMediaScene = transitionGraph.build(componentToMediaTimeline.snapshot(), {7});
+  assert(componentToMediaScene);
+  const auto componentToMediaPixel = componentToMediaScene->frame.pixelColor(8, 8);
+  assert(componentToMediaPixel.red() > 50 && componentToMediaPixel.red() < 180);
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }

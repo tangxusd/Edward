@@ -117,6 +117,47 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     dissolvedComponentIds.push_back(left->id);
     dissolvedComponentIds.push_back(right->id);
   }
+  for (const auto& transition : snapshot.transitions) {
+    if (transition.type != edward::core::TransitionType::Dissolve) continue;
+    const auto endFrame = transition.startFrame + transition.durationFrames;
+    if (request.frame < transition.startFrame || request.frame >= endFrame) continue;
+    const auto left = std::ranges::find_if(snapshot.clips, [&](const auto& clip) {
+      return clip.id == transition.leftClipId;
+    });
+    const auto right = std::ranges::find_if(snapshot.clips, [&](const auto& clip) {
+      return clip.id == transition.rightClipId;
+    });
+    if (left == snapshot.clips.end() || right == snapshot.clips.end() ||
+        left->kind == right->kind) continue;
+    const auto transitionFrame = request.frame - transition.startFrame;
+    const auto layerFor = [&](const edward::core::TimelineClip& clip, edward::core::Frame sourceFrame) {
+      if (clip.kind == edward::core::TimelineClipKind::Media)
+        return adapter_.renderSourceFrame(clip.source, sourceFrame);
+      return std::optional<QImage>(clip.component
+          ? ComponentRenderer{}.render(*clip.component, sourceFrame, frame->size()) : QImage{});
+    };
+    const auto outgoing = layerFor(*left, left->sourceIn + request.frame - left->timelineStart);
+    const auto incoming = layerFor(*right, right->sourceIn + transitionFrame);
+    if (!outgoing || !incoming || outgoing->isNull() || incoming->isNull() ||
+        outgoing->size() != incoming->size() || outgoing->size() != frame->size()) continue;
+    const auto progress = std::clamp(static_cast<double>(transitionFrame) /
+                                         std::max<edward::core::Frame>(1, transition.durationFrames - 1),
+                                     0.0, 1.0);
+    QImage blended(frame->size(), QImage::Format_RGBA8888);
+    for (int y = 0; y < blended.height(); ++y) for (int x = 0; x < blended.width(); ++x) {
+      const auto a = outgoing->pixelColor(x, y);
+      const auto b = incoming->pixelColor(x, y);
+      blended.setPixelColor(x, y, QColor(static_cast<int>(a.red() * (1.0 - progress) + b.red() * progress + .5),
+          static_cast<int>(a.green() * (1.0 - progress) + b.green() * progress + .5),
+          static_cast<int>(a.blue() * (1.0 - progress) + b.blue() * progress + .5),
+          static_cast<int>(a.alpha() * (1.0 - progress) + b.alpha() * progress + .5)));
+    }
+    QPainter painter(&*frame);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    painter.drawImage(0, 0, blended);
+    if (left->kind == edward::core::TimelineClipKind::Component) dissolvedComponentIds.push_back(left->id);
+    if (right->kind == edward::core::TimelineClipKind::Component) dissolvedComponentIds.push_back(right->id);
+  }
   for (const auto& clip : snapshot.clips) {
     const auto duration = clip.sourceOut - clip.sourceIn;
     if (clip.kind == edward::core::TimelineClipKind::Component && clip.component &&
