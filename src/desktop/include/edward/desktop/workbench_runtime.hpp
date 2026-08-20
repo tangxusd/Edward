@@ -80,6 +80,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int videoTrackCount() const;
   [[nodiscard]] int selectedVideoTrackIndex() const;
   [[nodiscard]] QVariantList clips() const;
+  [[nodiscard]] QImage clipThumbnail(qlonglong id) const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
   [[nodiscard]] bool componentBoundToClip() const { return componentClipId_ != 0; }
   [[nodiscard]] bool componentPlayheadIsEditable() const;
@@ -211,6 +212,8 @@ class WorkbenchRuntime final : public QObject {
   void refreshDemoOverlay();
   void requestClipWaveform(const edward::core::TimelineClip& clip);
   void refreshClipWaveforms();
+  void requestClipThumbnail(const edward::core::TimelineClip& clip);
+  void refreshClipThumbnails();
   void syncDemoOverlayProperties(const QJsonObject& component);
   [[nodiscard]] int componentKeyframeFrame() const;
   edward::core::Timeline timeline_;
@@ -265,6 +268,8 @@ class WorkbenchRuntime final : public QObject {
   QTimer playbackTimer_;
   QHash<qint64, QVariantList> clipWaveforms_;
   quint64 waveformGeneration_ = 0;
+  QHash<qint64, QImage> clipThumbnails_;
+  quint64 thumbnailGeneration_ = 0;
   bool playing_ = false;
   void dispatchSilentComponentUploads();
 };

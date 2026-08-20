@@ -17,6 +17,10 @@ int main(int argc, char** argv) {
   assert(later.has_value());
   assert(first->width() == 16 && first->height() == 16);
   assert(later->size() == first->size());
+  const auto sourceFrame = adapter.renderSourceFrame(argv[1], 12);
+  assert(sourceFrame.has_value());
+  assert(sourceFrame->size() == first->size());
+  assert(!adapter.renderSourceFrame({}, 0).has_value());
   edward::core::Timeline timelineWithGap(25);
   const auto gapTrack = timelineWithGap.addVideoTrack();
   assert(timelineWithGap.insertClip({1, gapTrack, argv[1], 0, 12, 0}));

@@ -92,4 +92,23 @@ std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapsh
   return result.isNull() ? std::nullopt : std::optional<QImage>(std::move(result));
 }
 
+std::optional<QImage> MltAdapter::renderSourceFrame(const std::filesystem::path& source,
+                                                     edward::core::Frame frame) const {
+  if (source.empty() || frame < 0 || !ensureMltRuntime()) return std::nullopt;
+  const auto profile = mlt_profile_init(nullptr);
+  if (!profile) return std::nullopt;
+  const auto resource = source.string();
+  const auto producer = mlt_factory_producer(profile, nullptr, resource.c_str());
+  if (!producer) {
+    mlt_profile_close(profile);
+    return std::nullopt;
+  }
+  mlt_profile_from_producer(profile, producer);
+  edward::core::TimelineClip clip{1, 1, source, frame, frame + 1, 0};
+  const auto image = readClipFrame(profile, clip, 0);
+  mlt_producer_close(producer);
+  mlt_profile_close(profile);
+  return image;
+}
+
 }  // namespace edward::media

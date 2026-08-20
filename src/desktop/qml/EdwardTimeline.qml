@@ -245,6 +245,19 @@ Item {
                 height: 3
                 color: modelData.kind === "component" ? DesignTokens.accent : "#4c9ac1"
             }
+            Image {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.topMargin: 4
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 3
+                visible: modelData.kind === "media" && modelData.thumbnail
+                source: modelData.thumbnail ? modelData.thumbnail : ""
+                fillMode: Image.PreserveAspectCrop
+                clip: true
+                opacity: 0.86
+            }
             Canvas {
                 anchors.left: parent.left
                 anchors.right: parent.right

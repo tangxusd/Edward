@@ -10,8 +10,12 @@ class EdwardFrameProvider final : public QQuickImageProvider {
  public:
   explicit EdwardFrameProvider(const edward::desktop::WorkbenchRuntime& runtime)
       : QQuickImageProvider(QQuickImageProvider::Image), runtime_(runtime) {}
-  QImage requestImage(const QString&, QSize* size, const QSize&) override {
-    const auto image = runtime_.previewFrame();
+  QImage requestImage(const QString& id, QSize* size, const QSize&) override {
+    bool clipIdOk = false;
+    const auto clipId = id.startsWith(QStringLiteral("clip-"))
+                            ? id.mid(5).section('-', 0, 0).toLongLong(&clipIdOk)
+                            : 0;
+    const auto image = clipIdOk ? runtime_.clipThumbnail(clipId) : runtime_.previewFrame();
     if (size) *size = image.size();
     return image;
   }

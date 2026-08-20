@@ -2690,3 +2690,9 @@
 - 目的：补足源文件路由测试不能发现的 QML 运行时属性绑定问题。
 - 发现与修复：离屏启动首次发现 `videoTrackCount` 被错误传给不具备该属性的 `EdwardPreview`，已移除；随后发现组件时间边界提示引用未定义的 `DesignTokens.warning`，已补齐警告色令牌。
 - 验证：重新构建后，`QT_QPA_PLATFORM=offscreen` 下限时启动 `edward_app` 正常加载工作台，无 QML 加载或属性赋值错误；仅保留 Qt 系统默认字体别名的性能提示。
+
+## 2026-08-20 时间线真实视频缩略图条
+
+- 目的：提高剪辑时间线中媒体片段的可辨识性，不再仅以纯色矩形表示视频内容。
+- 修改：MLT 适配器新增按源帧解码接口；工作台异步从每个媒体片段的源区间均匀抽取 4 帧，拼合成内存缩略图条，经既有 `image://edward` 提供者交给 QML 显示。分割、裁切、重开工程会作废并重新生成缩略图；不创建磁盘缓存。
+- 验证：先确认新增 MLT 和工作台缩略图测试失败；实现后 `media.mlt_adapter`、`media.audio_waveform`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 6/6 通过，离屏启动无 QML 加载错误，`git diff --check` 通过。

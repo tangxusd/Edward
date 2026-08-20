@@ -364,5 +364,21 @@ int main(int argc, char** argv) {
   QTimer::singleShot(5000, &waveformLoop, &QEventLoop::quit);
   waveformLoop.exec();
   assert(waveformReady);
+
+  edward::desktop::WorkbenchRuntime thumbnailRuntime;
+  bool thumbnailReady = false;
+  QEventLoop thumbnailLoop;
+  QObject::connect(&thumbnailRuntime, &edward::desktop::WorkbenchRuntime::timelineChanged,
+                   [&thumbnailRuntime, &thumbnailReady, &thumbnailLoop] {
+                     const auto clips = thumbnailRuntime.clips();
+                     if (!clips.empty() && clips.front().toMap().value("thumbnail").toString().startsWith("image://edward/clip-")) {
+                       thumbnailReady = true;
+                       thumbnailLoop.quit();
+                     }
+                   });
+  assert(thumbnailRuntime.importMedia(QString::fromLocal8Bit(argv[2])));
+  QTimer::singleShot(5000, &thumbnailLoop, &QEventLoop::quit);
+  thumbnailLoop.exec();
+  assert(thumbnailReady);
   return 0;
 }

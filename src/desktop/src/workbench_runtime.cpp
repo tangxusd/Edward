@@ -16,6 +16,7 @@
 #include <QUrl>
 #include <QDateTime>
 #include <QRegularExpression>
+#include <QPainter>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -77,6 +78,29 @@ QString editableShapeNodeId(const QJsonObject& component, const QString& selecte
   const auto selected = findNode(component.value("root").toObject(), selectedNodeId);
   if (selected && selected->value("type").toString() == QStringLiteral("shape")) return selectedNodeId;
   return QStringLiteral("demo-box");
+}
+
+QImage thumbnailSprite(const std::filesystem::path& source, edward::core::Frame sourceIn,
+                        edward::core::Frame sourceOut) {
+  constexpr int thumbnailCount = 4;
+  constexpr QSize thumbnailSize{128, 72};
+  if (source.empty() || sourceOut <= sourceIn) return {};
+  edward::media::MltAdapter adapter;
+  QImage result(thumbnailSize.width() * thumbnailCount, thumbnailSize.height(), QImage::Format_RGBA8888);
+  result.fill(Qt::black);
+  QPainter painter(&result);
+  bool rendered = false;
+  for (int index = 0; index < thumbnailCount; ++index) {
+    const auto sourceFrame = sourceIn + (sourceOut - sourceIn - 1) * (2 * index + 1) /
+                                         (2 * thumbnailCount);
+    const auto frame = adapter.renderSourceFrame(source, sourceFrame);
+    if (!frame || frame->isNull()) continue;
+    const auto scaled = frame->scaled(thumbnailSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    painter.drawImage(index * thumbnailSize.width() + (thumbnailSize.width() - scaled.width()) / 2,
+                      (thumbnailSize.height() - scaled.height()) / 2, scaled);
+    rendered = true;
+  }
+  return rendered ? result : QImage{};
 }
 
 void setTransformAndKeyframe(edward::core::ComponentIr& component, const QString& nodeId,
@@ -436,10 +460,16 @@ QVariantList WorkbenchRuntime::clips() const {
         item.insert(QStringLiteral("name"), QStringLiteral("组件"));
       item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
       item.insert(QStringLiteral("waveform"), clipWaveforms_.value(static_cast<qint64>(clip.id)));
+      if (clipThumbnails_.contains(static_cast<qint64>(clip.id)))
+        item.insert(QStringLiteral("thumbnail"), QStringLiteral("image://edward/clip-%1").arg(clip.id));
       result.push_back(item);
     }
   }
   return result;
+}
+
+QImage WorkbenchRuntime::clipThumbnail(qlonglong id) const {
+  return clipThumbnails_.value(id);
 }
 
 QImage WorkbenchRuntime::previewFrame() const {
@@ -453,6 +483,7 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
     return false;
   }
   if (const auto clip = timeline_.clip(controller_.selectedClip())) requestClipWaveform(*clip);
+  if (const auto clip = timeline_.clip(controller_.selectedClip())) requestClipThumbnail(*clip);
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("素材已加入时间线"));
   return true;
@@ -488,6 +519,30 @@ void WorkbenchRuntime::refreshClipWaveforms() {
   ++waveformGeneration_;
   clipWaveforms_.clear();
   for (const auto& clip : timeline_.snapshot().clips) requestClipWaveform(clip);
+}
+
+void WorkbenchRuntime::requestClipThumbnail(const edward::core::TimelineClip& clip) {
+  if (clip.kind != edward::core::TimelineClipKind::Media || clip.source.empty() ||
+      clipThumbnails_.contains(static_cast<qint64>(clip.id))) return;
+  const auto clipId = clip.id;
+  const auto generation = thumbnailGeneration_;
+  auto* watcher = new QFutureWatcher<QImage>(this);
+  connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, clipId, generation] {
+    const auto sprite = watcher->result();
+    watcher->deleteLater();
+    if (generation != thumbnailGeneration_ || sprite.isNull() || !timeline_.clip(clipId)) return;
+    clipThumbnails_.insert(static_cast<qint64>(clipId), sprite);
+    emit timelineChanged();
+  });
+  watcher->setFuture(QtConcurrent::run([source = clip.source, sourceIn = clip.sourceIn, sourceOut = clip.sourceOut] {
+    return thumbnailSprite(source, sourceIn, sourceOut);
+  }));
+}
+
+void WorkbenchRuntime::refreshClipThumbnails() {
+  ++thumbnailGeneration_;
+  clipThumbnails_.clear();
+  for (const auto& clip : timeline_.snapshot().clips) requestClipThumbnail(clip);
 }
 
 bool WorkbenchRuntime::selectClip(qlonglong id) {
@@ -1414,6 +1469,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   }
   if (!timeline_.restore(snapshot)) return false;
   refreshClipWaveforms();
+  refreshClipThumbnails();
   demoOverlayIr_ = std::move(component);
   componentClipId_ = demoOverlayIr_ ? componentClipId : 0;
   aiConversation_ = std::move(conversation);
@@ -1443,6 +1499,7 @@ bool WorkbenchRuntime::splitSelected() {
     return false;
   }
   refreshClipWaveforms();
+  refreshClipThumbnails();
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
@@ -1484,6 +1541,7 @@ bool WorkbenchRuntime::trimSelectedLeft() {
     return false;
   }
   refreshClipWaveforms();
+  refreshClipThumbnails();
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
@@ -1495,6 +1553,7 @@ bool WorkbenchRuntime::trimSelectedRight() {
     return false;
   }
   refreshClipWaveforms();
+  refreshClipThumbnails();
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
