@@ -24,5 +24,11 @@ int main() {
       {{"operation", "setKeyframeValue"}, {"nodeId", "card"}, {"field", "x"}, {"frame", -1}, {"value", 1}}, &error));
   assert(!edward::core::parseComponentEditCommand(
       {{"operation", "eval"}, {"nodeId", "card"}, {"field", "x"}, {"value", "alert(1)"}}, &error));
+  assert(edward::core::parseComponentEditCommandText(
+      QStringLiteral("```json\n{\"operation\":\"setProperty\",\"nodeId\":\"title\",\"field\":\"text\",\"value\":\"ok\"}\n```"), &error));
+  assert(!edward::core::parseComponentEditCommandText(
+      QStringLiteral("Here is the command: {\"operation\":\"setProperty\"}"), &error));
+  assert(!edward::core::parseComponentEditCommandText(
+      QStringLiteral("```javascript\nalert(1)\n```"), &error));
   return 0;
 }

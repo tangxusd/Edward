@@ -276,14 +276,8 @@ bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
     emit operationFailed(QStringLiteral("AI 编辑失败：当前没有可编辑组件"));
     return false;
   }
-  QJsonParseError parseError;
-  const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
-  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-    emit operationFailed(QStringLiteral("AI 编辑命令必须是单个 JSON 对象"));
-    return false;
-  }
   QString error;
-  const auto command = edward::core::parseComponentEditCommand(document.object(), &error);
+  const auto command = edward::core::parseComponentEditCommandText(json, &error);
   if (command && !pluginAllowsComponentEdit(*demoOverlayIr_, installedPlugin_, *command)) {
     emit operationFailed(QStringLiteral("AI 编辑失败：外部插件未声明该可编辑字段"));
     return false;
@@ -324,14 +318,8 @@ bool WorkbenchRuntime::proposeAiComponentCommand(const QString& json) {
     emit operationFailed(QStringLiteral("AI 草案失败：当前没有可编辑组件"));
     return false;
   }
-  QJsonParseError parseError;
-  const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
-  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-    emit operationFailed(QStringLiteral("AI 草案必须是单个 JSON 对象"));
-    return false;
-  }
   QString error;
-  const auto command = edward::core::parseComponentEditCommand(document.object(), &error);
+  const auto command = edward::core::parseComponentEditCommandText(json, &error);
   if (!command) {
     emit operationFailed(QStringLiteral("AI 草案失败：%1").arg(error));
     return false;
@@ -346,7 +334,7 @@ bool WorkbenchRuntime::proposeAiComponentCommand(const QString& json) {
     return false;
   }
   aiComponentDraft_ = std::move(candidate);
-  aiComponentDraftJson_ = QString::fromUtf8(QJsonDocument(document.object()).toJson(QJsonDocument::Compact));
+  aiComponentDraftJson_ = json.trimmed();
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("AI 草案已生成，确认后应用"));
   return true;

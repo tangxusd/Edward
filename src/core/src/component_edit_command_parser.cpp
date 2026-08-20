@@ -1,5 +1,7 @@
 #include "edward/core/component_edit_command_parser.hpp"
 
+#include <QJsonDocument>
+
 namespace edward::core {
 namespace {
 
@@ -42,6 +44,23 @@ std::optional<ComponentEditCommand> parseComponentEditCommand(const QJsonObject&
     return std::nullopt;
   }
   return ComponentEditCommand{*kind, nodeId, field, frame, value};
+}
+
+std::optional<ComponentEditCommand> parseComponentEditCommandText(const QString& text, QString* error) {
+  QString candidate = text.trimmed();
+  if (candidate.startsWith(QStringLiteral("```json")) && candidate.endsWith(QStringLiteral("```"))) {
+    candidate = candidate.sliced(7, candidate.size() - 10).trimmed();
+  } else if (candidate.startsWith(QStringLiteral("```"))) {
+    if (error) *error = QStringLiteral("AI 命令代码块必须标记为 json");
+    return std::nullopt;
+  }
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(candidate.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    if (error) *error = QStringLiteral("AI 响应必须是单个 JSON 对象");
+    return std::nullopt;
+  }
+  return parseComponentEditCommand(document.object(), error);
 }
 
 }  // namespace edward::core
