@@ -213,7 +213,14 @@ bool ComponentIr::setNodeKeyframeEasing(const QString& nodeId, const QString& fi
     auto point = keyframes.at(index).toObject();
     if (point.value("frame").toInt(-1) != frame) continue;
     point.insert("easing", easing);
-    if (easing == "linear") {
+    if (easing == "bezier" && index + 1 < keyframes.size() && point.value("value").isDouble() &&
+        keyframes.at(index + 1).toObject().value("value").isDouble()) {
+      // A default smoothstep curve makes the first Bezier switch observable without a curve editor.
+      point.insert("controlOut", point.value("value"));
+      auto next = keyframes.at(index + 1).toObject();
+      next.insert("controlIn", next.value("value"));
+      keyframes.replace(index + 1, next);
+    } else if (easing == "linear") {
       point.remove("controlIn");
       point.remove("controlOut");
     }

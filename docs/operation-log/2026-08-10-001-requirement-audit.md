@@ -2553,3 +2553,9 @@
 - 目的：为组件内部节点的每个关键帧提供可见的线性/贝塞尔曲线入口。
 - 修改：Component IR 新增单点曲线类型更新；工作台关键帧列表显示当前曲线，点击左侧条目在 `linear` 与 `bezier` 间切换，删除保持独立按钮。该修改进入现有工程保存、预览与导出数据路径。
 - 验证：增量构建成功；`core.component_ir`、`desktop.visual_routes`、`desktop.workbench_plugins` 3/3 通过；`git diff --check` 通过。
+
+## 2026-08-20 贝塞尔曲线真实求值回归
+
+- 目的：确认曲线切换不是仅保存标签，必须改变实际预览/导出画面的位置插值。
+- 修改：切换为贝塞尔时写入首个平滑默认控制点；保留线性切换时清除控制点。新增组件渲染像素测试，比较线性和贝塞尔在同一中间帧的图形位置。
+- 验证：`core.component_ir`、`media.component_renderer`、`desktop.workbench_plugins` 3/3 通过，`git diff --check` 通过。

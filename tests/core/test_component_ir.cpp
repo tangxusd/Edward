@@ -57,6 +57,7 @@ int main() {
   const auto eased = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject()
                          .value("keyframes").toObject().value("x").toArray();
   assert(eased.at(0).toObject().value("easing").toString() == "bezier");
+  assert(eased.at(0).toObject().value("controlOut").toDouble() == 12.0);
   assert(eased.at(1).toObject().value("easing").toString() == "linear");
   assert(eased.at(1).toObject().value("controlIn").isUndefined());
   assert(!parsed->setNodeKeyframeEasing("title", "x", 20, "bezier"));

@@ -21,6 +21,28 @@ int main(int argc, char** argv) {
   assert(image.pixelColor(34, 50).alpha() > 0);
   assert(image.pixelColor(5, 5).alpha() == 0);
 
+  const QJsonObject linearRoot{{"id", "linear-root"}, {"type", "shape"},
+      {"transform", QJsonObject{{"y", 40}, {"width", 8}, {"height", 8}}},
+      {"properties", QJsonObject{{"fill", "#ffffff"}}},
+      {"keyframes", QJsonObject{{"x", QJsonArray{
+          QJsonObject{{"frame", 0}, {"value", 10}, {"easing", "linear"}},
+          QJsonObject{{"frame", 10}, {"value", 70}}
+      }}}}};
+  const QJsonObject bezierRoot{{"id", "bezier-root"}, {"type", "shape"},
+      {"transform", QJsonObject{{"y", 40}, {"width", 8}, {"height", 8}}},
+      {"properties", QJsonObject{{"fill", "#ffffff"}}},
+      {"keyframes", QJsonObject{{"x", QJsonArray{
+          QJsonObject{{"frame", 0}, {"value", 10}, {"easing", "bezier"}, {"controlOut", 10}},
+          QJsonObject{{"frame", 10}, {"value", 70}, {"controlIn", 70}}
+      }}}}};
+  const auto linear = edward::core::ComponentIr::parse({{"version", "1"}, {"root", linearRoot}});
+  const auto bezier = edward::core::ComponentIr::parse({{"version", "1"}, {"root", bezierRoot}});
+  assert(linear && bezier);
+  const auto linearImage = edward::media::ComponentRenderer{}.render(*linear, 2, {100, 100});
+  const auto bezierImage = edward::media::ComponentRenderer{}.render(*bezier, 2, {100, 100});
+  assert(linearImage.pixelColor(28, 10).alpha() > 0);
+  assert(bezierImage.pixelColor(28, 10).alpha() == 0);
+
   const QJsonObject nestedRoot{{"id", "root"}, {"type", "container"},
       {"transform", QJsonObject{{"x", 10}, {"y", 0}}},
       {"properties", QJsonObject{{"opacity", 0.5}}}, {"children", QJsonArray{
