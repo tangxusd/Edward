@@ -12,7 +12,10 @@ Item {
     property int componentY: 0
     property int componentWidth: 220
     property int componentHeight: 72
+    property var componentNodes: []
+    property string selectedComponentNodeId: ""
     signal componentDragged(int x, int y)
+    signal componentNodeSelected(string nodeId)
 
     Rectangle {
         anchors.fill: parent
@@ -112,6 +115,27 @@ Item {
                 }
                 onPositionChanged: if (pressed)
                     root.componentDragged(initialX - Math.round(mouse.x - pressX), initialY - Math.round(mouse.y - pressY))
+            }
+        }
+
+        Repeater {
+            model: root.componentNodes
+            delegate: Rectangle {
+                required property var modelData
+                readonly property bool hasBounds: modelData.width > 0 && modelData.height > 0
+                z: 4
+                visible: root.componentOverlayEnabled && hasBounds
+                x: canvas.width / 2 - modelData.x - width / 2
+                y: canvas.height / 2 - modelData.y - height / 2
+                width: modelData.width
+                height: modelData.height
+                color: "transparent"
+                border.color: root.selectedComponentNodeId === modelData.id ? DesignTokens.accent : "#6688a0a8"
+                border.width: root.selectedComponentNodeId === modelData.id ? 2 : 1
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.componentNodeSelected(modelData.id)
+                }
             }
         }
 

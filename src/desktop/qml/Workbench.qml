@@ -119,6 +119,9 @@ ApplicationWindow {
                     componentY: workbenchRuntime.demoOverlayY
                     componentWidth: workbenchRuntime.demoOverlayWidth
                     componentHeight: workbenchRuntime.demoOverlayHeight
+                    componentNodes: workbenchRuntime.componentNodes
+                    selectedComponentNodeId: workbenchRuntime.selectedComponentNodeId
+                    onComponentNodeSelected: workbenchRuntime.selectComponentNode(nodeId)
                     onComponentDragged: {
                         workbenchRuntime.demoOverlayX = x;
                         workbenchRuntime.demoOverlayY = y;
@@ -222,6 +225,11 @@ ApplicationWindow {
                         textRole: "displayName"
                         valueRole: "id"
                         enabled: workbenchRuntime.componentNodes.length > 0
+                        currentIndex: {
+                            for (var i = 0; i < model.length; ++i)
+                                if (model[i].id === workbenchRuntime.selectedComponentNodeId) return i
+                            return -1
+                        }
                         onActivated: workbenchRuntime.selectComponentNode(currentValue)
                     }
                     Label {

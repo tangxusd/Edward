@@ -53,6 +53,11 @@ void appendComponentNodes(const QJsonObject& node, QVariantList& result) {
     item.insert(QStringLiteral("id"), id);
     item.insert(QStringLiteral("type"), type);
     item.insert(QStringLiteral("displayName"), type.isEmpty() ? id : QStringLiteral("%1 (%2)").arg(id, type));
+    const auto transform = node.value("transform").toObject();
+    item.insert(QStringLiteral("x"), transform.value("x").toDouble());
+    item.insert(QStringLiteral("y"), transform.value("y").toDouble());
+    item.insert(QStringLiteral("width"), transform.value("width").toDouble());
+    item.insert(QStringLiteral("height"), transform.value("height").toDouble());
     result.push_back(item);
   }
   for (const auto& child : node.value("children").toArray()) {

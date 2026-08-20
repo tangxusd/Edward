@@ -2463,3 +2463,9 @@
 - 目的：为后续把组件绑定到时间线片段建立合成器接口，避免继续扩展单个全局叠加字段。
 - 修改：新增带 `startFrame`/`endFrame` 的 `ComponentLayer`；RenderGraph 可接收多个标准 Component IR 层，只在当前播放头位于有效区间时按 SourceOver 顺序合成。旧 `setOverlay` 单组件入口保持兼容。
 - 验证：RenderGraph 测试覆盖组件层开始前、有效区间和结束后的像素差异；定向测试通过，完整 CTest 33/33 通过。
+
+## 2026-08-20 预览窗组件子节点选择
+
+- 目的：让标准组件的内部文字、图形等子节点在预览窗中可见并可直接选中，选中后沿用属性面板和关键帧编辑链路。
+- 修改：`componentNodes` 增加节点几何信息；`EdwardPreview` 绘制带选择态的子节点边界并发出节点选择信号；工作台同步预览选择与右侧子节点下拉框，点击节点后复用 `selectComponentNode`。
+- 验证：`cmake --build build/0.3-runtime -j2` 成功；定向工作台/渲染测试 2/2 通过；完整 `ctest --test-dir build/0.3-runtime --output-on-failure` 34/34 通过；`git diff --check` 通过。
