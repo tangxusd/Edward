@@ -303,9 +303,24 @@ bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QS
   const auto systemPrompt = QStringLiteral(
       "Return exactly one JSON object for Edward component editing. Allowed operations are "
       "setTransformNumber, setProperty, setKeyframeValue. Do not use Markdown or code fences.");
+  const auto componentContext = QString::fromUtf8(
+      QJsonDocument(demoOverlayIr_->toJson()).toJson(QJsonDocument::Compact));
+  const auto dependency = demoOverlayIr_->pluginDependency();
+  const auto editable = dependency && installedPlugin_ &&
+                                dependency->pluginId == installedPlugin_->manifest.pluginId &&
+                                dependency->version == installedPlugin_->manifest.version
+                            ? installedPlugin_->manifest.editableProps.join(QStringLiteral(","))
+                            : QStringLiteral("standard Edward fields");
+  const auto contextualPrompt = QStringLiteral(
+      "Current Component IR (read-only context): %1\nAllowed plugin editable fields: %2\nUser request: %3")
+                                    .arg(componentContext, editable, prompt);
+  if (contextualPrompt.toUtf8().size() > 64 * 1024) {
+    emit operationFailed(QStringLiteral("AI 请求失败：组件上下文或提示词过大"));
+    return false;
+  }
   aiRequestBusy_ = true;
   emit timelineChanged();
-  if (!modelChatClient_.request({endpoint, apiKey, model}, systemPrompt, prompt)) {
+  if (!modelChatClient_.request({endpoint, apiKey, model}, systemPrompt, contextualPrompt)) {
     aiRequestBusy_ = false;
     emit timelineChanged();
     return false;

@@ -99,6 +99,9 @@ int main(int argc, char** argv) {
   assert(!runtime.requestAiComponentDraft(QStringLiteral("http://model.example.com/v1/chat/completions"),
                                           QStringLiteral("runtime-key"), QStringLiteral("model"),
                                           QStringLiteral("move left")));
+  assert(!runtime.requestAiComponentDraft(QStringLiteral("https://model.example.com/v1/chat/completions"),
+                                          QStringLiteral("runtime-key"), QStringLiteral("model"),
+                                          QString(70000, QLatin1Char('x'))));
   assert(runtime.proposeAiComponentCommand(
       QStringLiteral("{\"operation\":\"setTransformNumber\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":-72}")));
   assert(runtime.aiComponentDraftAvailable());
