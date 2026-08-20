@@ -17,6 +17,25 @@ Item {
     function frameToX(frame) {
         return rulerWidth + frame * pixelsPerFrame;
     }
+    function snapFrame(frame, clipId) {
+        var candidates = [0, durationFrames, playheadFrame];
+        for (var i = 0; i < clips.length; ++i) {
+            if (clips[i].id === clipId) continue;
+            candidates.push(clips[i].timelineStart);
+            candidates.push(clips[i].timelineStart + clips[i].sourceOut - clips[i].sourceIn);
+        }
+        var threshold = Math.max(2, Math.round(8 / pixelsPerFrame));
+        var best = frame;
+        var distance = threshold + 1;
+        for (var j = 0; j < candidates.length; ++j) {
+            var candidateDistance = Math.abs(candidates[j] - frame);
+            if (candidateDistance <= threshold && candidateDistance < distance) {
+                best = candidates[j];
+                distance = candidateDistance;
+            }
+        }
+        return Math.max(0, Math.min(durationFrames, best));
+    }
     readonly property real rulerWidth: 74
     readonly property real pixelsPerFrame: Math.max(0.25, (width - rulerWidth - 24) / durationFrames)
 
@@ -189,7 +208,8 @@ Item {
                 drag.maximumX: root.frameToX(root.durationFrames) - parent.width
                 onPressed: workbenchRuntime.selectClip(modelData.id)
                 onClicked: workbenchRuntime.selectClip(modelData.id)
-                onReleased: workbenchRuntime.moveSelected(Math.max(0, Math.min(root.durationFrames, Math.round((parent.x - root.rulerWidth) / root.pixelsPerFrame))))
+                onReleased: workbenchRuntime.moveSelected(root.snapFrame(
+                    Math.round((parent.x - root.rulerWidth) / root.pixelsPerFrame), modelData.id))
             }
             MouseArea {
                 anchors.left: parent.left

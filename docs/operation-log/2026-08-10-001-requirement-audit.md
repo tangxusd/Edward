@@ -2618,3 +2618,9 @@
 - 目的：补齐视频编辑器常用的轨道点击定位，不要求用户只能点击顶部标尺。
 - 修改：各轨道内容区空白处按横向位置换算工程帧并移动播放头；片段位于更高层，已有选择和拖拽行为保持不变。
 - 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。
+
+## 2026-08-20 时间线片段拖拽吸附
+
+- 目的：减少片段拖动后的细小错位，让片段更容易对齐播放头、其他片段边缘和工程首尾。
+- 修改：片段释放时按当前缩放比例使用像素阈值换算帧阈值，吸附到播放头、其他片段起止边缘、工程首尾；未命中吸附点时保留原始帧位置。
+- 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。
