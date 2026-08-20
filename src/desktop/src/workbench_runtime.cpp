@@ -1436,8 +1436,15 @@ bool WorkbenchRuntime::saveProject(const QString& path) {
 }
 
 QString WorkbenchRuntime::projectWindowTitle() const {
-  const auto name = activeProjectPath_.isEmpty() ? QStringLiteral("未命名项目")
-                                                  : QFileInfo(activeProjectPath_).completeBaseName();
+  QString name = QStringLiteral("未命名项目");
+  if (!activeProjectPath_.isEmpty()) {
+    name = QFileInfo(activeProjectPath_).fileName();
+    const auto edwardExtension = QStringLiteral(".edward.json");
+    if (name.endsWith(edwardExtension))
+      name.chop(edwardExtension.size());
+    else
+      name = QFileInfo(activeProjectPath_).completeBaseName();
+  }
   const auto status = projectSaveState_ == ProjectSaveState::Saved
                           ? QStringLiteral("已保存")
                           : projectSaveState_ == ProjectSaveState::AutoSaved

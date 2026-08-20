@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
   const auto projectPath = directory.path() + QStringLiteral("/project.edward.json");
   runtime.setDemoOverlayText(QStringLiteral("手动保存基线"));
   assert(runtime.saveProject(projectPath));
-  assert(runtime.projectWindowTitle().endsWith(QStringLiteral("— 已保存")));
+  assert(runtime.projectWindowTitle() == QStringLiteral("project — 已保存"));
   runtime.setDemoOverlayText(QStringLiteral("自动保存草稿"));
   QEventLoop autosaveLoop;
   QTimer::singleShot(1500, &autosaveLoop, &QEventLoop::quit);
