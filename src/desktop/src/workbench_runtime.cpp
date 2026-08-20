@@ -1131,6 +1131,13 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
     emit operationFailed(QStringLiteral("导出参数无效"));
     return false;
   }
+  const auto path = std::filesystem::path(outputPath.toStdString());
+  std::error_code pathError;
+  if (!path.is_absolute() || path.filename().empty() || path.extension() != ".mp4"
+      || !std::filesystem::is_directory(path.parent_path(), pathError)) {
+    emit operationFailed(QStringLiteral("导出路径必须是现有目录中的 MP4 文件"));
+    return false;
+  }
   auto snapshot = timeline_.snapshot();
   if (snapshot.clips.empty()) {
     emit operationFailed(QStringLiteral("时间线没有可导出的视频片段"));
@@ -1142,7 +1149,6 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
   snapshot.durationFrames = lastFrame;
   const auto component = demoOverlayIr_ ? std::optional<QJsonObject>(demoOverlayIr_->toJson()) : std::nullopt;
   const auto componentClipId = componentClipId_;
-  const auto path = std::filesystem::path(outputPath.toStdString());
   timelineExportBusy_ = true;
   emit timelineChanged();
   const auto exportQuality = quality == 0 ? edward::media::ExportQuality::High

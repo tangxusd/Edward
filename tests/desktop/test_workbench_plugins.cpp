@@ -55,6 +55,9 @@ int main(int argc, char** argv) {
                      }
                    });
   assert(!runtime.exportTimelineWithOptions(exportPath, 0, 720, 30, 0));
+  assert(!runtime.exportTimelineWithOptions(QStringLiteral("relative-output.mp4"), 1280, 720, 30, 0));
+  assert(!runtime.exportTimelineWithOptions(directory.path() + QStringLiteral("/timeline.mov"), 1280, 720, 30, 0));
+  assert(!runtime.exportTimelineWithOptions(exportPath, 1280, 720, 30, 3));
   assert(runtime.exportTimelineWithOptions(exportPath, 1280, 720, 30, 1));
   QTimer::singleShot(15000, &exportLoop, &QEventLoop::quit);
   exportLoop.exec();
