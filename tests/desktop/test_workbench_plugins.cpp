@@ -211,6 +211,16 @@ int main(int argc, char** argv) {
   assert(componentTimelineRuntime.clips().size() == runtime.clips().size());
   assert(componentTimelineRuntime.clips().last().toMap().value("kind") == QStringLiteral("component"));
   assert(!componentTimelineRuntime.demoOverlayEnabled());
+  const auto componentClipId = componentTimelineRuntime.clips().last().toMap().value("id").toLongLong();
+  assert(componentTimelineRuntime.selectClip(componentClipId));
+  assert(componentTimelineRuntime.demoOverlayEnabled());
+  componentTimelineRuntime.setDemoOverlayText(QStringLiteral("编辑后的组件"));
+  assert(componentTimelineRuntime.demoOverlayText() == QStringLiteral("编辑后的组件"));
+  assert(componentTimelineRuntime.saveProject(componentTimelineProject));
+  edward::desktop::WorkbenchRuntime editedComponentRuntime;
+  assert(editedComponentRuntime.loadProject(componentTimelineProject));
+  assert(editedComponentRuntime.selectClip(componentClipId));
+  assert(editedComponentRuntime.demoOverlayText() == QStringLiteral("编辑后的组件"));
   assert(!runtime.configureSilentComponentUploads(
       QStringLiteral("http://project.supabase.co/functions/v1/component-upload"),
       directory.path() + QStringLiteral("/upload-state.json"),

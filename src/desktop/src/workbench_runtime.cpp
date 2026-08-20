@@ -182,6 +182,15 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
 }
 
 void WorkbenchRuntime::refreshDemoOverlay() {
+  const auto selected = timeline_.clip(controller_.selectedClip());
+  if (selected && selected->kind == edward::core::TimelineClipKind::Component && demoOverlayIr_) {
+    auto replacement = *selected;
+    replacement.component = *demoOverlayIr_;
+    timeline_.replaceClip(replacement.id, std::move(replacement));
+    renderGraph_.setOverlay(std::nullopt);
+    renderGraph_.setComponentLayers({});
+    return;
+  }
   if (!demoOverlayEnabled_ || !demoOverlayIr_) {
     renderGraph_.setOverlay(std::nullopt);
     renderGraph_.setComponentLayers({});
@@ -282,6 +291,20 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
 
 bool WorkbenchRuntime::selectClip(qlonglong id) {
   if (!controller_.selectClip(static_cast<edward::core::ClipId>(id))) return false;
+  if (const auto clip = timeline_.clip(static_cast<edward::core::ClipId>(id));
+      clip && clip->kind == edward::core::TimelineClipKind::Component && clip->component) {
+    demoOverlayIr_ = *clip->component;
+    componentClipId_ = 0;
+    editingComponentClipId_ = clip->id;
+    demoOverlayEnabled_ = true;
+    syncDemoOverlayProperties(demoOverlayIr_->toJson());
+    refreshDemoOverlay();
+  } else if (editingComponentClipId_ != 0) {
+    editingComponentClipId_ = 0;
+    demoOverlayIr_.reset();
+    demoOverlayEnabled_ = false;
+    refreshDemoOverlay();
+  }
   emit timelineChanged();
   return true;
 }
@@ -447,6 +470,7 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   }
   demoOverlayIr_ = std::move(component);
   componentClipId_ = 0;
+  editingComponentClipId_ = 0;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
   syncDemoOverlayProperties(document.object());
@@ -536,6 +560,7 @@ bool WorkbenchRuntime::loadLibraryComponent(const QString& resourceId) {
   }
   demoOverlayIr_ = package->component;
   componentClipId_ = 0;
+  editingComponentClipId_ = 0;
   demoOverlayEnabled_ = true;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
@@ -847,6 +872,7 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
 void WorkbenchRuntime::clearComponentOverlay() {
   demoOverlayIr_.reset();
   componentClipId_ = 0;
+  editingComponentClipId_ = 0;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
   demoOverlayEnabled_ = false;

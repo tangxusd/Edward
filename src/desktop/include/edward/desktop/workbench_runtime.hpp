@@ -164,6 +164,7 @@ class WorkbenchRuntime final : public QObject {
   bool demoOverlayEnabled_ = false;
   std::optional<edward::core::ComponentIr> demoOverlayIr_;
   edward::core::ClipId componentClipId_ = 0;
+  edward::core::ClipId editingComponentClipId_ = 0;
   int demoOverlayX_ = 24;
   int demoOverlayY_ = 24;
   int demoOverlayWidth_ = 220;
