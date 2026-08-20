@@ -2600,3 +2600,9 @@
 - 目的：避免时间线固定使用 300 帧导致工程较短或较长时标尺、播放头和片段位置比例错误。
 - 修改：工作台暴露当前工程真实 `timelineDurationFrames`，时间线按该值计算标尺和横向坐标；空工程使用 1 帧作为安全下限。
 - 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
+
+## 2026-08-20 时间线轨道头与片段视觉层次
+
+- 目的：提升时间线轨道辨识度，使视频轨、音频轨和组件片段在当前简化编辑器中可快速区分。
+- 修改：轨道头增加视频/音频类型标识与分隔线；组件片段使用青色顶部标识，普通媒体片段使用蓝色顶部标识；不改变片段编辑行为。
+- 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过。

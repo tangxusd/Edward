@@ -126,6 +126,13 @@ Item {
                     anchors.bottom: parent.bottom
                     color: DesignTokens.panelRaised
                 }
+                Rectangle {
+                    x: root.rulerWidth - 1
+                    width: 1
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    color: DesignTokens.divider
+                }
                 Text {
                     anchors.left: parent.left
                     anchors.leftMargin: 10
@@ -133,6 +140,15 @@ Item {
                     text: videoTrack ? "V" + (root.videoTrackCount - index) : "A1"
                     color: DesignTokens.textPrimary
                     font.pixelSize: 12
+                }
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 5
+                    text: videoTrack ? "视频" : "音频"
+                    color: DesignTokens.textSecondary
+                    font.pixelSize: 10
                 }
             }
         }
@@ -149,6 +165,13 @@ Item {
             color: DesignTokens.videoClip
             border.color: modelData.selected ? DesignTokens.accent : "#0a0a0a"
             border.width: modelData.selected ? 2 : 1
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 3
+                color: modelData.kind === "component" ? DesignTokens.accent : "#4c9ac1"
+            }
             MouseArea {
                 anchors.fill: parent
                 drag.target: parent
