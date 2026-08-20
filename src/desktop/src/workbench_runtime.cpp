@@ -284,6 +284,18 @@ QString WorkbenchRuntime::componentPluginDependencyStatus() const {
   return QStringLiteral("插件状态未知");
 }
 
+int WorkbenchRuntime::selectedComponentNodeX() const {
+  if (!demoOverlayIr_) return 0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("transform").toObject().value("x").toInt() : 0;
+}
+
+int WorkbenchRuntime::selectedComponentNodeY() const {
+  if (!demoOverlayIr_) return 0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("transform").toObject().value("y").toInt() : 0;
+}
+
 QJsonObject WorkbenchRuntime::componentJson() const {
   return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
 }
@@ -1035,6 +1047,22 @@ void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
                            "borderWidth", demoOverlayBorderWidth_, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("x"),
+                          std::max(-640, std::min(value, 640)), playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("y"),
+                          std::max(-360, std::min(value, 360)), playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }

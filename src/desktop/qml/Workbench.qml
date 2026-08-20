@@ -264,8 +264,36 @@ ApplicationWindow {
                     }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选中节点 X: " + workbenchRuntime.selectedComponentNodeX
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: -640
+                        to: 640
+                        value: workbenchRuntime.selectedComponentNodeX
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onMoved: workbenchRuntime.selectedComponentNodeX = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "组件 Y: " + workbenchRuntime.demoOverlayY
                         color: DesignTokens.textSecondary
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选中节点 Y: " + workbenchRuntime.selectedComponentNodeY
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: -360
+                        to: 360
+                        value: workbenchRuntime.selectedComponentNodeY
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onMoved: workbenchRuntime.selectedComponentNodeY = value
                     }
                     Slider {
                         anchors.horizontalCenter: parent.horizontalCenter

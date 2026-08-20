@@ -41,6 +41,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int demoOverlayBorderWidth READ demoOverlayBorderWidth WRITE setDemoOverlayBorderWidth NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList componentNodes READ componentNodes NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeId READ selectedComponentNodeId NOTIFY timelineChanged)
+  Q_PROPERTY(int selectedComponentNodeX READ selectedComponentNodeX WRITE setSelectedComponentNodeX NOTIFY timelineChanged)
+  Q_PROPERTY(int selectedComponentNodeY READ selectedComponentNodeY WRITE setSelectedComponentNodeY NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
@@ -77,6 +79,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int demoOverlayBorderWidth() const { return demoOverlayBorderWidth_; }
   [[nodiscard]] QVariantList componentNodes() const;
   [[nodiscard]] QString selectedComponentNodeId() const { return selectedComponentNodeId_; }
+  [[nodiscard]] int selectedComponentNodeX() const;
+  [[nodiscard]] int selectedComponentNodeY() const;
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
   [[nodiscard]] QString componentPluginDependencyStatus() const;
@@ -103,6 +107,8 @@ class WorkbenchRuntime final : public QObject {
   void setDemoOverlayText(const QString& value);
   void setDemoOverlayFontSize(int value);
   void setDemoOverlayBorderWidth(int value);
+  void setSelectedComponentNodeX(int value);
+  void setSelectedComponentNodeY(int value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);

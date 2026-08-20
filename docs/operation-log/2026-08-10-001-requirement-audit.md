@@ -2469,3 +2469,9 @@
 - 目的：让标准组件的内部文字、图形等子节点在预览窗中可见并可直接选中，选中后沿用属性面板和关键帧编辑链路。
 - 修改：`componentNodes` 增加节点几何信息；`EdwardPreview` 绘制带选择态的子节点边界并发出节点选择信号；工作台同步预览选择与右侧子节点下拉框，点击节点后复用 `selectComponentNode`。
 - 验证：`cmake --build build/0.3-runtime -j2` 成功；定向工作台/渲染测试 2/2 通过；完整 `ctest --test-dir build/0.3-runtime --output-on-failure` 34/34 通过；`git diff --check` 通过。
+
+## 2026-08-20 组件子节点位置关键帧编辑
+
+- 目的：选中组件内部节点后，位置控件应作用于该节点，而不是误改整个组件根节点。
+- 修改：工作台新增 `selectedComponentNodeX/Y` 属性及写回方法；位置修改同时写入节点变换和当前播放头关键帧；右侧属性区新增选中节点 X/Y 控件。
+- 验证：`cmake --build build/0.3-runtime -j2` 成功；工作台与视觉路由定向测试 2/2 通过；新增测试覆盖文字节点位置写回。

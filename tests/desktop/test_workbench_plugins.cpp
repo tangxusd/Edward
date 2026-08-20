@@ -108,6 +108,11 @@ int main(int argc, char** argv) {
   assert(hasDemoBox);
   assert(hasDemoText);
   assert(runtime.selectComponentNode(QStringLiteral("demo-text")));
+  assert(runtime.selectedComponentNodeX() == 44);
+  runtime.setSelectedComponentNodeX(80);
+  runtime.setSelectedComponentNodeY(-30);
+  assert(runtime.selectedComponentNodeX() == 80);
+  assert(runtime.selectedComponentNodeY() == -30);
   runtime.setDemoOverlayFontSize(31);
   assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(1).toObject()
              .value("properties").toObject().value("fontSize").toInt() == 31);
