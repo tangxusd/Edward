@@ -296,6 +296,18 @@ int WorkbenchRuntime::selectedComponentNodeY() const {
   return node ? node->value("transform").toObject().value("y").toInt() : 0;
 }
 
+int WorkbenchRuntime::selectedComponentNodeWidth() const {
+  if (!demoOverlayIr_) return 0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("transform").toObject().value("width").toInt() : 0;
+}
+
+int WorkbenchRuntime::selectedComponentNodeHeight() const {
+  if (!demoOverlayIr_) return 0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("transform").toObject().value("height").toInt() : 0;
+}
+
 QJsonObject WorkbenchRuntime::componentJson() const {
   return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
 }
@@ -1063,6 +1075,22 @@ void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("y"),
                           std::max(-360, std::min(value, 360)), playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeWidth(int value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("width"),
+                          std::max(1, std::min(value, 640)), playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("height"),
+                          std::max(1, std::min(value, 360)), playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }

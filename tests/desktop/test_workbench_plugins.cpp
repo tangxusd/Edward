@@ -113,6 +113,10 @@ int main(int argc, char** argv) {
   runtime.setSelectedComponentNodeY(-30);
   assert(runtime.selectedComponentNodeX() == 80);
   assert(runtime.selectedComponentNodeY() == -30);
+  runtime.setSelectedComponentNodeWidth(200);
+  runtime.setSelectedComponentNodeHeight(40);
+  assert(runtime.selectedComponentNodeWidth() == 200);
+  assert(runtime.selectedComponentNodeHeight() == 40);
   runtime.setDemoOverlayFontSize(31);
   assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(1).toObject()
              .value("properties").toObject().value("fontSize").toInt() == 31);

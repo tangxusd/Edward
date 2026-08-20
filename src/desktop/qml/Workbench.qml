@@ -295,6 +295,34 @@ ApplicationWindow {
                         enabled: workbenchRuntime.selectedComponentNodeId !== ""
                         onMoved: workbenchRuntime.selectedComponentNodeY = value
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选中节点宽度: " + workbenchRuntime.selectedComponentNodeWidth
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 1
+                        to: 640
+                        value: workbenchRuntime.selectedComponentNodeWidth
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onMoved: workbenchRuntime.selectedComponentNodeWidth = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选中节点高度: " + workbenchRuntime.selectedComponentNodeHeight
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 1
+                        to: 360
+                        value: workbenchRuntime.selectedComponentNodeHeight
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onMoved: workbenchRuntime.selectedComponentNodeHeight = value
+                    }
                     Slider {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 220
