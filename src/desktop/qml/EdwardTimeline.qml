@@ -17,6 +17,15 @@ Item {
     function frameToX(frame) {
         return rulerWidth + frame * pixelsPerFrame;
     }
+    function formatTimecode(frame) {
+        var totalSeconds = Math.floor(frame / 25);
+        var frames = frame % 25;
+        var seconds = totalSeconds % 60;
+        var minutes = Math.floor(totalSeconds / 60) % 60;
+        var hours = Math.floor(totalSeconds / 3600);
+        function pad(value) { return value < 10 ? "0" + value : value; }
+        return pad(hours) + ":" + pad(minutes) + ":" + pad(seconds) + ":" + pad(frames);
+    }
     function snapFrame(frame, clipId) {
         var candidates = [0, durationFrames, playheadFrame];
         for (var i = 0; i < clips.length; ++i) {
@@ -114,7 +123,7 @@ Item {
                 Text {
                     x: 5
                     y: 8
-                    text: Math.round(index * root.durationFrames / 10)
+                    text: root.formatTimecode(Math.round(index * root.durationFrames / 10))
                     color: DesignTokens.textSecondary
                     font.pixelSize: 10
                 }

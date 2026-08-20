@@ -2624,3 +2624,9 @@
 - 目的：减少片段拖动后的细小错位，让片段更容易对齐播放头、其他片段边缘和工程首尾。
 - 修改：片段释放时按当前缩放比例使用像素阈值换算帧阈值，吸附到播放头、其他片段起止边缘、工程首尾；未命中吸附点时保留原始帧位置。
 - 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。
+
+## 2026-08-20 时间线时间码标尺
+
+- 目的：让标尺直接表达视频编辑中的时间位置，而不是只显示内部帧编号。
+- 修改：标尺刻度改为 `时:分:秒:帧` 格式，按固定 25 fps 换算；点击位置仍按原有工程帧计算，不改变播放、分割和导出逻辑。
+- 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
