@@ -13,6 +13,14 @@ void RenderGraph::setOverlay(std::optional<edward::core::ComponentIr> overlay) {
   overlay_ = std::move(overlay);
 }
 
+void RenderGraph::setComponentLayers(std::vector<ComponentLayer> layers) {
+  componentLayers_.clear();
+  for (auto& layer : layers) {
+    if (layer.startFrame < 0 || layer.endFrame <= layer.startFrame || !layer.component.validate()) continue;
+    componentLayers_.push_back(std::move(layer));
+  }
+}
+
 void RenderGraph::setPluginFrame(std::optional<QImage> frame) {
   pluginFrame_ = std::move(frame);
 }
@@ -21,13 +29,17 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
                                               const RenderRequest& request) const {
   auto frame = adapter_.renderFrame(snapshot, request.frame);
   if (!frame) return std::nullopt;
-  if (overlay_) {
-    const auto layer = ComponentRenderer{}.render(*overlay_, request.frame, frame->size());
-    if (!layer.isNull()) {
-      QPainter painter(&*frame);
-      painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-      painter.drawImage(0, 0, layer);
-    }
+  const auto renderOverlay = [&](const edward::core::ComponentIr& component) {
+    const auto layer = ComponentRenderer{}.render(component, request.frame, frame->size());
+    if (layer.isNull()) return;
+    QPainter painter(&*frame);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    painter.drawImage(0, 0, layer);
+  };
+  if (overlay_) renderOverlay(*overlay_);
+  for (const auto& componentLayer : componentLayers_) {
+    if (request.frame >= componentLayer.startFrame && request.frame < componentLayer.endFrame)
+      renderOverlay(componentLayer.component);
   }
   if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
     QPainter painter(&*frame);

@@ -2387,3 +2387,9 @@
 - 目的：使插件和 AI 声明的 `borderWidth`、`borderColor` 属性真正影响标准 Component IR 的预览与导出画面。
 - 修改：`ComponentRenderer` 的 shape 节点支持非负边框宽度和边框颜色；宽度为零时保持无边框，填充与椭圆/矩形绘制行为不变。
 - 验证：媒体渲染测试先因边框像素缺失失败，再补实现后通过；完整 CTest 33/33 通过。
+
+## 2026-08-20 RenderGraph 多组件时间层
+
+- 目的：为后续把组件绑定到时间线片段建立合成器接口，避免继续扩展单个全局叠加字段。
+- 修改：新增带 `startFrame`/`endFrame` 的 `ComponentLayer`；RenderGraph 可接收多个标准 Component IR 层，只在当前播放头位于有效区间时按 SourceOver 顺序合成。旧 `setOverlay` 单组件入口保持兼容。
+- 验证：RenderGraph 测试覆盖组件层开始前、有效区间和结束后的像素差异；定向测试通过，完整 CTest 33/33 通过。

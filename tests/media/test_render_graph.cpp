@@ -34,6 +34,22 @@ int main(int argc, char** argv) {
   assert(movedScene.has_value());
   assert(movedScene->frame.pixelColor(8, 8).red() < scene->frame.pixelColor(8, 8).red());
   assert(movedScene->frame.pixelColor(0, 8).red() > movedScene->frame.pixelColor(0, 8).green());
+  const QJsonObject blueRoot{
+      {"id", "blue-root"}, {"type", "container"},
+      {"children", QJsonArray{
+          QJsonObject{{"id", "blue"}, {"type", "shape"},
+                       {"transform", QJsonObject{{"x", 4}, {"y", 0}, {"width", 4}, {"height", 4}}},
+                       {"properties", QJsonObject{{"fill", "#0000ff"}}}}}}};
+  const auto blue = edward::core::ComponentIr::parse({{"version", "1"}, {"root", blueRoot}});
+  assert(blue);
+  graph.setComponentLayers({{5, 10, *blue}});
+  const auto beforeLayer = graph.build(timeline.snapshot(), {4});
+  const auto duringLayer = graph.build(timeline.snapshot(), {5});
+  const auto afterLayer = graph.build(timeline.snapshot(), {10});
+  assert(beforeLayer && duringLayer && afterLayer);
+  assert(beforeLayer->frame.pixelColor(4, 8).blue() < 100);
+  assert(duringLayer->frame.pixelColor(4, 8).blue() > 150);
+  assert(afterLayer->frame.pixelColor(4, 8).blue() < 100);
   QImage pluginFrame(QSize(16, 16), QImage::Format_RGBA8888);
   pluginFrame.fill(Qt::transparent);
   pluginFrame.setPixelColor(0, 0, QColor(0, 255, 0, 255));
