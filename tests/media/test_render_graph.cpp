@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
   assert(transitionTimeline.insertClip({22, transitionTrack, {}, 0, 10, 10,
                                         edward::core::TimelineClipKind::Component, *animated}));
   assert(transitionTimeline.addTransition(edward::core::TransitionType::FlashBlack, 21, 22, 6));
-  const edward::media::RenderGraph transitionGraph(adapter);
+  edward::media::RenderGraph transitionGraph(adapter);
   const auto transitionBefore = transitionGraph.build(transitionTimeline.snapshot(), {11});
   const auto transitionDuring = transitionGraph.build(transitionTimeline.snapshot(), {15});
   assert(transitionBefore && transitionDuring);
@@ -142,6 +142,15 @@ int main(int argc, char** argv) {
   assert(transitionDuring->frame.pixelColor(960, 540).red() < 10 &&
          transitionDuring->frame.pixelColor(960, 540).green() < 10 &&
          transitionDuring->frame.pixelColor(960, 540).blue() < 10);
+  QImage transitionPlugin(QSize(1920, 1080), QImage::Format_RGBA8888);
+  transitionPlugin.fill(Qt::green);
+  transitionGraph.setPluginFrame(transitionPlugin);
+  const auto flashWithPlugin = transitionGraph.build(transitionTimeline.snapshot(), {5});
+  assert(flashWithPlugin);
+  assert(flashWithPlugin->frame.pixelColor(960, 540).red() < 10 &&
+         flashWithPlugin->frame.pixelColor(960, 540).green() < 10 &&
+         flashWithPlugin->frame.pixelColor(960, 540).blue() < 10);
+  transitionGraph.setPluginFrame(std::nullopt);
   edward::core::Timeline dissolveTimeline(20);
   const auto dissolveTrack = dissolveTimeline.addVideoTrack();
   const QJsonObject redRoot{{"id", "red"}, {"type", "shape"},

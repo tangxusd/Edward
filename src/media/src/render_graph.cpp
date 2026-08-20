@@ -128,6 +128,11 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     if (request.frame >= componentLayer.startFrame && request.frame < componentLayer.endFrame)
       renderOverlay(componentLayer.component, componentLayer.sourceIn + request.frame - componentLayer.startFrame);
   }
+  if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
+    QPainter painter(&*frame);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    painter.drawImage(0, 0, *pluginFrame_);
+  }
   for (const auto& transition : snapshot.transitions) {
     const auto endFrame = transition.startFrame + transition.durationFrames;
     if (request.frame < transition.startFrame || request.frame >= endFrame) continue;
@@ -137,11 +142,6 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
       painter.fillRect(frame->rect(), transition.type == edward::core::TransitionType::FlashBlack
                                       ? QColor(Qt::black) : QColor(Qt::white));
     }
-  }
-  if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
-    QPainter painter(&*frame);
-    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    painter.drawImage(0, 0, *pluginFrame_);
   }
   return std::optional<RenderScene>(RenderScene{*frame});
 }
