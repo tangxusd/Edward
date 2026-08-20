@@ -43,6 +43,22 @@ std::optional<QJsonObject> findNode(const QJsonObject& node, const QString& id) 
   }
   return std::nullopt;
 }
+
+void setTransformAndKeyframe(edward::core::ComponentIr& component, const QString& nodeId,
+                             const QString& field, double value, int frame) {
+  edward::core::ComponentEditCommand::apply(
+      component, {edward::core::ComponentEditKind::SetTransformNumber, nodeId, field, 0, value});
+  edward::core::ComponentEditCommand::apply(
+      component, {edward::core::ComponentEditKind::SetKeyframeValue, nodeId, field, frame, value});
+}
+
+void setPropertyAndKeyframe(edward::core::ComponentIr& component, const QString& nodeId,
+                            const QString& field, const QJsonValue& value, int frame) {
+  edward::core::ComponentEditCommand::apply(
+      component, {edward::core::ComponentEditKind::SetProperty, nodeId, field, 0, value});
+  edward::core::ComponentEditCommand::apply(
+      component, {edward::core::ComponentEditKind::SetKeyframeValue, nodeId, field, frame, value});
+}
 }  // namespace
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
@@ -579,10 +595,8 @@ void WorkbenchRuntime::setDemoOverlayX(int value) {
   if (demoOverlayX_ == clamped) return;
   demoOverlayX_ = clamped;
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "x", demoOverlayX_);
-    demoOverlayIr_->setNodeTransformNumber("demo-text", "x", demoOverlayX_ + 20);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "x", playheadFrame(), demoOverlayX_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-text", "x", playheadFrame(), demoOverlayX_ + 20);
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "x", demoOverlayX_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-text", "x", demoOverlayX_ + 20, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -593,10 +607,8 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
   if (demoOverlayY_ == clamped) return;
   demoOverlayY_ = clamped;
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "y", demoOverlayY_);
-    demoOverlayIr_->setNodeTransformNumber("demo-text", "y", demoOverlayY_ - 20);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "y", playheadFrame(), demoOverlayY_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-text", "y", playheadFrame(), demoOverlayY_ - 20);
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "y", demoOverlayY_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-text", "y", demoOverlayY_ - 20, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -605,8 +617,7 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
 void WorkbenchRuntime::setDemoOverlayWidth(int value) {
   demoOverlayWidth_ = std::max(40, std::min(value, 640));
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "width", demoOverlayWidth_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "width", playheadFrame(), demoOverlayWidth_);
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "width", demoOverlayWidth_, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -615,8 +626,7 @@ void WorkbenchRuntime::setDemoOverlayWidth(int value) {
 void WorkbenchRuntime::setDemoOverlayHeight(int value) {
   demoOverlayHeight_ = std::max(24, std::min(value, 360));
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "height", demoOverlayHeight_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "height", playheadFrame(), demoOverlayHeight_);
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "height", demoOverlayHeight_, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -625,10 +635,8 @@ void WorkbenchRuntime::setDemoOverlayHeight(int value) {
 void WorkbenchRuntime::setDemoOverlayScale(double value) {
   demoOverlayScale_ = std::max(0.1, std::min(value, 3.0));
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "scaleX", demoOverlayScale_);
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "scaleY", demoOverlayScale_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "scaleX", playheadFrame(), demoOverlayScale_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "scaleY", playheadFrame(), demoOverlayScale_);
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleX", demoOverlayScale_, playheadFrame());
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleY", demoOverlayScale_, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -637,8 +645,7 @@ void WorkbenchRuntime::setDemoOverlayScale(double value) {
 void WorkbenchRuntime::setDemoOverlayRotation(double value) {
   demoOverlayRotation_ = std::max(-180.0, std::min(value, 180.0));
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeTransformNumber("demo-box", "rotation", demoOverlayRotation_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "rotation", playheadFrame(), demoOverlayRotation_);
+    setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "rotation", demoOverlayRotation_, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -647,8 +654,7 @@ void WorkbenchRuntime::setDemoOverlayRotation(double value) {
 void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
   demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
   if (demoOverlayIr_) {
-    demoOverlayIr_->setNodeProperty("demo-box", "opacity", demoOverlayOpacity_);
-    demoOverlayIr_->setNodeKeyframeNumber("demo-box", "opacity", playheadFrame(), demoOverlayOpacity_);
+    setPropertyAndKeyframe(*demoOverlayIr_, "demo-box", "opacity", demoOverlayOpacity_, playheadFrame());
   }
   refreshDemoOverlay();
   emit timelineChanged();
@@ -656,13 +662,8 @@ void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
 
 void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   demoOverlayText_ = value.left(120);
-  if (demoOverlayIr_) {
-    edward::core::ComponentEditCommand::apply(
-        *demoOverlayIr_, {edward::core::ComponentEditKind::SetProperty, "demo-text", "text", 0, demoOverlayText_});
-    edward::core::ComponentEditCommand::apply(
-        *demoOverlayIr_, {edward::core::ComponentEditKind::SetKeyframeValue, "demo-text", "text",
-                          playheadFrame(), demoOverlayText_});
-  }
+  if (demoOverlayIr_)
+    setPropertyAndKeyframe(*demoOverlayIr_, "demo-text", "text", demoOverlayText_, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
