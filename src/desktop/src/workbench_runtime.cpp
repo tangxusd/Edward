@@ -279,6 +279,60 @@ bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
   return true;
 }
 
+bool WorkbenchRuntime::proposeAiComponentCommand(const QString& json) {
+  if (!demoOverlayIr_) {
+    emit operationFailed(QStringLiteral("AI 草案失败：当前没有可编辑组件"));
+    return false;
+  }
+  if (demoOverlayIr_->pluginDependency().has_value()) {
+    emit operationFailed(QStringLiteral("AI 草案失败：外部插件组件尚未声明可编辑字段"));
+    return false;
+  }
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    emit operationFailed(QStringLiteral("AI 草案必须是单个 JSON 对象"));
+    return false;
+  }
+  QString error;
+  const auto command = edward::core::parseComponentEditCommand(document.object(), &error);
+  if (!command) {
+    emit operationFailed(QStringLiteral("AI 草案失败：%1").arg(error));
+    return false;
+  }
+  auto candidate = *demoOverlayIr_;
+  if (!edward::core::ComponentEditCommand::apply(candidate, *command, &error)) {
+    emit operationFailed(QStringLiteral("AI 草案失败：%1").arg(error));
+    return false;
+  }
+  aiComponentDraft_ = std::move(candidate);
+  aiComponentDraftJson_ = QString::fromUtf8(QJsonDocument(document.object()).toJson(QJsonDocument::Compact));
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("AI 草案已生成，确认后应用"));
+  return true;
+}
+
+bool WorkbenchRuntime::applyPendingAiComponentCommand() {
+  if (!aiComponentDraft_) {
+    emit operationFailed(QStringLiteral("没有待应用的 AI 草案"));
+    return false;
+  }
+  demoOverlayIr_ = std::move(aiComponentDraft_);
+  aiComponentDraftJson_.clear();
+  syncDemoOverlayProperties(demoOverlayIr_->toJson());
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("AI 草案已应用"));
+  return true;
+}
+
+void WorkbenchRuntime::discardPendingAiComponentCommand() {
+  if (!aiComponentDraft_) return;
+  aiComponentDraft_.reset();
+  aiComponentDraftJson_.clear();
+  emit timelineChanged();
+}
+
 bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);

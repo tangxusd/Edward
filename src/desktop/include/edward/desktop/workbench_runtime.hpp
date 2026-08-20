@@ -44,6 +44,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool componentUploadBusy READ componentUploadBusy NOTIFY timelineChanged)
+  Q_PROPERTY(bool aiComponentDraftAvailable READ aiComponentDraftAvailable NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiComponentDraft READ aiComponentDraft NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -70,6 +72,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
   [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
+  [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
+  [[nodiscard]] QString aiComponentDraft() const { return aiComponentDraftJson_; }
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -85,6 +89,9 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
+  Q_INVOKABLE bool proposeAiComponentCommand(const QString& json);
+  Q_INVOKABLE bool applyPendingAiComponentCommand();
+  Q_INVOKABLE void discardPendingAiComponentCommand();
   Q_INVOKABLE bool loadComponentJson(const QString& json);
   Q_INVOKABLE bool loadComponentFile(const QString& path);
   Q_INVOKABLE bool saveComponentJson(const QString& path) const;
@@ -165,6 +172,8 @@ class WorkbenchRuntime final : public QObject {
   bool signInBusy_ = false;
   edward::resources::ComponentUploadClient componentUploadClient_;
   bool componentUploadBusy_ = false;
+  std::optional<edward::core::ComponentIr> aiComponentDraft_;
+  QString aiComponentDraftJson_;
   std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;

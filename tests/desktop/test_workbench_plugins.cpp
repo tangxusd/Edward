@@ -92,11 +92,17 @@ int main(int argc, char** argv) {
   assert(!runtime.applyAiComponentCommand(
       QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"root\",\"field\":\"opacity\",\"value\":0.5}")));
   runtime.generateComponentDraft();
-  assert(runtime.applyAiComponentCommand(
+  assert(runtime.proposeAiComponentCommand(
       QStringLiteral("{\"operation\":\"setTransformNumber\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":-72}")));
+  assert(runtime.aiComponentDraftAvailable());
+  assert(runtime.demoOverlayX() != -72);
+  assert(runtime.applyPendingAiComponentCommand());
   assert(runtime.demoOverlayX() == -72);
+  assert(runtime.applyAiComponentCommand(
+      QStringLiteral("{\"operation\":\"setTransformNumber\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":-60}")));
+  assert(runtime.demoOverlayX() == -60);
   assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject()
-             .value("transform").toObject().value("x").toInt() == -72);
+             .value("transform").toObject().value("x").toInt() == -60);
   assert(runtime.applyAiComponentCommand(
       QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"demo-text\",\"field\":\"text\",\"value\":\"AI 编辑\"}")));
   assert(runtime.demoOverlayText() == QStringLiteral("AI 编辑"));

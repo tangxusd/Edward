@@ -118,6 +118,43 @@ ApplicationWindow {
                     }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "AI 编辑命令（JSON）"
+                        color: DesignTokens.textSecondary
+                    }
+                    TextArea {
+                        id: aiCommandInput
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        height: 68
+                        textFormat: TextEdit.PlainText
+                        wrapMode: TextEdit.Wrap
+                        placeholderText: '{"operation":"setProperty",...}'
+                    }
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 6
+                        Button {
+                            text: "生成草案"
+                            onClicked: workbenchRuntime.proposeAiComponentCommand(aiCommandInput.text)
+                        }
+                        Button {
+                            text: "应用草案"
+                            enabled: workbenchRuntime.aiComponentDraftAvailable
+                            onClicked: workbenchRuntime.applyPendingAiComponentCommand()
+                        }
+                        Button {
+                            text: "放弃"
+                            enabled: workbenchRuntime.aiComponentDraftAvailable
+                            onClicked: workbenchRuntime.discardPendingAiComponentCommand()
+                        }
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.aiComponentDraftAvailable ? "有待确认草案" : "无待确认草案"
+                        color: workbenchRuntime.aiComponentDraftAvailable ? DesignTokens.accent : DesignTokens.textSecondary
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "组件 X: " + workbenchRuntime.demoOverlayX
                         color: DesignTokens.textSecondary
                     }
