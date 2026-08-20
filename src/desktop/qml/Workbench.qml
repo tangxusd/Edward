@@ -323,6 +323,34 @@ ApplicationWindow {
                         enabled: workbenchRuntime.selectedComponentNodeId !== ""
                         onMoved: workbenchRuntime.selectedComponentNodeHeight = value
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选中节点旋转: " + workbenchRuntime.selectedComponentNodeRotation.toFixed(0) + "°"
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: -180
+                        to: 180
+                        value: workbenchRuntime.selectedComponentNodeRotation
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onMoved: workbenchRuntime.selectedComponentNodeRotation = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "选中节点透明度: " + workbenchRuntime.selectedComponentNodeOpacity.toFixed(2)
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 0
+                        to: 1
+                        value: workbenchRuntime.selectedComponentNodeOpacity
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onMoved: workbenchRuntime.selectedComponentNodeOpacity = value
+                    }
                     Slider {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 220

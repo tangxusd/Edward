@@ -308,6 +308,18 @@ int WorkbenchRuntime::selectedComponentNodeHeight() const {
   return node ? node->value("transform").toObject().value("height").toInt() : 0;
 }
 
+double WorkbenchRuntime::selectedComponentNodeRotation() const {
+  if (!demoOverlayIr_) return 0.0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("transform").toObject().value("rotation").toDouble() : 0.0;
+}
+
+double WorkbenchRuntime::selectedComponentNodeOpacity() const {
+  if (!demoOverlayIr_) return 0.0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("properties").toObject().value("opacity").toDouble(1.0) : 0.0;
+}
+
 QJsonObject WorkbenchRuntime::componentJson() const {
   return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
 }
@@ -1091,6 +1103,24 @@ void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
   if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("height"),
                           std::max(1, std::min(value, 360)), playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeRotation(double value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  const auto clamped = std::max(-180.0, std::min(value, 180.0));
+  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("rotation"),
+                          clamped, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeOpacity(double value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  const auto clamped = std::max(0.0, std::min(value, 1.0));
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("opacity"),
+                         clamped, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
