@@ -34,6 +34,7 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
 
   std::vector<AudioClip> audioClips;
   for (const auto& clip : snapshot.clips) {
+    if (clip.kind != edward::core::TimelineClipKind::Media) continue;
     const auto media = MediaProbe::probe(clip.source);
     if (media && media->hasAudio) audioClips.push_back({clip, *media});
   }

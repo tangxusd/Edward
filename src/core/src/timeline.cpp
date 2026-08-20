@@ -59,7 +59,9 @@ bool Timeline::restore(const TimelineSnapshot& snapshot) {
     if (track == 0 || std::ranges::count(snapshot.videoTracks, track) != 1) return false;
   for (const auto& clip : snapshot.clips) {
     const auto duration = clip.sourceOut - clip.sourceIn;
-    if (clip.id == 0 || std::ranges::find(snapshot.videoTracks, clip.trackId) == snapshot.videoTracks.end() || clip.source.empty() ||
+    if (clip.id == 0 || std::ranges::find(snapshot.videoTracks, clip.trackId) == snapshot.videoTracks.end() ||
+        ((clip.kind == TimelineClipKind::Media && (clip.source.empty() || clip.component.has_value())) ||
+         (clip.kind == TimelineClipKind::Component && (!clip.component || !clip.component->validate()))) ||
         clip.sourceIn < 0 || duration <= 0 || clip.timelineStart < 0 ||
         clip.timelineStart + duration > durationFrames_) return false;
     for (const auto& other : snapshot.clips) {
@@ -78,7 +80,9 @@ bool Timeline::restore(const TimelineSnapshot& snapshot) {
 bool Timeline::isKnownTrack(TrackId id) const { return std::ranges::find(videoTracks_, id) != videoTracks_.end(); }
 bool Timeline::isValid(const TimelineClip& clip) const {
   const auto duration = clip.sourceOut - clip.sourceIn;
-  return clip.id > 0 && isKnownTrack(clip.trackId) && !clip.source.empty() && clip.sourceIn >= 0 &&
+  const bool hasValidContent = (clip.kind == TimelineClipKind::Media && !clip.source.empty() && !clip.component) ||
+                               (clip.kind == TimelineClipKind::Component && clip.component && clip.component->validate());
+  return clip.id > 0 && isKnownTrack(clip.trackId) && hasValidContent && clip.sourceIn >= 0 &&
     duration > 0 && clip.timelineStart >= 0 && clip.timelineStart + duration <= durationFrames_;
 }
 bool Timeline::overlaps(const TimelineClip& candidate, std::optional<ClipId> ignored) const {

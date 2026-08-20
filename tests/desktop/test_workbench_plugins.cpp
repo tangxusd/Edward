@@ -1,6 +1,6 @@
 #include <edward/desktop/workbench_runtime.hpp>
 
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QFile>
 #include <QEventLoop>
 #include <QJsonArray>
@@ -13,7 +13,8 @@
 
 int main(int argc, char** argv) {
   assert(argc == 3);
-  QCoreApplication application(argc, argv);
+  qputenv("QT_QPA_PLATFORM", "offscreen");
+  QGuiApplication application(argc, argv);
   edward::desktop::WorkbenchRuntime runtime;
   assert(!runtime.authenticated());
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
@@ -200,6 +201,9 @@ int main(int argc, char** argv) {
   assert(QFile::exists(libraryPath + QStringLiteral("/demo.library/component.json")));
   assert(runtime.loadLibraryComponent(QStringLiteral("demo.library")));
   assert(!runtime.componentBoundToClip());
+  assert(runtime.addCurrentComponentToTimeline(60));
+  assert(!runtime.demoOverlayEnabled());
+  assert(runtime.clips().last().toMap().value("kind") == QStringLiteral("component"));
   assert(!runtime.configureSilentComponentUploads(
       QStringLiteral("http://project.supabase.co/functions/v1/component-upload"),
       directory.path() + QStringLiteral("/upload-state.json"),
@@ -231,7 +235,7 @@ int main(int argc, char** argv) {
   assert(applied);
   assert(QFile::exists(appliedPath));
   assert(!runtime.demoOverlayEnabled());
-  assert(runtime.clips().size() == 3);
+  assert(runtime.clips().size() == 4);
   bool pluginExported = false;
   QEventLoop pluginExportLoop;
   QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::operationSucceeded,

@@ -37,6 +37,12 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     painter.drawImage(0, 0, layer);
   };
   if (overlay_) renderOverlay(*overlay_);
+  for (const auto& clip : snapshot.clips) {
+    const auto duration = clip.sourceOut - clip.sourceIn;
+    if (clip.kind == edward::core::TimelineClipKind::Component && clip.component &&
+        request.frame >= clip.timelineStart && request.frame < clip.timelineStart + duration)
+      renderOverlay(*clip.component);
+  }
   for (const auto& componentLayer : componentLayers_) {
     if (request.frame >= componentLayer.startFrame && request.frame < componentLayer.endFrame)
       renderOverlay(componentLayer.component);

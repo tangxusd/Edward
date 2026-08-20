@@ -53,11 +53,15 @@ std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapsh
   for (const auto track : snapshot.videoTracks) {
     const auto clip = std::ranges::find_if(snapshot.clips, [frame, track](const auto& candidate) {
       const auto duration = candidate.sourceOut - candidate.sourceIn;
-      return candidate.trackId == track && frame >= candidate.timelineStart && frame < candidate.timelineStart + duration;
+      return candidate.kind == edward::core::TimelineClipKind::Media && candidate.trackId == track &&
+             frame >= candidate.timelineStart && frame < candidate.timelineStart + duration;
     });
     if (clip != snapshot.clips.end()) active.push_back(&*clip);
   }
-  const auto reference = active.empty() ? (snapshot.clips.empty() ? nullptr : &snapshot.clips.front()) : active.front();
+  const auto mediaReference = std::ranges::find_if(snapshot.clips, [](const auto& clip) {
+    return clip.kind == edward::core::TimelineClipKind::Media;
+  });
+  const auto reference = active.empty() ? (mediaReference == snapshot.clips.end() ? nullptr : &*mediaReference) : active.front();
   if (!reference) return std::nullopt;
 
   const auto profile = mlt_profile_init(nullptr);

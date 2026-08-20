@@ -1,11 +1,14 @@
 #pragma once
 
 #include "edward/core/media_project.hpp"
+#include "edward/core/component_ir.hpp"
 
 #include <optional>
 #include <vector>
 
 namespace edward::core {
+
+enum class TimelineClipKind { Media, Component };
 
 struct TimelineClip {
   ClipId id = 0;
@@ -14,6 +17,8 @@ struct TimelineClip {
   Frame sourceIn = 0;
   Frame sourceOut = 0;
   Frame timelineStart = 0;
+  TimelineClipKind kind = TimelineClipKind::Media;
+  std::optional<ComponentIr> component;
 };
 
 struct TimelineSnapshot {

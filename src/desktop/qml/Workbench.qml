@@ -163,6 +163,12 @@ ApplicationWindow {
                     }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "添加组件到时间线"
+                        enabled: workbenchRuntime.demoOverlayEnabled
+                        onClicked: workbenchRuntime.addCurrentComponentToTimeline()
+                    }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "保存到我的组件库"
                         enabled: workbenchRuntime.demoOverlayEnabled
                         onClicked: componentLibrarySaveDialog.open()

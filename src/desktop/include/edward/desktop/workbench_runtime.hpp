@@ -98,6 +98,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE bool bindComponentToSelectedClip();
+  Q_INVOKABLE bool addCurrentComponentToTimeline(int durationFrames = 150);
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
   Q_INVOKABLE bool requestAiComponentDraft(const QString& endpoint, const QString& apiKey,

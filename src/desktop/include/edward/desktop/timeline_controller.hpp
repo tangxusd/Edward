@@ -12,6 +12,7 @@ class TimelineController {
   TimelineController(edward::core::Timeline& timeline, edward::core::TrackId trackId);
 
   bool dropMediaAtPlayhead(const QString& path);
+  bool dropComponentAtPlayhead(const edward::core::ComponentIr& component, edward::core::Frame duration);
   bool splitSelectedAtPlayhead();
   bool deleteSelected();
   bool rippleDeleteSelected();

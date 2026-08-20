@@ -50,6 +50,11 @@ int main(int argc, char** argv) {
   assert(beforeLayer->frame.pixelColor(4, 8).blue() < 100);
   assert(duringLayer->frame.pixelColor(4, 8).blue() > 150);
   assert(afterLayer->frame.pixelColor(4, 8).blue() < 100);
+  const auto componentTrack = timeline.addVideoTrack();
+  assert(timeline.insertClip({2, componentTrack, {}, 0, 5, 15, edward::core::TimelineClipKind::Component, *blue}));
+  const auto componentClipScene = graph.build(timeline.snapshot(), {15});
+  assert(componentClipScene);
+  assert(componentClipScene->frame.pixelColor(4, 8).blue() > 150);
   QImage pluginFrame(QSize(16, 16), QImage::Format_RGBA8888);
   pluginFrame.fill(Qt::transparent);
   pluginFrame.setPixelColor(0, 0, QColor(0, 255, 0, 255));

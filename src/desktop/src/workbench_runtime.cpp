@@ -255,6 +255,10 @@ QVariantList WorkbenchRuntime::clips() const {
       item.insert(QStringLiteral("sourceIn"), static_cast<qlonglong>(clip.sourceIn));
       item.insert(QStringLiteral("sourceOut"), static_cast<qlonglong>(clip.sourceOut));
       item.insert(QStringLiteral("name"), QString::fromStdString(clip.source.filename().string()));
+      item.insert(QStringLiteral("kind"), clip.kind == edward::core::TimelineClipKind::Component
+                                         ? QStringLiteral("component") : QStringLiteral("media"));
+      if (clip.kind == edward::core::TimelineClipKind::Component)
+        item.insert(QStringLiteral("name"), QStringLiteral("组件"));
       item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
       result.push_back(item);
     }
@@ -291,6 +295,20 @@ bool WorkbenchRuntime::bindComponentToSelectedClip() {
   refreshDemoOverlay();
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("组件已绑定到选中片段"));
+  return true;
+}
+
+bool WorkbenchRuntime::addCurrentComponentToTimeline(int durationFrames) {
+  if (!demoOverlayIr_ || !controller_.dropComponentAtPlayhead(*demoOverlayIr_, durationFrames)) {
+    emit operationFailed(QStringLiteral("组件无法添加到时间线"));
+    return false;
+  }
+  demoOverlayIr_.reset();
+  componentClipId_ = 0;
+  demoOverlayEnabled_ = false;
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("组件已作为独立片段加入时间线"));
   return true;
 }
 
@@ -932,7 +950,9 @@ bool WorkbenchRuntime::saveProject(const QString& path) const {
                              {"source", QString::fromStdString(clip.source.string())},
                              {"sourceIn", static_cast<qint64>(clip.sourceIn)},
                              {"sourceOut", static_cast<qint64>(clip.sourceOut)},
-                             {"timelineStart", static_cast<qint64>(clip.timelineStart)}});
+                             {"timelineStart", static_cast<qint64>(clip.timelineStart)},
+                             {"kind", clip.kind == edward::core::TimelineClipKind::Component ? "component" : "media"},
+                             {"component", clip.component ? QJsonValue(clip.component->toJson()) : QJsonValue()}});
   }
   QJsonObject project{{"version", 1}, {"durationFrames", static_cast<qint64>(snapshot.durationFrames)},
                       {"playheadFrame", static_cast<qint64>(snapshot.playheadFrame)},
@@ -967,10 +987,21 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
     const auto clip = value.toObject();
     if (!clip.value("id").isDouble() || !clip.value("trackId").isDouble() || !clip.value("source").isString() ||
         !clip.value("sourceIn").isDouble() || !clip.value("sourceOut").isDouble() || !clip.value("timelineStart").isDouble()) return false;
+    const auto kindValue = clip.value("kind").toString(QStringLiteral("media"));
+    const auto kind = kindValue == QStringLiteral("component") ? edward::core::TimelineClipKind::Component
+                                                                  : edward::core::TimelineClipKind::Media;
+    if (kindValue != QStringLiteral("media") && kindValue != QStringLiteral("component")) return false;
+    std::optional<edward::core::ComponentIr> clipComponent;
+    if (kind == edward::core::TimelineClipKind::Component) {
+      if (!clip.value("component").isObject()) return false;
+      clipComponent = edward::core::ComponentIr::parse(clip.value("component").toObject());
+      if (!clipComponent) return false;
+    }
     snapshot.clips.push_back({static_cast<edward::core::ClipId>(clip.value("id").toInteger()),
                               static_cast<edward::core::TrackId>(clip.value("trackId").toInteger()),
                               clip.value("source").toString().toStdString(), clip.value("sourceIn").toInteger(),
-                              clip.value("sourceOut").toInteger(), clip.value("timelineStart").toInteger()});
+                              clip.value("sourceOut").toInteger(), clip.value("timelineStart").toInteger(),
+                              kind, std::move(clipComponent)});
   }
   std::optional<edward::core::ComponentIr> component;
   if (!project.value("component").isUndefined()) {

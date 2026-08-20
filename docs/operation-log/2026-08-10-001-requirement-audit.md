@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：组件作为时间线原生片段
+
+- 目的：让组件拥有和媒体一致的时间线身份，而非只作为预览中的临时叠加。
+- 涉及文件：`src/core/include/edward/core/timeline.hpp`、`src/core/src/timeline.cpp`、`src/desktop/src/timeline_controller.cpp`、`src/desktop/src/workbench_runtime.cpp`、`src/media/src/mlt_adapter.cpp`、`src/media/src/render_graph.cpp`、`src/media/src/export_job.cpp`、`src/desktop/qml/Workbench.qml` 及相关测试。
+- 结果：TimelineClip 新增 `Media` 与 `Component` 类型；组件片段包含经校验的 Component IR，并参与重叠校验、分割、裁切、移动、删除、波纹删除、撤销/重做；预览与导出从时间线快照读取有效组件片段，MLT 与音频导出明确忽略组件片段。工作台新增“添加组件到时间线”入口，发生冲突时沿用自动新增视频轨规则。
+- 验证：`cmake --build build/0.3-runtime -j2` 通过；全量 CTest 34/34 通过。工作台渲染测试已改为离屏 `QGuiApplication`，覆盖文字组件的字体渲染路径。
+
 ## 2026-08-20：资源库保存接入静默上传队列
 
 - 目的：让“保存到我的组件库”与用户组件的云端待审核上传链路一致，避免本地保存入口遗漏上传任务。
