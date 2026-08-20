@@ -364,6 +364,7 @@ int main(int argc, char** argv) {
   QTimer::singleShot(5000, &waveformLoop, &QEventLoop::quit);
   waveformLoop.exec();
   assert(waveformReady);
+  assert(waveformRuntime.clips().front().toMap().value("hasAudio").toBool());
 
   edward::desktop::WorkbenchRuntime thumbnailRuntime;
   bool thumbnailReady = false;

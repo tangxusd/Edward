@@ -265,7 +265,7 @@ Item {
                 anchors.topMargin: 5
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 4
-                visible: modelData.kind === "media" && modelData.waveform && modelData.waveform.length > 0
+                visible: false
                 z: 1
                 onPaint: {
                     var values = modelData.waveform;
@@ -346,6 +346,36 @@ Item {
                 font.pixelSize: 11
                 elide: Text.ElideRight
                 width: parent.width - 8
+            }
+        }
+    }
+
+    Repeater {
+        model: root.clips
+        delegate: Rectangle {
+            visible: modelData.hasAudio
+            x: root.frameToX(modelData.timelineStart)
+            y: ruler.height + toolbar.height + root.videoTrackCount * ((tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1)) + 3
+            width: Math.max(3, (modelData.sourceOut - modelData.sourceIn) * root.pixelsPerFrame)
+            height: Math.max(18, (tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1) - 6)
+            color: DesignTokens.audioClip
+            border.color: modelData.selected ? DesignTokens.accent : "#0a0a0a"
+            border.width: modelData.selected ? 2 : 1
+            Canvas {
+                anchors.fill: parent
+                anchors.margins: 3
+                onPaint: {
+                    var values = modelData.waveform;
+                    if (!values || values.length === 0) return;
+                    var context = getContext("2d"); context.reset();
+                    context.strokeStyle = "#28583d"; context.lineWidth = 1;
+                    var center = height / 2;
+                    for (var i = 0; i < values.length; ++i) {
+                        var x = values.length === 1 ? width / 2 : i * width / (values.length - 1);
+                        var amplitude = Math.max(1, values[i] * Math.max(1, center - 1));
+                        context.beginPath(); context.moveTo(x, center - amplitude); context.lineTo(x, center + amplitude); context.stroke();
+                    }
+                }
             }
         }
     }

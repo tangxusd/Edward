@@ -2702,3 +2702,9 @@
 - 目的：让播放操作不仅移动播放头，还输出与时间线源入出点、间隙及叠加片段一致的实际音频。
 - 修改：新增 `AudioPreview`，使用 FFmpeg 生成裁切、延迟与混音后的 48kHz 双声道浮点 PCM；SDL3 以半秒上限排队送入系统默认音频设备。工作台播放、暂停、片尾和定位与该流联动。
 - 验证：`media.audio_preview` 覆盖有音频混音参数和无音频拒绝；`media.audio_preview`、`desktop.timeline_controller`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。当前离屏环境无可听声卡，实际听感留待本机交互验收。
+
+## 2026-08-20 时间线独立音频行
+
+- 目的：让音频波形按基础剪辑软件的轨道语义显示在 A1 行，而非覆盖视频缩略图。
+- 修改：片段模型在真实音频波形完成后标记 `hasAudio`；视频行继续显示缩略图，A1 行显示同一剪辑对象的绿色波形片段，不引入第二套可独立删除的音频剪辑。
+- 验证：`desktop.visual_routes`、`desktop.workbench_plugins` 2/2 通过；离屏启动无 QML 加载错误，`git diff --check` 通过。

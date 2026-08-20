@@ -462,6 +462,7 @@ QVariantList WorkbenchRuntime::clips() const {
         item.insert(QStringLiteral("name"), QStringLiteral("组件"));
       item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
       item.insert(QStringLiteral("waveform"), clipWaveforms_.value(static_cast<qint64>(clip.id)));
+      item.insert(QStringLiteral("hasAudio"), clipWaveforms_.contains(static_cast<qint64>(clip.id)));
       if (clipThumbnails_.contains(static_cast<qint64>(clip.id)))
         item.insert(QStringLiteral("thumbnail"), QStringLiteral("image://edward/clip-%1").arg(clip.id));
       result.push_back(item);
