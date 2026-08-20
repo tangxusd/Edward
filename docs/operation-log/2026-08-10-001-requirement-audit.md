@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：组件独立导出
+
+- 目的：让没有媒体底片的标准组件时间线也能进入统一 RenderGraph 并导出，而不是因缺少 MLT 媒体参考帧失败。
+- 涉及文件：`src/media/src/mlt_adapter.cpp`、`tests/media/test_render_graph.cpp`、`tests/media/test_export_job.cpp`。
+- 结果：纯组件时间线使用 1920×1080 黑色画布作为合成底；组件仍由同一渲染路径叠加，导出尺寸由导出请求统一缩放。
+- 验证：`media.render_graph`、`media.export_job` 定向测试通过；全量构建与 CTest 通过后记录最终结果。
+
 ## 2026-08-20：时间线组件片段可编辑
 
 - 目的：确保选中的组件片段使用同一属性编辑层，修改后写回时间线片段，而不是只修改临时预览副本。

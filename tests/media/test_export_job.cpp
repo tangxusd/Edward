@@ -44,6 +44,28 @@ int main(int argc, char** argv) {
   const auto center = exportedFrame->pixelColor(exportedFrame->width() / 2, exportedFrame->height() / 2);
   assert(center.red() > center.green() + 80);
   assert(center.red() > center.blue() + 80);
+  edward::core::Timeline componentOnlyTimeline(25);
+  const auto componentOnlyTrack = componentOnlyTimeline.addVideoTrack();
+  const QJsonObject componentRoot{{"id", "component-root"}, {"type", "container"}, {"children", QJsonArray{
+      QJsonObject{{"id", "component-shape"}, {"type", "shape"},
+                  {"transform", QJsonObject{{"width", 320}, {"height", 180}}},
+                  {"properties", QJsonObject{{"fill", "#00a8c8"}}}},
+  }}};
+  const auto component = edward::core::ComponentIr::parse({{"version", "1"}, {"root", componentRoot}});
+  assert(component);
+  assert(componentOnlyTimeline.insertClip({2, componentOnlyTrack, {}, 0, 25, 0,
+                                           edward::core::TimelineClipKind::Component, *component}));
+  const auto componentOnlyOutput = output.parent_path() / "component-only.mp4";
+  std::filesystem::remove(componentOnlyOutput);
+  const edward::media::RenderGraph componentOnlyGraph(adapter);
+  const edward::media::ExportJob componentOnlyJob(componentOnlyGraph);
+  const auto componentOnlyResult = componentOnlyJob.run(componentOnlyTimeline.snapshot(),
+                                                         {componentOnlyOutput, {1280, 720}, 25, 1});
+  assert(componentOnlyResult);
+  const auto componentOnlyInfo = edward::media::MediaProbe::probe(componentOnlyOutput);
+  assert(componentOnlyInfo && componentOnlyInfo->width == 1280 && componentOnlyInfo->height == 720);
+  assert(componentOnlyInfo->durationFrames == 25);
+  std::filesystem::remove(componentOnlyOutput);
   std::filesystem::remove(output);
   return 0;
 }

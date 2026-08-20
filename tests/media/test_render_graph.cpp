@@ -55,6 +55,16 @@ int main(int argc, char** argv) {
   const auto componentClipScene = graph.build(timeline.snapshot(), {15});
   assert(componentClipScene);
   assert(componentClipScene->frame.pixelColor(4, 8).blue() > 150);
+  edward::core::Timeline componentOnlyTimeline(25);
+  const auto componentOnlyTrack = componentOnlyTimeline.addVideoTrack();
+  assert(componentOnlyTimeline.insertClip({3, componentOnlyTrack, {}, 0, 25, 0,
+                                           edward::core::TimelineClipKind::Component, *blue}));
+  const edward::media::RenderGraph componentOnlyGraph(adapter);
+  const auto componentOnlyScene = componentOnlyGraph.build(componentOnlyTimeline.snapshot(), {0});
+  assert(componentOnlyScene);
+  assert(componentOnlyScene->frame.width() == 1920);
+  assert(componentOnlyScene->frame.height() == 1080);
+  assert(componentOnlyScene->frame.pixelColor(956, 538).blue() > 150);
   QImage pluginFrame(QSize(16, 16), QImage::Format_RGBA8888);
   pluginFrame.fill(Qt::transparent);
   pluginFrame.setPixelColor(0, 0, QColor(0, 255, 0, 255));
