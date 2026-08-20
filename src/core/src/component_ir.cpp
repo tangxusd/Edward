@@ -211,4 +211,20 @@ bool ComponentIr::setNodeProperty(const QString& nodeId, const QString& field, c
   return true;
 }
 
+bool ComponentIr::removeNodeKeyframe(const QString& nodeId, const QString& field, int frame) {
+  auto* node = findNode(root_, nodeId);
+  if (!node || field.isEmpty() || frame < 0) return false;
+  const auto existing = node->keyframes.value(field).toArray();
+  QJsonArray remaining;
+  bool removed = false;
+  for (const auto& keyframe : existing) {
+    if (keyframe.toObject().value("frame").toInt(-1) == frame) removed = true;
+    else remaining.append(keyframe);
+  }
+  if (!removed) return false;
+  if (remaining.isEmpty()) node->keyframes.remove(field);
+  else node->keyframes.insert(field, remaining);
+  return true;
+}
+
 }  // namespace edward::core

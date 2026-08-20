@@ -248,6 +248,10 @@ ApplicationWindow {
                             text: modelData.field + " @ " + modelData.frame
                             color: DesignTokens.textSecondary
                             font.pixelSize: 11
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: workbenchRuntime.removeSelectedComponentNodeKeyframe(modelData.field, modelData.frame)
+                            }
                         }
                     }
                     Label {

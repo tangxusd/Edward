@@ -137,6 +137,9 @@ int main(int argc, char** argv) {
   runtime.setSelectedComponentNodeColor(QStringLiteral("#ff0000"));
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
   assert(!runtime.selectedComponentNodeKeyframes().isEmpty());
+  assert(runtime.removeSelectedComponentNodeKeyframe(QStringLiteral("color"), 0));
+  for (const auto& keyframe : runtime.selectedComponentNodeKeyframes())
+    assert(keyframe.toMap().value("field").toString() != QStringLiteral("color"));
   runtime.setSelectedComponentNodeColor(QStringLiteral("red"));
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
   assert(runtime.selectComponentNode(QStringLiteral("demo-box")));

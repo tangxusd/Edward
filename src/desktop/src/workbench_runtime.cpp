@@ -460,6 +460,13 @@ bool WorkbenchRuntime::selectComponentNode(const QString& nodeId) {
   return true;
 }
 
+bool WorkbenchRuntime::removeSelectedComponentNodeKeyframe(const QString& field, int frame) {
+  if (!demoOverlayIr_ || !demoOverlayIr_->removeNodeKeyframe(selectedComponentNodeId_, field, frame)) return false;
+  refreshDemoOverlay();
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::bindComponentToSelectedClip() {
   if (!demoOverlayIr_ || controller_.selectedClip() == 0 || !timeline_.clip(controller_.selectedClip())) {
     emit operationFailed(QStringLiteral("请先选择素材片段和组件"));
