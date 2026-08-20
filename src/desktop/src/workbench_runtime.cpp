@@ -1114,12 +1114,21 @@ bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QSt
 }
 
 bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
+  return exportTimelineWithOptions(outputPath, 1920, 1080, 25, 0);
+}
+
+bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int width, int height,
+                                                 int fps, int quality) {
   if (timelineExportBusy_) {
     emit operationFailed(QStringLiteral("视频导出正在执行"));
     return false;
   }
   if (outputPath.isEmpty()) {
     emit operationFailed(QStringLiteral("请选择导出路径"));
+    return false;
+  }
+  if (width <= 0 || height <= 0 || fps <= 0 || quality < 0 || quality > 2) {
+    emit operationFailed(QStringLiteral("导出参数无效"));
     return false;
   }
   auto snapshot = timeline_.snapshot();
@@ -1136,7 +1145,10 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
   const auto path = std::filesystem::path(outputPath.toStdString());
   timelineExportBusy_ = true;
   emit timelineChanged();
-  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path] {
+  const auto exportQuality = quality == 0 ? edward::media::ExportQuality::High
+                                          : quality == 1 ? edward::media::ExportQuality::Medium
+                                                         : edward::media::ExportQuality::Low;
+  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path, width, height, fps, exportQuality] {
     TimelineExportResult result;
     edward::media::MltAdapter adapter;
     std::optional<edward::core::ComponentIr> overlay;
@@ -1172,7 +1184,7 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
       graph.setOverlay(std::move(overlay));
     }
     const edward::media::ExportJob job(graph);
-    const auto exported = job.run(snapshot, {path, {1920, 1080}, 25, 1});
+    const auto exported = job.run(snapshot, {path, {width, height}, fps, 1, exportQuality});
     if (!exported)
       result.error = QStringLiteral("视频导出失败");
     else

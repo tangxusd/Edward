@@ -187,6 +187,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool applyInstalledPluginToTimeline(const QString& requestId, const QString& compositionId,
                                                   const QString& outputPath);
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
+  Q_INVOKABLE bool exportTimelineWithOptions(const QString& outputPath, int width, int height,
+                                             int fps, int quality);
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool saveProject(const QString& path);

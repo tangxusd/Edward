@@ -1,4 +1,5 @@
 #include <edward/desktop/workbench_runtime.hpp>
+#include <edward/media/media_probe.hpp>
 
 #include <QGuiApplication>
 #include <QFile>
@@ -43,7 +44,7 @@ int main(int argc, char** argv) {
   assert(directory.isValid());
   const auto root = std::filesystem::path(directory.path().toStdString());
   runtime.clearComponentOverlay();
-  const auto exportPath = directory.path() + QStringLiteral("/timeline.mp4");
+  const auto exportPath = directory.path() + QStringLiteral("/timeline-720p.mp4");
   bool exported = false;
   QEventLoop exportLoop;
   QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::operationSucceeded,
@@ -53,11 +54,18 @@ int main(int argc, char** argv) {
                        exportLoop.quit();
                      }
                    });
-  assert(runtime.exportTimeline(exportPath));
+  assert(!runtime.exportTimelineWithOptions(exportPath, 0, 720, 30, 0));
+  assert(runtime.exportTimelineWithOptions(exportPath, 1280, 720, 30, 1));
   QTimer::singleShot(15000, &exportLoop, &QEventLoop::quit);
   exportLoop.exec();
   assert(exported);
   assert(QFile::exists(exportPath));
+  const auto exportedInfo = edward::media::MediaProbe::probe(std::filesystem::path(exportPath.toStdString()));
+  assert(exportedInfo.has_value());
+  assert(exportedInfo->width == 1280);
+  assert(exportedInfo->height == 720);
+  assert(exportedInfo->fpsNumerator == 30);
+  assert(exportedInfo->fpsDenominator == 1);
   QFile entry(QString::fromStdString((root / "host.mjs").string()));
   assert(entry.open(QIODevice::WriteOnly));
   entry.close();
