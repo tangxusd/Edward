@@ -48,6 +48,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool aiComponentDraftAvailable READ aiComponentDraftAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString aiComponentDraft READ aiComponentDraft NOTIFY timelineChanged)
   Q_PROPERTY(bool aiRequestBusy READ aiRequestBusy NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiConversation READ aiConversation NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -77,6 +78,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
   [[nodiscard]] QString aiComponentDraft() const { return aiComponentDraftJson_; }
   [[nodiscard]] bool aiRequestBusy() const { return aiRequestBusy_; }
+  [[nodiscard]] QString aiConversation() const { return aiConversation_; }
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -181,6 +183,8 @@ class WorkbenchRuntime final : public QObject {
   QString aiComponentDraftJson_;
   edward::resources::ModelChatClient modelChatClient_;
   bool aiRequestBusy_ = false;
+  QString aiConversation_;
+  QString pendingAiPrompt_;
   std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;

@@ -122,9 +122,18 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
           [this](bool success, const QString& result) {
             aiRequestBusy_ = false;
             if (!success) {
+              pendingAiPrompt_.clear();
               emit operationFailed(QStringLiteral("AI 请求失败：%1").arg(result));
             } else if (!proposeAiComponentCommand(result)) {
+              pendingAiPrompt_.clear();
               return;
+            } else {
+              if (!pendingAiPrompt_.isEmpty()) {
+                if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                aiConversation_ += QStringLiteral("用户：") + pendingAiPrompt_ +
+                                   QStringLiteral("\nAI：") + result;
+              }
+              pendingAiPrompt_.clear();
             }
             emit timelineChanged();
           });
@@ -312,8 +321,8 @@ bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QS
                             ? installedPlugin_->manifest.editableProps.join(QStringLiteral(","))
                             : QStringLiteral("standard Edward fields");
   const auto contextualPrompt = QStringLiteral(
-      "Current Component IR (read-only context): %1\nAllowed plugin editable fields: %2\nUser request: %3")
-                                    .arg(componentContext, editable, prompt);
+      "Current Component IR (read-only context): %1\nAllowed plugin editable fields: %2\nPrevious conversation: %3\nUser request: %4")
+                                    .arg(componentContext, editable, aiConversation_, prompt);
   if (contextualPrompt.toUtf8().size() > 64 * 1024) {
     emit operationFailed(QStringLiteral("AI 请求失败：组件上下文或提示词过大"));
     return false;
@@ -325,6 +334,7 @@ bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QS
     emit timelineChanged();
     return false;
   }
+  pendingAiPrompt_ = prompt;
   return true;
 }
 
@@ -389,6 +399,8 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
     return false;
   }
   demoOverlayIr_ = std::move(component);
+  aiConversation_.clear();
+  pendingAiPrompt_.clear();
   syncDemoOverlayProperties(document.object());
   demoOverlayEnabled_ = true;
   refreshDemoOverlay();
@@ -711,6 +723,8 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
 
 void WorkbenchRuntime::clearComponentOverlay() {
   demoOverlayIr_.reset();
+  aiConversation_.clear();
+  pendingAiPrompt_.clear();
   demoOverlayEnabled_ = false;
   renderGraph_.setOverlay(std::nullopt);
   emit timelineChanged();
@@ -818,6 +832,7 @@ bool WorkbenchRuntime::saveProject(const QString& path) const {
                       {"playheadFrame", static_cast<qint64>(snapshot.playheadFrame)},
                       {"videoTracks", tracks}, {"clips", clips}};
   if (demoOverlayIr_) project.insert("component", demoOverlayIr_->toJson());
+  if (!aiConversation_.isEmpty()) project.insert("aiConversation", aiConversation_);
   QSaveFile file(path);
   if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(project).toJson(QJsonDocument::Compact)) < 0) return false;
   return file.commit();
@@ -856,8 +871,16 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
     component = edward::core::ComponentIr::parse(project.value("component").toObject());
     if (!component) return false;
   }
+  QString conversation;
+  if (!project.value("aiConversation").isUndefined()) {
+    if (!project.value("aiConversation").isString()) return false;
+    conversation = project.value("aiConversation").toString();
+    if (conversation.toUtf8().size() > 64 * 1024) return false;
+  }
   if (!timeline_.restore(snapshot)) return false;
   demoOverlayIr_ = std::move(component);
+  aiConversation_ = std::move(conversation);
+  pendingAiPrompt_.clear();
   if (demoOverlayIr_) syncDemoOverlayProperties(project.value("component").toObject());
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
   renderGraph_.setOverlay(demoOverlayIr_);
