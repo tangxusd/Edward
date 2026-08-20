@@ -29,12 +29,14 @@ bool Timeline::replaceClip(ClipId id, TimelineClip replacement) {
   const auto it = std::find_if(clips_.begin(), clips_.end(), [id](const auto& clip) { return clip.id == id; });
   if (it == clips_.end() || replacement.id != id || !isValid(replacement) || overlaps(replacement, id)) return false;
   *it = std::move(replacement);
+  discardInvalidTransitions();
   return true;
 }
 
 bool Timeline::removeClip(ClipId id) {
   const auto previousSize = clips_.size();
   std::erase_if(clips_, [id](const auto& clip) { return clip.id == id; });
+  discardInvalidTransitions();
   return clips_.size() != previousSize;
 }
 
@@ -130,6 +132,20 @@ bool Timeline::overlaps(const TimelineClip& candidate, std::optional<ClipId> ign
     if (ignored && existing.id == *ignored) return false;
     const auto existingEnd = existing.timelineStart + existing.sourceOut - existing.sourceIn;
     return existing.trackId == candidate.trackId && candidate.timelineStart < existingEnd && existing.timelineStart < candidateEnd;
+  });
+}
+
+void Timeline::discardInvalidTransitions() {
+  std::erase_if(transitions_, [&](const auto& transition) {
+    const auto left = std::ranges::find_if(clips_, [&](const auto& clip) { return clip.id == transition.leftClipId; });
+    const auto right = std::ranges::find_if(clips_, [&](const auto& clip) { return clip.id == transition.rightClipId; });
+    if (left == clips_.end() || right == clips_.end() || transition.durationFrames <= 0 ||
+        left->trackId != right->trackId) return true;
+    const auto leftDuration = left->sourceOut - left->sourceIn;
+    const auto rightDuration = right->sourceOut - right->sourceIn;
+    return left->timelineStart + leftDuration != right->timelineStart ||
+           transition.durationFrames > std::min(leftDuration, rightDuration) ||
+           transition.startFrame != right->timelineStart - transition.durationFrames;
   });
 }
 

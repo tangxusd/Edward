@@ -51,6 +51,7 @@ class Timeline {
   bool isKnownTrack(TrackId id) const;
   bool isValid(const TimelineClip& clip) const;
   bool overlaps(const TimelineClip& candidate, std::optional<ClipId> ignored) const;
+  void discardInvalidTransitions();
 
   Frame durationFrames_ = 0;
   Frame playheadFrame_ = 0;

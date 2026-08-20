@@ -18,6 +18,19 @@ int main() {
   assert(timeline.restore(snapshot));
   assert(timeline.snapshot().transitions.front().type == edward::core::TransitionType::Dissolve);
 
+  assert(timeline.removeClip(1));
+  assert(timeline.snapshot().transitions.empty());
+
+  edward::core::Timeline editedTimeline(120);
+  const auto editedTrack = editedTimeline.addVideoTrack();
+  assert(editedTimeline.insertClip({11, editedTrack, "/tmp/c.mp4", 0, 30, 0}));
+  assert(editedTimeline.insertClip({12, editedTrack, "/tmp/d.mp4", 0, 30, 30}));
+  assert(editedTimeline.addTransition(edward::core::TransitionType::Dissolve, 11, 12, 10));
+  auto moved = *editedTimeline.clip(12);
+  moved.timelineStart = 60;
+  assert(editedTimeline.replaceClip(12, moved));
+  assert(editedTimeline.snapshot().transitions.empty());
+
   assert(!timeline.addTransition(edward::core::TransitionType::FlashBlack, 2, 1, 10));
   return 0;
 }
