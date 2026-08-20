@@ -87,6 +87,14 @@ std::optional<Transition> Timeline::setTransitionDuration(ClipId leftClipId, Cli
   return *transition;
 }
 
+bool Timeline::removeTransition(ClipId leftClipId, ClipId rightClipId) {
+  const auto previousSize = transitions_.size();
+  std::erase_if(transitions_, [&](const auto& transition) {
+    return transition.leftClipId == leftClipId && transition.rightClipId == rightClipId;
+  });
+  return transitions_.size() != previousSize;
+}
+
 std::optional<TimelineClip> Timeline::clip(ClipId id) const {
   const auto it = std::find_if(clips_.begin(), clips_.end(), [id](const auto& clip) { return clip.id == id; });
   return it == clips_.end() ? std::nullopt : std::optional<TimelineClip>(*it);

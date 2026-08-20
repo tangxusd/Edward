@@ -471,6 +471,11 @@ int main(int argc, char** argv) {
   assert(transitionRuntime.transitions().front().toMap().value("durationFrames").toLongLong() == 6);
   assert(transitionRuntime.undoTimeline());
   assert(transitionRuntime.transitions().front().toMap().value("durationFrames").toLongLong() == 10);
+  assert(transitionRuntime.removeTransition(transitionLeft.value("id").toInteger(),
+                                            transitionRight.value("id").toInteger()));
+  assert(transitionRuntime.transitions().empty());
+  assert(transitionRuntime.undoTimeline());
+  assert(transitionRuntime.transitions().size() == 1);
   assert(!transitionRuntime.addDissolveToSelected());
   const auto transitionOutput = directory.path() + QStringLiteral("/transition-output.edward.json");
   assert(transitionRuntime.saveProject(transitionOutput));

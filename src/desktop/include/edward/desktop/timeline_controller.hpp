@@ -21,6 +21,7 @@ class TimelineController {
   bool trimSelectedRightToPlayhead();
   bool setTransitionDuration(edward::core::ClipId leftClipId, edward::core::ClipId rightClipId,
                              edward::core::Frame duration);
+  bool removeTransition(edward::core::ClipId leftClipId, edward::core::ClipId rightClipId);
   bool undo();
   bool redo();
   bool selectClip(edward::core::ClipId id);

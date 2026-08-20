@@ -27,6 +27,11 @@ int main() {
   assert(shortened);
   assert(shortened->durationFrames == 12);
   assert(shortened->startFrame == 18);
+  assert(timeline.removeTransition(1, 2));
+  assert(timeline.snapshot().transitions.empty());
+  assert(!timeline.removeTransition(1, 2));
+
+  assert(timeline.addTransition(edward::core::TransitionType::Dissolve, 1, 2, 12));
 
   assert(timeline.removeClip(1));
   assert(timeline.snapshot().transitions.empty());

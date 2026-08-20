@@ -446,6 +446,19 @@ Item {
                                                                          modelData.rightClipId,
                                                                          pendingDuration)
                 }
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.RightButton
+                    onClicked: transitionRemoveMenu.popup()
+                }
+                Menu {
+                    id: transitionRemoveMenu
+                    MenuItem {
+                        text: "删除转场"
+                        onTriggered: workbenchRuntime.removeTransition(modelData.leftClipId,
+                                                                        modelData.rightClipId)
+                    }
+                }
             }
         }
     }

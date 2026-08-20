@@ -44,6 +44,7 @@ class Timeline {
                                           ClipId rightClipId, Frame requestedDuration);
   std::optional<Transition> setTransitionDuration(ClipId leftClipId, ClipId rightClipId,
                                                    Frame requestedDuration);
+  bool removeTransition(ClipId leftClipId, ClipId rightClipId);
   std::optional<TimelineClip> clip(ClipId id) const;
   std::vector<TimelineClip> clips(TrackId trackId) const;
   TimelineSnapshot snapshot() const;

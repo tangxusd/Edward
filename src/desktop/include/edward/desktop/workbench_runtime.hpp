@@ -213,6 +213,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool addTransitionToSelected(const QString& type);
   Q_INVOKABLE bool setTransitionDuration(qlonglong leftClipId, qlonglong rightClipId,
                                          int durationFrames);
+  Q_INVOKABLE bool removeTransition(qlonglong leftClipId, qlonglong rightClipId);
   Q_INVOKABLE bool addVideoTrack();
   Q_INVOKABLE bool removeEmptyVideoTrack();
   Q_INVOKABLE bool selectVideoTrack(int index);

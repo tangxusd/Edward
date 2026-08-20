@@ -67,6 +67,10 @@ bool TimelineCommands::setTransitionDuration(ClipId leftClipId, ClipId rightClip
   return mutate([&] { return timeline_.setTransitionDuration(leftClipId, rightClipId, duration).has_value(); });
 }
 
+bool TimelineCommands::removeTransition(ClipId leftClipId, ClipId rightClipId) {
+  return mutate([&] { return timeline_.removeTransition(leftClipId, rightClipId); });
+}
+
 bool TimelineCommands::setPlayhead(Frame frame) { return mutate([&] { return timeline_.setPlayhead(frame); }); }
 
 bool TimelineCommands::undo() {

@@ -1495,6 +1495,13 @@ bool WorkbenchRuntime::setTransitionDuration(qlonglong leftClipId, qlonglong rig
   return true;
 }
 
+bool WorkbenchRuntime::removeTransition(qlonglong leftClipId, qlonglong rightClipId) {
+  if (!controller_.removeTransition(static_cast<edward::core::ClipId>(leftClipId),
+                                    static_cast<edward::core::ClipId>(rightClipId))) return false;
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::writeProject(const QString& path) const {
   if (path.isEmpty()) return false;
   const auto snapshot = timeline_.snapshot();

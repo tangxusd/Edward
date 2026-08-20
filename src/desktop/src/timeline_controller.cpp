@@ -86,6 +86,11 @@ bool TimelineController::setTransitionDuration(edward::core::ClipId leftClipId,
   return commands_.setTransitionDuration(leftClipId, rightClipId, duration);
 }
 
+bool TimelineController::removeTransition(edward::core::ClipId leftClipId,
+                                          edward::core::ClipId rightClipId) {
+  return commands_.removeTransition(leftClipId, rightClipId);
+}
+
 bool TimelineController::undo() { return commands_.undo(); }
 bool TimelineController::redo() { return commands_.redo(); }
 
