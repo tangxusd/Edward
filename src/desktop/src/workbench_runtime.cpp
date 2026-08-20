@@ -60,6 +60,16 @@ void setPropertyAndKeyframe(edward::core::ComponentIr& component, const QString&
   edward::core::ComponentEditCommand::apply(
       component, {edward::core::ComponentEditKind::SetKeyframeValue, nodeId, field, frame, value});
 }
+
+bool pluginAllowsComponentEdit(const edward::core::ComponentIr& component,
+                               const std::optional<edward::plugins::InstalledPlugin>& plugin,
+                               const edward::core::ComponentEditCommand& command) {
+  const auto dependency = component.pluginDependency();
+  if (!dependency) return true;
+  return plugin && plugin->manifest.pluginId == dependency->pluginId &&
+         plugin->manifest.version == dependency->version &&
+         plugin->manifest.editableProps.contains(command.field);
+}
 }  // namespace
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
@@ -256,10 +266,6 @@ bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
     emit operationFailed(QStringLiteral("AI 编辑失败：当前没有可编辑组件"));
     return false;
   }
-  if (demoOverlayIr_->pluginDependency().has_value()) {
-    emit operationFailed(QStringLiteral("AI 编辑失败：外部插件组件尚未声明可编辑字段"));
-    return false;
-  }
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
   if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
@@ -268,6 +274,10 @@ bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
   }
   QString error;
   const auto command = edward::core::parseComponentEditCommand(document.object(), &error);
+  if (command && !pluginAllowsComponentEdit(*demoOverlayIr_, installedPlugin_, *command)) {
+    emit operationFailed(QStringLiteral("AI 编辑失败：外部插件未声明该可编辑字段"));
+    return false;
+  }
   if (!command || !edward::core::ComponentEditCommand::apply(*demoOverlayIr_, *command, &error)) {
     emit operationFailed(QStringLiteral("AI 编辑失败：%1").arg(error));
     return false;
@@ -284,10 +294,6 @@ bool WorkbenchRuntime::proposeAiComponentCommand(const QString& json) {
     emit operationFailed(QStringLiteral("AI 草案失败：当前没有可编辑组件"));
     return false;
   }
-  if (demoOverlayIr_->pluginDependency().has_value()) {
-    emit operationFailed(QStringLiteral("AI 草案失败：外部插件组件尚未声明可编辑字段"));
-    return false;
-  }
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
   if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
@@ -298,6 +304,10 @@ bool WorkbenchRuntime::proposeAiComponentCommand(const QString& json) {
   const auto command = edward::core::parseComponentEditCommand(document.object(), &error);
   if (!command) {
     emit operationFailed(QStringLiteral("AI 草案失败：%1").arg(error));
+    return false;
+  }
+  if (!pluginAllowsComponentEdit(*demoOverlayIr_, installedPlugin_, *command)) {
+    emit operationFailed(QStringLiteral("AI 草案失败：外部插件未声明该可编辑字段"));
     return false;
   }
   auto candidate = *demoOverlayIr_;

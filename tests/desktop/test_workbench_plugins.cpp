@@ -89,8 +89,12 @@ int main(int argc, char** argv) {
   assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
   assert(!runtime.exportTimeline(directory.path() + QStringLiteral("/plugin-component.mp4")));
-  assert(!runtime.applyAiComponentCommand(
+  assert(runtime.proposeAiComponentCommand(
       QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"root\",\"field\":\"opacity\",\"value\":0.5}")));
+  assert(runtime.applyPendingAiComponentCommand());
+  assert(runtime.componentJson().value("root").toObject().value("properties").toObject().value("opacity").toDouble() == 0.5);
+  assert(!runtime.proposeAiComponentCommand(
+      QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"root\",\"field\":\"fill\",\"value\":\"#ffffff\"}")));
   runtime.generateComponentDraft();
   assert(runtime.proposeAiComponentCommand(
       QStringLiteral("{\"operation\":\"setTransformNumber\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":-72}")));
