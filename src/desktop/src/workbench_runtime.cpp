@@ -498,6 +498,12 @@ bool WorkbenchRuntime::saveCurrentComponentToLibrary(const QString& resourceId, 
     emit operationFailed(QStringLiteral("组件保存到资源库失败：%1").arg(error));
     return false;
   }
+  const auto localPackagePath = componentLibrary_.root() / resourceId.toStdString();
+  if (silentUploadDispatcher_ && sessions_.authenticated() &&
+      silentUploadDispatcher_->enqueue(QString::fromStdString(localPackagePath.string()), resourceId,
+                                       QDateTime::currentDateTimeUtc(), &error)) {
+    dispatchSilentComponentUploads();
+  }
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("组件已保存到我的资源库"));
   return true;

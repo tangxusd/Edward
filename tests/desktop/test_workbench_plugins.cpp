@@ -196,6 +196,8 @@ int main(int argc, char** argv) {
   assert(runtime.configureComponentLibrary(libraryPath));
   assert(runtime.saveCurrentComponentToLibrary(QStringLiteral("demo.library"), QStringLiteral("Library demo")));
   assert(runtime.localComponents().size() == 1);
+  assert(QFile::exists(libraryPath + QStringLiteral("/demo.library/manifest.json")));
+  assert(QFile::exists(libraryPath + QStringLiteral("/demo.library/component.json")));
   assert(runtime.loadLibraryComponent(QStringLiteral("demo.library")));
   assert(!runtime.componentBoundToClip());
   assert(!runtime.configureSilentComponentUploads(
