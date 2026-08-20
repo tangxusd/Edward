@@ -43,6 +43,32 @@ int main(int argc, char** argv) {
   assert(linearImage.pixelColor(28, 10).alpha() > 0);
   assert(bezierImage.pixelColor(28, 10).alpha() == 0);
 
+  // Keyframes are normalized by time before interpolation; control values must
+  // stay attached to their sorted keyframe, even when input JSON is unordered.
+  const QJsonObject unorderedRoot{{"id", "unordered-root"}, {"type", "shape"},
+      {"transform", QJsonObject{{"y", 0}, {"width", 8}, {"height", 8}}},
+      {"properties", QJsonObject{{"fill", "#ffffff"}}},
+      {"keyframes", QJsonObject{{"x", QJsonArray{
+          QJsonObject{{"frame", 10}, {"value", 70}, {"controlIn", 70}},
+          QJsonObject{{"frame", 0}, {"value", 10}, {"easing", "bezier"}, {"controlOut", 10}}
+      }}}}};
+  const auto unordered = edward::core::ComponentIr::parse({{"version", "1"}, {"root", unorderedRoot}});
+  assert(unordered);
+  const auto unorderedImage = edward::media::ComponentRenderer{}.render(*unordered, 5, {100, 100});
+  assert(unorderedImage.pixelColor(8, 50).alpha() > 0);
+
+  // Duplicate timestamps must not create a zero-duration interpolation span.
+  const QJsonObject duplicateRoot{{"id", "duplicate-root"}, {"type", "shape"},
+      {"transform", QJsonObject{{"x", 0}, {"y", 0}, {"width", 8}, {"height", 8}}},
+      {"properties", QJsonObject{{"fill", "#ffffff"}}},
+      {"keyframes", QJsonObject{{"x", QJsonArray{
+          QJsonObject{{"frame", 0}, {"value", 0}},
+          QJsonObject{{"frame", 0}, {"value", 10}},
+          QJsonObject{{"frame", 10}, {"value", 20}}
+      }}}}};
+  const auto duplicate = edward::core::ComponentIr::parse({{"version", "1"}, {"root", duplicateRoot}});
+  assert(!duplicate);
+
   const QJsonObject nestedRoot{{"id", "root"}, {"type", "container"},
       {"transform", QJsonObject{{"x", 10}, {"y", 0}}},
       {"properties", QJsonObject{{"opacity", 0.5}}}, {"children", QJsonArray{

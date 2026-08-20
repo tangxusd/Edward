@@ -19,12 +19,22 @@ double number(const QJsonObject& object, const char* key, double fallback) {
 double animatedNumber(const QJsonObject& keyframes, const QString& property, int frame, double fallback) {
   const auto frames = keyframes.value(property).toArray();
   if (frames.isEmpty()) return fallback;
-  struct Point { int frame; double value; };
+  struct Point {
+    int frame;
+    double value;
+    QString easing;
+    double controlOut;
+    double controlIn;
+  };
   std::vector<Point> points;
   for (const auto& value : frames) {
     const auto item = value.toObject();
-    if (item.value("frame").isDouble() && item.value("value").isDouble())
-      points.push_back({item.value("frame").toInt(), item.value("value").toDouble()});
+    if (item.value("frame").isDouble() && item.value("value").isDouble()) {
+      const auto valueNumber = item.value("value").toDouble();
+      points.push_back({item.value("frame").toInt(), valueNumber, item.value("easing").toString(),
+                        item.value("controlOut").toDouble(valueNumber),
+                        item.value("controlIn").toDouble(valueNumber)});
+    }
   }
   if (points.empty()) return fallback;
   std::sort(points.begin(), points.end(), [](const Point& a, const Point& b) { return a.frame < b.frame; });
@@ -34,12 +44,12 @@ double animatedNumber(const QJsonObject& keyframes, const QString& property, int
     if (frame <= points[i].frame) {
       const auto& left = points[i - 1];
       const auto& right = points[i];
-      const double t = static_cast<double>(frame - left.frame) / (right.frame - left.frame);
-      const auto leftFrame = frames.at(static_cast<int>(i - 1)).toObject();
-      const auto rightFrame = frames.at(static_cast<int>(i)).toObject();
-      if (leftFrame.value("easing").toString() == "bezier") {
-        const double c1 = leftFrame.value("controlOut").toDouble(left.value);
-        const double c2 = rightFrame.value("controlIn").toDouble(right.value);
+      const int span = right.frame - left.frame;
+      if (span <= 0) continue;
+      const double t = std::clamp(static_cast<double>(frame - left.frame) / span, 0.0, 1.0);
+      if (left.easing == "bezier") {
+        const double c1 = left.controlOut;
+        const double c2 = right.controlIn;
         const double inverse = 1.0 - t;
         return inverse * inverse * inverse * left.value +
                3.0 * inverse * inverse * t * c1 +
