@@ -74,6 +74,8 @@ int main() {
   assert(timeline.find("root.snapFrame(") != std::string::npos);
   assert(timeline.find("function formatTimecode(frame)") != std::string::npos);
   assert(timeline.find("root.formatTimecode") != std::string::npos);
+  assert(timeline.find("modelData.selected && parent.width > 92") != std::string::npos);
+  assert(timeline.find("timelineStart + modelData.sourceOut - modelData.sourceIn") != std::string::npos);
   assert(timeline.find("togglePlayback") != std::string::npos);
   assert(timeline.find("property int videoTrackCount") != std::string::npos);
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);

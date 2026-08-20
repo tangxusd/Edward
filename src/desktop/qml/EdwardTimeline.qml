@@ -209,6 +209,19 @@ Item {
                 height: 3
                 color: modelData.kind === "component" ? DesignTokens.accent : "#4c9ac1"
             }
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 5
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 3
+                visible: modelData.selected && parent.width > 92
+                text: root.formatTimecode(modelData.timelineStart) + " - " +
+                      root.formatTimecode(modelData.timelineStart + modelData.sourceOut - modelData.sourceIn)
+                color: "#d9f7fa"
+                font.pixelSize: 9
+                elide: Text.ElideRight
+                width: parent.width - 10
+            }
             MouseArea {
                 anchors.fill: parent
                 drag.target: parent

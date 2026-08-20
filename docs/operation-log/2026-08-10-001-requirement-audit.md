@@ -2630,3 +2630,9 @@
 - 目的：让标尺直接表达视频编辑中的时间位置，而不是只显示内部帧编号。
 - 修改：标尺刻度改为 `时:分:秒:帧` 格式，按固定 25 fps 换算；点击位置仍按原有工程帧计算，不改变播放、分割和导出逻辑。
 - 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
+
+## 2026-08-20 选中片段时间范围反馈
+
+- 目的：让用户在移动、吸附和裁切后能直接核对选中片段的工程时间范围。
+- 修改：选中片段且宽度足够时，在片段底部显示起止时间码；窄片段保持紧凑布局，不强行溢出文本。
+- 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
