@@ -2547,3 +2547,9 @@
 - 目的：让关键帧删除动作从“点击文字”改为明确按钮，减少用户无法发现操作入口的问题。
 - 修改：属性区关键帧列表改为带“删除”文本的按钮，调用原有删除接口，不改变关键帧数据逻辑。
 - 验证：增量构建成功，`desktop.visual_routes` 与 `desktop.workbench_plugins` 2/2 通过，`git diff --check` 通过。
+
+## 2026-08-20 关键帧曲线切换
+
+- 目的：为组件内部节点的每个关键帧提供可见的线性/贝塞尔曲线入口。
+- 修改：Component IR 新增单点曲线类型更新；工作台关键帧列表显示当前曲线，点击左侧条目在 `linear` 与 `bezier` 间切换，删除保持独立按钮。该修改进入现有工程保存、预览与导出数据路径。
+- 验证：增量构建成功；`core.component_ir`、`desktop.visual_routes`、`desktop.workbench_plugins` 3/3 通过；`git diff --check` 通过。

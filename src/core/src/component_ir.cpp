@@ -204,6 +204,26 @@ bool ComponentIr::setNodeKeyframeValue(const QString& nodeId, const QString& fie
   return true;
 }
 
+bool ComponentIr::setNodeKeyframeEasing(const QString& nodeId, const QString& field, int frame,
+                                        const QString& easing) {
+  auto* node = findNode(root_, nodeId);
+  if (!node || field.isEmpty() || frame < 0 || (easing != "linear" && easing != "bezier")) return false;
+  auto keyframes = node->keyframes.value(field).toArray();
+  for (auto index = 0; index < keyframes.size(); ++index) {
+    auto point = keyframes.at(index).toObject();
+    if (point.value("frame").toInt(-1) != frame) continue;
+    point.insert("easing", easing);
+    if (easing == "linear") {
+      point.remove("controlIn");
+      point.remove("controlOut");
+    }
+    keyframes.replace(index, point);
+    node->keyframes.insert(field, keyframes);
+    return true;
+  }
+  return false;
+}
+
 bool ComponentIr::setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value) {
   auto* node = findNode(root_, nodeId);
   if (!node || field.isEmpty()) return false;

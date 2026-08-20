@@ -36,6 +36,8 @@ class ComponentIr final {
   bool setNodeTransformNumber(const QString& nodeId, const QString& field, double value);
   bool setNodeKeyframeNumber(const QString& nodeId, const QString& field, int frame, double value);
   bool setNodeKeyframeValue(const QString& nodeId, const QString& field, int frame, const QJsonValue& value);
+  bool setNodeKeyframeEasing(const QString& nodeId, const QString& field, int frame,
+                             const QString& easing);
   bool removeNodeKeyframe(const QString& nodeId, const QString& field, int frame);
   bool setNodeProperty(const QString& nodeId, const QString& field, const QJsonValue& value);
 

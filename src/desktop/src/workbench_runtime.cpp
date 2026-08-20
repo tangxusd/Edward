@@ -311,6 +311,7 @@ QVariantList WorkbenchRuntime::selectedComponentNodeKeyframes() const {
       item.insert(QStringLiteral("field"), it.key());
       item.insert(QStringLiteral("frame"), frame.value("frame").toInt());
       item.insert(QStringLiteral("value"), frame.value("value").toVariant());
+      item.insert(QStringLiteral("easing"), frame.value("easing").toString("linear"));
       result.push_back(item);
     }
   }
@@ -465,6 +466,25 @@ bool WorkbenchRuntime::removeSelectedComponentNodeKeyframe(const QString& field,
   refreshDemoOverlay();
   emit timelineChanged();
   return true;
+}
+
+bool WorkbenchRuntime::toggleSelectedComponentNodeKeyframeEasing(const QString& field, int frame) {
+  if (!demoOverlayIr_ || selectedComponentNodeId_.isEmpty()) return false;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node) return false;
+  const auto point = node->value("keyframes").toObject().value(field).toArray();
+  for (const auto& value : point) {
+    const auto object = value.toObject();
+    if (object.value("frame").toInt(-1) == frame) {
+      const auto current = object.value("easing").toString("linear");
+      const auto next = current == "bezier" ? QStringLiteral("linear") : QStringLiteral("bezier");
+      if (!demoOverlayIr_->setNodeKeyframeEasing(selectedComponentNodeId_, field, frame, next)) return false;
+      refreshDemoOverlay();
+      emit timelineChanged();
+      return true;
+    }
+  }
+  return false;
 }
 
 bool WorkbenchRuntime::bindComponentToSelectedClip() {

@@ -243,13 +243,27 @@ ApplicationWindow {
                         height: 64
                         clip: true
                         model: workbenchRuntime.selectedComponentNodeKeyframes
-                        delegate: Button {
+                        delegate: Row {
                             required property var modelData
                             width: 220
                             height: 22
-                            text: modelData.field + " @ " + modelData.frame + "  删除"
-                            font.pixelSize: 11
-                            onClicked: workbenchRuntime.removeSelectedComponentNodeKeyframe(modelData.field, modelData.frame)
+                            spacing: 4
+                            Button {
+                                width: 160
+                                height: 22
+                                text: modelData.field + " @ " + modelData.frame + "  " + modelData.easing
+                                font.pixelSize: 11
+                                onClicked: workbenchRuntime.toggleSelectedComponentNodeKeyframeEasing(modelData.field, modelData.frame)
+                                ToolTip.visible: hovered
+                                ToolTip.text: "点击切换线性/贝塞尔"
+                            }
+                            Button {
+                                width: 56
+                                height: 22
+                                text: "删除"
+                                font.pixelSize: 11
+                                onClicked: workbenchRuntime.removeSelectedComponentNodeKeyframe(modelData.field, modelData.frame)
+                            }
                         }
                     }
                     Label {

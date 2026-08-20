@@ -139,6 +139,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE bool selectComponentNode(const QString& nodeId);
   Q_INVOKABLE bool removeSelectedComponentNodeKeyframe(const QString& field, int frame);
+  Q_INVOKABLE bool toggleSelectedComponentNodeKeyframeEasing(const QString& field, int frame);
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE bool bindComponentToSelectedClip();
   Q_INVOKABLE bool addCurrentComponentToTimeline(int durationFrames = 150);

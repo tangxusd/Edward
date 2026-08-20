@@ -52,6 +52,15 @@ int main() {
   assert(xKeyframes.at(1).toObject().value("value").toDouble() == 42.0);
   assert(xKeyframes.at(1).toObject().value("easing").toString() == "bezier");
   assert(xKeyframes.at(1).toObject().value("controlIn").toDouble() == 30.0);
+  assert(parsed->setNodeKeyframeEasing("title", "x", 0, "bezier"));
+  assert(parsed->setNodeKeyframeEasing("title", "x", 30, "linear"));
+  const auto eased = parsed->toJson().value("root").toObject().value("children").toArray().at(0).toObject()
+                         .value("keyframes").toObject().value("x").toArray();
+  assert(eased.at(0).toObject().value("easing").toString() == "bezier");
+  assert(eased.at(1).toObject().value("easing").toString() == "linear");
+  assert(eased.at(1).toObject().value("controlIn").isUndefined());
+  assert(!parsed->setNodeKeyframeEasing("title", "x", 20, "bezier"));
+  assert(!parsed->setNodeKeyframeEasing("title", "x", 0, "spring"));
   assert(!parsed->setNodeTransformNumber("missing", "x", 1.0));
   assert(!parsed->setNodeKeyframeNumber("title", "x", -1, 1.0));
   assert(!parsed->setNodeKeyframeNumber("missing", "x", 1, 1.0));
