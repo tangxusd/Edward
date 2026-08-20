@@ -2795,3 +2795,10 @@
 - 目的：保证组件关键帧在片段本地时间范围内稳定求值，避免乱序关键帧取错贝塞尔控制值，以及异常重复时间戳导致除零。
 - 修改：贝塞尔控制值随排序后的关键帧点一起保存；插值跨度非正时跳过；插值进度限制在 `[0, 1]`。组件片段入点、出点边界继续由 `RenderGraph` 的半开区间 `[start, end)` 控制。
 - 验证：新增乱序贝塞尔关键帧和重复时间戳回归；完整 CTest 37/37 通过，`git diff --check` 通过。
+
+## 2026-08-21 转场时间线数据合同
+
+- 目的：为基础转场接入统一时间线状态，先确保工程保存、恢复和后续 RenderGraph 求值使用同一份数据。
+- 修改：新增 `TransitionType::{FlashBlack, FlashWhite, Dissolve}` 与 `Transition`；`Timeline::addTransition` 仅接受同轨首尾相接片段，时长按两侧片段长度钳制；转场写入 `TimelineSnapshot` 并在恢复时校验。
+- 边界：本次只落地数据合同与校验，转场画面混合将在 RenderGraph 阶段实现，避免预览与导出出现两套行为。
+- 验证：新增 `core.timeline_transitions`；完整 CTest 38/38 通过。

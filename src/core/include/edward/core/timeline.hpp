@@ -2,6 +2,7 @@
 
 #include "edward/core/media_project.hpp"
 #include "edward/core/component_ir.hpp"
+#include "edward/core/transitions.hpp"
 
 #include <optional>
 #include <vector>
@@ -26,6 +27,7 @@ struct TimelineSnapshot {
   Frame playheadFrame = 0;
   std::vector<TrackId> videoTracks;
   std::vector<TimelineClip> clips;
+  std::vector<Transition> transitions;
 };
 
 class Timeline {
@@ -38,6 +40,8 @@ class Timeline {
   bool replaceClip(ClipId id, TimelineClip replacement);
   bool removeClip(ClipId id);
   bool setPlayhead(Frame frame);
+  std::optional<Transition> addTransition(TransitionType type, ClipId leftClipId,
+                                          ClipId rightClipId, Frame requestedDuration);
   std::optional<TimelineClip> clip(ClipId id) const;
   std::vector<TimelineClip> clips(TrackId trackId) const;
   TimelineSnapshot snapshot() const;
@@ -53,6 +57,7 @@ class Timeline {
   TrackId nextTrackId_ = 1;
   std::vector<TrackId> videoTracks_;
   std::vector<TimelineClip> clips_;
+  std::vector<Transition> transitions_;
 };
 
 }  // namespace edward::core

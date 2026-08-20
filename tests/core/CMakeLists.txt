@@ -10,6 +10,10 @@ add_executable(test_timeline_stress test_timeline_stress.cpp)
 target_link_libraries(test_timeline_stress PRIVATE edward_core)
 add_test(NAME core.timeline_stress COMMAND test_timeline_stress)
 
+add_executable(test_timeline_transitions test_timeline_transitions.cpp)
+target_link_libraries(test_timeline_transitions PRIVATE edward_core)
+add_test(NAME core.timeline_transitions COMMAND test_timeline_transitions)
+
 add_executable(test_component_ir test_component_ir.cpp)
 target_link_libraries(test_component_ir PRIVATE edward_core Qt6::Core)
 add_test(NAME core.component_ir COMMAND test_component_ir)

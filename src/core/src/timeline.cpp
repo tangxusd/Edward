@@ -44,6 +44,27 @@ bool Timeline::setPlayhead(Frame frame) {
   return true;
 }
 
+std::optional<Transition> Timeline::addTransition(TransitionType type, ClipId leftClipId,
+                                                  ClipId rightClipId, Frame requestedDuration) {
+  if (requestedDuration <= 0 || leftClipId == rightClipId) return std::nullopt;
+  const auto left = clip(leftClipId);
+  const auto right = clip(rightClipId);
+  if (!left || !right || left->trackId != right->trackId) return std::nullopt;
+  const auto leftDuration = left->sourceOut - left->sourceIn;
+  const auto rightDuration = right->sourceOut - right->sourceIn;
+  const auto leftEnd = left->timelineStart + leftDuration;
+  if (leftEnd != right->timelineStart) return std::nullopt;
+  const auto duration = std::min({requestedDuration, leftDuration, rightDuration});
+  if (duration <= 0) return std::nullopt;
+  const auto existing = std::ranges::find_if(transitions_, [&](const auto& transition) {
+    return transition.leftClipId == leftClipId && transition.rightClipId == rightClipId;
+  });
+  if (existing != transitions_.end()) return std::nullopt;
+  Transition transition{type, leftClipId, rightClipId, leftEnd - duration, duration};
+  transitions_.push_back(transition);
+  return transition;
+}
+
 std::optional<TimelineClip> Timeline::clip(ClipId id) const {
   const auto it = std::find_if(clips_.begin(), clips_.end(), [id](const auto& clip) { return clip.id == id; });
   return it == clips_.end() ? std::nullopt : std::optional<TimelineClip>(*it);
@@ -56,7 +77,9 @@ std::vector<TimelineClip> Timeline::clips(TrackId trackId) const {
   return result;
 }
 
-TimelineSnapshot Timeline::snapshot() const { return {durationFrames_, playheadFrame_, videoTracks_, clips_}; }
+TimelineSnapshot Timeline::snapshot() const {
+  return {durationFrames_, playheadFrame_, videoTracks_, clips_, transitions_};
+}
 
 bool Timeline::restore(const TimelineSnapshot& snapshot) {
   if (snapshot.durationFrames != durationFrames_ || snapshot.playheadFrame < 0 || snapshot.playheadFrame > durationFrames_) return false;
@@ -76,8 +99,18 @@ bool Timeline::restore(const TimelineSnapshot& snapshot) {
           other.timelineStart < clip.timelineStart + (clip.sourceOut - clip.sourceIn)))) return false;
     }
   }
+  for (const auto& transition : snapshot.transitions) {
+    const auto left = std::ranges::find_if(snapshot.clips, [&](const auto& clip) { return clip.id == transition.leftClipId; });
+    const auto right = std::ranges::find_if(snapshot.clips, [&](const auto& clip) { return clip.id == transition.rightClipId; });
+    if (left == snapshot.clips.end() || right == snapshot.clips.end() || transition.durationFrames <= 0 ||
+        left->trackId != right->trackId || left->timelineStart + (left->sourceOut - left->sourceIn) != right->timelineStart ||
+        transition.durationFrames > std::min(left->sourceOut - left->sourceIn, right->sourceOut - right->sourceIn) ||
+        transition.startFrame != right->timelineStart - transition.durationFrames)
+      return false;
+  }
   videoTracks_ = snapshot.videoTracks;
   clips_ = snapshot.clips;
+  transitions_ = snapshot.transitions;
   playheadFrame_ = snapshot.playheadFrame;
   nextTrackId_ = videoTracks_.empty() ? 1 : *std::ranges::max_element(videoTracks_) + 1;
   return true;
