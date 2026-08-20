@@ -204,6 +204,13 @@ int main(int argc, char** argv) {
   assert(runtime.addCurrentComponentToTimeline(60));
   assert(!runtime.demoOverlayEnabled());
   assert(runtime.clips().last().toMap().value("kind") == QStringLiteral("component"));
+  const auto componentTimelineProject = directory.path() + QStringLiteral("/component-timeline.edward.json");
+  assert(runtime.saveProject(componentTimelineProject));
+  edward::desktop::WorkbenchRuntime componentTimelineRuntime;
+  assert(componentTimelineRuntime.loadProject(componentTimelineProject));
+  assert(componentTimelineRuntime.clips().size() == runtime.clips().size());
+  assert(componentTimelineRuntime.clips().last().toMap().value("kind") == QStringLiteral("component"));
+  assert(!componentTimelineRuntime.demoOverlayEnabled());
   assert(!runtime.configureSilentComponentUploads(
       QStringLiteral("http://project.supabase.co/functions/v1/component-upload"),
       directory.path() + QStringLiteral("/upload-state.json"),
