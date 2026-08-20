@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：工作台显示“我的组件”资源
+
+- 目的：让本地组件库在工作台中可见、可点击，完成从保存到再次使用的入口闭环。
+- 涉及文件：`src/desktop/qml/Workbench.qml`、`tests/desktop/test_visual_routes.cpp`。
+- 结果：左侧素材库新增“我的组件”区域，支持选择组件库目录、列出本地组件并点击载入；保存组件时沿用同一目录选择器。载入操作仍走运行时的独立实例逻辑。
+- 验证：定向 CTest `desktop.visual_routes`、`desktop.workbench_plugins`、`resources.component_library` 通过；全量 CTest 34/34 通过。
+
 ## 2026-08-20：本地“我的组件库”闭环
 
 - 目的：让用户保存的组件包成为可发现、可重新载入的本地资源，而不是只保留一个任意文件夹路径。

@@ -25,42 +25,81 @@ ApplicationWindow {
                 Layout.preferredWidth: 240
                 Layout.fillHeight: true
                 color: DesignTokens.panel
-                Column {
-                    anchors.centerIn: parent
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
                     spacing: 12
                     Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        Layout.alignment: Qt.AlignHCenter
                         text: "素材库"
                         color: DesignTokens.textPrimary
                         font.pixelSize: 14
                     }
                     Button {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        Layout.alignment: Qt.AlignHCenter
                         text: workbenchRuntime.authenticated
                               ? "已登录: " + workbenchRuntime.authenticatedUsername
                               : "登录"
                         onClicked: workbenchRuntime.authenticated ? workbenchRuntime.signOut() : signInDialog.open()
                     }
                     Button {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        Layout.alignment: Qt.AlignHCenter
                         text: "+ 导入素材"
                         onClicked: mediaDialog.open()
                     }
                     Button {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        Layout.alignment: Qt.AlignHCenter
                         text: "保存工程"
                         onClicked: projectSaveDialog.open()
                     }
                     Button {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        Layout.alignment: Qt.AlignHCenter
                         text: "打开工程"
                         onClicked: projectOpenDialog.open()
                     }
                     Button {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        Layout.alignment: Qt.AlignHCenter
                         text: workbenchRuntime.timelineExportBusy ? "视频导出中" : "导出视频"
                         enabled: workbenchRuntime.clips.length > 0 && !workbenchRuntime.timelineExportBusy
                         onClicked: timelineExportDialog.open()
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        Layout.topMargin: 8
+                        color: DesignTokens.background
+                        radius: 4
+                        border.color: DesignTokens.divider
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: 6
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label { text: "我的组件"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                                Item { Layout.fillWidth: true }
+                                Button { text: "选择目录"; onClicked: componentLibraryDirectoryDialog.open() }
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                visible: workbenchRuntime.localComponents.length === 0
+                                text: "尚未保存组件"
+                                color: DesignTokens.textSecondary
+                                font.pixelSize: 12
+                            }
+                            ListView {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                model: workbenchRuntime.localComponents
+                                delegate: Button {
+                                    required property var modelData
+                                    width: ListView.view.width
+                                    text: modelData.displayName
+                                    onClicked: workbenchRuntime.loadLibraryComponent(modelData.resourceId)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -428,7 +467,9 @@ ApplicationWindow {
         id: componentLibraryDirectoryDialog
         title: "选择我的组件库目录"
         onAccepted: {
-            if (workbenchRuntime.configureComponentLibrary(selectedFolder.toLocalFile())
+            if (!workbenchRuntime.configureComponentLibrary(selectedFolder.toLocalFile()))
+                return
+            if (componentLibrarySaveDialog.visible
                     && workbenchRuntime.saveCurrentComponentToLibrary(libraryResourceId.text,
                                                                        libraryDisplayName.text))
                 componentLibrarySaveDialog.close()
