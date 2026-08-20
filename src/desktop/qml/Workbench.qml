@@ -243,15 +243,13 @@ ApplicationWindow {
                         height: 64
                         clip: true
                         model: workbenchRuntime.selectedComponentNodeKeyframes
-                        delegate: Label {
+                        delegate: Button {
                             required property var modelData
-                            text: modelData.field + " @ " + modelData.frame
-                            color: DesignTokens.textSecondary
+                            width: 220
+                            height: 22
+                            text: modelData.field + " @ " + modelData.frame + "  删除"
                             font.pixelSize: 11
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: workbenchRuntime.removeSelectedComponentNodeKeyframe(modelData.field, modelData.frame)
-                            }
+                            onClicked: workbenchRuntime.removeSelectedComponentNodeKeyframe(modelData.field, modelData.frame)
                         }
                     }
                     Label {
