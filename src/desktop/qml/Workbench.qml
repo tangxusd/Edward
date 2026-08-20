@@ -6,6 +6,7 @@ import "."
 
 ApplicationWindow {
     id: window
+    property var importedMediaClips: workbenchRuntime.clips.filter(function(clip) { return clip.kind === "media"; })
     visible: true
     title: "Edward"
     color: DesignTokens.background
@@ -62,6 +63,24 @@ ApplicationWindow {
                         text: workbenchRuntime.timelineExportBusy ? "视频导出中" : "导出视频"
                         enabled: workbenchRuntime.clips.length > 0 && !workbenchRuntime.timelineExportBusy
                         onClicked: timelineExportDialog.open()
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        text: "已导入素材"
+                        color: DesignTokens.textPrimary
+                        font.pixelSize: 13
+                    }
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 100
+                        clip: true
+                        model: window.importedMediaClips
+                        delegate: Button {
+                            required property var modelData
+                            width: ListView.view.width
+                            text: modelData.name || "未命名素材"
+                            onClicked: workbenchRuntime.selectClip(modelData.id)
+                        }
                     }
                     Rectangle {
                         Layout.fillWidth: true
