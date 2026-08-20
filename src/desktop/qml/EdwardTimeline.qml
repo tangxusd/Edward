@@ -92,6 +92,10 @@ Item {
             text: "重做"
             onClicked: workbenchRuntime.redoTimeline()
         }
+        Button {
+            text: "新增视频轨"
+            onClicked: workbenchRuntime.addVideoTrack()
+        }
         Item {
             Layout.fillWidth: true
         }

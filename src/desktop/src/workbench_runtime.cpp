@@ -1454,6 +1454,17 @@ bool WorkbenchRuntime::trimSelectedRight() {
   return true;
 }
 
+bool WorkbenchRuntime::addVideoTrack() {
+  const auto track = timeline_.addVideoTrack();
+  if (track == 0) {
+    emit operationFailed(QStringLiteral("无法新增视频轨"));
+    return false;
+  }
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("已新增视频轨"));
+  return true;
+}
+
 bool WorkbenchRuntime::undoTimeline() {
   if (!controller_.undo()) return false;
   refreshDemoOverlay();
