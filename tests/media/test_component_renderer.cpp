@@ -62,5 +62,18 @@ int main(int argc, char** argv) {
   const auto before = edward::media::ComponentRenderer{}.render(*text, 0, {100, 100});
   const auto after = edward::media::ComponentRenderer{}.render(*text, 10, {100, 100});
   assert(before != after);
+
+  const QJsonObject animatedColorRoot{{"id", "color"}, {"type", "shape"},
+      {"transform", QJsonObject{{"x", 0}, {"y", 0}, {"width", 20}, {"height", 20}}},
+      {"properties", QJsonObject{{"fill", "#ff0000"}}},
+      {"keyframes", QJsonObject{{"fill", QJsonArray{
+          QJsonObject{{"frame", 0}, {"value", "#ff0000"}},
+          QJsonObject{{"frame", 10}, {"value", "#0000ff"}}}}}}};
+  const auto animatedColorComponent = edward::core::ComponentIr::parse({{"version", "1"}, {"root", animatedColorRoot}});
+  assert(animatedColorComponent);
+  const auto colorFrame0 = edward::media::ComponentRenderer{}.render(*animatedColorComponent, 0, {100, 100});
+  const auto colorFrame10 = edward::media::ComponentRenderer{}.render(*animatedColorComponent, 10, {100, 100});
+  assert(colorFrame0.pixelColor(40, 50).red() > 200 && colorFrame0.pixelColor(40, 50).blue() < 80);
+  assert(colorFrame10.pixelColor(40, 50).blue() > 200 && colorFrame10.pixelColor(40, 50).red() < 80);
   return 0;
 }

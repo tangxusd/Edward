@@ -71,6 +71,36 @@ QColor color(const QJsonObject& properties, const char* key, const QColor& fallb
   return parsed.isValid() ? parsed : fallback;
 }
 
+QColor animatedColor(const QJsonObject& properties, const QJsonObject& keyframes,
+                     const char* key, int frame, const QColor& fallback) {
+  const auto frames = keyframes.value(QLatin1String(key)).toArray();
+  if (frames.isEmpty()) return color(properties, key, fallback);
+  struct Point { int frame; QColor value; };
+  std::vector<Point> points;
+  for (const auto& value : frames) {
+    const auto item = value.toObject();
+    const QColor parsed(item.value("value").toString());
+    if (item.value("frame").isDouble() && parsed.isValid())
+      points.push_back({item.value("frame").toInt(), parsed});
+  }
+  if (points.empty()) return color(properties, key, fallback);
+  std::sort(points.begin(), points.end(), [](const Point& a, const Point& b) { return a.frame < b.frame; });
+  if (frame <= points.front().frame) return points.front().value;
+  if (frame >= points.back().frame) return points.back().value;
+  for (size_t i = 1; i < points.size(); ++i) {
+    if (frame <= points[i].frame) {
+      const auto& left = points[i - 1];
+      const auto& right = points[i];
+      const double t = static_cast<double>(frame - left.frame) / (right.frame - left.frame);
+      const auto lerp = [t](int a, int b) { return static_cast<int>(a + (b - a) * t + 0.5); };
+      QColor result(lerp(left.value.red(), right.value.red()), lerp(left.value.green(), right.value.green()),
+                   lerp(left.value.blue(), right.value.blue()), lerp(left.value.alpha(), right.value.alpha()));
+      return result;
+    }
+  }
+  return fallback;
+}
+
 void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int frame) {
   const auto& transform = node.transform;
   const auto& properties = node.properties;
@@ -92,7 +122,7 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
   const QRectF bounds(-width / 2.0, -height / 2.0, width, height);
   switch (node.type) {
     case edward::core::ComponentNodeType::Text: {
-      painter.setPen(color(properties, "color", Qt::white));
+      painter.setPen(animatedColor(properties, node.keyframes, "color", frame, Qt::white));
       QFont font;
       const auto family = properties.value("fontFamily").toString();
       if (!family.isEmpty()) font.setFamily(family);
@@ -107,11 +137,11 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
       const double borderWidth = std::max(0.0, animatedNumber(node.keyframes, "borderWidth", frame,
                                                                 number(properties, "borderWidth", 0)));
       if (borderWidth > 0) {
-        painter.setPen(QPen(color(properties, "borderColor", Qt::white), borderWidth));
+        painter.setPen(QPen(animatedColor(properties, node.keyframes, "borderColor", frame, Qt::white), borderWidth));
       } else {
         painter.setPen(Qt::NoPen);
       }
-      painter.setBrush(color(properties, "fill", Qt::white));
+      painter.setBrush(animatedColor(properties, node.keyframes, "fill", frame, Qt::white));
       if (properties.value("shape").toString() == "ellipse") painter.drawEllipse(bounds);
       else painter.drawRect(bounds);
       break;
