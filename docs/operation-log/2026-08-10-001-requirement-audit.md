@@ -2351,3 +2351,9 @@
 - 目的：为后续 AI 对话接入提供统一、可测试的 OpenAI 兼容 Chat Completions 请求边界，不把 API 密钥写入工程或源码。
 - 修改：新增 `ModelChatClient` 请求构造和 assistant 文本提取接口；请求配置只接受 HTTPS 端点、运行时 API Key、模型 ID 及非空系统/用户提示词；响应缺少 `choices.message.content` 时明确失败。当前模块只负责协议边界，尚未自动发起网络请求或改变工程状态。
 - 验证：新增请求体、HTTPS、密钥、模型和响应字段测试；`cmake --build build/0.3-runtime -j2` 成功；完整 CTest 33/33 通过。
+
+## 2026-08-20 AI 异步请求接入工作台
+
+- 目的：把模型请求基础客户端接入工作台，使真实模型返回的结构化编辑命令自动进入待确认草案，而不是直接修改工程。
+- 修改：`ModelChatClient` 增加异步 HTTPS POST、Bearer 认证和 OpenAI 兼容响应处理；工作台增加模型端点、运行时 API Key、模型 ID和提示词输入，收到 assistant 文本后复用同一 JSON 命令解析与草案校验。请求失败、非 HTTPS 端点和非结构化模型输出均显示失败，不改变组件状态。
+- 验证：定向资源、工作台和视觉路由测试通过；完整 `ctest --test-dir build/0.3-runtime --output-on-failure` 33/33 通过。当前未使用真实外部模型端点，网络成功路径由协议解析和后续集成测试覆盖。

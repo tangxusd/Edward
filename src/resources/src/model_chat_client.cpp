@@ -1,6 +1,9 @@
 #include "edward/resources/model_chat_client.hpp"
 
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QUrl>
 
 namespace edward::resources {
@@ -42,6 +45,36 @@ std::optional<QString> ModelChatClient::extractAssistantText(const QJsonObject& 
     return std::nullopt;
   }
   return content.toString();
+}
+
+bool ModelChatClient::request(const ModelChatConfig& config, const QString& systemPrompt,
+                             const QString& userPrompt) {
+  QString error;
+  const auto requestData = buildRequest(config, systemPrompt, userPrompt, &error);
+  if (!requestData) {
+    emit completed(false, error);
+    return false;
+  }
+  QNetworkRequest request{QUrl(requestData->endpoint)};
+  request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("Authorization", QByteArray("Bearer ") + requestData->apiKey.toUtf8());
+  auto* reply = network_.post(request, QJsonDocument(requestData->body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto body = reply->readAll();
+    QJsonParseError parseError;
+    const auto response = QJsonDocument::fromJson(body, &parseError);
+    if (reply->error() != QNetworkReply::NoError) {
+      emit completed(false, reply->errorString());
+    } else if (parseError.error != QJsonParseError::NoError || !response.isObject()) {
+      emit completed(false, QStringLiteral("AI 响应不是有效 JSON"));
+    } else {
+      QString error;
+      const auto text = extractAssistantText(response.object(), &error);
+      emit completed(text.has_value(), text ? *text : error);
+    }
+    reply->deleteLater();
+  });
+  return true;
 }
 
 }  // namespace edward::resources

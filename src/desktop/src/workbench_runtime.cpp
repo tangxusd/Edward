@@ -118,6 +118,16 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
             }
             emit timelineChanged();
           });
+  connect(&modelChatClient_, &edward::resources::ModelChatClient::completed, this,
+          [this](bool success, const QString& result) {
+            aiRequestBusy_ = false;
+            if (!success) {
+              emit operationFailed(QStringLiteral("AI 请求失败：%1").arg(result));
+            } else if (!proposeAiComponentCommand(result)) {
+              return;
+            }
+            emit timelineChanged();
+          });
   connect(&pluginFrameWatcher_, &QFutureWatcher<PluginFrameResult>::finished, this, [this] {
     pluginRenderBusy_ = false;
     const auto result = pluginFrameWatcher_.result();
@@ -286,6 +296,26 @@ bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
   refreshDemoOverlay();
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("AI 组件编辑已应用"));
+  return true;
+}
+
+bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
+                                               const QString& model, const QString& prompt) {
+  if (aiRequestBusy_) return false;
+  if (!demoOverlayIr_) {
+    emit operationFailed(QStringLiteral("AI 请求失败：当前没有可编辑组件"));
+    return false;
+  }
+  const auto systemPrompt = QStringLiteral(
+      "Return exactly one JSON object for Edward component editing. Allowed operations are "
+      "setTransformNumber, setProperty, setKeyframeValue. Do not use Markdown or code fences.");
+  aiRequestBusy_ = true;
+  emit timelineChanged();
+  if (!modelChatClient_.request({endpoint, apiKey, model}, systemPrompt, prompt)) {
+    aiRequestBusy_ = false;
+    emit timelineChanged();
+    return false;
+  }
   return true;
 }
 

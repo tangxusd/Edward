@@ -15,6 +15,7 @@
 #include "edward/resources/auth_session_store.hpp"
 #include "edward/resources/component_upload.hpp"
 #include "edward/resources/component_upload_dispatcher.hpp"
+#include "edward/resources/model_chat_client.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
 
 namespace edward::desktop {
@@ -46,6 +47,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool componentUploadBusy READ componentUploadBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool aiComponentDraftAvailable READ aiComponentDraftAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString aiComponentDraft READ aiComponentDraft NOTIFY timelineChanged)
+  Q_PROPERTY(bool aiRequestBusy READ aiRequestBusy NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -74,6 +76,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
   [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
   [[nodiscard]] QString aiComponentDraft() const { return aiComponentDraftJson_; }
+  [[nodiscard]] bool aiRequestBusy() const { return aiRequestBusy_; }
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -89,6 +92,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
+  Q_INVOKABLE bool requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
+                                           const QString& model, const QString& prompt);
   Q_INVOKABLE bool proposeAiComponentCommand(const QString& json);
   Q_INVOKABLE bool applyPendingAiComponentCommand();
   Q_INVOKABLE void discardPendingAiComponentCommand();
@@ -174,6 +179,8 @@ class WorkbenchRuntime final : public QObject {
   bool componentUploadBusy_ = false;
   std::optional<edward::core::ComponentIr> aiComponentDraft_;
   QString aiComponentDraftJson_;
+  edward::resources::ModelChatClient modelChatClient_;
+  bool aiRequestBusy_ = false;
   std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;

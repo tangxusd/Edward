@@ -153,6 +153,12 @@ ApplicationWindow {
                         text: workbenchRuntime.aiComponentDraftAvailable ? "有待确认草案" : "无待确认草案"
                         color: workbenchRuntime.aiComponentDraftAvailable ? DesignTokens.accent : DesignTokens.textSecondary
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.aiRequestBusy ? "AI 请求中" : "使用模型生成草案"
+                        enabled: !workbenchRuntime.aiRequestBusy
+                        onClicked: aiModelDialog.open()
+                    }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "组件 X: " + workbenchRuntime.demoOverlayX
@@ -389,6 +395,27 @@ ApplicationWindow {
             if (workbenchRuntime.uploadCurrentComponent(componentUploadEndpoint.text,
                                                         componentUploadResourceId.text,
                                                         componentUploadDisplayName.text))
+                close()
+        }
+    }
+
+    Dialog {
+        id: aiModelDialog
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "使用 AI 生成组件草案"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        contentItem: Column {
+            spacing: 10
+            TextField { id: aiEndpoint; placeholderText: "模型 HTTPS 端点" }
+            TextField { id: aiApiKey; placeholderText: "API Key"; echoMode: TextInput.Password }
+            TextField { id: aiModel; placeholderText: "模型 ID，例如 deepseek-chat" }
+            TextArea { id: aiPrompt; width: 360; height: 90; placeholderText: "描述要修改的组件效果" }
+        }
+        onAccepted: {
+            if (workbenchRuntime.requestAiComponentDraft(aiEndpoint.text, aiApiKey.text,
+                                                         aiModel.text, aiPrompt.text))
                 close()
         }
     }
