@@ -10,11 +10,14 @@
 
 namespace edward::media {
 
+enum class ExportQuality { High, Medium, Low };
+
 struct ExportRequest {
   std::filesystem::path outputPath;
   QSize outputSize{1920, 1080};
   int fpsNumerator = 25;
   int fpsDenominator = 1;
+  ExportQuality quality = ExportQuality::High;
 };
 
 struct ExportResult {

@@ -74,6 +74,8 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
       << QStringLiteral("-c:a") << QStringLiteral("aac") << QStringLiteral("-shortest");
   }
   arguments << QStringLiteral("-c:v") << QStringLiteral("libx264")
+    << QStringLiteral("-crf") << QString::number(request.quality == ExportQuality::High ? 18
+                                               : request.quality == ExportQuality::Medium ? 23 : 28)
     << QStringLiteral("-pix_fmt") << QStringLiteral("yuv420p")
     << QStringLiteral("-y") << QString::fromStdString(request.outputPath.string());
 

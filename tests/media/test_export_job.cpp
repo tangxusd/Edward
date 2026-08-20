@@ -28,7 +28,10 @@ int main(int argc, char** argv) {
   assert(overlay);
   const edward::media::RenderGraph graph(adapter, *overlay);
   const edward::media::ExportJob job(graph);
-  const auto result = job.run(timeline.snapshot(), {output, {1920, 1080}, 25, 1});
+  assert(!job.run(timeline.snapshot(), {output, {}, 25, 1}));
+  assert(!job.run(timeline.snapshot(), {output, {1920, 1080}, 0, 1}));
+  const auto result = job.run(timeline.snapshot(), {output, {1920, 1080}, 25, 1,
+                                                    edward::media::ExportQuality::High});
   assert(result.has_value());
   assert(result->frameCount == 25);
   const auto info = edward::media::MediaProbe::probe(output);
