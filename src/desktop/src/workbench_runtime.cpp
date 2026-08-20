@@ -297,6 +297,29 @@ QString WorkbenchRuntime::selectedComponentNodeType() const {
   return node ? node->value("type").toString() : QString{};
 }
 
+QVariantList WorkbenchRuntime::selectedComponentNodeKeyframes() const {
+  QVariantList result;
+  if (!demoOverlayIr_) return result;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node) return result;
+  const auto keyframes = node->value("keyframes").toObject();
+  for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
+    for (const auto& frameValue : it.value().toArray()) {
+      const auto frame = frameValue.toObject();
+      if (!frame.value("frame").isDouble()) continue;
+      QVariantMap item;
+      item.insert(QStringLiteral("field"), it.key());
+      item.insert(QStringLiteral("frame"), frame.value("frame").toInt());
+      item.insert(QStringLiteral("value"), frame.value("value").toVariant());
+      result.push_back(item);
+    }
+  }
+  std::sort(result.begin(), result.end(), [](const QVariant& left, const QVariant& right) {
+    return left.toMap().value(QStringLiteral("frame")).toInt() < right.toMap().value(QStringLiteral("frame")).toInt();
+  });
+  return result;
+}
+
 int WorkbenchRuntime::selectedComponentNodeY() const {
   if (!demoOverlayIr_) return 0;
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);

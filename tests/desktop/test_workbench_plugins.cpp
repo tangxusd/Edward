@@ -136,6 +136,7 @@ int main(int argc, char** argv) {
   assert(runtime.selectedComponentNodeOpacity() == 0.6);
   runtime.setSelectedComponentNodeColor(QStringLiteral("#ff0000"));
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
+  assert(!runtime.selectedComponentNodeKeyframes().isEmpty());
   runtime.setSelectedComponentNodeColor(QStringLiteral("red"));
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
   assert(runtime.selectComponentNode(QStringLiteral("demo-box")));

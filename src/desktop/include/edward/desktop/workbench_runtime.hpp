@@ -42,6 +42,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QVariantList componentNodes READ componentNodes NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeId READ selectedComponentNodeId NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeType READ selectedComponentNodeType NOTIFY timelineChanged)
+  Q_PROPERTY(QVariantList selectedComponentNodeKeyframes READ selectedComponentNodeKeyframes NOTIFY timelineChanged)
   Q_PROPERTY(int selectedComponentNodeX READ selectedComponentNodeX WRITE setSelectedComponentNodeX NOTIFY timelineChanged)
   Q_PROPERTY(int selectedComponentNodeY READ selectedComponentNodeY WRITE setSelectedComponentNodeY NOTIFY timelineChanged)
   Q_PROPERTY(int selectedComponentNodeWidth READ selectedComponentNodeWidth WRITE setSelectedComponentNodeWidth NOTIFY timelineChanged)
@@ -88,6 +89,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QVariantList componentNodes() const;
   [[nodiscard]] QString selectedComponentNodeId() const { return selectedComponentNodeId_; }
   [[nodiscard]] QString selectedComponentNodeType() const;
+  [[nodiscard]] QVariantList selectedComponentNodeKeyframes() const;
   [[nodiscard]] int selectedComponentNodeX() const;
   [[nodiscard]] int selectedComponentNodeY() const;
   [[nodiscard]] int selectedComponentNodeWidth() const;

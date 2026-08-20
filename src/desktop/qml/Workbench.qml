@@ -234,6 +234,24 @@ ApplicationWindow {
                     }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "关键帧: " + workbenchRuntime.selectedComponentNodeKeyframes.length
+                        color: DesignTokens.textSecondary
+                    }
+                    ListView {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        height: 64
+                        clip: true
+                        model: workbenchRuntime.selectedComponentNodeKeyframes
+                        delegate: Label {
+                            required property var modelData
+                            text: modelData.field + " @ " + modelData.frame
+                            color: DesignTokens.textSecondary
+                            font.pixelSize: 11
+                        }
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "组件 AI 会话"
                         color: DesignTokens.textSecondary
                     }
