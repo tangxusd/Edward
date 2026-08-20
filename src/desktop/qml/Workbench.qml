@@ -131,7 +131,6 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
             playheadFrame: workbenchRuntime.playheadFrame
-            videoTrackCount: workbenchRuntime.videoTrackCount
                     hasFrame: workbenchRuntime.clips.length > 0
                     componentOverlayEnabled: workbenchRuntime.demoOverlayEnabled
                     componentX: workbenchRuntime.demoOverlayX

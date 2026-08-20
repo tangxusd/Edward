@@ -2684,3 +2684,9 @@
 - 目的：落实已确认的时间线音频波形需求，避免使用仅具装饰性的伪波形。
 - 修改：新增 `AudioWaveformExtractor`，先用 ffprobe 读取音频采样率与时长，再由 FFmpeg 解码单声道 PCM，流式汇总为固定桶数的归一化峰值；支持源文件任意时间区间。工作台对有音频的媒体片段异步提取 96 个峰值，时间线 Canvas 绘制波形；分割、裁切和重开工程会作废旧任务并按新的源区间重新计算。
 - 验证：新测试覆盖无音频、无效桶数、无效区间、音频夹具和半段提取；工作台回归等待实际异步波形进入片段模型。`media.audio_waveform`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 5/5 通过，构建和 `git diff --check` 通过。
+
+## 2026-08-20 工作台 QML 离屏启动复核
+
+- 目的：补足源文件路由测试不能发现的 QML 运行时属性绑定问题。
+- 发现与修复：离屏启动首次发现 `videoTrackCount` 被错误传给不具备该属性的 `EdwardPreview`，已移除；随后发现组件时间边界提示引用未定义的 `DesignTokens.warning`，已补齐警告色令牌。
+- 验证：重新构建后，`QT_QPA_PLATFORM=offscreen` 下限时启动 `edward_app` 正常加载工作台，无 QML 加载或属性赋值错误；仅保留 Qt 系统默认字体别名的性能提示。

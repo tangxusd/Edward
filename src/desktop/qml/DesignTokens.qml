@@ -9,6 +9,7 @@ QtObject {
     readonly property color textPrimary: "#f2f2f2"
     readonly property color textSecondary: "#9b9b9b"
     readonly property color accent: "#10c7d4"
+    readonly property color warning: "#f2b84b"
     readonly property color selection: "#245a63"
     readonly property color videoClip: "#2c86ad"
     readonly property color audioClip: "#8bbf91"
