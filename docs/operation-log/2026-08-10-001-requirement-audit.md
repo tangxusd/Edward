@@ -2571,3 +2571,9 @@
 - 目的：保证属性面板、预览拖拽和渲染器使用同一组件时间坐标，避免后段组件编辑后导出与预览不一致。
 - 修改：组件绑定或选中编辑时，所有变换与属性关键帧写入改为 `工程播放头 - 组件起始帧`；未进入时间线的组件仍以工程播放头记录。
 - 验证：定向回归覆盖绑定于第 10 帧的组件在播放头第 12 帧写入本地第 2 帧，以及移动到第 30 帧后在播放头第 35 帧写入本地第 5 帧。`desktop.workbench_plugins`、`media.render_graph`、`media.component_renderer` 3/3 通过，`git diff --check` 通过。
+
+## 2026-08-20 组件关键帧可编辑时间边界
+
+- 目的：防止用户在组件出现前或结束后修改属性时，关键帧被静默夹到组件本地第 0 帧。
+- 修改：已进入时间线的组件仅在其 `[起始帧, 结束帧)` 内接受属性面板和拖拽产生的关键帧写入；范围外保持 Component IR 不变，并在右侧面板显示“播放头不在组件时间范围内”。
+- 验证：先写出播放头位于组件起点前时 Component IR 必须不变的失败测试，再实现。`desktop.workbench_plugins`、`desktop.visual_routes`、`media.render_graph`、`media.component_renderer` 4/4 通过，`git diff --check` 通过。

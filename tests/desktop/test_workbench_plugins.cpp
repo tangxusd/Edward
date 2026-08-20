@@ -289,6 +289,11 @@ int main(int argc, char** argv) {
   for (const auto& keyframe : localTimeBox.value("keyframes").toObject().value("x").toArray())
     hasLocalFrame = hasLocalFrame || keyframe.toObject().value("frame").toInt(-1) == 5;
   assert(hasLocalFrame);
+  const auto beforeOutOfRangeEdit = componentTimelineRuntime.componentJson();
+  assert(componentTimelineRuntime.setPlayhead(29));
+  componentTimelineRuntime.setDemoOverlayX(-200);
+  assert(componentTimelineRuntime.componentJson() == beforeOutOfRangeEdit);
+  assert(componentTimelineRuntime.setPlayhead(35));
   componentTimelineRuntime.setDemoOverlayText(QStringLiteral("编辑后的组件"));
   assert(componentTimelineRuntime.demoOverlayText() == QStringLiteral("编辑后的组件"));
   assert(componentTimelineRuntime.saveProject(componentTimelineProject));

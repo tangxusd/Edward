@@ -267,11 +267,23 @@ void WorkbenchRuntime::syncDemoOverlayProperties(const QJsonObject& component) {
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
 
+bool WorkbenchRuntime::componentPlayheadIsEditable() const {
+  const auto clipId = editingComponentClipId_ != 0 ? editingComponentClipId_ : componentClipId_;
+  if (clipId != 0) {
+    if (const auto clip = timeline_.clip(clipId)) {
+      const auto start = static_cast<int>(clip->timelineStart);
+      const auto end = start + static_cast<int>(clip->sourceOut - clip->sourceIn);
+      return playheadFrame() >= start && playheadFrame() < end;
+    }
+  }
+  return true;
+}
+
 int WorkbenchRuntime::componentKeyframeFrame() const {
   const auto clipId = editingComponentClipId_ != 0 ? editingComponentClipId_ : componentClipId_;
   if (clipId != 0) {
     if (const auto clip = timeline_.clip(clipId))
-      return std::max(0, playheadFrame() - static_cast<int>(clip->timelineStart));
+      return playheadFrame() - static_cast<int>(clip->timelineStart);
   }
   return playheadFrame();
 }
@@ -1071,6 +1083,7 @@ void WorkbenchRuntime::clearComponentOverlay() {
 }
 
 void WorkbenchRuntime::setDemoOverlayX(int value) {
+  if (!componentPlayheadIsEditable()) return;
   const int clamped = std::max(-640, std::min(value, 640));
   if (demoOverlayX_ == clamped) return;
   demoOverlayX_ = clamped;
@@ -1083,6 +1096,7 @@ void WorkbenchRuntime::setDemoOverlayX(int value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayY(int value) {
+  if (!componentPlayheadIsEditable()) return;
   const int clamped = std::max(-360, std::min(value, 360));
   if (demoOverlayY_ == clamped) return;
   demoOverlayY_ = clamped;
@@ -1095,6 +1109,7 @@ void WorkbenchRuntime::setDemoOverlayY(int value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayWidth(int value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayWidth_ = std::max(40, std::min(value, 640));
   if (demoOverlayIr_) {
     setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "width", demoOverlayWidth_, componentKeyframeFrame());
@@ -1104,6 +1119,7 @@ void WorkbenchRuntime::setDemoOverlayWidth(int value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayHeight(int value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayHeight_ = std::max(24, std::min(value, 360));
   if (demoOverlayIr_) {
     setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "height", demoOverlayHeight_, componentKeyframeFrame());
@@ -1113,6 +1129,7 @@ void WorkbenchRuntime::setDemoOverlayHeight(int value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayScale(double value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayScale_ = std::max(0.1, std::min(value, 3.0));
   if (demoOverlayIr_) {
     setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "scaleX", demoOverlayScale_, componentKeyframeFrame());
@@ -1123,6 +1140,7 @@ void WorkbenchRuntime::setDemoOverlayScale(double value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayRotation(double value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayRotation_ = std::max(-180.0, std::min(value, 180.0));
   if (demoOverlayIr_) {
     setTransformAndKeyframe(*demoOverlayIr_, "demo-box", "rotation", demoOverlayRotation_, componentKeyframeFrame());
@@ -1132,6 +1150,7 @@ void WorkbenchRuntime::setDemoOverlayRotation(double value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayOpacity_ = std::max(0.0, std::min(value, 1.0));
   if (demoOverlayIr_) {
     setPropertyAndKeyframe(*demoOverlayIr_, "demo-box", "opacity", demoOverlayOpacity_, componentKeyframeFrame());
@@ -1141,6 +1160,7 @@ void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayText_ = value.left(120);
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
@@ -1150,6 +1170,7 @@ void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayFontSize_ = std::max(8, std::min(value, 96));
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
@@ -1159,6 +1180,7 @@ void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
 }
 
 void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
+  if (!componentPlayheadIsEditable()) return;
   demoOverlayBorderWidth_ = std::max(0, std::min(value, 32));
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
@@ -1168,7 +1190,7 @@ void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("x"),
                           std::max(-640, std::min(value, 640)), componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1176,7 +1198,7 @@ void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("y"),
                           std::max(-360, std::min(value, 360)), componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1184,7 +1206,7 @@ void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeWidth(int value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("width"),
                           std::max(1, std::min(value, 640)), componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1192,7 +1214,7 @@ void WorkbenchRuntime::setSelectedComponentNodeWidth(int value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("height"),
                           std::max(1, std::min(value, 360)), componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1200,7 +1222,7 @@ void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeRotation(double value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto clamped = std::max(-180.0, std::min(value, 180.0));
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("rotation"),
                           clamped, componentKeyframeFrame());
@@ -1209,7 +1231,7 @@ void WorkbenchRuntime::setSelectedComponentNodeRotation(double value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeOpacity(double value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto clamped = std::max(0.0, std::min(value, 1.0));
   setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("opacity"),
                          clamped, componentKeyframeFrame());
@@ -1218,7 +1240,7 @@ void WorkbenchRuntime::setSelectedComponentNodeOpacity(double value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeColor(const QString& value) {
-  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
   const auto type = node->value("type").toString();
   const auto field = type == QStringLiteral("shape") ? QStringLiteral("fill") : QStringLiteral("color");
@@ -1230,7 +1252,7 @@ void WorkbenchRuntime::setSelectedComponentNodeColor(const QString& value) {
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeBorderColor(const QString& value) {
-  if (!demoOverlayIr_) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable()) return;
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
   if (!node || node->value("type").toString() != QStringLiteral("shape")) return;
   const auto color = value.trimmed().left(32);
@@ -1241,7 +1263,7 @@ void WorkbenchRuntime::setSelectedComponentNodeBorderColor(const QString& value)
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeFontFamily(const QString& value) {
-  if (!demoOverlayIr_) return;
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable()) return;
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
   if (!node || node->value("type").toString() != QStringLiteral("text")) return;
   const auto family = value.trimmed().left(120);

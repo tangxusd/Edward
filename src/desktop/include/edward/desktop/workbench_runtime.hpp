@@ -29,6 +29,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QVariantList clips READ clips NOTIFY timelineChanged)
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
   Q_PROPERTY(bool componentBoundToClip READ componentBoundToClip NOTIFY timelineChanged)
+  Q_PROPERTY(bool componentPlayheadEditable READ componentPlayheadIsEditable NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayX READ demoOverlayX WRITE setDemoOverlayX NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayY READ demoOverlayY WRITE setDemoOverlayY NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayWidth READ demoOverlayWidth WRITE setDemoOverlayWidth NOTIFY timelineChanged)
@@ -76,6 +77,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
   [[nodiscard]] bool componentBoundToClip() const { return componentClipId_ != 0; }
+  [[nodiscard]] bool componentPlayheadIsEditable() const;
   [[nodiscard]] int demoOverlayX() const { return demoOverlayX_; }
   [[nodiscard]] int demoOverlayY() const { return demoOverlayY_; }
   [[nodiscard]] int demoOverlayWidth() const { return demoOverlayWidth_; }

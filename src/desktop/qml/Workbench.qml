@@ -237,6 +237,13 @@ ApplicationWindow {
                         text: "关键帧: " + workbenchRuntime.selectedComponentNodeKeyframes.length
                         color: DesignTokens.textSecondary
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: workbenchRuntime.demoOverlayEnabled && !workbenchRuntime.componentPlayheadEditable
+                        text: "播放头不在组件时间范围内"
+                        color: DesignTokens.warning
+                        font.pixelSize: 11
+                    }
                     ListView {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 220
