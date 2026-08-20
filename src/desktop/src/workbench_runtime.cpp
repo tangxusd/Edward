@@ -291,6 +291,12 @@ int WorkbenchRuntime::selectedComponentNodeX() const {
   return node ? node->value("transform").toObject().value("x").toInt() : 0;
 }
 
+QString WorkbenchRuntime::selectedComponentNodeType() const {
+  if (!demoOverlayIr_) return {};
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("type").toString() : QString{};
+}
+
 int WorkbenchRuntime::selectedComponentNodeY() const {
   if (!demoOverlayIr_) return 0;
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);

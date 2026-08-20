@@ -126,6 +126,7 @@ int main(int argc, char** argv) {
   runtime.setSelectedComponentNodeColor(QStringLiteral("red"));
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
   assert(runtime.selectComponentNode(QStringLiteral("demo-box")));
+  assert(runtime.selectedComponentNodeType() == QStringLiteral("shape"));
   runtime.setSelectedComponentNodeBorderColor(QStringLiteral("#ffffff"));
   assert(runtime.selectedComponentNodeBorderColor() == QStringLiteral("#ffffff"));
   assert(runtime.selectComponentNode(QStringLiteral("demo-text")));

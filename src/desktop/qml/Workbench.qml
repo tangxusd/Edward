@@ -356,7 +356,8 @@ ApplicationWindow {
                         width: 220
                         text: workbenchRuntime.selectedComponentNodeColor
                         placeholderText: "节点颜色，例如 #00b8c8"
-                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        enabled: workbenchRuntime.selectedComponentNodeType === "text" ||
+                                 workbenchRuntime.selectedComponentNodeType === "shape"
                         onEditingFinished: workbenchRuntime.selectedComponentNodeColor = text
                     }
                     TextField {
@@ -364,7 +365,7 @@ ApplicationWindow {
                         width: 220
                         text: workbenchRuntime.selectedComponentNodeBorderColor
                         placeholderText: "边框颜色，例如 #ffffff"
-                        enabled: workbenchRuntime.selectedComponentNodeBorderColor !== ""
+                        enabled: workbenchRuntime.selectedComponentNodeType === "shape"
                         onEditingFinished: workbenchRuntime.selectedComponentNodeBorderColor = text
                     }
                     TextField {
