@@ -329,6 +329,13 @@ QString WorkbenchRuntime::selectedComponentNodeColor() const {
   return properties.value(type == QStringLiteral("shape") ? "fill" : "color").toString();
 }
 
+QString WorkbenchRuntime::selectedComponentNodeBorderColor() const {
+  if (!demoOverlayIr_) return {};
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node || node->value("type").toString() != QStringLiteral("shape")) return {};
+  return node->value("properties").toObject().value("borderColor").toString();
+}
+
 QJsonObject WorkbenchRuntime::componentJson() const {
   return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
 }
@@ -1142,6 +1149,17 @@ void WorkbenchRuntime::setSelectedComponentNodeColor(const QString& value) {
   const auto color = value.trimmed().left(32);
   if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
   setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, field, color, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeBorderColor(const QString& value) {
+  if (!demoOverlayIr_) return;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node || node->value("type").toString() != QStringLiteral("shape")) return;
+  const auto color = value.trimmed().left(32);
+  if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("borderColor"), color, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }

@@ -125,6 +125,9 @@ int main(int argc, char** argv) {
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
   runtime.setSelectedComponentNodeColor(QStringLiteral("red"));
   assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
+  assert(runtime.selectComponentNode(QStringLiteral("demo-box")));
+  runtime.setSelectedComponentNodeBorderColor(QStringLiteral("#ffffff"));
+  assert(runtime.selectedComponentNodeBorderColor() == QStringLiteral("#ffffff"));
   runtime.setDemoOverlayFontSize(31);
   assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(1).toObject()
              .value("properties").toObject().value("fontSize").toInt() == 31);
