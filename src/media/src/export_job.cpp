@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QProcess>
+#include <QTemporaryFile>
 
 #include <vector>
 
@@ -31,7 +32,12 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
   std::error_code error;
   std::filesystem::create_directories(request.outputPath.parent_path(), error);
   if (error) return std::nullopt;
-  std::filesystem::remove(request.outputPath, error);
+  if (std::filesystem::exists(request.outputPath, error) || error) return std::nullopt;
+  QTemporaryFile temporaryOutput(QString::fromStdString(
+      (request.outputPath.parent_path() / ".edward-export-XXXXXX").string()));
+  if (!temporaryOutput.open()) return std::nullopt;
+  const auto temporaryPath = std::filesystem::path(temporaryOutput.fileName().toStdString());
+  temporaryOutput.close();
 
   std::vector<AudioClip> audioClips;
   for (const auto& clip : snapshot.clips) {
@@ -78,7 +84,8 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
     << QStringLiteral("-crf") << QString::number(request.quality == ExportQuality::High ? 18
                                                : request.quality == ExportQuality::Medium ? 23 : 28)
     << QStringLiteral("-pix_fmt") << QStringLiteral("yuv420p")
-    << QStringLiteral("-y") << QString::fromStdString(request.outputPath.string());
+    << QStringLiteral("-f") << QStringLiteral("mp4")
+    << QStringLiteral("-y") << QString::fromStdString(temporaryPath.string());
 
   QProcess encoder;
   encoder.start(QStringLiteral("ffmpeg"), arguments);
@@ -89,7 +96,7 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
     if (!scene) {
       encoder.kill();
       encoder.waitForFinished(1000);
-      std::filesystem::remove(request.outputPath, error);
+      std::filesystem::remove(temporaryPath, error);
       return std::nullopt;
     }
     const auto image = scene->frame.scaled(request.outputSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
@@ -98,15 +105,20 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
     if (encoder.write(pixels) != pixels.size() || !encoder.waitForBytesWritten(5000)) {
       encoder.kill();
       encoder.waitForFinished(1000);
-      std::filesystem::remove(request.outputPath, error);
+      std::filesystem::remove(temporaryPath, error);
       return std::nullopt;
     }
     if (progress) progress(frame + 1, snapshot.durationFrames);
   }
   encoder.closeWriteChannel();
   if (!encoder.waitForFinished(60000) || encoder.exitStatus() != QProcess::NormalExit || encoder.exitCode() != 0 ||
-      !std::filesystem::is_regular_file(request.outputPath)) {
-    std::filesystem::remove(request.outputPath, error);
+      !std::filesystem::is_regular_file(temporaryPath)) {
+    std::filesystem::remove(temporaryPath, error);
+    return std::nullopt;
+  }
+  std::filesystem::rename(temporaryPath, request.outputPath, error);
+  if (error) {
+    std::filesystem::remove(temporaryPath, error);
     return std::nullopt;
   }
   return ExportResult{request.outputPath, snapshot.durationFrames};

@@ -10,6 +10,7 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QFile>
 
 int main(int argc, char** argv) {
   assert(argc == 3);
@@ -30,6 +31,15 @@ int main(int argc, char** argv) {
   const edward::media::ExportJob job(graph);
   assert(!job.run(timeline.snapshot(), {output, {}, 25, 1}));
   assert(!job.run(timeline.snapshot(), {output, {1920, 1080}, 0, 1}));
+  QFile preservedOutput(QString::fromStdString(output.string()));
+  assert(preservedOutput.open(QIODevice::WriteOnly));
+  preservedOutput.write("existing-output");
+  preservedOutput.close();
+  assert(!job.run(timeline.snapshot(), {output, {1920, 1080}, 25, 1}));
+  assert(preservedOutput.open(QIODevice::ReadOnly));
+  assert(preservedOutput.readAll() == QByteArray("existing-output"));
+  preservedOutput.close();
+  std::filesystem::remove(output);
   int progressCalls = 0;
   edward::core::Frame completedFrames = 0;
   edward::core::Frame totalFrames = 0;

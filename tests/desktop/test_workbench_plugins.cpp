@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
                        pluginExportLoop.quit();
                      }
                    });
-  const auto combinedPath = directory.path() + QStringLiteral("/plugin-component.mp4");
+  const auto combinedPath = directory.path() + QStringLiteral("/timeline-with-plugin.mp4");
   assert(runtime.exportTimeline(combinedPath));
   QTimer::singleShot(15000, &pluginExportLoop, &QEventLoop::quit);
   pluginExportLoop.exec();
