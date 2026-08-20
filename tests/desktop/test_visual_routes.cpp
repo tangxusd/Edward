@@ -68,6 +68,8 @@ int main() {
   assert(timeline.find("cursorShape: Qt.SizeHorCursor") != std::string::npos);
   assert(timeline.find("onReleased: workbenchRuntime.trimSelectedLeft()") != std::string::npos);
   assert(timeline.find("onReleased: workbenchRuntime.trimSelectedRight()") != std::string::npos);
+  assert(timeline.find("anchors.leftMargin: root.rulerWidth") != std::string::npos);
+  assert(timeline.find("Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame)") != std::string::npos);
   assert(timeline.find("togglePlayback") != std::string::npos);
   assert(timeline.find("property int videoTrackCount") != std::string::npos);
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);

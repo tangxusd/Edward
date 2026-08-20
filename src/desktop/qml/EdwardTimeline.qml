@@ -99,6 +99,15 @@ Item {
                     color: DesignTokens.textSecondary
                     font.pixelSize: 10
                 }
+                MouseArea {
+                    anchors.left: parent.left
+                    anchors.leftMargin: root.rulerWidth
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames,
+                        Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
+                }
             }
         }
     }

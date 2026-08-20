@@ -2612,3 +2612,9 @@
 - 目的：让左右裁切不仅依赖工具栏按钮，也符合视频编辑器直接拖拽片段边缘的操作习惯。
 - 修改：片段左右边缘增加水平调整光标和拖拽热区；拖拽过程中更新播放头，释放时调用现有左裁切或右裁切命令，未新增独立裁切逻辑。
 - 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。
+
+## 2026-08-20 时间线轨道空白定位播放头
+
+- 目的：补齐视频编辑器常用的轨道点击定位，不要求用户只能点击顶部标尺。
+- 修改：各轨道内容区空白处按横向位置换算工程帧并移动播放头；片段位于更高层，已有选择和拖拽行为保持不变。
+- 验证：构建成功；`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。
