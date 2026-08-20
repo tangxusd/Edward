@@ -45,6 +45,33 @@ std::optional<QJsonObject> findNode(const QJsonObject& node, const QString& id) 
   return std::nullopt;
 }
 
+void appendComponentNodes(const QJsonObject& node, QVariantList& result) {
+  const auto id = node.value("id").toString();
+  const auto type = node.value("type").toString();
+  if (!id.isEmpty()) {
+    QVariantMap item;
+    item.insert(QStringLiteral("id"), id);
+    item.insert(QStringLiteral("type"), type);
+    item.insert(QStringLiteral("displayName"), type.isEmpty() ? id : QStringLiteral("%1 (%2)").arg(id, type));
+    result.push_back(item);
+  }
+  for (const auto& child : node.value("children").toArray()) {
+    if (child.isObject()) appendComponentNodes(child.toObject(), result);
+  }
+}
+
+QString editableTextNodeId(const QJsonObject& component, const QString& selectedNodeId) {
+  const auto selected = findNode(component.value("root").toObject(), selectedNodeId);
+  if (selected && selected->value("type").toString() == QStringLiteral("text")) return selectedNodeId;
+  return QStringLiteral("demo-text");
+}
+
+QString editableShapeNodeId(const QJsonObject& component, const QString& selectedNodeId) {
+  const auto selected = findNode(component.value("root").toObject(), selectedNodeId);
+  if (selected && selected->value("type").toString() == QStringLiteral("shape")) return selectedNodeId;
+  return QStringLiteral("demo-box");
+}
+
 void setTransformAndKeyframe(edward::core::ComponentIr& component, const QString& nodeId,
                              const QString& field, double value, int frame) {
   edward::core::ComponentEditCommand::apply(
@@ -256,6 +283,13 @@ QJsonObject WorkbenchRuntime::componentJson() const {
   return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
 }
 
+QVariantList WorkbenchRuntime::componentNodes() const {
+  QVariantList result;
+  if (!demoOverlayIr_) return result;
+  appendComponentNodes(demoOverlayIr_->toJson().value("root").toObject(), result);
+  return result;
+}
+
 QVariantList WorkbenchRuntime::clips() const {
   QVariantList result;
   const auto snapshot = timeline_.snapshot();
@@ -308,6 +342,25 @@ bool WorkbenchRuntime::selectClip(qlonglong id) {
     demoOverlayIr_.reset();
     demoOverlayEnabled_ = false;
     refreshDemoOverlay();
+  }
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::selectComponentNode(const QString& nodeId) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), nodeId)) return false;
+  selectedComponentNodeId_ = nodeId;
+  const auto component = demoOverlayIr_->toJson();
+  if (const auto node = findNode(component.value("root").toObject(), nodeId)) {
+    const auto properties = node->value("properties").toObject();
+    if (node->value("type").toString() == QStringLiteral("text")) {
+      if (properties.value("text").isString()) demoOverlayText_ = properties.value("text").toString();
+      if (properties.value("fontSize").isDouble()) demoOverlayFontSize_ = properties.value("fontSize").toInt();
+    }
+    if (node->value("type").toString() == QStringLiteral("shape") &&
+        properties.value("borderWidth").isDouble()) {
+      demoOverlayBorderWidth_ = properties.value("borderWidth").toInt();
+    }
   }
   emit timelineChanged();
   return true;
@@ -957,7 +1010,8 @@ void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
 void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   demoOverlayText_ = value.left(120);
   if (demoOverlayIr_)
-    setPropertyAndKeyframe(*demoOverlayIr_, "demo-text", "text", demoOverlayText_, playheadFrame());
+    setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
+                           "text", demoOverlayText_, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -965,7 +1019,8 @@ void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
 void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
   demoOverlayFontSize_ = std::max(8, std::min(value, 96));
   if (demoOverlayIr_)
-    setPropertyAndKeyframe(*demoOverlayIr_, "demo-text", "fontSize", demoOverlayFontSize_, playheadFrame());
+    setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
+                           "fontSize", demoOverlayFontSize_, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -973,7 +1028,8 @@ void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
 void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
   demoOverlayBorderWidth_ = std::max(0, std::min(value, 32));
   if (demoOverlayIr_)
-    setPropertyAndKeyframe(*demoOverlayIr_, "demo-box", "borderWidth", demoOverlayBorderWidth_, playheadFrame());
+    setPropertyAndKeyframe(*demoOverlayIr_, editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
+                           "borderWidth", demoOverlayBorderWidth_, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }

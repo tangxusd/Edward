@@ -39,6 +39,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayFontSize READ demoOverlayFontSize WRITE setDemoOverlayFontSize NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayBorderWidth READ demoOverlayBorderWidth WRITE setDemoOverlayBorderWidth NOTIFY timelineChanged)
+  Q_PROPERTY(QVariantList componentNodes READ componentNodes NOTIFY timelineChanged)
+  Q_PROPERTY(QString selectedComponentNodeId READ selectedComponentNodeId NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
@@ -73,6 +75,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
   [[nodiscard]] int demoOverlayFontSize() const { return demoOverlayFontSize_; }
   [[nodiscard]] int demoOverlayBorderWidth() const { return demoOverlayBorderWidth_; }
+  [[nodiscard]] QVariantList componentNodes() const;
+  [[nodiscard]] QString selectedComponentNodeId() const { return selectedComponentNodeId_; }
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
   [[nodiscard]] QString componentPluginDependencyStatus() const;
@@ -102,6 +106,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);
+  Q_INVOKABLE bool selectComponentNode(const QString& nodeId);
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE bool bindComponentToSelectedClip();
   Q_INVOKABLE bool addCurrentComponentToTimeline(int durationFrames = 150);
@@ -177,6 +182,7 @@ class WorkbenchRuntime final : public QObject {
   int demoOverlayHeight_ = 72;
   int demoOverlayFontSize_ = 18;
   int demoOverlayBorderWidth_ = 0;
+  QString selectedComponentNodeId_ = QStringLiteral("demo-box");
   double demoOverlayScale_ = 1.0;
   double demoOverlayRotation_ = 0.0;
   double demoOverlayOpacity_ = 0.82;

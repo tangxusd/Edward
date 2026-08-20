@@ -97,6 +97,25 @@ int main(int argc, char** argv) {
   assert(!runtime.proposeAiComponentCommand(
       QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"root\",\"field\":\"fill\",\"value\":\"#ffffff\"}")));
   runtime.generateComponentDraft();
+  const auto componentNodes = runtime.componentNodes();
+  bool hasDemoBox = false;
+  bool hasDemoText = false;
+  for (const auto& nodeValue : componentNodes) {
+    const auto node = nodeValue.toMap();
+    hasDemoBox = hasDemoBox || node.value("id").toString() == QStringLiteral("demo-box");
+    hasDemoText = hasDemoText || node.value("id").toString() == QStringLiteral("demo-text");
+  }
+  assert(hasDemoBox);
+  assert(hasDemoText);
+  assert(runtime.selectComponentNode(QStringLiteral("demo-text")));
+  runtime.setDemoOverlayFontSize(31);
+  assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(1).toObject()
+             .value("properties").toObject().value("fontSize").toInt() == 31);
+  assert(runtime.selectComponentNode(QStringLiteral("demo-box")));
+  runtime.setDemoOverlayBorderWidth(7);
+  assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject()
+             .value("properties").toObject().value("borderWidth").toInt() == 7);
+  assert(!runtime.selectComponentNode(QStringLiteral("missing-node")));
   assert(!runtime.requestAiComponentDraft(QStringLiteral("http://model.example.com/v1/chat/completions"),
                                           QStringLiteral("runtime-key"), QStringLiteral("model"),
                                           QStringLiteral("move left")));

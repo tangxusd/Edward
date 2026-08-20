@@ -212,6 +212,20 @@ ApplicationWindow {
                     }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "组件子节点"
+                        color: DesignTokens.textSecondary
+                    }
+                    ComboBox {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        model: workbenchRuntime.componentNodes
+                        textRole: "displayName"
+                        valueRole: "id"
+                        enabled: workbenchRuntime.componentNodes.length > 0
+                        onActivated: workbenchRuntime.selectComponentNode(currentValue)
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: "组件 AI 会话"
                         color: DesignTokens.textSecondary
                     }

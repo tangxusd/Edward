@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：组件子节点属性编辑入口
+
+- 目的：让大组件内部的文字、图形等子节点开始进入同一属性编辑链路，避免只能调整组件整体。
+- 涉及文件：`src/desktop/include/edward/desktop/workbench_runtime.hpp`、`src/desktop/src/workbench_runtime.cpp`、`src/desktop/qml/Workbench.qml`、`tests/desktop/test_workbench_plugins.cpp`。
+- 结果：工作台暴露 Component IR 节点列表；属性面板可选择子节点；文字内容/字号写入选中文字节点，边框宽度写入选中图形节点，并继续同步关键帧与时间线组件片段。
+- 验证：`cmake --build build/0.3-runtime -j2` 通过；定向 `desktop.workbench_plugins`、`media.component_renderer` 通过；全量 CTest 34/34 通过。
+
 ## 2026-08-20：组件字号与边框属性编辑
 
 - 目的：让组件进入时间线后，属性面板能继续调整文字字号与边框宽度，并写入同一套 Component IR/关键帧数据。
