@@ -89,7 +89,20 @@ int main(int argc, char** argv) {
   assert(runtime.componentJson().value("root").toObject().value("id") == "root");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
-  assert(!runtime.exportTimeline(directory.path() + QStringLiteral("/plugin-component.mp4")));
+  bool pluginComponentExported = false;
+  QEventLoop pluginComponentExportLoop;
+  QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::operationSucceeded,
+                   [&pluginComponentExported, &pluginComponentExportLoop](const QString& message) {
+                     if (message.startsWith(QStringLiteral("视频已导出："))) {
+                       pluginComponentExported = true;
+                       pluginComponentExportLoop.quit();
+                     }
+                   });
+  const auto pluginComponentPath = directory.path() + QStringLiteral("/plugin-component.mp4");
+  assert(runtime.exportTimeline(pluginComponentPath));
+  QTimer::singleShot(15000, &pluginComponentExportLoop, &QEventLoop::quit);
+  pluginComponentExportLoop.exec();
+  assert(pluginComponentExported && QFile::exists(pluginComponentPath));
   assert(runtime.proposeAiComponentCommand(
       QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"root\",\"field\":\"opacity\",\"value\":0.5}")));
   assert(runtime.applyPendingAiComponentCommand());
