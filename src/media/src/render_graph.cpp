@@ -29,23 +29,23 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
                                               const RenderRequest& request) const {
   auto frame = adapter_.renderFrame(snapshot, request.frame);
   if (!frame) return std::nullopt;
-  const auto renderOverlay = [&](const edward::core::ComponentIr& component) {
-    const auto layer = ComponentRenderer{}.render(component, request.frame, frame->size());
+  const auto renderOverlay = [&](const edward::core::ComponentIr& component, edward::core::Frame componentFrame) {
+    const auto layer = ComponentRenderer{}.render(component, componentFrame, frame->size());
     if (layer.isNull()) return;
     QPainter painter(&*frame);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.drawImage(0, 0, layer);
   };
-  if (overlay_) renderOverlay(*overlay_);
+  if (overlay_) renderOverlay(*overlay_, request.frame);
   for (const auto& clip : snapshot.clips) {
     const auto duration = clip.sourceOut - clip.sourceIn;
     if (clip.kind == edward::core::TimelineClipKind::Component && clip.component &&
         request.frame >= clip.timelineStart && request.frame < clip.timelineStart + duration)
-      renderOverlay(*clip.component);
+      renderOverlay(*clip.component, request.frame - clip.timelineStart);
   }
   for (const auto& componentLayer : componentLayers_) {
     if (request.frame >= componentLayer.startFrame && request.frame < componentLayer.endFrame)
-      renderOverlay(componentLayer.component);
+      renderOverlay(componentLayer.component, request.frame - componentLayer.startFrame);
   }
   if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
     QPainter painter(&*frame);

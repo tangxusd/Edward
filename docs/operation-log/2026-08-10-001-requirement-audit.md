@@ -2559,3 +2559,9 @@
 - 目的：确认曲线切换不是仅保存标签，必须改变实际预览/导出画面的位置插值。
 - 修改：切换为贝塞尔时写入首个平滑默认控制点；保留线性切换时清除控制点。新增组件渲染像素测试，比较线性和贝塞尔在同一中间帧的图形位置。
 - 验证：`core.component_ir`、`media.component_renderer`、`desktop.workbench_plugins` 3/3 通过，`git diff --check` 通过。
+
+## 2026-08-20 组件关键帧本地时间修复
+
+- 目的：防止组件被放置在工程后段时，关键帧按工程绝对帧错误跳到末态。
+- 修改：RenderGraph 对时间线组件与组件层统一以 `工程帧 - 组件起始帧` 计算 Component IR 关键帧；独立预览叠加层保持工程帧求值。渲染合同明确该规则。
+- 验证：新增组件起始于工程第 15 帧的渲染图回归，确认工程第 14 帧不显示、本地第 0/5/9 帧依次求值；`media.render_graph`、`media.component_renderer`、`desktop.workbench_plugins` 3/3 通过，`git diff --check` 通过。

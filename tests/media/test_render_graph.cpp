@@ -55,6 +55,31 @@ int main(int argc, char** argv) {
   const auto componentClipScene = graph.build(timeline.snapshot(), {15});
   assert(componentClipScene);
   assert(componentClipScene->frame.pixelColor(4, 8).blue() > 150);
+  const QJsonObject animatedRoot{{"id", "animated-root"}, {"type", "shape"},
+      {"transform", QJsonObject{{"y", 0}, {"width", 4}, {"height", 4}}},
+      {"properties", QJsonObject{{"fill", "#00ff00"}}},
+      {"keyframes", QJsonObject{{"x", QJsonArray{
+          QJsonObject{{"frame", 0}, {"value", 0}},
+          QJsonObject{{"frame", 10}, {"value", 8}}
+      }}}}};
+  const auto animated = edward::core::ComponentIr::parse({{"version", "1"}, {"root", animatedRoot}});
+  assert(animated);
+  edward::core::Timeline localTimeTimeline(25);
+  const auto localTimeTrack = localTimeTimeline.addVideoTrack();
+  assert(localTimeTimeline.insertClip({10, localTimeTrack, argv[1], 0, 25, 0}));
+  const auto animatedTrack = localTimeTimeline.addVideoTrack();
+  assert(localTimeTimeline.insertClip({11, animatedTrack, {}, 0, 10, 15,
+                                       edward::core::TimelineClipKind::Component, *animated}));
+  const edward::media::RenderGraph localTimeGraph(adapter);
+  const auto beforeAnimatedClip = localTimeGraph.build(localTimeTimeline.snapshot(), {14});
+  const auto animatedStart = localTimeGraph.build(localTimeTimeline.snapshot(), {15});
+  const auto animatedMiddle = localTimeGraph.build(localTimeTimeline.snapshot(), {20});
+  const auto animatedLastFrame = localTimeGraph.build(localTimeTimeline.snapshot(), {24});
+  assert(beforeAnimatedClip && animatedStart && animatedMiddle && animatedLastFrame);
+  assert(beforeAnimatedClip->frame.pixelColor(8, 8).green() < 150);
+  assert(animatedStart->frame.pixelColor(8, 8).green() > 150);
+  assert(animatedMiddle->frame.pixelColor(4, 8).green() > 150);
+  assert(animatedLastFrame->frame.pixelColor(1, 8).green() > 150);
   edward::core::Timeline componentOnlyTimeline(25);
   const auto componentOnlyTrack = componentOnlyTimeline.addVideoTrack();
   assert(componentOnlyTimeline.insertClip({3, componentOnlyTrack, {}, 0, 25, 0,
