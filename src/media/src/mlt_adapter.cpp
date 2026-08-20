@@ -17,6 +17,11 @@ bool ensureMltRuntime() {
   return ready;
 }
 
+std::mutex& renderMutex() {
+  static std::mutex mutex;
+  return mutex;
+}
+
 std::optional<QImage> readClipFrame(mlt_profile profile, const edward::core::TimelineClip& clip,
                                     edward::core::Frame frame) {
   const auto resource = clip.source.string();
@@ -48,6 +53,7 @@ std::optional<QImage> readClipFrame(mlt_profile profile, const edward::core::Tim
 
 std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapshot& snapshot,
                                               edward::core::Frame frame) const {
+  const std::scoped_lock lock(renderMutex());
   if (frame < 0 || frame >= snapshot.durationFrames) return std::nullopt;
   std::vector<const edward::core::TimelineClip*> active;
   for (const auto track : snapshot.videoTracks) {
@@ -94,6 +100,7 @@ std::optional<QImage> MltAdapter::renderFrame(const edward::core::TimelineSnapsh
 
 std::optional<QImage> MltAdapter::renderSourceFrame(const std::filesystem::path& source,
                                                      edward::core::Frame frame) const {
+  const std::scoped_lock lock(renderMutex());
   if (source.empty() || frame < 0 || !ensureMltRuntime()) return std::nullopt;
   const auto profile = mlt_profile_init(nullptr);
   if (!profile) return std::nullopt;

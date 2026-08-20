@@ -81,11 +81,14 @@ int main() {
   assert(timeline.find("onReleased: workbenchRuntime.trimSelectedLeft()") != std::string::npos);
   assert(timeline.find("onReleased: workbenchRuntime.trimSelectedRight()") != std::string::npos);
   assert(timeline.find("anchors.leftMargin: root.rulerWidth") != std::string::npos);
-  assert(timeline.find("Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame)") != std::string::npos);
+  assert(timeline.find("function frameAtX(x)") != std::string::npos);
   assert(timeline.find("function snapFrame(frame, clipId)") != std::string::npos);
   assert(timeline.find("root.snapFrame(") != std::string::npos);
   assert(timeline.find("onDoubleClicked: root.playheadChangedByUser(modelData.timelineStart)") != std::string::npos);
   assert(timeline.find("function formatTimecode(frame)") != std::string::npos);
+  assert(timeline.find("property real zoomFactor") != std::string::npos);
+  assert(timeline.find("property int viewStartFrame") != std::string::npos);
+  assert(timeline.find("WheelHandler") != std::string::npos);
   assert(timeline.find("root.formatTimecode") != std::string::npos);
   assert(timeline.find("modelData.selected && parent.width > 92") != std::string::npos);
   assert(timeline.find("timelineStart + modelData.sourceOut - modelData.sourceIn") != std::string::npos);

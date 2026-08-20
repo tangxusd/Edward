@@ -25,6 +25,8 @@ Item {
     property int videoTrackCount: 1
     property int selectedVideoTrackIndex: 0
     property var clips: []
+    property real zoomFactor: 1.0
+    property int viewStartFrame: 0
     signal playheadChangedByUser(int frame)
     signal splitRequested
     signal deleteRequested
@@ -32,7 +34,11 @@ Item {
     signal videoTrackSelected(int trackIndex)
 
     function frameToX(frame) {
-        return rulerWidth + frame * pixelsPerFrame;
+        return rulerWidth + (frame - viewStartFrame) * pixelsPerFrame;
+    }
+    function frameAtX(x) {
+        return Math.max(0, Math.min(durationFrames,
+            Math.round((x - rulerWidth) / pixelsPerFrame) + viewStartFrame));
     }
     function formatTimecode(frame) {
         var totalSeconds = Math.floor(frame / 25);
@@ -63,7 +69,19 @@ Item {
         return Math.max(0, Math.min(durationFrames, best));
     }
     readonly property real rulerWidth: 74
-    readonly property real pixelsPerFrame: Math.max(0.25, (width - rulerWidth - 24) / durationFrames)
+    readonly property real pixelsPerFrame: Math.max(0.25, (width - rulerWidth - 24) / durationFrames) * zoomFactor
+
+    WheelHandler {
+        onWheel: function(event) {
+            if (event.modifiers & Qt.ControlModifier) {
+                root.zoomFactor = Math.max(0.5, Math.min(8, root.zoomFactor * (event.angleDelta.y > 0 ? 1.25 : 0.8)));
+            } else {
+                root.viewStartFrame = Math.max(0, Math.min(root.durationFrames,
+                    root.viewStartFrame - Math.round(event.angleDelta.y / root.pixelsPerFrame)));
+            }
+            event.accepted = true;
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -134,7 +152,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             onPressed: root.forceActiveFocus()
-            onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
+            onClicked: root.playheadChangedByUser(root.frameAtX(mouse.x))
         }
         Repeater {
             model: 11
@@ -160,8 +178,7 @@ Item {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    onClicked: root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames,
-                        Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame))))
+                    onClicked: root.playheadChangedByUser(root.frameAtX(mouse.x))
                 }
             }
         }
@@ -308,7 +325,7 @@ Item {
                 onClicked: workbenchRuntime.selectClip(modelData.id)
                 onDoubleClicked: root.playheadChangedByUser(modelData.timelineStart)
                 onReleased: workbenchRuntime.moveSelected(root.snapFrame(
-                    Math.round((parent.x - root.rulerWidth) / root.pixelsPerFrame), modelData.id))
+                    root.frameAtX(parent.x), modelData.id))
             }
             MouseArea {
                 anchors.left: parent.left
@@ -319,7 +336,7 @@ Item {
                 onPressed: workbenchRuntime.selectClip(modelData.id)
                 onPositionChanged: if (pressed) {
                     var frame = Math.max(0, Math.min(root.durationFrames,
-                        Math.round((parent.x + mouse.x - root.rulerWidth) / root.pixelsPerFrame)))
+                        root.frameAtX(parent.x + mouse.x)))
                     root.playheadChangedByUser(frame)
                 }
                 onReleased: workbenchRuntime.trimSelectedLeft()
@@ -333,7 +350,7 @@ Item {
                 onPressed: workbenchRuntime.selectClip(modelData.id)
                 onPositionChanged: if (pressed) {
                     var frame = Math.max(0, Math.min(root.durationFrames,
-                        Math.round((parent.x + mouse.x - root.rulerWidth) / root.pixelsPerFrame)))
+                        root.frameAtX(parent.x + mouse.x)))
                     root.playheadChangedByUser(frame)
                 }
                 onReleased: workbenchRuntime.trimSelectedRight()
@@ -394,7 +411,7 @@ Item {
             drag.target: parent
             drag.axis: Drag.XAxis
             onPositionChanged: if (drag.active)
-                root.playheadChangedByUser(Math.max(0, Math.min(root.durationFrames, Math.round((playhead.x - root.rulerWidth) / root.pixelsPerFrame))))
+                root.playheadChangedByUser(root.frameAtX(playhead.x))
         }
     }
 
