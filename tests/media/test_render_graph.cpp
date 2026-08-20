@@ -142,6 +142,26 @@ int main(int argc, char** argv) {
   assert(transitionDuring->frame.pixelColor(960, 540).red() < 10 &&
          transitionDuring->frame.pixelColor(960, 540).green() < 10 &&
          transitionDuring->frame.pixelColor(960, 540).blue() < 10);
+  edward::core::Timeline dissolveTimeline(20);
+  const auto dissolveTrack = dissolveTimeline.addVideoTrack();
+  const QJsonObject redRoot{{"id", "red"}, {"type", "shape"},
+      {"transform", QJsonObject{{"width", 1920}, {"height", 1080}}},
+      {"properties", QJsonObject{{"fill", "#ff0000"}}}};
+  const QJsonObject whiteRoot{{"id", "white"}, {"type", "shape"},
+      {"transform", QJsonObject{{"width", 1920}, {"height", 1080}}},
+      {"properties", QJsonObject{{"fill", "#ffffff"}}}};
+  const auto red = edward::core::ComponentIr::parse({{"version", "1"}, {"root", redRoot}});
+  const auto white = edward::core::ComponentIr::parse({{"version", "1"}, {"root", whiteRoot}});
+  assert(red && white);
+  assert(dissolveTimeline.insertClip({31, dissolveTrack, {}, 0, 10, 0,
+                                      edward::core::TimelineClipKind::Component, *red}));
+  assert(dissolveTimeline.insertClip({32, dissolveTrack, {}, 0, 10, 10,
+                                      edward::core::TimelineClipKind::Component, *white}));
+  assert(dissolveTimeline.addTransition(edward::core::TransitionType::Dissolve, 31, 32, 6));
+  const auto dissolveScene = transitionGraph.build(dissolveTimeline.snapshot(), {12});
+  assert(dissolveScene);
+  const auto dissolvePixel = dissolveScene->frame.pixelColor(960, 540);
+  assert(dissolvePixel.red() > 100 && dissolvePixel.green() > 100 && dissolvePixel.blue() > 100);
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }

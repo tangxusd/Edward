@@ -3,6 +3,7 @@
 #include "edward/media/component_renderer.hpp"
 
 #include <QPainter>
+#include <algorithm>
 
 namespace edward::media {
 
@@ -29,6 +30,47 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
                                               const RenderRequest& request) const {
   auto frame = adapter_.renderFrame(snapshot, request.frame);
   if (!frame) return std::nullopt;
+  for (const auto& transition : snapshot.transitions) {
+    if (transition.type != edward::core::TransitionType::Dissolve) continue;
+    const auto endFrame = transition.startFrame + transition.durationFrames;
+    if (request.frame < transition.startFrame || request.frame >= endFrame) continue;
+    const auto left = std::ranges::find_if(snapshot.clips, [&](const auto& clip) {
+      return clip.id == transition.leftClipId;
+    });
+    const auto right = std::ranges::find_if(snapshot.clips, [&](const auto& clip) {
+      return clip.id == transition.rightClipId;
+    });
+    if (left == snapshot.clips.end() || right == snapshot.clips.end() ||
+        left->kind != edward::core::TimelineClipKind::Media || right->kind != edward::core::TimelineClipKind::Media)
+      continue;
+    const auto isolatedFrame = [&](const edward::core::TimelineClip& clip) {
+      auto isolated = snapshot;
+      isolated.clips = {clip};
+      isolated.videoTracks = {clip.trackId};
+      isolated.transitions.clear();
+      return adapter_.renderFrame(isolated, request.frame);
+    };
+    const auto outgoing = isolatedFrame(*left);
+    const auto incoming = isolatedFrame(*right);
+    if (!outgoing || !incoming || outgoing->size() != incoming->size() || outgoing->size() != frame->size()) continue;
+    const auto progress = std::clamp(static_cast<double>(request.frame - transition.startFrame) /
+                                         std::max<edward::core::Frame>(1, transition.durationFrames - 1),
+                                     0.0, 1.0);
+    QImage blended(frame->size(), QImage::Format_RGBA8888);
+    for (int y = 0; y < blended.height(); ++y) {
+      for (int x = 0; x < blended.width(); ++x) {
+        const auto a = outgoing->pixelColor(x, y);
+        const auto b = incoming->pixelColor(x, y);
+        blended.setPixelColor(x, y, QColor(
+            static_cast<int>(a.red() * (1.0 - progress) + b.red() * progress + 0.5),
+            static_cast<int>(a.green() * (1.0 - progress) + b.green() * progress + 0.5),
+            static_cast<int>(a.blue() * (1.0 - progress) + b.blue() * progress + 0.5),
+            static_cast<int>(a.alpha() * (1.0 - progress) + b.alpha() * progress + 0.5)));
+      }
+    }
+    *frame = std::move(blended);
+    break;
+  }
   const auto renderOverlay = [&](const edward::core::ComponentIr& component, edward::core::Frame componentFrame) {
     const auto layer = ComponentRenderer{}.render(component, componentFrame, frame->size());
     if (layer.isNull()) return;
