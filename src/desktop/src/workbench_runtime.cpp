@@ -137,9 +137,11 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
   playbackTimer_.setInterval(40);
   connect(&playbackTimer_, &QTimer::timeout, this, [this] {
+    audioPreview_.pump();
     if (!controller_.advancePlayhead()) {
       playing_ = false;
       playbackTimer_.stop();
+      audioPreview_.stop();
       emit timelineChanged();
       return;
     }
@@ -1378,6 +1380,8 @@ void WorkbenchRuntime::setSelectedComponentNodeFontFamily(const QString& value) 
 
 bool WorkbenchRuntime::setPlayhead(int frame) {
   if (!controller_.setPlayhead(frame)) return false;
+  if (playing_ && !audioPreview_.start(timeline_.snapshot(), controller_.playheadFrame(), 25, 1))
+    emit operationFailed(QStringLiteral("音频预览无法启动"));
   emit timelineChanged();
   return true;
 }
@@ -1485,9 +1489,15 @@ void WorkbenchRuntime::togglePlayback() {
   if (playing_) {
     playing_ = false;
     playbackTimer_.stop();
+    audioPreview_.stop();
   } else {
     if (controller_.playheadFrame() >= timeline_.snapshot().durationFrames) controller_.setPlayhead(0);
     playing_ = true;
+    if (!audioPreview_.start(timeline_.snapshot(), controller_.playheadFrame(), 25, 1) &&
+        std::ranges::any_of(timeline_.snapshot().clips, [](const auto& clip) {
+          return clip.kind == edward::core::TimelineClipKind::Media;
+        }))
+      emit operationFailed(QStringLiteral("音频预览无法启动，视频仍会无声播放"));
     playbackTimer_.start();
   }
   emit timelineChanged();

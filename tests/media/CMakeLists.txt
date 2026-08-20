@@ -54,6 +54,11 @@ target_link_libraries(test_audio_waveform PRIVATE edward_media)
 add_dependencies(test_audio_waveform media_audio_fixture)
 add_test(NAME media.audio_waveform COMMAND test_audio_waveform ${EDWARD_MEDIA_AUDIO_FIXTURE} ${EDWARD_MEDIA_FIXTURE})
 
+add_executable(test_audio_preview test_audio_preview.cpp)
+target_link_libraries(test_audio_preview PRIVATE edward_media)
+add_dependencies(test_audio_preview media_audio_fixture)
+add_test(NAME media.audio_preview COMMAND test_audio_preview ${EDWARD_MEDIA_AUDIO_FIXTURE} ${EDWARD_MEDIA_FIXTURE})
+
 add_executable(test_component_renderer test_component_renderer.cpp)
 target_link_libraries(test_component_renderer PRIVATE edward_media)
 add_test(NAME media.component_renderer COMMAND test_component_renderer)

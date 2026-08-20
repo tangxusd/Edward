@@ -5,6 +5,7 @@ find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concur
 pkg_check_modules(EDWARD_FFMPEG REQUIRED IMPORTED_TARGET
   libavformat libavcodec libavfilter libavutil libswresample libswscale)
 pkg_check_modules(EDWARD_SODIUM REQUIRED IMPORTED_TARGET libsodium)
+pkg_check_modules(EDWARD_SDL3 REQUIRED IMPORTED_TARGET sdl3)
 
 find_package(Mlt7 7.40 CONFIG REQUIRED)
 
@@ -23,6 +24,7 @@ target_link_libraries(edward_media_runtime INTERFACE
   Qt6::QuickControls2
   Mlt7::mlt
   PkgConfig::EDWARD_FFMPEG
+  PkgConfig::EDWARD_SDL3
 )
 
 message(STATUS "Edward dependency: FFmpeg ${EDWARD_FFMPEG_VERSION}")

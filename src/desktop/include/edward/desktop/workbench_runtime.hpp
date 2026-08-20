@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "edward/media/mlt_adapter.hpp"
+#include "edward/media/audio_preview.hpp"
 #include "edward/media/render_graph.hpp"
 #include "edward/plugins/installed_plugin.hpp"
 #include "edward/resources/auth_session_store.hpp"
@@ -266,6 +267,7 @@ class WorkbenchRuntime final : public QObject {
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;
   QTimer playbackTimer_;
+  edward::media::AudioPreview audioPreview_;
   QHash<qint64, QVariantList> clipWaveforms_;
   quint64 waveformGeneration_ = 0;
   QHash<qint64, QImage> clipThumbnails_;

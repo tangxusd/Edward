@@ -2696,3 +2696,9 @@
 - 目的：提高剪辑时间线中媒体片段的可辨识性，不再仅以纯色矩形表示视频内容。
 - 修改：MLT 适配器新增按源帧解码接口；工作台异步从每个媒体片段的源区间均匀抽取 4 帧，拼合成内存缩略图条，经既有 `image://edward` 提供者交给 QML 显示。分割、裁切、重开工程会作废并重新生成缩略图；不创建磁盘缓存。
 - 验证：先确认新增 MLT 和工作台缩略图测试失败；实现后 `media.mlt_adapter`、`media.audio_waveform`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 6/6 通过，离屏启动无 QML 加载错误，`git diff --check` 通过。
+
+## 2026-08-20 时间线音频预览
+
+- 目的：让播放操作不仅移动播放头，还输出与时间线源入出点、间隙及叠加片段一致的实际音频。
+- 修改：新增 `AudioPreview`，使用 FFmpeg 生成裁切、延迟与混音后的 48kHz 双声道浮点 PCM；SDL3 以半秒上限排队送入系统默认音频设备。工作台播放、暂停、片尾和定位与该流联动。
+- 验证：`media.audio_preview` 覆盖有音频混音参数和无音频拒绝；`media.audio_preview`、`desktop.timeline_controller`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 4/4 通过，`git diff --check` 通过。当前离屏环境无可听声卡，实际听感留待本机交互验收。
