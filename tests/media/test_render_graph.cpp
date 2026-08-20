@@ -1,4 +1,5 @@
 #include <edward/core/timeline.hpp>
+#include <edward/core/timeline_commands.hpp>
 #include <edward/media/mlt_adapter.hpp>
 #include <edward/media/render_graph.hpp>
 
@@ -42,7 +43,7 @@ int main(int argc, char** argv) {
                        {"properties", QJsonObject{{"fill", "#0000ff"}}}}}}};
   const auto blue = edward::core::ComponentIr::parse({{"version", "1"}, {"root", blueRoot}});
   assert(blue);
-  graph.setComponentLayers({{5, 10, *blue}});
+  graph.setComponentLayers({{5, 10, 0, *blue}});
   const auto beforeLayer = graph.build(timeline.snapshot(), {4});
   const auto duringLayer = graph.build(timeline.snapshot(), {5});
   const auto afterLayer = graph.build(timeline.snapshot(), {10});
@@ -64,6 +65,25 @@ int main(int argc, char** argv) {
       }}}}};
   const auto animated = edward::core::ComponentIr::parse({{"version", "1"}, {"root", animatedRoot}});
   assert(animated);
+  edward::core::Timeline splitTimeline(40);
+  const auto splitTrack = splitTimeline.addVideoTrack();
+  assert(splitTimeline.insertClip({7, splitTrack, {}, 0, 20, 0,
+                                   edward::core::TimelineClipKind::Component, *animated}));
+  assert(splitTimeline.setPlayhead(10));
+  edward::core::TimelineCommands splitCommands(splitTimeline);
+  assert(splitCommands.splitClipAtPlayhead(7));
+  const edward::media::RenderGraph splitGraph(adapter);
+  const auto splitScene = splitGraph.build(splitTimeline.snapshot(), {10});
+  assert(splitScene);
+  const auto secondSegment = splitTimeline.clip(8);
+  assert(secondSegment && secondSegment->sourceIn == 10);
+  const auto secondScene = splitGraph.build(splitTimeline.snapshot(), {15});
+  assert(secondScene);
+  bool hasGreen = false;
+  for (int y = 0; y < secondScene->frame.height() && !hasGreen; ++y)
+    for (int x = 0; x < secondScene->frame.width(); ++x)
+      hasGreen = hasGreen || secondScene->frame.pixelColor(x, y).green() > 150;
+  assert(hasGreen);
   edward::core::Timeline localTimeTimeline(25);
   const auto localTimeTrack = localTimeTimeline.addVideoTrack();
   assert(localTimeTimeline.insertClip({10, localTimeTrack, argv[1], 0, 25, 0}));

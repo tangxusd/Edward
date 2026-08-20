@@ -235,6 +235,7 @@ void WorkbenchRuntime::refreshDemoOverlay() {
       renderGraph_.setOverlay(std::nullopt);
       renderGraph_.setComponentLayers({{clip->timelineStart,
                                          clip->timelineStart + clip->sourceOut - clip->sourceIn,
+                                         clip->sourceIn,
                                          *demoOverlayIr_}});
       return;
     }
@@ -1043,6 +1044,7 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
       if (clip.kind != edward::core::TimelineClipKind::Component || !clip.component) continue;
       componentLayers.push_back({clip.timelineStart,
                                  clip.timelineStart + clip.sourceOut - clip.sourceIn,
+                                 clip.sourceIn,
                                  *clip.component});
     }
     if (overlay && componentClipId != 0) {

@@ -22,6 +22,7 @@ struct RenderScene {
 struct ComponentLayer final {
   edward::core::Frame startFrame = 0;
   edward::core::Frame endFrame = 0;
+  edward::core::Frame sourceIn = 0;
   edward::core::ComponentIr component;
 };
 

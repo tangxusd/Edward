@@ -41,11 +41,11 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     const auto duration = clip.sourceOut - clip.sourceIn;
     if (clip.kind == edward::core::TimelineClipKind::Component && clip.component &&
         request.frame >= clip.timelineStart && request.frame < clip.timelineStart + duration)
-      renderOverlay(*clip.component, request.frame - clip.timelineStart);
+      renderOverlay(*clip.component, clip.sourceIn + request.frame - clip.timelineStart);
   }
   for (const auto& componentLayer : componentLayers_) {
     if (request.frame >= componentLayer.startFrame && request.frame < componentLayer.endFrame)
-      renderOverlay(componentLayer.component, request.frame - componentLayer.startFrame);
+      renderOverlay(componentLayer.component, componentLayer.sourceIn + request.frame - componentLayer.startFrame);
   }
   if (pluginFrame_ && pluginFrame_->size() == frame->size() && pluginFrame_->hasAlphaChannel()) {
     QPainter painter(&*frame);

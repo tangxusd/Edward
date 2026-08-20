@@ -2577,3 +2577,9 @@
 - 目的：防止用户在组件出现前或结束后修改属性时，关键帧被静默夹到组件本地第 0 帧。
 - 修改：已进入时间线的组件仅在其 `[起始帧, 结束帧)` 内接受属性面板和拖拽产生的关键帧写入；范围外保持 Component IR 不变，并在右侧面板显示“播放头不在组件时间范围内”。
 - 验证：先写出播放头位于组件起点前时 Component IR 必须不变的失败测试，再实现。`desktop.workbench_plugins`、`desktop.visual_routes`、`media.render_graph`、`media.component_renderer` 4/4 通过，`git diff --check` 通过。
+
+## 2026-08-20 组件分割后的关键帧连续性
+
+- 目的：修复组件片段分割后第二段动画从本地第 0 帧重新开始的问题。
+- 修改：时间线组件和导出组件层均使用 `sourceIn + 工程帧 - timelineStart` 作为 Component IR 求值帧；普通独立组件层默认 `sourceIn` 为 0。
+- 验证：新增组件在第 10 帧分割、第二段 `sourceIn` 为 10 的渲染图回归，确认第二段继续原动画进度；`media.render_graph` 与 `desktop.workbench_plugins` 2/2 通过，`git diff --check` 通过。
