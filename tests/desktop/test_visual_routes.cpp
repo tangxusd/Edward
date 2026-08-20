@@ -54,6 +54,7 @@ int main() {
   assert(workbench.find("MP4（H.264）") != std::string::npos);
   assert(workbench.find("timelineExportProgress") != std::string::npos);
   assert(workbench.find("正在导出：") != std::string::npos);
+  assert(workbench.find("cancelTimelineExport") != std::string::npos);
   assert(workbench.find("signInWithSupabase") != std::string::npos);
   assert(workbench.find("已登录:") != std::string::npos);
   assert(workbench.find("上传组件包") != std::string::npos);

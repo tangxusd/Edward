@@ -92,6 +92,12 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
   if (!encoder.waitForStarted(3000)) return std::nullopt;
 
   for (edward::core::Frame frame = 0; frame < snapshot.durationFrames; ++frame) {
+    if (request.shouldCancel && request.shouldCancel()) {
+      encoder.kill();
+      encoder.waitForFinished(1000);
+      std::filesystem::remove(temporaryPath, error);
+      return std::nullopt;
+    }
     const auto scene = graph_.build(snapshot, {frame});
     if (!scene) {
       encoder.kill();

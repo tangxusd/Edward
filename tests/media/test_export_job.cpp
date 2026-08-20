@@ -31,6 +31,8 @@ int main(int argc, char** argv) {
   const edward::media::ExportJob job(graph);
   assert(!job.run(timeline.snapshot(), {output, {}, 25, 1}));
   assert(!job.run(timeline.snapshot(), {output, {1920, 1080}, 0, 1}));
+  assert(!job.run(timeline.snapshot(), {output, {1920, 1080}, 25, 1,
+                                        edward::media::ExportQuality::High, [] { return true; }}));
   QFile preservedOutput(QString::fromStdString(output.string()));
   assert(preservedOutput.open(QIODevice::WriteOnly));
   preservedOutput.write("existing-output");

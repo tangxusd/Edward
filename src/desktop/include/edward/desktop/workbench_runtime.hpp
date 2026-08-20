@@ -9,6 +9,7 @@
 #include <QHash>
 #include <QTimer>
 #include <memory>
+#include <atomic>
 
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/audio_preview.hpp"
@@ -191,6 +192,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE bool exportTimelineWithOptions(const QString& outputPath, int width, int height,
                                              int fps, int quality);
+  Q_INVOKABLE void cancelTimelineExport();
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
   Q_INVOKABLE bool saveProject(const QString& path);
@@ -265,6 +267,7 @@ class WorkbenchRuntime final : public QObject {
   QFutureWatcher<TimelineExportResult> timelineExportWatcher_;
   bool timelineExportBusy_ = false;
   int timelineExportProgress_ = 0;
+  std::shared_ptr<std::atomic_bool> timelineExportCancel_;
   edward::resources::AuthSessionStore sessions_;
   edward::resources::SupabaseAuthClient authClient_;
   bool signInBusy_ = false;

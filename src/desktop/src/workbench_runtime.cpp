@@ -238,6 +238,7 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   });
   connect(&timelineExportWatcher_, &QFutureWatcher<TimelineExportResult>::finished, this, [this] {
     timelineExportBusy_ = false;
+    timelineExportCancel_.reset();
     const auto result = timelineExportWatcher_.result();
     if (result.error.isEmpty()) {
       timelineExportProgress_ = 100;
@@ -1155,12 +1156,14 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
   const auto componentClipId = componentClipId_;
   timelineExportBusy_ = true;
   timelineExportProgress_ = 0;
+  timelineExportCancel_ = std::make_shared<std::atomic_bool>(false);
   emit timelineChanged();
   const auto exportQuality = quality == 0 ? edward::media::ExportQuality::High
                                           : quality == 1 ? edward::media::ExportQuality::Medium
                                                          : edward::media::ExportQuality::Low;
   QPointer<WorkbenchRuntime> runtime(this);
-  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path, width, height, fps, exportQuality, runtime] {
+  const auto cancel = timelineExportCancel_;
+  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path, width, height, fps, exportQuality, runtime, cancel] {
     TimelineExportResult result;
     edward::media::MltAdapter adapter;
     std::optional<edward::core::ComponentIr> overlay;
@@ -1196,7 +1199,8 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
       graph.setOverlay(std::move(overlay));
     }
     const edward::media::ExportJob job(graph);
-    const auto exported = job.run(snapshot, {path, {width, height}, fps, 1, exportQuality},
+    const auto exported = job.run(snapshot, {path, {width, height}, fps, 1, exportQuality,
+                                              [cancel] { return cancel && cancel->load(); }},
                                   [runtime](edward::core::Frame completed, edward::core::Frame total) {
       if (!runtime || total <= 0) return;
       const auto progress = static_cast<int>(completed * 100 / total);
@@ -1213,6 +1217,11 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
     return result;
   }));
   return true;
+}
+
+void WorkbenchRuntime::cancelTimelineExport() {
+  if (!timelineExportBusy_ || !timelineExportCancel_) return;
+  timelineExportCancel_->store(true);
 }
 
 void WorkbenchRuntime::clearComponentOverlay() {

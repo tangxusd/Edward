@@ -2783,3 +2783,9 @@
 
 - 目的：确认临时文件交付、真实进度、目标路径校验与既有剪辑/插件/资源链路组合工作。
 - 验证：`cmake --build build/0.3-runtime -j2` 成功；离屏环境下完整 CTest 37/37 通过。
+
+## 2026-08-21 可取消成片导出
+
+- 目的：避免长视频导出期间只能强制关闭应用；取消必须保留已有成片。
+- 修改：`ExportRequest` 增加取消探针，编码每帧边界检查；工作台增加原子取消标记与 `cancelTimelineExport()`，导出面板的取消按钮在任务执行时终止后台任务、空闲时关闭面板。
+- 验证：媒体测试覆盖取消请求立即拒绝且临时文件不交付；`media.export_job`、`desktop.visual_routes`、`desktop.workbench_plugins` 3/3 通过，`git diff --check` 通过。

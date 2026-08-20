@@ -19,6 +19,7 @@ struct ExportRequest {
   int fpsNumerator = 25;
   int fpsDenominator = 1;
   ExportQuality quality = ExportQuality::High;
+  std::function<bool()> shouldCancel;
 };
 
 struct ExportResult {

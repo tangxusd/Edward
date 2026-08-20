@@ -809,8 +809,12 @@ ApplicationWindow {
             Button {
                 Layout.fillWidth: true
                 text: "取消"
-                enabled: !workbenchRuntime.timelineExportBusy
-                onClicked: timelineExportPanel.close()
+                onClicked: {
+                    if (workbenchRuntime.timelineExportBusy)
+                        workbenchRuntime.cancelTimelineExport()
+                    else
+                        timelineExportPanel.close()
+                }
             }
             Button {
                 Layout.fillWidth: true
