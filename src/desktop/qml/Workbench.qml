@@ -122,6 +122,12 @@ ApplicationWindow {
                         enabled: workbenchRuntime.demoOverlayEnabled && !workbenchRuntime.componentBoundToClip
                         onClicked: workbenchRuntime.bindComponentToSelectedClip()
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "保存到我的组件库"
+                        enabled: workbenchRuntime.demoOverlayEnabled
+                        onClicked: componentLibrarySaveDialog.open()
+                    }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "AI 编辑命令（JSON）"
@@ -401,6 +407,32 @@ ApplicationWindow {
         id: pluginDirectoryDialog
         title: "选择动画插件目录"
         onAccepted: workbenchRuntime.selectInstalledPlugin(selectedFolder.toLocalFile())
+    }
+
+    Dialog {
+        id: componentLibrarySaveDialog
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        modal: true
+        title: "保存到我的组件库"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        contentItem: Column {
+            spacing: 10
+            TextField { id: libraryResourceId; placeholderText: "资源 ID，例如 my.card"; text: "my.component" }
+            TextField { id: libraryDisplayName; placeholderText: "显示名称"; text: "我的组件" }
+        }
+        onAccepted: componentLibraryDirectoryDialog.open()
+    }
+
+    FolderDialog {
+        id: componentLibraryDirectoryDialog
+        title: "选择我的组件库目录"
+        onAccepted: {
+            if (workbenchRuntime.configureComponentLibrary(selectedFolder.toLocalFile())
+                    && workbenchRuntime.saveCurrentComponentToLibrary(libraryResourceId.text,
+                                                                       libraryDisplayName.text))
+                componentLibrarySaveDialog.close()
+        }
     }
 
     Dialog {

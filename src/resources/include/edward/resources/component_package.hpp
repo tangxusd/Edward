@@ -18,6 +18,7 @@ struct ComponentPackage final {
   QString pluginVersion;
   QString thumbnail;
   std::vector<QString> assets;
+  QString category = QStringLiteral("my");
 
   static std::optional<ComponentPackage> load(const std::filesystem::path& directory, QString* error = nullptr);
   bool validate(QString* error = nullptr) const;

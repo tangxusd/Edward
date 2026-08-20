@@ -46,6 +46,7 @@ std::optional<ComponentPackage> ComponentPackage::load(const std::filesystem::pa
                            manifestJson.object().value("pluginId").toString(),
                            manifestJson.object().value("pluginVersion").toString(),
                            manifestJson.object().value("thumbnail").toString(), {}};
+  package.category = manifestJson.object().value("category").toString(QStringLiteral("my"));
   for (const auto& asset : manifestJson.object().value("assets").toArray()) package.assets.push_back(asset.toString());
   if (!package.validate(error)) return std::nullopt;
   return package;
@@ -91,7 +92,8 @@ bool ComponentPackage::saveLocal(const std::filesystem::path& directory, QString
   for (const auto& asset : assets) assetsJson.append(asset);
   manifest.write(QJsonDocument(QJsonObject{{"resourceId", resourceId}, {"displayName", displayName},
                                             {"pluginId", pluginId}, {"pluginVersion", pluginVersion},
-                                            {"thumbnail", thumbnail}, {"assets", assetsJson}}).toJson(QJsonDocument::Indented));
+                                            {"thumbnail", thumbnail}, {"category", category},
+                                            {"assets", assetsJson}}).toJson(QJsonDocument::Indented));
   componentFile.write(QJsonDocument(component.toJson()).toJson(QJsonDocument::Indented));
   return true;
 }

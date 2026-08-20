@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：本地“我的组件库”闭环
+
+- 目的：让用户保存的组件包成为可发现、可重新载入的本地资源，而不是只保留一个任意文件夹路径。
+- 涉及文件：`src/resources/include/edward/resources/component_library.hpp`、`src/resources/src/component_library.cpp`、`src/resources/src/component_package.cpp`、`src/desktop/include/edward/desktop/workbench_runtime.hpp`、`src/desktop/src/workbench_runtime.cpp`、`src/desktop/qml/Workbench.qml`、`tests/resources/test_component_library.cpp`、`tests/desktop/test_workbench_plugins.cpp`。
+- 结果：组件包 manifest 增加向后兼容的 `category` 字段，默认值为 `my`；资源库能够保存、枚举和加载组件包；工作台可选择“我的组件库”目录，将当前组件保存为本地资源，并在载入时生成不继承原绑定关系的独立组件实例。现有静默上传队列未改动，仍可用于后续云端审核链路。
+- 验证：`cmake --build build/0.3-runtime -j2` 通过；全量 CTest 34/34 通过。
+
 ## 2026-08-20：组件实例绑定时间线片段
 
 - 目的：让组件实例不再只能作为全局预览叠加，而是能够绑定到时间线片段，按片段范围参与预览、保存、加载和最终导出。

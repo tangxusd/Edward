@@ -469,6 +469,59 @@ bool WorkbenchRuntime::saveComponentPackage(const QString& directory, const QStr
   return true;
 }
 
+QVariantList WorkbenchRuntime::localComponents() const {
+  QVariantList result;
+  for (const auto& item : componentLibrary_.list()) {
+    result.push_back(QVariantMap{{QStringLiteral("resourceId"), item.resourceId},
+                                 {QStringLiteral("displayName"), item.displayName},
+                                 {QStringLiteral("category"), item.category}});
+  }
+  return result;
+}
+
+bool WorkbenchRuntime::configureComponentLibrary(const QString& rootPath) {
+  if (rootPath.isEmpty()) return false;
+  componentLibrary_.setRoot(rootPath.toStdString());
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::saveCurrentComponentToLibrary(const QString& resourceId, const QString& displayName,
+                                                     const QString& category) {
+  if (!demoOverlayIr_ || resourceId.isEmpty() || displayName.isEmpty()) {
+    emit operationFailed(QStringLiteral("请先生成组件并填写资源信息"));
+    return false;
+  }
+  edward::resources::ComponentPackage package{resourceId, displayName, *demoOverlayIr_, {}, {}, {}, {}, category};
+  QString error;
+  if (!componentLibrary_.save(package, &error)) {
+    emit operationFailed(QStringLiteral("组件保存到资源库失败：%1").arg(error));
+    return false;
+  }
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("组件已保存到我的资源库"));
+  return true;
+}
+
+bool WorkbenchRuntime::loadLibraryComponent(const QString& resourceId) {
+  QString error;
+  const auto package = componentLibrary_.load(resourceId, &error);
+  if (!package) {
+    emit operationFailed(QStringLiteral("资源库组件无法读取：%1").arg(error));
+    return false;
+  }
+  demoOverlayIr_ = package->component;
+  componentClipId_ = 0;
+  demoOverlayEnabled_ = true;
+  aiConversation_.clear();
+  pendingAiPrompt_.clear();
+  syncDemoOverlayProperties(demoOverlayIr_->toJson());
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("资源库组件已载入为独立实例"));
+  return true;
+}
+
 bool WorkbenchRuntime::configureSilentComponentUploads(const QString& endpoint, const QString& statePath,
                                                        const QString& pendingRoot) {
   const QUrl url(endpoint);

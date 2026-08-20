@@ -15,6 +15,7 @@
 #include "edward/resources/auth_session_store.hpp"
 #include "edward/resources/component_upload.hpp"
 #include "edward/resources/component_upload_dispatcher.hpp"
+#include "edward/resources/component_library.hpp"
 #include "edward/resources/model_chat_client.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
 
@@ -50,6 +51,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString aiComponentDraft READ aiComponentDraft NOTIFY timelineChanged)
   Q_PROPERTY(bool aiRequestBusy READ aiRequestBusy NOTIFY timelineChanged)
   Q_PROPERTY(QString aiConversation READ aiConversation NOTIFY timelineChanged)
+  Q_PROPERTY(QVariantList localComponents READ localComponents NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -81,6 +83,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString aiComponentDraft() const { return aiComponentDraftJson_; }
   [[nodiscard]] bool aiRequestBusy() const { return aiRequestBusy_; }
   [[nodiscard]] QString aiConversation() const { return aiConversation_; }
+  [[nodiscard]] QVariantList localComponents() const;
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -107,6 +110,10 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool saveComponentJson(const QString& path) const;
   Q_INVOKABLE bool saveComponentPackage(const QString& directory, const QString& resourceId,
                                         const QString& displayName);
+  Q_INVOKABLE bool configureComponentLibrary(const QString& rootPath);
+  Q_INVOKABLE bool saveCurrentComponentToLibrary(const QString& resourceId, const QString& displayName,
+                                                 const QString& category = QStringLiteral("my"));
+  Q_INVOKABLE bool loadLibraryComponent(const QString& resourceId);
   Q_INVOKABLE bool configureSilentComponentUploads(const QString& endpoint, const QString& statePath,
                                                     const QString& pendingRoot);
   Q_INVOKABLE bool signInWithSupabase(const QString& projectUrl, const QString& anonKey,
@@ -182,6 +189,7 @@ class WorkbenchRuntime final : public QObject {
   edward::resources::SupabaseAuthClient authClient_;
   bool signInBusy_ = false;
   edward::resources::ComponentUploadClient componentUploadClient_;
+  edward::resources::ComponentLibrary componentLibrary_;
   bool componentUploadBusy_ = false;
   std::optional<edward::core::ComponentIr> aiComponentDraft_;
   QString aiComponentDraftJson_;

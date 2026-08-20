@@ -192,6 +192,12 @@ int main(int argc, char** argv) {
   assert(runtime.saveComponentPackage(packagePath, QStringLiteral("demo.component"), QStringLiteral("Demo component")));
   assert(QFile::exists(packagePath + QStringLiteral("/manifest.json")));
   assert(QFile::exists(packagePath + QStringLiteral("/component.json")));
+  const auto libraryPath = directory.path() + QStringLiteral("/library");
+  assert(runtime.configureComponentLibrary(libraryPath));
+  assert(runtime.saveCurrentComponentToLibrary(QStringLiteral("demo.library"), QStringLiteral("Library demo")));
+  assert(runtime.localComponents().size() == 1);
+  assert(runtime.loadLibraryComponent(QStringLiteral("demo.library")));
+  assert(!runtime.componentBoundToClip());
   assert(!runtime.configureSilentComponentUploads(
       QStringLiteral("http://project.supabase.co/functions/v1/component-upload"),
       directory.path() + QStringLiteral("/upload-state.json"),

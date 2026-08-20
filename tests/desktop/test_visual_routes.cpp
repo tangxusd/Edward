@@ -35,6 +35,8 @@ int main() {
   assert(workbench.find("保存组件 JSON") != std::string::npos);
   assert(workbench.find("保存组件包") != std::string::npos);
   assert(workbench.find("saveComponentPackage") != std::string::npos);
+  assert(workbench.find("saveCurrentComponentToLibrary") != std::string::npos);
+  assert(workbench.find("保存到我的组件库") != std::string::npos);
   assert(workbench.find("saveProject") != std::string::npos);
   assert(workbench.find("loadProject") != std::string::npos);
   assert(workbench.find("导出视频") != std::string::npos);
