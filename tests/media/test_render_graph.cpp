@@ -162,6 +162,11 @@ int main(int argc, char** argv) {
   assert(dissolveScene);
   const auto dissolvePixel = dissolveScene->frame.pixelColor(960, 540);
   assert(dissolvePixel.red() > 100 && dissolvePixel.green() > 100 && dissolvePixel.blue() > 100);
+  const auto dissolveMiddleScene = transitionGraph.build(dissolveTimeline.snapshot(), {7});
+  assert(dissolveMiddleScene);
+  const auto dissolveMiddlePixel = dissolveMiddleScene->frame.pixelColor(960, 540);
+  assert(dissolveMiddlePixel.red() > 120 && dissolveMiddlePixel.green() > 70 &&
+         dissolveMiddlePixel.blue() > 70);
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }
