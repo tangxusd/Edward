@@ -121,6 +121,10 @@ int main(int argc, char** argv) {
   runtime.setSelectedComponentNodeOpacity(0.6);
   assert(runtime.selectedComponentNodeRotation() == 25.0);
   assert(runtime.selectedComponentNodeOpacity() == 0.6);
+  runtime.setSelectedComponentNodeColor(QStringLiteral("#ff0000"));
+  assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
+  runtime.setSelectedComponentNodeColor(QStringLiteral("red"));
+  assert(runtime.selectedComponentNodeColor() == QStringLiteral("#ff0000"));
   runtime.setDemoOverlayFontSize(31);
   assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(1).toObject()
              .value("properties").toObject().value("fontSize").toInt() == 31);

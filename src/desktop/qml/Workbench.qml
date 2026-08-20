@@ -351,6 +351,14 @@ ApplicationWindow {
                         enabled: workbenchRuntime.selectedComponentNodeId !== ""
                         onMoved: workbenchRuntime.selectedComponentNodeOpacity = value
                     }
+                    TextField {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        text: workbenchRuntime.selectedComponentNodeColor
+                        placeholderText: "节点颜色，例如 #00b8c8"
+                        enabled: workbenchRuntime.selectedComponentNodeId !== ""
+                        onEditingFinished: workbenchRuntime.selectedComponentNodeColor = text
+                    }
                     Slider {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 220

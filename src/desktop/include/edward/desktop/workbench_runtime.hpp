@@ -47,6 +47,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int selectedComponentNodeHeight READ selectedComponentNodeHeight WRITE setSelectedComponentNodeHeight NOTIFY timelineChanged)
   Q_PROPERTY(double selectedComponentNodeRotation READ selectedComponentNodeRotation WRITE setSelectedComponentNodeRotation NOTIFY timelineChanged)
   Q_PROPERTY(double selectedComponentNodeOpacity READ selectedComponentNodeOpacity WRITE setSelectedComponentNodeOpacity NOTIFY timelineChanged)
+  Q_PROPERTY(QString selectedComponentNodeColor READ selectedComponentNodeColor WRITE setSelectedComponentNodeColor NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
@@ -89,6 +90,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int selectedComponentNodeHeight() const;
   [[nodiscard]] double selectedComponentNodeRotation() const;
   [[nodiscard]] double selectedComponentNodeOpacity() const;
+  [[nodiscard]] QString selectedComponentNodeColor() const;
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
   [[nodiscard]] QString componentPluginDependencyStatus() const;
@@ -121,6 +123,7 @@ class WorkbenchRuntime final : public QObject {
   void setSelectedComponentNodeHeight(int value);
   void setSelectedComponentNodeRotation(double value);
   void setSelectedComponentNodeOpacity(double value);
+  void setSelectedComponentNodeColor(const QString& value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);

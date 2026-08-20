@@ -320,6 +320,15 @@ double WorkbenchRuntime::selectedComponentNodeOpacity() const {
   return node ? node->value("properties").toObject().value("opacity").toDouble(1.0) : 0.0;
 }
 
+QString WorkbenchRuntime::selectedComponentNodeColor() const {
+  if (!demoOverlayIr_) return {};
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node) return {};
+  const auto properties = node->value("properties").toObject();
+  const auto type = node->value("type").toString();
+  return properties.value(type == QStringLiteral("shape") ? "fill" : "color").toString();
+}
+
 QJsonObject WorkbenchRuntime::componentJson() const {
   return demoOverlayIr_ ? demoOverlayIr_->toJson() : QJsonObject{};
 }
@@ -1121,6 +1130,18 @@ void WorkbenchRuntime::setSelectedComponentNodeOpacity(double value) {
   const auto clamped = std::max(0.0, std::min(value, 1.0));
   setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("opacity"),
                          clamped, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeColor(const QString& value) {
+  if (!demoOverlayIr_ || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  const auto type = node->value("type").toString();
+  const auto field = type == QStringLiteral("shape") ? QStringLiteral("fill") : QStringLiteral("color");
+  const auto color = value.trimmed().left(32);
+  if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, field, color, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
