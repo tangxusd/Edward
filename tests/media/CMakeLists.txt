@@ -42,7 +42,8 @@ add_test(NAME media.mlt_adapter COMMAND test_mlt_adapter ${EDWARD_MEDIA_FIXTURE}
 
 add_executable(test_render_graph test_render_graph.cpp)
 target_link_libraries(test_render_graph PRIVATE edward_media)
-add_test(NAME media.render_graph COMMAND test_render_graph ${EDWARD_MEDIA_FIXTURE})
+add_dependencies(test_render_graph media_overlay_fixture)
+add_test(NAME media.render_graph COMMAND test_render_graph ${EDWARD_MEDIA_FIXTURE} ${EDWARD_MEDIA_OVERLAY_FIXTURE})
 
 add_executable(test_export_job test_export_job.cpp)
 target_link_libraries(test_export_job PRIVATE edward_media)

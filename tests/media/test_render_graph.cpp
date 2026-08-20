@@ -9,7 +9,7 @@
 #include <cassert>
 
 int main(int argc, char** argv) {
-  assert(argc == 2);
+  assert(argc == 3);
   edward::core::Timeline timeline(25);
   const auto track = timeline.addVideoTrack();
   assert(timeline.insertClip({1, track, argv[1], 0, 25, 0}));
@@ -167,6 +167,14 @@ int main(int argc, char** argv) {
   const auto dissolveMiddlePixel = dissolveMiddleScene->frame.pixelColor(960, 540);
   assert(dissolveMiddlePixel.red() > 120 && dissolveMiddlePixel.green() > 70 &&
          dissolveMiddlePixel.blue() > 70);
+  edward::core::Timeline mediaDissolveTimeline(20);
+  const auto mediaDissolveTrack = mediaDissolveTimeline.addVideoTrack();
+  assert(mediaDissolveTimeline.insertClip({41, mediaDissolveTrack, argv[1], 0, 10, 0}));
+  assert(mediaDissolveTimeline.insertClip({42, mediaDissolveTrack, argv[2], 0, 10, 10}));
+  assert(mediaDissolveTimeline.addTransition(edward::core::TransitionType::Dissolve, 41, 42, 6));
+  const auto mediaDissolveScene = transitionGraph.build(mediaDissolveTimeline.snapshot(), {7});
+  assert(mediaDissolveScene);
+  assert(mediaDissolveScene->frame.pixelColor(8, 8).red() > 50);
   assert(!graph.build(timeline.snapshot(), {99}).has_value());
   return 0;
 }

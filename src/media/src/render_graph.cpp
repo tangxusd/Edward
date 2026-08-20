@@ -44,15 +44,10 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     if (left == snapshot.clips.end() || right == snapshot.clips.end() ||
         left->kind != edward::core::TimelineClipKind::Media || right->kind != edward::core::TimelineClipKind::Media)
       continue;
-    const auto isolatedFrame = [&](const edward::core::TimelineClip& clip) {
-      auto isolated = snapshot;
-      isolated.clips = {clip};
-      isolated.videoTracks = {clip.trackId};
-      isolated.transitions.clear();
-      return adapter_.renderFrame(isolated, request.frame);
-    };
-    const auto outgoing = isolatedFrame(*left);
-    const auto incoming = isolatedFrame(*right);
+    const auto outgoing = adapter_.renderSourceFrame(left->source,
+        left->sourceIn + request.frame - left->timelineStart);
+    const auto incoming = adapter_.renderSourceFrame(right->source,
+        right->sourceIn + request.frame - transition.startFrame);
     if (!outgoing || !incoming || outgoing->size() != incoming->size() || outgoing->size() != frame->size()) continue;
     const auto progress = std::clamp(static_cast<double>(request.frame - transition.startFrame) /
                                          std::max<edward::core::Frame>(1, transition.durationFrames - 1),
