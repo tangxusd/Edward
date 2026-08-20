@@ -34,6 +34,9 @@ int main() {
   restored.addVideoTrack();
   assert(restored.restore({300, 0, {1, 2}, {{9, 2, "overlay.mp4", 0, 30, 0}}}));
   assert(restored.clips(2).size() == 1);
+  assert(!restored.removeEmptyVideoTrack(2));
+  assert(restored.removeEmptyVideoTrack(1));
+  assert(!restored.removeEmptyVideoTrack(2));
   const auto component = ComponentIr::parse({{"version", "1"}, {"root", QJsonObject{{"id", "component"}, {"type", "container"}}}});
   assert(component);
   assert(timeline.insertClip({4, track, {}, 0, 20, 200, TimelineClipKind::Component, *component}));

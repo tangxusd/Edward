@@ -111,6 +111,11 @@ Item {
             text: "新增视频轨"
             onClicked: workbenchRuntime.addVideoTrack()
         }
+        Button {
+            text: "删除空视频轨"
+            enabled: root.videoTrackCount > 1
+            onClicked: workbenchRuntime.removeEmptyVideoTrack()
+        }
         Item {
             Layout.fillWidth: true
         }

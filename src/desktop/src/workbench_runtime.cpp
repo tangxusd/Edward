@@ -1466,6 +1466,19 @@ bool WorkbenchRuntime::addVideoTrack() {
   return true;
 }
 
+bool WorkbenchRuntime::removeEmptyVideoTrack() {
+  const auto tracks = timeline_.snapshot().videoTracks;
+  for (auto it = tracks.rbegin(); it != tracks.rend(); ++it) {
+    if (timeline_.removeEmptyVideoTrack(*it)) {
+      emit timelineChanged();
+      emit operationSucceeded(QStringLiteral("已删除空视频轨"));
+      return true;
+    }
+  }
+  emit operationFailed(QStringLiteral("只能删除额外的空视频轨"));
+  return false;
+}
+
 bool WorkbenchRuntime::undoTimeline() {
   if (!controller_.undo()) return false;
   refreshDemoOverlay();

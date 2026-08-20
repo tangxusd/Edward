@@ -2666,3 +2666,9 @@
 - 目的：让用户在左侧素材库可见已进入工程的媒体，并可快速回到对应片段。
 - 修改：左侧新增“已导入素材”列表，直接从现有时间线媒体片段派生；点击条目选中对应片段，不维护额外素材副本或改变导入逻辑。
 - 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
+
+## 2026-08-20 安全删除空视频轨
+
+- 目的：补齐基础时间线的轨道新增/删除能力，同时避免删除片段或形成无视频轨工程。
+- 修改：核心时间线新增仅删除空视频轨的接口；拒绝删除最后一条视频轨以及包含任意片段的轨道。工作台工具栏提供“删除空视频轨”，从末尾查找可删除空轨。
+- 验证：先新增核心失败测试，确认接口缺失时构建失败；实现后 `core.timeline_commands`、`desktop.timeline_controller`、`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 5/5 通过，`git diff --check` 通过。

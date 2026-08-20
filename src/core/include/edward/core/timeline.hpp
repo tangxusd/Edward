@@ -33,6 +33,7 @@ class Timeline {
   explicit Timeline(Frame durationFrames);
 
   TrackId addVideoTrack();
+  bool removeEmptyVideoTrack(TrackId id);
   bool insertClip(TimelineClip clip);
   bool replaceClip(ClipId id, TimelineClip replacement);
   bool removeClip(ClipId id);

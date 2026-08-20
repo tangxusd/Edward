@@ -12,6 +12,12 @@ TrackId Timeline::addVideoTrack() {
   return id;
 }
 
+bool Timeline::removeEmptyVideoTrack(TrackId id) {
+  if (videoTracks_.size() <= 1 || !isKnownTrack(id) || !clips(id).empty()) return false;
+  std::erase(videoTracks_, id);
+  return true;
+}
+
 bool Timeline::insertClip(TimelineClip clip) {
   if (!isValid(clip) || overlaps(clip, std::nullopt)) return false;
   if (std::any_of(clips_.begin(), clips_.end(), [clip](const auto& existing) { return existing.id == clip.id; })) return false;
