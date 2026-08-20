@@ -132,6 +132,8 @@ int main(int argc, char** argv) {
   runtime.setDemoOverlayWidth(300);
   runtime.setDemoOverlayHeight(100);
   runtime.setDemoOverlayOpacity(0.5);
+  runtime.setDemoOverlayFontSize(28);
+  runtime.setDemoOverlayBorderWidth(6);
   runtime.setDemoOverlayScale(1.5);
   runtime.setDemoOverlayRotation(30.0);
   const auto overlay = runtime.componentJson();
@@ -161,6 +163,8 @@ int main(int argc, char** argv) {
   assert(restoredRuntime.demoOverlayWidth() == 300);
   assert(restoredRuntime.demoOverlayHeight() == 100);
   assert(restoredRuntime.demoOverlayOpacity() == 0.5);
+  assert(restoredRuntime.demoOverlayFontSize() == 28);
+  assert(restoredRuntime.demoOverlayBorderWidth() == 6);
   assert(restoredRuntime.demoOverlayScale() == 1.5);
   assert(restoredRuntime.demoOverlayRotation() == 30.0);
   assert(!restoredRuntime.componentJson().isEmpty());

@@ -223,9 +223,13 @@ void WorkbenchRuntime::syncDemoOverlayProperties(const QJsonObject& component) {
   if (transform.value("scaleX").isDouble()) demoOverlayScale_ = transform.value("scaleX").toDouble();
   if (transform.value("rotation").isDouble()) demoOverlayRotation_ = transform.value("rotation").toDouble();
   if (properties.value("opacity").isDouble()) demoOverlayOpacity_ = properties.value("opacity").toDouble();
+  if (properties.value("borderWidth").isDouble()) demoOverlayBorderWidth_ = properties.value("borderWidth").toInt();
   const auto text = findNode(component.value("root").toObject(), QStringLiteral("demo-text"));
-  if (text && text->value("properties").toObject().value("text").isString())
-    demoOverlayText_ = text->value("properties").toObject().value("text").toString();
+  if (text) {
+    const auto textProperties = text->value("properties").toObject();
+    if (textProperties.value("text").isString()) demoOverlayText_ = textProperties.value("text").toString();
+    if (textProperties.value("fontSize").isDouble()) demoOverlayFontSize_ = textProperties.value("fontSize").toInt();
+  }
 }
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
@@ -954,6 +958,22 @@ void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   demoOverlayText_ = value.left(120);
   if (demoOverlayIr_)
     setPropertyAndKeyframe(*demoOverlayIr_, "demo-text", "text", demoOverlayText_, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
+  demoOverlayFontSize_ = std::max(8, std::min(value, 96));
+  if (demoOverlayIr_)
+    setPropertyAndKeyframe(*demoOverlayIr_, "demo-text", "fontSize", demoOverlayFontSize_, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
+  demoOverlayBorderWidth_ = std::max(0, std::min(value, 32));
+  if (demoOverlayIr_)
+    setPropertyAndKeyframe(*demoOverlayIr_, "demo-box", "borderWidth", demoOverlayBorderWidth_, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }

@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：组件字号与边框属性编辑
+
+- 目的：让组件进入时间线后，属性面板能继续调整文字字号与边框宽度，并写入同一套 Component IR/关键帧数据。
+- 涉及文件：`src/desktop/include/edward/desktop/workbench_runtime.hpp`、`src/desktop/src/workbench_runtime.cpp`、`src/desktop/qml/Workbench.qml`、`src/media/src/component_renderer.cpp`、`tests/desktop/test_workbench_plugins.cpp`。
+- 结果：工作台属性面板新增字号与边框宽度滑块；修改会写入选中组件片段并随工程保存恢复；渲染器按当前帧读取字号与边框宽度关键帧。
+- 验证：`cmake --build build/0.3-runtime -j2` 通过；全量 CTest 34/34 通过。
+
 ## 2026-08-20：组件独立导出
 
 - 目的：让没有媒体底片的标准组件时间线也能进入统一 RenderGraph 并导出，而不是因缺少 MLT 媒体参考帧失败。

@@ -325,6 +325,32 @@ ApplicationWindow {
                         placeholderText: "组件文字"
                         onEditingFinished: workbenchRuntime.demoOverlayText = text
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "文字字号: " + workbenchRuntime.demoOverlayFontSize
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 8
+                        to: 96
+                        value: workbenchRuntime.demoOverlayFontSize
+                        onMoved: workbenchRuntime.demoOverlayFontSize = value
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "边框宽度: " + workbenchRuntime.demoOverlayBorderWidth
+                        color: DesignTokens.textSecondary
+                    }
+                    Slider {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        from: 0
+                        to: 32
+                        value: workbenchRuntime.demoOverlayBorderWidth
+                        onMoved: workbenchRuntime.demoOverlayBorderWidth = value
+                    }
                     Button {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "导入组件草稿"

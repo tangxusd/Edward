@@ -37,6 +37,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(double demoOverlayRotation READ demoOverlayRotation WRITE setDemoOverlayRotation NOTIFY timelineChanged)
   Q_PROPERTY(double demoOverlayOpacity READ demoOverlayOpacity WRITE setDemoOverlayOpacity NOTIFY timelineChanged)
   Q_PROPERTY(QString demoOverlayText READ demoOverlayText WRITE setDemoOverlayText NOTIFY timelineChanged)
+  Q_PROPERTY(int demoOverlayFontSize READ demoOverlayFontSize WRITE setDemoOverlayFontSize NOTIFY timelineChanged)
+  Q_PROPERTY(int demoOverlayBorderWidth READ demoOverlayBorderWidth WRITE setDemoOverlayBorderWidth NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
@@ -69,6 +71,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] double demoOverlayRotation() const { return demoOverlayRotation_; }
   [[nodiscard]] double demoOverlayOpacity() const { return demoOverlayOpacity_; }
   [[nodiscard]] QString demoOverlayText() const { return demoOverlayText_; }
+  [[nodiscard]] int demoOverlayFontSize() const { return demoOverlayFontSize_; }
+  [[nodiscard]] int demoOverlayBorderWidth() const { return demoOverlayBorderWidth_; }
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
   [[nodiscard]] QString componentPluginDependencyStatus() const;
@@ -93,6 +97,8 @@ class WorkbenchRuntime final : public QObject {
   void setDemoOverlayRotation(double value);
   void setDemoOverlayOpacity(double value);
   void setDemoOverlayText(const QString& value);
+  void setDemoOverlayFontSize(int value);
+  void setDemoOverlayBorderWidth(int value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);
@@ -169,6 +175,8 @@ class WorkbenchRuntime final : public QObject {
   int demoOverlayY_ = 24;
   int demoOverlayWidth_ = 220;
   int demoOverlayHeight_ = 72;
+  int demoOverlayFontSize_ = 18;
+  int demoOverlayBorderWidth_ = 0;
   double demoOverlayScale_ = 1.0;
   double demoOverlayRotation_ = 0.0;
   double demoOverlayOpacity_ = 0.82;

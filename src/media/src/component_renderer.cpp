@@ -94,14 +94,16 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
     case edward::core::ComponentNodeType::Text: {
       painter.setPen(color(properties, "color", Qt::white));
       QFont font;
-      font.setPixelSize(static_cast<int>(number(properties, "fontSize", 24)));
+      font.setPixelSize(static_cast<int>(animatedNumber(node.keyframes, "fontSize", frame,
+                                                        number(properties, "fontSize", 24))));
       painter.setFont(font);
       painter.drawText(bounds, Qt::AlignLeft | Qt::AlignTop,
                        animatedString(node.keyframes, "text", frame, properties.value("text").toString()));
       break;
     }
     case edward::core::ComponentNodeType::Shape: {
-      const double borderWidth = std::max(0.0, number(properties, "borderWidth", 0));
+      const double borderWidth = std::max(0.0, animatedNumber(node.keyframes, "borderWidth", frame,
+                                                                number(properties, "borderWidth", 0)));
       if (borderWidth > 0) {
         painter.setPen(QPen(color(properties, "borderColor", Qt::white), borderWidth));
       } else {
