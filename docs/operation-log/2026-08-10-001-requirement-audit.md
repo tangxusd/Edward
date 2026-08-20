@@ -2583,3 +2583,8 @@
 - 目的：修复组件片段分割后第二段动画从本地第 0 帧重新开始的问题。
 - 修改：时间线组件和导出组件层均使用 `sourceIn + 工程帧 - timelineStart` 作为 Component IR 求值帧；普通独立组件层默认 `sourceIn` 为 0。
 - 验证：新增组件在第 10 帧分割、第二段 `sourceIn` 为 10 的渲染图回归，确认第二段继续原动画进度；`media.render_graph` 与 `desktop.workbench_plugins` 2/2 通过，`git diff --check` 通过。
+
+## 2026-08-20 0.3.0 关键帧与基础剪辑全量回归
+
+- 目的：确认组件关键帧时间语义修复没有破坏基础剪辑、预览、导出、资源库和认证链路。
+- 验证：重新构建 `build/0.3-runtime`；在 `QT_QPA_PLATFORM=offscreen` 下运行完整 CTest，34/34 通过，总耗时 6.74 秒；`git diff --check` 通过。
