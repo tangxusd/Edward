@@ -19,6 +19,8 @@ class TimelineController {
   bool moveSelectedTo(edward::core::Frame destination);
   bool trimSelectedLeftToPlayhead();
   bool trimSelectedRightToPlayhead();
+  bool setTransitionDuration(edward::core::ClipId leftClipId, edward::core::ClipId rightClipId,
+                             edward::core::Frame duration);
   bool undo();
   bool redo();
   bool selectClip(edward::core::ClipId id);

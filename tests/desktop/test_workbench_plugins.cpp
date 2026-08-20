@@ -466,6 +466,11 @@ int main(int argc, char** argv) {
   assert(visibleTransition.value("type").toString() == QStringLiteral("flash_white"));
   assert(visibleTransition.value("startFrame").toLongLong() == 0);
   assert(visibleTransition.value("durationFrames").toLongLong() == 10);
+  assert(transitionRuntime.setTransitionDuration(transitionLeft.value("id").toInteger(),
+                                                 transitionRight.value("id").toInteger(), 6));
+  assert(transitionRuntime.transitions().front().toMap().value("durationFrames").toLongLong() == 6);
+  assert(transitionRuntime.undoTimeline());
+  assert(transitionRuntime.transitions().front().toMap().value("durationFrames").toLongLong() == 10);
   assert(!transitionRuntime.addDissolveToSelected());
   const auto transitionOutput = directory.path() + QStringLiteral("/transition-output.edward.json");
   assert(transitionRuntime.saveProject(transitionOutput));

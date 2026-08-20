@@ -387,11 +387,13 @@ Item {
         Repeater {
             model: root.transitions
             delegate: Rectangle {
-                x: root.frameToX(modelData.startFrame)
+                property int displayDuration: resizeHandle.pressed ? resizeHandle.pendingDuration
+                                                                    : modelData.durationFrames
+                x: root.frameToX(modelData.startFrame + modelData.durationFrames - displayDuration)
                 y: ruler.height + toolbar.height +
                    (root.videoTrackCount - 1 - modelData.trackIndex) *
                    ((tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1)) + 4
-                width: Math.max(12, modelData.durationFrames * root.pixelsPerFrame)
+                width: Math.max(12, displayDuration * root.pixelsPerFrame)
                 height: 16
                 radius: 2
                 color: modelData.type === "dissolve" ? "#6d5ca8"
@@ -405,6 +407,23 @@ Item {
                     color: modelData.type === "flash_white" ? "#172027" : "#ffffff"
                     font.pixelSize: 9
                     visible: parent.width >= 28
+                }
+                MouseArea {
+                    id: resizeHandle
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: Math.min(8, parent.width / 2)
+                    cursorShape: Qt.SizeHorCursor
+                    property int pendingDuration: modelData.durationFrames
+                    onPressed: pendingDuration = modelData.durationFrames
+                    onPositionChanged: if (pressed) {
+                        var boundary = modelData.startFrame + modelData.durationFrames;
+                        pendingDuration = Math.max(1, boundary - root.frameAtX(parent.x + mouse.x));
+                    }
+                    onReleased: workbenchRuntime.setTransitionDuration(modelData.leftClipId,
+                                                                         modelData.rightClipId,
+                                                                         pendingDuration)
                 }
             }
         }

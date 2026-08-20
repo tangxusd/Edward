@@ -45,5 +45,16 @@ int main(int argc, char** argv) {
   assert(controller.selectClip(3));
   assert(controller.rippleDeleteSelected());
   assert(timeline.clips(tracks[1]).empty());
+
+  edward::core::Timeline transitionTimeline(100);
+  const auto transitionTrack = transitionTimeline.addVideoTrack();
+  assert(transitionTimeline.insertClip({10, transitionTrack, "left.mp4", 0, 20, 0}));
+  assert(transitionTimeline.insertClip({11, transitionTrack, "right.mp4", 0, 20, 20}));
+  assert(transitionTimeline.addTransition(edward::core::TransitionType::Dissolve, 10, 11, 6));
+  edward::desktop::TimelineController transitionController(transitionTimeline, transitionTrack);
+  assert(transitionController.setTransitionDuration(10, 11, 15));
+  assert(transitionTimeline.snapshot().transitions.front().durationFrames == 15);
+  assert(transitionController.undo());
+  assert(transitionTimeline.snapshot().transitions.front().durationFrames == 6);
   return 0;
 }

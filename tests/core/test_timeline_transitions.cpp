@@ -18,6 +18,16 @@ int main() {
   assert(timeline.restore(snapshot));
   assert(timeline.snapshot().transitions.front().type == edward::core::TransitionType::Dissolve);
 
+  const auto resized = timeline.setTransitionDuration(1, 2, 90);
+  assert(resized);
+  assert(resized->durationFrames == 30);
+  assert(resized->startFrame == 0);
+
+  const auto shortened = timeline.setTransitionDuration(1, 2, 12);
+  assert(shortened);
+  assert(shortened->durationFrames == 12);
+  assert(shortened->startFrame == 18);
+
   assert(timeline.removeClip(1));
   assert(timeline.snapshot().transitions.empty());
 

@@ -43,5 +43,16 @@ int main() {
   assert(timeline.clip(4)->kind == TimelineClipKind::Component);
   assert(commands.moveClip(4, 220));
   assert(timeline.clip(4)->timelineStart == 220);
+
+  Timeline transitions(300);
+  const auto transitionTrack = transitions.addVideoTrack();
+  assert(transitions.insertClip({20, transitionTrack, "left.mp4", 0, 40, 0}));
+  assert(transitions.insertClip({21, transitionTrack, "right.mp4", 0, 40, 40}));
+  assert(transitions.addTransition(TransitionType::Dissolve, 20, 21, 10));
+  TimelineCommands transitionCommands(transitions);
+  assert(transitionCommands.setTransitionDuration(20, 21, 25));
+  assert(transitions.snapshot().transitions.front().durationFrames == 25);
+  assert(transitionCommands.undo());
+  assert(transitions.snapshot().transitions.front().durationFrames == 10);
   return 0;
 }

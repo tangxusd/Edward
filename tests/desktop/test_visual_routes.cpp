@@ -113,6 +113,7 @@ int main() {
   assert(timeline.find("property var transitions") != std::string::npos);
   assert(timeline.find("model: root.transitions") != std::string::npos);
   assert(timeline.find("transitionOverlay") != std::string::npos);
+  assert(timeline.find("setTransitionDuration") != std::string::npos);
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);
   assert(timeline.find("signal videoTrackSelected") != std::string::npos);
   assert(preview.find("预览窗") != std::string::npos);

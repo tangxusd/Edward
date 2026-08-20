@@ -63,6 +63,10 @@ bool TimelineCommands::moveClip(ClipId id, Frame destination) {
   return mutate([&] { auto moved = *original; moved.timelineStart = destination; return timeline_.replaceClip(id, moved); });
 }
 
+bool TimelineCommands::setTransitionDuration(ClipId leftClipId, ClipId rightClipId, Frame duration) {
+  return mutate([&] { return timeline_.setTransitionDuration(leftClipId, rightClipId, duration).has_value(); });
+}
+
 bool TimelineCommands::setPlayhead(Frame frame) { return mutate([&] { return timeline_.setPlayhead(frame); }); }
 
 bool TimelineCommands::undo() {

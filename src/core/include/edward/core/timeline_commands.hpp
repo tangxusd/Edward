@@ -16,6 +16,7 @@ class TimelineCommands {
   bool deleteClip(ClipId id);
   bool rippleDelete(TrackId trackId, ClipId id);
   bool moveClip(ClipId id, Frame destination);
+  bool setTransitionDuration(ClipId leftClipId, ClipId rightClipId, Frame duration);
   bool setPlayhead(Frame frame);
   bool undo();
   bool redo();

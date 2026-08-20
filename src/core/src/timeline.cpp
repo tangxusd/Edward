@@ -67,6 +67,26 @@ std::optional<Transition> Timeline::addTransition(TransitionType type, ClipId le
   return transition;
 }
 
+std::optional<Transition> Timeline::setTransitionDuration(ClipId leftClipId, ClipId rightClipId,
+                                                           Frame requestedDuration) {
+  if (requestedDuration <= 0) return std::nullopt;
+  auto transition = std::ranges::find_if(transitions_, [&](const auto& candidate) {
+    return candidate.leftClipId == leftClipId && candidate.rightClipId == rightClipId;
+  });
+  const auto left = clip(leftClipId);
+  const auto right = clip(rightClipId);
+  if (transition == transitions_.end() || !left || !right || left->trackId != right->trackId) return std::nullopt;
+  const auto leftDuration = left->sourceOut - left->sourceIn;
+  const auto rightDuration = right->sourceOut - right->sourceIn;
+  const auto leftEnd = left->timelineStart + leftDuration;
+  if (leftEnd != right->timelineStart) return std::nullopt;
+  const auto duration = std::min({requestedDuration, leftDuration, rightDuration});
+  if (duration <= 0) return std::nullopt;
+  transition->durationFrames = duration;
+  transition->startFrame = leftEnd - duration;
+  return *transition;
+}
+
 std::optional<TimelineClip> Timeline::clip(ClipId id) const {
   const auto it = std::find_if(clips_.begin(), clips_.end(), [id](const auto& clip) { return clip.id == id; });
   return it == clips_.end() ? std::nullopt : std::optional<TimelineClip>(*it);

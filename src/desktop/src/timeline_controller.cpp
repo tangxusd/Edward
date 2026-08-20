@@ -80,6 +80,12 @@ bool TimelineController::trimSelectedRightToPlayhead() {
   return commands_.trimClip(selectedClip_, selected->timelineStart, playhead);
 }
 
+bool TimelineController::setTransitionDuration(edward::core::ClipId leftClipId,
+                                               edward::core::ClipId rightClipId,
+                                               edward::core::Frame duration) {
+  return commands_.setTransitionDuration(leftClipId, rightClipId, duration);
+}
+
 bool TimelineController::undo() { return commands_.undo(); }
 bool TimelineController::redo() { return commands_.redo(); }
 

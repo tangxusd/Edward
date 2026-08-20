@@ -1486,6 +1486,15 @@ bool WorkbenchRuntime::addTransitionToSelected(const QString& type) {
   return true;
 }
 
+bool WorkbenchRuntime::setTransitionDuration(qlonglong leftClipId, qlonglong rightClipId,
+                                             int durationFrames) {
+  if (durationFrames <= 0) return false;
+  if (!controller_.setTransitionDuration(static_cast<edward::core::ClipId>(leftClipId),
+                                         static_cast<edward::core::ClipId>(rightClipId), durationFrames)) return false;
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::writeProject(const QString& path) const {
   if (path.isEmpty()) return false;
   const auto snapshot = timeline_.snapshot();
