@@ -1461,8 +1461,14 @@ bool WorkbenchRuntime::hasProjectRecovery(const QString& path) const {
 }
 
 bool WorkbenchRuntime::recoverProject(const QString& path) {
-  if (!hasProjectRecovery(path)) return false;
-  if (!loadProject(recoveryPathForProject(path))) return false;
+  if (!hasProjectRecovery(path)) {
+    emit operationFailed(QStringLiteral("没有可恢复的自动保存副本"));
+    return false;
+  }
+  if (!loadProject(recoveryPathForProject(path))) {
+    emit operationFailed(QStringLiteral("自动保存副本已损坏，正式工程保持不变"));
+    return false;
+  }
   activeProjectPath_ = path;
   return true;
 }

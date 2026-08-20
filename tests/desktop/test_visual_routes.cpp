@@ -45,6 +45,7 @@ int main() {
   assert(workbench.find("hasProjectRecovery") != std::string::npos);
   assert(workbench.find("发现自动保存副本") != std::string::npos);
   assert(workbench.find("恢复自动保存") != std::string::npos);
+  assert(workbench.find("if (workbenchRuntime.recoverProject") != std::string::npos);
   assert(workbench.find("导出视频") != std::string::npos);
   assert(workbench.find("exportTimeline") != std::string::npos);
   assert(workbench.find("signInWithSupabase") != std::string::npos);

@@ -696,8 +696,8 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 text: "恢复自动保存"
                 onClicked: {
-                    workbenchRuntime.recoverProject(window.recoveryProjectPath)
-                    projectRecoveryDialog.close()
+                    if (workbenchRuntime.recoverProject(window.recoveryProjectPath))
+                        projectRecoveryDialog.close()
                 }
             }
         }
