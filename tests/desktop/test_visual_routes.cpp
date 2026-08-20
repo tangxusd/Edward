@@ -48,6 +48,11 @@ int main() {
   assert(workbench.find("if (workbenchRuntime.recoverProject") != std::string::npos);
   assert(workbench.find("导出视频") != std::string::npos);
   assert(workbench.find("exportTimeline") != std::string::npos);
+  assert(workbench.find("id: timelineExportPanel") != std::string::npos);
+  assert(workbench.find("exportTimelineWithOptions") != std::string::npos);
+  assert(workbench.find("选择文件夹") != std::string::npos);
+  assert(workbench.find("MP4（H.264）") != std::string::npos);
+  assert(workbench.find("正在导出，完成后可继续编辑。") != std::string::npos);
   assert(workbench.find("signInWithSupabase") != std::string::npos);
   assert(workbench.find("已登录:") != std::string::npos);
   assert(workbench.find("上传组件包") != std::string::npos);

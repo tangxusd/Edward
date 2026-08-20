@@ -8,6 +8,8 @@ ApplicationWindow {
     id: window
     property var importedMediaClips: workbenchRuntime.clips.filter(function(clip) { return clip.kind === "media"; })
     property string recoveryProjectPath: ""
+    property string exportOutputDirectory: ""
+    property string exportFileName: "未命名项目.mp4"
     visible: true
     title: workbenchRuntime.projectWindowTitle
     color: DesignTokens.background
@@ -63,7 +65,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignHCenter
                         text: workbenchRuntime.timelineExportBusy ? "视频导出中" : "导出视频"
                         enabled: workbenchRuntime.clips.length > 0 && !workbenchRuntime.timelineExportBusy
-                        onClicked: timelineExportDialog.open()
+                        onClicked: timelineExportPanel.open()
                     }
                     Label {
                         Layout.alignment: Qt.AlignLeft
@@ -703,12 +705,126 @@ ApplicationWindow {
         }
     }
 
-    FileDialog {
-        id: timelineExportDialog
-        title: "导出视频"
-        fileMode: FileDialog.SaveFile
-        nameFilters: ["MP4 视频 (*.mp4)", "所有文件 (*)"]
-        onAccepted: workbenchRuntime.exportTimeline(selectedFile.toLocalFile())
+    Dialog {
+        id: timelineExportPanel
+        anchors.centerIn: Overlay.overlay
+        width: 620
+        modal: true
+        title: "导出"
+        closePolicy: Popup.CloseOnEscape
+
+        contentItem: ColumnLayout {
+            spacing: 14
+            Label {
+                Layout.fillWidth: true
+                text: "将当前时间线合成为 MP4 视频"
+                color: DesignTokens.textSecondary
+                font.pixelSize: 12
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 14
+                rowSpacing: 12
+
+                Label { text: "文件名"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 5
+                    TextField {
+                        id: exportFileNameField
+                        Layout.fillWidth: true
+                        text: window.exportFileName
+                        placeholderText: "未命名项目.mp4"
+                    }
+                    Label { text: "默认使用当前项目名称"; color: DesignTokens.textSecondary; font.pixelSize: 11 }
+                }
+
+                Label { text: "分辨率"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                RowLayout {
+                    ComboBox {
+                        id: exportResolution
+                        model: ["1080p · 1920 × 1080", "720p · 1280 × 720", "540p · 960 × 540"]
+                        currentIndex: 0
+                    }
+                    Label { text: "横屏项目"; color: DesignTokens.textSecondary; font.pixelSize: 11 }
+                }
+
+                Label { text: "帧率"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                ComboBox { id: exportFps; model: ["25 fps", "30 fps"]; currentIndex: 0 }
+
+                Label { text: "格式"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                ComboBox { model: ["MP4（H.264）"]; enabled: false }
+
+                Label { text: "质量"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                ComboBox { id: exportQuality; model: ["高质量", "标准", "较小文件"]; currentIndex: 0 }
+
+                Label { text: "导出位置"; color: DesignTokens.textPrimary; font.pixelSize: 13 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 5
+                    Button { text: "选择文件夹"; onClicked: exportDirectoryDialog.open() }
+                    Label {
+                        Layout.fillWidth: true
+                        text: window.exportOutputDirectory === "" ? "尚未选择导出位置" : window.exportOutputDirectory
+                        color: DesignTokens.textSecondary
+                        elide: Text.ElideMiddle
+                        font.pixelSize: 11
+                    }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: DesignTokens.divider }
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    Layout.fillWidth: true
+                    text: workbenchRuntime.timelineExportBusy ? "正在导出，完成后可继续编辑。" : "等待导出"
+                    color: DesignTokens.textSecondary
+                    font.pixelSize: 11
+                }
+                Label {
+                    visible: workbenchRuntime.timelineExportBusy
+                    text: "导出中"
+                    color: DesignTokens.accent
+                    font.pixelSize: 11
+                }
+            }
+        }
+        footer: RowLayout {
+            spacing: 8
+            Button {
+                Layout.fillWidth: true
+                text: "取消"
+                enabled: !workbenchRuntime.timelineExportBusy
+                onClicked: timelineExportPanel.close()
+            }
+            Button {
+                Layout.fillWidth: true
+                text: workbenchRuntime.timelineExportBusy ? "导出中" : "导出"
+                enabled: !workbenchRuntime.timelineExportBusy
+                         && window.exportOutputDirectory !== "" && exportFileNameField.text.trim() !== ""
+                onClicked: {
+                    var fileName = exportFileNameField.text.trim()
+                    if (!fileName.endsWith(".mp4"))
+                        fileName += ".mp4"
+                    var sizes = [[1920, 1080], [1280, 720], [960, 540]]
+                    var frameRates = [25, 30]
+                    if (workbenchRuntime.exportTimelineWithOptions(window.exportOutputDirectory + "/" + fileName,
+                                                                   sizes[exportResolution.currentIndex][0],
+                                                                   sizes[exportResolution.currentIndex][1],
+                                                                   frameRates[exportFps.currentIndex],
+                                                                   exportQuality.currentIndex)) {
+                        window.exportFileName = fileName
+                    }
+                }
+            }
+        }
+    }
+
+    FolderDialog {
+        id: exportDirectoryDialog
+        title: "选择视频导出位置"
+        onAccepted: window.exportOutputDirectory = selectedFolder.toLocalFile()
     }
 
     FolderDialog {
