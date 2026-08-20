@@ -1435,6 +1435,10 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
 }
 
 bool WorkbenchRuntime::addDissolveToSelected() {
+  return addTransitionToSelected(QStringLiteral("dissolve"));
+}
+
+bool WorkbenchRuntime::addTransitionToSelected(const QString& type) {
   const auto selected = timeline_.clip(controller_.selectedClip());
   if (!selected) return false;
   const auto trackClips = timeline_.clips(selected->trackId);
@@ -1444,7 +1448,12 @@ bool WorkbenchRuntime::addDissolveToSelected() {
   if (adjacent == trackClips.end()) return false;
   const auto duration = std::min<edward::core::Frame>(15,
       std::min(selected->sourceOut - selected->sourceIn, adjacent->sourceOut - adjacent->sourceIn));
-  const auto transition = timeline_.addTransition(edward::core::TransitionType::Dissolve,
+  edward::core::TransitionType transitionType;
+  if (type == QStringLiteral("dissolve")) transitionType = edward::core::TransitionType::Dissolve;
+  else if (type == QStringLiteral("flash_black")) transitionType = edward::core::TransitionType::FlashBlack;
+  else if (type == QStringLiteral("flash_white")) transitionType = edward::core::TransitionType::FlashWhite;
+  else return false;
+  const auto transition = timeline_.addTransition(transitionType,
                                                   selected->id, adjacent->id, duration);
   if (!transition) return false;
   emit timelineChanged();

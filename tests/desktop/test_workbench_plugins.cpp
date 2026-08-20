@@ -459,12 +459,14 @@ int main(int argc, char** argv) {
   edward::desktop::WorkbenchRuntime transitionRuntime;
   assert(transitionRuntime.loadProject(transitionPath));
   assert(transitionRuntime.selectClip(transitionLeft.value("id").toInteger()));
-  assert(transitionRuntime.addDissolveToSelected());
+  assert(transitionRuntime.addTransitionToSelected(QStringLiteral("flash_white")));
+  assert(!transitionRuntime.addDissolveToSelected());
   const auto transitionOutput = directory.path() + QStringLiteral("/transition-output.edward.json");
   assert(transitionRuntime.saveProject(transitionOutput));
   QFile transitionSaved(transitionOutput);
   assert(transitionSaved.open(QIODevice::ReadOnly));
   const auto savedTransitions = QJsonDocument::fromJson(transitionSaved.readAll()).object().value("transitions").toArray();
   assert(savedTransitions.size() == 1);
+  assert(savedTransitions.at(0).toObject().value("type").toString() == QStringLiteral("flash_white"));
   return 0;
 }

@@ -124,6 +124,14 @@ Item {
             onClicked: workbenchRuntime.addDissolveToSelected()
         }
         Button {
+            text: "闪黑"
+            onClicked: workbenchRuntime.addTransitionToSelected("flash_black")
+        }
+        Button {
+            text: "闪白"
+            onClicked: workbenchRuntime.addTransitionToSelected("flash_white")
+        }
+        Button {
             text: "撤销"
             onClicked: workbenchRuntime.undoTimeline()
         }
