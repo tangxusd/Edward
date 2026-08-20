@@ -94,6 +94,8 @@ void renderNode(QPainter& painter, const edward::core::ComponentNode& node, int 
     case edward::core::ComponentNodeType::Text: {
       painter.setPen(color(properties, "color", Qt::white));
       QFont font;
+      const auto family = properties.value("fontFamily").toString();
+      if (!family.isEmpty()) font.setFamily(family);
       font.setPixelSize(static_cast<int>(animatedNumber(node.keyframes, "fontSize", frame,
                                                         number(properties, "fontSize", 24))));
       painter.setFont(font);

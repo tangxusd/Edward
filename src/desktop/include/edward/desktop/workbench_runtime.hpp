@@ -49,6 +49,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(double selectedComponentNodeOpacity READ selectedComponentNodeOpacity WRITE setSelectedComponentNodeOpacity NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeColor READ selectedComponentNodeColor WRITE setSelectedComponentNodeColor NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeBorderColor READ selectedComponentNodeBorderColor WRITE setSelectedComponentNodeBorderColor NOTIFY timelineChanged)
+  Q_PROPERTY(QString selectedComponentNodeFontFamily READ selectedComponentNodeFontFamily WRITE setSelectedComponentNodeFontFamily NOTIFY timelineChanged)
   Q_PROPERTY(bool installedPluginAvailable READ installedPluginAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString installedPluginId READ installedPluginId NOTIFY timelineChanged)
   Q_PROPERTY(QString componentPluginDependencyStatus READ componentPluginDependencyStatus NOTIFY timelineChanged)
@@ -93,6 +94,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] double selectedComponentNodeOpacity() const;
   [[nodiscard]] QString selectedComponentNodeColor() const;
   [[nodiscard]] QString selectedComponentNodeBorderColor() const;
+  [[nodiscard]] QString selectedComponentNodeFontFamily() const;
   [[nodiscard]] bool installedPluginAvailable() const { return installedPlugin_.has_value(); }
   [[nodiscard]] QString installedPluginId() const;
   [[nodiscard]] QString componentPluginDependencyStatus() const;
@@ -127,6 +129,7 @@ class WorkbenchRuntime final : public QObject {
   void setSelectedComponentNodeOpacity(double value);
   void setSelectedComponentNodeColor(const QString& value);
   void setSelectedComponentNodeBorderColor(const QString& value);
+  void setSelectedComponentNodeFontFamily(const QString& value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);

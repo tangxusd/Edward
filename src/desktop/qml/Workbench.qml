@@ -367,6 +367,14 @@ ApplicationWindow {
                         enabled: workbenchRuntime.selectedComponentNodeBorderColor !== ""
                         onEditingFinished: workbenchRuntime.selectedComponentNodeBorderColor = text
                     }
+                    TextField {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 220
+                        text: workbenchRuntime.selectedComponentNodeFontFamily
+                        placeholderText: "字体族，例如 PingFang SC"
+                        enabled: workbenchRuntime.selectedComponentNodeFontFamily !== ""
+                        onEditingFinished: workbenchRuntime.selectedComponentNodeFontFamily = text
+                    }
                     Slider {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 220

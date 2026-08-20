@@ -14,6 +14,7 @@
 #include <QJsonObject>
 #include <QUrl>
 #include <QDateTime>
+#include <QRegularExpression>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -334,6 +335,13 @@ QString WorkbenchRuntime::selectedComponentNodeBorderColor() const {
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
   if (!node || node->value("type").toString() != QStringLiteral("shape")) return {};
   return node->value("properties").toObject().value("borderColor").toString();
+}
+
+QString WorkbenchRuntime::selectedComponentNodeFontFamily() const {
+  if (!demoOverlayIr_) return {};
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node || node->value("type").toString() != QStringLiteral("text")) return {};
+  return node->value("properties").toObject().value("fontFamily").toString();
 }
 
 QJsonObject WorkbenchRuntime::componentJson() const {
@@ -1160,6 +1168,17 @@ void WorkbenchRuntime::setSelectedComponentNodeBorderColor(const QString& value)
   const auto color = value.trimmed().left(32);
   if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
   setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("borderColor"), color, playheadFrame());
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeFontFamily(const QString& value) {
+  if (!demoOverlayIr_) return;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  if (!node || node->value("type").toString() != QStringLiteral("text")) return;
+  const auto family = value.trimmed().left(120);
+  if (family.isEmpty() || family.contains(QRegularExpression(QStringLiteral("[\\r\\n]")))) return;
+  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("fontFamily"), family, playheadFrame());
   refreshDemoOverlay();
   emit timelineChanged();
 }
