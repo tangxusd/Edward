@@ -4,6 +4,7 @@ add_library(edward_resources STATIC
   include/edward/resources/component_upload.hpp
   include/edward/resources/auth_session_store.hpp
   include/edward/resources/supabase_auth_client.hpp
+  include/edward/resources/model_chat_client.hpp
   include/edward/resources/component_upload_queue.hpp
   include/edward/resources/component_upload_scheduler.hpp
   include/edward/resources/component_upload_dispatcher.hpp
@@ -11,6 +12,7 @@ add_library(edward_resources STATIC
   src/component_upload.cpp
   src/auth_session_store.cpp
   src/supabase_auth_client.cpp
+  src/model_chat_client.cpp
   src/component_upload_queue.cpp
   src/component_upload_scheduler.cpp
   src/component_upload_dispatcher.cpp

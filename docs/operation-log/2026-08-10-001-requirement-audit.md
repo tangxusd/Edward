@@ -2345,3 +2345,9 @@
 - 目的：让 AI 能够编辑外部插件组件，但只能修改插件 manifest 和组件描述共同声明的字段，保持 React/插件私有结构不成为 Edward 编辑真相源。
 - 修改：工作台在应用或生成 AI 命令前校验插件 ID、版本和 `editableProps`；已安装插件版本不匹配或字段未声明时拒绝命令。补充工作台测试验证 `opacity` 白名单字段可编辑，未声明的 `fill` 字段被拒绝。
 - 验证：插件 manifest、插件宿主和工作台定向测试通过；完整 `ctest --test-dir build/0.3-runtime --output-on-failure` 32/32 通过。
+
+## 2026-08-20 AI 模型请求基础客户端
+
+- 目的：为后续 AI 对话接入提供统一、可测试的 OpenAI 兼容 Chat Completions 请求边界，不把 API 密钥写入工程或源码。
+- 修改：新增 `ModelChatClient` 请求构造和 assistant 文本提取接口；请求配置只接受 HTTPS 端点、运行时 API Key、模型 ID 及非空系统/用户提示词；响应缺少 `choices.message.content` 时明确失败。当前模块只负责协议边界，尚未自动发起网络请求或改变工程状态。
+- 验证：新增请求体、HTTPS、密钥、模型和响应字段测试；`cmake --build build/0.3-runtime -j2` 成功；完整 CTest 33/33 通过。
