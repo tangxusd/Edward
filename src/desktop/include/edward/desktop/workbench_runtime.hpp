@@ -63,6 +63,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool pluginRenderBusy READ pluginRenderBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool timelineExportBusy READ timelineExportBusy NOTIFY timelineChanged)
+  Q_PROPERTY(int timelineExportProgress READ timelineExportProgress NOTIFY timelineChanged)
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
@@ -115,6 +116,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool pluginRenderBusy() const { return pluginRenderBusy_; }
   [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
   [[nodiscard]] bool timelineExportBusy() const { return timelineExportBusy_; }
+  [[nodiscard]] int timelineExportProgress() const { return timelineExportProgress_; }
   [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
@@ -262,6 +264,7 @@ class WorkbenchRuntime final : public QObject {
   struct TimelineExportResult { QString error; QString outputPath; };
   QFutureWatcher<TimelineExportResult> timelineExportWatcher_;
   bool timelineExportBusy_ = false;
+  int timelineExportProgress_ = 0;
   edward::resources::AuthSessionStore sessions_;
   edward::resources::SupabaseAuthClient authClient_;
   bool signInBusy_ = false;

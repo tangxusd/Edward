@@ -63,6 +63,7 @@ int main(int argc, char** argv) {
   exportLoop.exec();
   assert(exported);
   assert(QFile::exists(exportPath));
+  assert(runtime.timelineExportProgress() == 100);
   const auto exportedInfo = edward::media::MediaProbe::probe(std::filesystem::path(exportPath.toStdString()));
   assert(exportedInfo.has_value());
   assert(exportedInfo->width == 1280);

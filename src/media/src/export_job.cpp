@@ -24,7 +24,8 @@ struct AudioClip {
 ExportJob::ExportJob(const RenderGraph& graph) : graph_(graph) {}
 
 std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot& snapshot,
-                                           const ExportRequest& request) const {
+                                           const ExportRequest& request,
+                                           std::function<void(edward::core::Frame, edward::core::Frame)> progress) const {
   if (snapshot.durationFrames <= 0 || request.outputPath.empty() || request.outputSize.isEmpty() ||
       request.fpsNumerator <= 0 || request.fpsDenominator <= 0) return std::nullopt;
   std::error_code error;
@@ -100,6 +101,7 @@ std::optional<ExportResult> ExportJob::run(const edward::core::TimelineSnapshot&
       std::filesystem::remove(request.outputPath, error);
       return std::nullopt;
     }
+    if (progress) progress(frame + 1, snapshot.durationFrames);
   }
   encoder.closeWriteChannel();
   if (!encoder.waitForFinished(60000) || encoder.exitStatus() != QProcess::NormalExit || encoder.exitCode() != 0 ||

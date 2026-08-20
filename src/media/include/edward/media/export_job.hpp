@@ -6,6 +6,7 @@
 #include <QSize>
 
 #include <filesystem>
+#include <functional>
 #include <optional>
 
 namespace edward::media {
@@ -29,7 +30,8 @@ class ExportJob {
  public:
   explicit ExportJob(const RenderGraph& graph);
   std::optional<ExportResult> run(const edward::core::TimelineSnapshot& snapshot,
-                                  const ExportRequest& request) const;
+                                  const ExportRequest& request,
+                                  std::function<void(edward::core::Frame, edward::core::Frame)> progress = {}) const;
 
  private:
   const RenderGraph& graph_;

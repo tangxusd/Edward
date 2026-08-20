@@ -774,11 +774,25 @@ ApplicationWindow {
                 }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: DesignTokens.divider }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 5
+                radius: 3
+                color: DesignTokens.panelRaised
+                Rectangle {
+                    width: parent.width * workbenchRuntime.timelineExportProgress / 100
+                    height: parent.height
+                    radius: parent.radius
+                    color: DesignTokens.accent
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Label {
                     Layout.fillWidth: true
-                    text: workbenchRuntime.timelineExportBusy ? "正在导出，完成后可继续编辑。" : "等待导出"
+                    text: workbenchRuntime.timelineExportBusy
+                          ? "正在导出：" + workbenchRuntime.timelineExportProgress + "%"
+                          : workbenchRuntime.timelineExportProgress === 100 ? "导出完成" : "等待导出"
                     color: DesignTokens.textSecondary
                     font.pixelSize: 11
                 }

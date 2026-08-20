@@ -18,6 +18,7 @@
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QPainter>
+#include <QPointer>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -238,10 +239,13 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   connect(&timelineExportWatcher_, &QFutureWatcher<TimelineExportResult>::finished, this, [this] {
     timelineExportBusy_ = false;
     const auto result = timelineExportWatcher_.result();
-    if (result.error.isEmpty())
+    if (result.error.isEmpty()) {
+      timelineExportProgress_ = 100;
       emit operationSucceeded(QStringLiteral("视频已导出：%1").arg(result.outputPath));
-    else
+    } else {
+      timelineExportProgress_ = 0;
       emit operationFailed(result.error);
+    }
     emit timelineChanged();
   });
 }
@@ -1150,11 +1154,13 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
   const auto component = demoOverlayIr_ ? std::optional<QJsonObject>(demoOverlayIr_->toJson()) : std::nullopt;
   const auto componentClipId = componentClipId_;
   timelineExportBusy_ = true;
+  timelineExportProgress_ = 0;
   emit timelineChanged();
   const auto exportQuality = quality == 0 ? edward::media::ExportQuality::High
                                           : quality == 1 ? edward::media::ExportQuality::Medium
                                                          : edward::media::ExportQuality::Low;
-  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path, width, height, fps, exportQuality] {
+  QPointer<WorkbenchRuntime> runtime(this);
+  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path, width, height, fps, exportQuality, runtime] {
     TimelineExportResult result;
     edward::media::MltAdapter adapter;
     std::optional<edward::core::ComponentIr> overlay;
@@ -1190,7 +1196,16 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
       graph.setOverlay(std::move(overlay));
     }
     const edward::media::ExportJob job(graph);
-    const auto exported = job.run(snapshot, {path, {width, height}, fps, 1, exportQuality});
+    const auto exported = job.run(snapshot, {path, {width, height}, fps, 1, exportQuality},
+                                  [runtime](edward::core::Frame completed, edward::core::Frame total) {
+      if (!runtime || total <= 0) return;
+      const auto progress = static_cast<int>(completed * 100 / total);
+      QMetaObject::invokeMethod(runtime, [runtime, progress] {
+        if (!runtime) return;
+        runtime->timelineExportProgress_ = progress;
+        emit runtime->timelineChanged();
+      }, Qt::QueuedConnection);
+    });
     if (!exported)
       result.error = QStringLiteral("视频导出失败");
     else
