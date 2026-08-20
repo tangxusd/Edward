@@ -330,15 +330,36 @@ Item {
             }
             MouseArea {
                 anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 drag.target: parent
                 drag.axis: Drag.XAxis
                 drag.minimumX: root.rulerWidth
                 drag.maximumX: root.frameToX(root.durationFrames) - parent.width
                 onPressed: workbenchRuntime.selectClip(modelData.id)
-                onClicked: workbenchRuntime.selectClip(modelData.id)
+                onClicked: function(mouse) {
+                    workbenchRuntime.selectClip(modelData.id)
+                    if (mouse.button === Qt.RightButton) transitionMenu.popup()
+                }
                 onDoubleClicked: root.playheadChangedByUser(modelData.timelineStart)
-                onReleased: workbenchRuntime.moveSelected(root.snapFrame(
-                    root.frameAtX(parent.x), modelData.id))
+                onReleased: function(mouse) {
+                    if (mouse.button === Qt.LeftButton)
+                        workbenchRuntime.moveSelected(root.snapFrame(root.frameAtX(parent.x), modelData.id))
+                }
+            }
+            Menu {
+                id: transitionMenu
+                MenuItem {
+                    text: "添加叠化"
+                    onTriggered: workbenchRuntime.addDissolveToSelected()
+                }
+                MenuItem {
+                    text: "添加闪黑"
+                    onTriggered: workbenchRuntime.addTransitionToSelected("flash_black")
+                }
+                MenuItem {
+                    text: "添加闪白"
+                    onTriggered: workbenchRuntime.addTransitionToSelected("flash_white")
+                }
             }
             MouseArea {
                 anchors.left: parent.left

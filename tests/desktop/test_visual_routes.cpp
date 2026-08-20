@@ -96,6 +96,8 @@ int main() {
   assert(timeline.find("workbenchRuntime.addDissolveToSelected()") != std::string::npos);
   assert(timeline.find("workbenchRuntime.addTransitionToSelected(\"flash_black\")") != std::string::npos);
   assert(timeline.find("workbenchRuntime.addTransitionToSelected(\"flash_white\")") != std::string::npos);
+  assert(timeline.find("id: transitionMenu") != std::string::npos);
+  assert(timeline.find("Qt.RightButton") != std::string::npos);
   assert(timeline.find("anchors.leftMargin: root.rulerWidth") != std::string::npos);
   assert(timeline.find("function frameAtX(x)") != std::string::npos);
   assert(timeline.find("function snapFrame(frame, clipId)") != std::string::npos);
