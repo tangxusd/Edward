@@ -53,6 +53,7 @@ int main() {
   assert(workbench.find("从文件导入组件") != std::string::npos);
   assert(workbench.find("ApplicationWindow") != std::string::npos);
   assert(workbench.find("videoTrackCount: workbenchRuntime.videoTrackCount") != std::string::npos);
+  assert(workbench.find("durationFrames: workbenchRuntime.timelineDurationFrames") != std::string::npos);
   assert(timeline.find("playheadChangedByUser") != std::string::npos);
   assert(timeline.find("selectClip") != std::string::npos);
   assert(timeline.find("onClicked") != std::string::npos);

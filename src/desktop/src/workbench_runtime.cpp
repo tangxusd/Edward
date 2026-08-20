@@ -268,6 +268,10 @@ void WorkbenchRuntime::syncDemoOverlayProperties(const QJsonObject& component) {
 
 int WorkbenchRuntime::playheadFrame() const { return static_cast<int>(controller_.playheadFrame()); }
 
+int WorkbenchRuntime::timelineDurationFrames() const {
+  return std::max<edward::core::Frame>(1, timeline_.snapshot().durationFrames);
+}
+
 bool WorkbenchRuntime::componentPlayheadIsEditable() const {
   const auto clipId = editingComponentClipId_ != 0 ? editingComponentClipId_ : componentClipId_;
   if (clipId != 0) {

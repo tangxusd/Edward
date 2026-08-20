@@ -130,6 +130,7 @@ ApplicationWindow {
                 EdwardTimeline {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 220
+                    durationFrames: workbenchRuntime.timelineDurationFrames
                     playheadFrame: workbenchRuntime.playheadFrame
                     videoTrackCount: workbenchRuntime.videoTrackCount
                     clips: workbenchRuntime.clips

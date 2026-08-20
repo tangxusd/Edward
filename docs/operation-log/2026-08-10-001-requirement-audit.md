@@ -2594,3 +2594,9 @@
 - 目的：让播放头在标尺与轨道区域都具备明确的可视定位，便于分割、拖拽和预览定位。
 - 修改：时间线播放头线从标尺下方贯穿轨道区域；在标尺顶部增加青色三角定位标记，保持现有播放头拖拽与帧换算逻辑不变。
 - 验证：`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，构建成功。
+
+## 2026-08-20 时间线真实工程时长接入
+
+- 目的：避免时间线固定使用 300 帧导致工程较短或较长时标尺、播放头和片段位置比例错误。
+- 修改：工作台暴露当前工程真实 `timelineDurationFrames`，时间线按该值计算标尺和横向坐标；空工程使用 1 帧作为安全下限。
+- 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
