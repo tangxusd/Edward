@@ -27,6 +27,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int videoTrackCount READ videoTrackCount NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList clips READ clips NOTIFY timelineChanged)
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
+  Q_PROPERTY(bool componentBoundToClip READ componentBoundToClip NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayX READ demoOverlayX WRITE setDemoOverlayX NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayY READ demoOverlayY WRITE setDemoOverlayY NOTIFY timelineChanged)
   Q_PROPERTY(int demoOverlayWidth READ demoOverlayWidth WRITE setDemoOverlayWidth NOTIFY timelineChanged)
@@ -57,6 +58,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int videoTrackCount() const;
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
+  [[nodiscard]] bool componentBoundToClip() const { return componentClipId_ != 0; }
   [[nodiscard]] int demoOverlayX() const { return demoOverlayX_; }
   [[nodiscard]] int demoOverlayY() const { return demoOverlayY_; }
   [[nodiscard]] int demoOverlayWidth() const { return demoOverlayWidth_; }
@@ -92,6 +94,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE void toggleDemoOverlay();
+  Q_INVOKABLE bool bindComponentToSelectedClip();
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
   Q_INVOKABLE bool requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
@@ -152,6 +155,7 @@ class WorkbenchRuntime final : public QObject {
   edward::media::RenderGraph renderGraph_;
   bool demoOverlayEnabled_ = false;
   std::optional<edward::core::ComponentIr> demoOverlayIr_;
+  edward::core::ClipId componentClipId_ = 0;
   int demoOverlayX_ = 24;
   int demoOverlayY_ = 24;
   int demoOverlayWidth_ = 220;

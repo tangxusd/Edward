@@ -182,7 +182,24 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
 }
 
 void WorkbenchRuntime::refreshDemoOverlay() {
-  if (demoOverlayEnabled_) renderGraph_.setOverlay(demoOverlayIr_);
+  if (!demoOverlayEnabled_ || !demoOverlayIr_) {
+    renderGraph_.setOverlay(std::nullopt);
+    renderGraph_.setComponentLayers({});
+    return;
+  }
+  if (componentClipId_ != 0) {
+    const auto clip = timeline_.clip(componentClipId_);
+    if (clip) {
+      renderGraph_.setOverlay(std::nullopt);
+      renderGraph_.setComponentLayers({{clip->timelineStart,
+                                         clip->timelineStart + clip->sourceOut - clip->sourceIn,
+                                         *demoOverlayIr_}});
+      return;
+    }
+    componentClipId_ = 0;
+  }
+  renderGraph_.setComponentLayers({});
+  renderGraph_.setOverlay(demoOverlayIr_);
 }
 
 void WorkbenchRuntime::syncDemoOverlayProperties(const QJsonObject& component) {
@@ -262,6 +279,18 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
 bool WorkbenchRuntime::selectClip(qlonglong id) {
   if (!controller_.selectClip(static_cast<edward::core::ClipId>(id))) return false;
   emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::bindComponentToSelectedClip() {
+  if (!demoOverlayIr_ || controller_.selectedClip() == 0 || !timeline_.clip(controller_.selectedClip())) {
+    emit operationFailed(QStringLiteral("请先选择素材片段和组件"));
+    return false;
+  }
+  componentClipId_ = controller_.selectedClip();
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("组件已绑定到选中片段"));
   return true;
 }
 
@@ -399,6 +428,7 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
     return false;
   }
   demoOverlayIr_ = std::move(component);
+  componentClipId_ = 0;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
   syncDemoOverlayProperties(document.object());
@@ -695,10 +725,11 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
     lastFrame = std::max(lastFrame, clip.timelineStart + clip.sourceOut - clip.sourceIn);
   snapshot.durationFrames = lastFrame;
   const auto component = demoOverlayIr_ ? std::optional<QJsonObject>(demoOverlayIr_->toJson()) : std::nullopt;
+  const auto componentClipId = componentClipId_;
   const auto path = std::filesystem::path(outputPath.toStdString());
   timelineExportBusy_ = true;
   emit timelineChanged();
-  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, path] {
+  timelineExportWatcher_.setFuture(QtConcurrent::run([snapshot, component, componentClipId, path] {
     TimelineExportResult result;
     edward::media::MltAdapter adapter;
     std::optional<edward::core::ComponentIr> overlay;
@@ -709,7 +740,22 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
         return result;
       }
     }
-    const edward::media::RenderGraph graph(adapter, std::move(overlay));
+    edward::media::RenderGraph graph(adapter);
+    if (overlay && componentClipId != 0) {
+      const auto clip = std::ranges::find_if(snapshot.clips, [componentClipId](const auto& candidate) {
+        return candidate.id == componentClipId;
+      });
+      if (clip != snapshot.clips.end()) {
+        graph.setComponentLayers({{clip->timelineStart,
+                                   clip->timelineStart + clip->sourceOut - clip->sourceIn,
+                                   *overlay}});
+      } else {
+        result.error = QStringLiteral("组件绑定的时间线片段不存在");
+        return result;
+      }
+    } else if (overlay) {
+      graph.setOverlay(std::move(overlay));
+    }
     const edward::media::ExportJob job(graph);
     const auto exported = job.run(snapshot, {path, {1920, 1080}, 25, 1});
     if (!exported)
@@ -723,6 +769,7 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
 
 void WorkbenchRuntime::clearComponentOverlay() {
   demoOverlayIr_.reset();
+  componentClipId_ = 0;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
   demoOverlayEnabled_ = false;
@@ -832,6 +879,7 @@ bool WorkbenchRuntime::saveProject(const QString& path) const {
                       {"playheadFrame", static_cast<qint64>(snapshot.playheadFrame)},
                       {"videoTracks", tracks}, {"clips", clips}};
   if (demoOverlayIr_) project.insert("component", demoOverlayIr_->toJson());
+  if (componentClipId_ != 0) project.insert("componentClipId", static_cast<qint64>(componentClipId_));
   if (!aiConversation_.isEmpty()) project.insert("aiConversation", aiConversation_);
   QSaveFile file(path);
   if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(project).toJson(QJsonDocument::Compact)) < 0) return false;
@@ -877,13 +925,22 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
     conversation = project.value("aiConversation").toString();
     if (conversation.toUtf8().size() > 64 * 1024) return false;
   }
+  edward::core::ClipId componentClipId = 0;
+  if (!project.value("componentClipId").isUndefined()) {
+    if (!project.value("componentClipId").isDouble()) return false;
+    componentClipId = static_cast<edward::core::ClipId>(project.value("componentClipId").toInteger());
+    if (componentClipId == 0 || !std::ranges::any_of(snapshot.clips, [componentClipId](const auto& clip) {
+          return clip.id == componentClipId;
+        })) return false;
+  }
   if (!timeline_.restore(snapshot)) return false;
   demoOverlayIr_ = std::move(component);
+  componentClipId_ = demoOverlayIr_ ? componentClipId : 0;
   aiConversation_ = std::move(conversation);
   pendingAiPrompt_.clear();
   if (demoOverlayIr_) syncDemoOverlayProperties(project.value("component").toObject());
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
-  renderGraph_.setOverlay(demoOverlayIr_);
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
@@ -905,6 +962,7 @@ bool WorkbenchRuntime::splitSelected() {
     emit operationFailed(QStringLiteral("播放头不在选中片段内部"));
     return false;
   }
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
@@ -914,6 +972,7 @@ bool WorkbenchRuntime::deleteSelected() {
     emit operationFailed(QStringLiteral("没有可删除的片段"));
     return false;
   }
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
@@ -923,6 +982,7 @@ bool WorkbenchRuntime::rippleDeleteSelected() {
     emit operationFailed(QStringLiteral("没有可波纹删除的片段"));
     return false;
   }
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
@@ -932,6 +992,7 @@ bool WorkbenchRuntime::moveSelected(qlonglong destination) {
     emit operationFailed(QStringLiteral("片段移动后会超出时间线或覆盖同轨片段"));
     return false;
   }
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
@@ -941,6 +1002,7 @@ bool WorkbenchRuntime::trimSelectedLeft() {
     emit operationFailed(QStringLiteral("播放头必须位于选中片段内部"));
     return false;
   }
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
@@ -950,18 +1012,21 @@ bool WorkbenchRuntime::trimSelectedRight() {
     emit operationFailed(QStringLiteral("播放头必须位于选中片段内部"));
     return false;
   }
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
 
 bool WorkbenchRuntime::undoTimeline() {
   if (!controller_.undo()) return false;
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }
 
 bool WorkbenchRuntime::redoTimeline() {
   if (!controller_.redo()) return false;
+  refreshDemoOverlay();
   emit timelineChanged();
   return true;
 }

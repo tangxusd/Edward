@@ -27,6 +27,7 @@ int main() {
   assert(workbench.find("demoOverlayScale") != std::string::npos);
   assert(workbench.find("demoOverlayRotation") != std::string::npos);
   assert(workbench.find("demoOverlayText") != std::string::npos);
+  assert(workbench.find("bindComponentToSelectedClip") != std::string::npos);
   assert(workbench.find("导入组件草稿") != std::string::npos);
   assert(workbench.find("loadComponentJson") != std::string::npos);
   assert(workbench.find("saveComponentJson") != std::string::npos);

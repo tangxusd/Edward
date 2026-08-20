@@ -106,6 +106,8 @@ int main(int argc, char** argv) {
       QStringLiteral("{\"operation\":\"setTransformNumber\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":-72}")));
   assert(runtime.aiComponentDraftAvailable());
   assert(runtime.demoOverlayX() != -72);
+  assert(runtime.bindComponentToSelectedClip());
+  assert(runtime.componentBoundToClip());
   assert(runtime.applyPendingAiComponentCommand());
   assert(runtime.demoOverlayX() == -72);
   assert(runtime.applyAiComponentCommand(
@@ -161,6 +163,7 @@ int main(int argc, char** argv) {
   assert(restoredRuntime.demoOverlayScale() == 1.5);
   assert(restoredRuntime.demoOverlayRotation() == 30.0);
   assert(!restoredRuntime.componentJson().isEmpty());
+  assert(restoredRuntime.componentBoundToClip());
   assert(restoredRuntime.aiConversation().isEmpty());
   QFile conversationProject(projectPath);
   assert(conversationProject.open(QIODevice::ReadOnly));

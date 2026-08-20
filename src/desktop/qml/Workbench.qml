@@ -116,6 +116,12 @@ ApplicationWindow {
                         text: workbenchRuntime.demoOverlayEnabled ? "重新生成组件草稿" : "生成组件草稿"
                         onClicked: workbenchRuntime.generateComponentDraft()
                     }
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: workbenchRuntime.componentBoundToClip ? "已绑定到片段" : "绑定到选中片段"
+                        enabled: workbenchRuntime.demoOverlayEnabled && !workbenchRuntime.componentBoundToClip
+                        onClicked: workbenchRuntime.bindComponentToSelectedClip()
+                    }
                     Label {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "AI 编辑命令（JSON）"

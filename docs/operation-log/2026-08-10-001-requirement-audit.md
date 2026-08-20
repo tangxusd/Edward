@@ -1,5 +1,12 @@
 # 需求审计操作记录
 
+## 2026-08-20：组件实例绑定时间线片段
+
+- 目的：让组件实例不再只能作为全局预览叠加，而是能够绑定到时间线片段，按片段范围参与预览、保存、加载和最终导出。
+- 涉及文件：`src/media/include/edward/media/render_graph.hpp`、`src/media/src/render_graph.cpp`、`src/desktop/include/edward/desktop/workbench_runtime.hpp`、`src/desktop/src/workbench_runtime.cpp`、`src/desktop/qml/Workbench.qml`、`tests/media/test_render_graph.cpp`、`tests/desktop/test_visual_routes.cpp`、`tests/desktop/test_workbench_plugins.cpp`。
+- 结果：RenderGraph 支持定时组件层；工作台新增“绑定到选中片段”入口；工程 JSON 持久化绑定片段 ID；分割、删除、波纹删除、移动、裁切、撤销和重做后自动重算组件显示区间；导出按绑定片段区间合成组件，未绑定时保持原有全局叠加兼容。
+- 验证：`cmake --build build/0.3-runtime -j2` 通过；全量 CTest 33/33 通过。
+
 ## 2026-08-20：插件透明视频接入时间线
 
 - 目的：将已验证的插件透明 MOV 纳入 Edward 普通多轨合成与导出链，避免插件动画只能单独导出。
