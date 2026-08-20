@@ -156,6 +156,7 @@ ApplicationWindow {
                     videoTrackCount: workbenchRuntime.videoTrackCount
                     selectedVideoTrackIndex: workbenchRuntime.selectedVideoTrackIndex
                     clips: workbenchRuntime.clips
+                    transitions: workbenchRuntime.transitions
                     onPlayheadChangedByUser: workbenchRuntime.setPlayhead(frame)
                     onSplitRequested: workbenchRuntime.splitSelected()
                     onDeleteRequested: workbenchRuntime.deleteSelected()

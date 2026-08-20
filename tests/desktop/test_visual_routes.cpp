@@ -66,6 +66,7 @@ int main() {
   assert(workbench.find("title: workbenchRuntime.projectWindowTitle") != std::string::npos);
   assert(workbench.find("videoTrackCount: workbenchRuntime.videoTrackCount") != std::string::npos);
   assert(workbench.find("selectedVideoTrackIndex: workbenchRuntime.selectedVideoTrackIndex") != std::string::npos);
+  assert(workbench.find("transitions: workbenchRuntime.transitions") != std::string::npos);
   assert(workbench.find("importedMediaClips") != std::string::npos);
   assert(workbench.find("已导入素材") != std::string::npos);
   assert(timeline.find("modelData.waveform") != std::string::npos);
@@ -109,6 +110,9 @@ int main() {
   assert(timeline.find("timelineStart + modelData.sourceOut - modelData.sourceIn") != std::string::npos);
   assert(timeline.find("togglePlayback") != std::string::npos);
   assert(timeline.find("property int videoTrackCount") != std::string::npos);
+  assert(timeline.find("property var transitions") != std::string::npos);
+  assert(timeline.find("model: root.transitions") != std::string::npos);
+  assert(timeline.find("transitionOverlay") != std::string::npos);
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);
   assert(timeline.find("signal videoTrackSelected") != std::string::npos);
   assert(preview.find("预览窗") != std::string::npos);

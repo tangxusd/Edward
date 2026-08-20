@@ -25,6 +25,7 @@ Item {
     property int videoTrackCount: 1
     property int selectedVideoTrackIndex: 0
     property var clips: []
+    property var transitions: []
     property real zoomFactor: 1.0
     property int viewStartFrame: 0
     signal playheadChangedByUser(int frame)
@@ -375,6 +376,36 @@ Item {
                 font.pixelSize: 11
                 elide: Text.ElideRight
                 width: parent.width - 8
+            }
+        }
+    }
+
+    Item {
+        id: transitionOverlay
+        anchors.fill: parent
+        z: 3
+        Repeater {
+            model: root.transitions
+            delegate: Rectangle {
+                x: root.frameToX(modelData.startFrame)
+                y: ruler.height + toolbar.height +
+                   (root.videoTrackCount - 1 - modelData.trackIndex) *
+                   ((tracks.height - root.videoTrackCount) / (root.videoTrackCount + 1)) + 4
+                width: Math.max(12, modelData.durationFrames * root.pixelsPerFrame)
+                height: 16
+                radius: 2
+                color: modelData.type === "dissolve" ? "#6d5ca8"
+                                                   : modelData.type === "flash_white" ? "#e1e5ea" : "#2f3740"
+                border.color: DesignTokens.accent
+                border.width: 1
+                Text {
+                    anchors.centerIn: parent
+                    text: modelData.type === "dissolve" ? "叠化"
+                         : modelData.type === "flash_white" ? "闪白" : "闪黑"
+                    color: modelData.type === "flash_white" ? "#172027" : "#ffffff"
+                    font.pixelSize: 9
+                    visible: parent.width >= 28
+                }
             }
         }
     }

@@ -32,6 +32,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int videoTrackCount READ videoTrackCount NOTIFY timelineChanged)
   Q_PROPERTY(int selectedVideoTrackIndex READ selectedVideoTrackIndex NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList clips READ clips NOTIFY timelineChanged)
+  Q_PROPERTY(QVariantList transitions READ transitions NOTIFY timelineChanged)
   Q_PROPERTY(bool demoOverlayEnabled READ demoOverlayEnabled NOTIFY timelineChanged)
   Q_PROPERTY(bool componentBoundToClip READ componentBoundToClip NOTIFY timelineChanged)
   Q_PROPERTY(bool componentPlayheadEditable READ componentPlayheadIsEditable NOTIFY timelineChanged)
@@ -84,6 +85,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int videoTrackCount() const;
   [[nodiscard]] int selectedVideoTrackIndex() const;
   [[nodiscard]] QVariantList clips() const;
+  [[nodiscard]] QVariantList transitions() const;
   [[nodiscard]] QImage clipThumbnail(qlonglong id) const;
   [[nodiscard]] bool demoOverlayEnabled() const { return demoOverlayEnabled_; }
   [[nodiscard]] bool componentBoundToClip() const { return componentClipId_ != 0; }

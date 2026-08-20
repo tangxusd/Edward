@@ -460,6 +460,12 @@ int main(int argc, char** argv) {
   assert(transitionRuntime.loadProject(transitionPath));
   assert(transitionRuntime.selectClip(transitionLeft.value("id").toInteger()));
   assert(transitionRuntime.addTransitionToSelected(QStringLiteral("flash_white")));
+  const auto visibleTransitions = transitionRuntime.transitions();
+  assert(visibleTransitions.size() == 1);
+  const auto visibleTransition = visibleTransitions.front().toMap();
+  assert(visibleTransition.value("type").toString() == QStringLiteral("flash_white"));
+  assert(visibleTransition.value("startFrame").toLongLong() == 0);
+  assert(visibleTransition.value("durationFrames").toLongLong() == 10);
   assert(!transitionRuntime.addDissolveToSelected());
   const auto transitionOutput = directory.path() + QStringLiteral("/transition-output.edward.json");
   assert(transitionRuntime.saveProject(transitionOutput));

@@ -481,6 +481,32 @@ QVariantList WorkbenchRuntime::clips() const {
   return result;
 }
 
+QVariantList WorkbenchRuntime::transitions() const {
+  QVariantList result;
+  const auto snapshot = timeline_.snapshot();
+  for (const auto& transition : snapshot.transitions) {
+    QVariantMap item;
+    item.insert(QStringLiteral("type"), transition.type == edward::core::TransitionType::FlashBlack
+                                            ? QStringLiteral("flash_black")
+                                            : transition.type == edward::core::TransitionType::FlashWhite
+                                                  ? QStringLiteral("flash_white")
+                                                  : QStringLiteral("dissolve"));
+    item.insert(QStringLiteral("startFrame"), static_cast<qlonglong>(transition.startFrame));
+    item.insert(QStringLiteral("durationFrames"), static_cast<qlonglong>(transition.durationFrames));
+    item.insert(QStringLiteral("leftClipId"), static_cast<qlonglong>(transition.leftClipId));
+    item.insert(QStringLiteral("rightClipId"), static_cast<qlonglong>(transition.rightClipId));
+    const auto leftClip = std::ranges::find_if(snapshot.clips, [&](const auto& clip) {
+      return clip.id == transition.leftClipId;
+    });
+    if (leftClip == snapshot.clips.end()) continue;
+    const auto track = std::ranges::find(snapshot.videoTracks, leftClip->trackId);
+    if (track == snapshot.videoTracks.end()) continue;
+    item.insert(QStringLiteral("trackIndex"), static_cast<int>(std::distance(snapshot.videoTracks.begin(), track)));
+    result.push_back(item);
+  }
+  return result;
+}
+
 QImage WorkbenchRuntime::clipThumbnail(qlonglong id) const {
   return clipThumbnails_.value(id);
 }
