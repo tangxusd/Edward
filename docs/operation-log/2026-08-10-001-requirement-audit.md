@@ -2321,3 +2321,9 @@
 - 修改：两份插件 manifest 增加 `renderExport` 能力；Remotion 使用官方 `renderMedia` 输出 ProRes 4444、PNG 捕获和 `yuva444p10le`；HyperFrames 使用官方 `createRenderJob`/`executeRenderJob` 的 `mov` Alpha 管线。两者均校验相对输出路径、尺寸、帧数和有理帧率，并返回统一结果结构。Remotion 要求宿主通过 `EDWARD_CHROMIUM_EXECUTABLE` 提供固定 Chromium，缺失时拒绝渲染，不自动下载运行时。
 - 验证：Node 语法检查通过；Remotion 实际生成 160x90、2 帧、25fps、`yuva444p12le` MOV；HyperFrames 实际生成 160x90、2 帧、25fps、`yuva444p12le` MOV；插件宿主/进程/工作台插件 CTest 3/3 通过。Remotion 在未配置固定 Chromium 时沿用开发环境渲染器发现流程；发行执行器仍需注入固定 Chromium 路径。
 - 未完成：透明中间素材尚未接入普通工程导出，当前包含外部插件依赖的普通“导出视频”仍会明确拒绝，避免静默漏掉动画。
+
+## 2026-08-20 结构化 AI 组件编辑命令解析
+
+- 目的：为 AI 编辑接入建立最小安全入口，使模型输出只能成为既有 `ComponentEditCommand`，不执行模型返回的 JavaScript、HTML 或任意代码。
+- 修改：新增 `component_edit_command_parser`，只接受 `setTransformNumber`、`setProperty` 和 `setKeyframeValue` 三类单条 JSON 对象命令；命令必须含有效节点、字段和标量值。变换只接受数值，关键帧只接受非负整数帧；数组、对象、未知操作和非关键帧命令中的帧字段均明确拒绝。
+- 验证：新增核心测试覆盖三类合法命令及字符串变换值、数组属性、负帧和 `eval` 操作的拒绝。`cmake --build build/0.3-runtime -j2` 成功；定向 CTest 2/2 通过；完整 `ctest --test-dir build/0.3-runtime --output-on-failure` 32/32 通过。
