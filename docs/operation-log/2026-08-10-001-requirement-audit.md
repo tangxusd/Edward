@@ -2636,3 +2636,9 @@
 - 目的：让用户在移动、吸附和裁切后能直接核对选中片段的工程时间范围。
 - 修改：选中片段且宽度足够时，在片段底部显示起止时间码；窄片段保持紧凑布局，不强行溢出文本。
 - 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。
+
+## 2026-08-20 片段双击定位
+
+- 目的：提供快速检查片段的时间线操作入口。
+- 修改：双击片段将播放头移动到该片段的工程起点；单击选择、拖拽移动和边缘裁切保持原行为。
+- 验证：构建成功；`desktop.visual_routes`、`desktop.workbench_plugins`、`e2e.edward_0_3_0_smoke` 3/3 通过，`git diff --check` 通过。

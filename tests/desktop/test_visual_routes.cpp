@@ -72,6 +72,7 @@ int main() {
   assert(timeline.find("Math.round((mouse.x - root.rulerWidth) / root.pixelsPerFrame)") != std::string::npos);
   assert(timeline.find("function snapFrame(frame, clipId)") != std::string::npos);
   assert(timeline.find("root.snapFrame(") != std::string::npos);
+  assert(timeline.find("onDoubleClicked: root.playheadChangedByUser(modelData.timelineStart)") != std::string::npos);
   assert(timeline.find("function formatTimecode(frame)") != std::string::npos);
   assert(timeline.find("root.formatTimecode") != std::string::npos);
   assert(timeline.find("modelData.selected && parent.width > 92") != std::string::npos);

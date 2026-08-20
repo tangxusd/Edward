@@ -230,6 +230,7 @@ Item {
                 drag.maximumX: root.frameToX(root.durationFrames) - parent.width
                 onPressed: workbenchRuntime.selectClip(modelData.id)
                 onClicked: workbenchRuntime.selectClip(modelData.id)
+                onDoubleClicked: root.playheadChangedByUser(modelData.timelineStart)
                 onReleased: workbenchRuntime.moveSelected(root.snapFrame(
                     Math.round((parent.x - root.rulerWidth) / root.pixelsPerFrame), modelData.id))
             }
