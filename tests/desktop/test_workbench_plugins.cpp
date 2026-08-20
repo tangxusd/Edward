@@ -432,5 +432,40 @@ int main(int argc, char** argv) {
   QTimer::singleShot(5000, &thumbnailLoop, &QEventLoop::quit);
   thumbnailLoop.exec();
   assert(thumbnailReady);
+
+  QFile transitionSource(projectPath);
+  assert(transitionSource.open(QIODevice::ReadOnly));
+  QJsonParseError transitionError;
+  auto transitionDocument = QJsonDocument::fromJson(transitionSource.readAll(), &transitionError);
+  assert(transitionError.error == QJsonParseError::NoError && transitionDocument.isObject());
+  auto transitionProject = transitionDocument.object();
+  auto transitionClips = transitionProject.value("clips").toArray();
+  auto transitionLeft = transitionClips.at(0).toObject();
+  auto transitionRight = transitionClips.at(1).toObject();
+  transitionLeft.insert("sourceOut", 10);
+  transitionLeft.insert("trackId", 1);
+  transitionRight.insert("sourceIn", 0);
+  transitionRight.insert("sourceOut", 10);
+  transitionRight.insert("timelineStart", 10);
+  transitionRight.insert("trackId", 1);
+  transitionClips.replace(0, transitionLeft);
+  transitionClips.replace(1, transitionRight);
+  transitionProject.insert("clips", transitionClips);
+  transitionProject.insert("transitions", QJsonArray{QJsonObject{
+      {"type", "flash_black"}, {"leftClipId", transitionLeft.value("id")},
+      {"rightClipId", transitionRight.value("id")}, {"startFrame", 5}, {"durationFrames", 5}}});
+  const auto transitionPath = directory.path() + QStringLiteral("/transition-project.edward.json");
+  QFile transitionInput(transitionPath);
+  assert(transitionInput.open(QIODevice::WriteOnly));
+  assert(transitionInput.write(QJsonDocument(transitionProject).toJson()) > 0);
+  transitionInput.close();
+  edward::desktop::WorkbenchRuntime transitionRuntime;
+  assert(transitionRuntime.loadProject(transitionPath));
+  const auto transitionOutput = directory.path() + QStringLiteral("/transition-output.edward.json");
+  assert(transitionRuntime.saveProject(transitionOutput));
+  QFile transitionSaved(transitionOutput);
+  assert(transitionSaved.open(QIODevice::ReadOnly));
+  const auto savedTransitions = QJsonDocument::fromJson(transitionSaved.readAll()).object().value("transitions").toArray();
+  assert(savedTransitions.size() == 1);
   return 0;
 }

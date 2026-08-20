@@ -1450,9 +1450,20 @@ bool WorkbenchRuntime::writeProject(const QString& path) const {
                              {"kind", clip.kind == edward::core::TimelineClipKind::Component ? "component" : "media"},
                              {"component", clip.component ? QJsonValue(clip.component->toJson()) : QJsonValue()}});
   }
+  QJsonArray transitions;
+  for (const auto& transition : snapshot.transitions) {
+    const auto type = transition.type == edward::core::TransitionType::FlashBlack
+                          ? QStringLiteral("flash_black")
+                          : transition.type == edward::core::TransitionType::FlashWhite
+                                ? QStringLiteral("flash_white") : QStringLiteral("dissolve");
+    transitions.append(QJsonObject{{"type", type}, {"leftClipId", static_cast<qint64>(transition.leftClipId)},
+                                   {"rightClipId", static_cast<qint64>(transition.rightClipId)},
+                                   {"startFrame", static_cast<qint64>(transition.startFrame)},
+                                   {"durationFrames", static_cast<qint64>(transition.durationFrames)}});
+  }
   QJsonObject project{{"version", 1}, {"durationFrames", static_cast<qint64>(snapshot.durationFrames)},
                       {"playheadFrame", static_cast<qint64>(snapshot.playheadFrame)},
-                      {"videoTracks", tracks}, {"clips", clips}};
+                      {"videoTracks", tracks}, {"clips", clips}, {"transitions", transitions}};
   if (demoOverlayIr_) project.insert("component", demoOverlayIr_->toJson());
   if (componentClipId_ != 0) project.insert("componentClipId", static_cast<qint64>(componentClipId_));
   if (!aiConversation_.isEmpty()) project.insert("aiConversation", aiConversation_);
@@ -1582,6 +1593,24 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
                               clip.value("source").toString().toStdString(), clip.value("sourceIn").toInteger(),
                               clip.value("sourceOut").toInteger(), clip.value("timelineStart").toInteger(),
                               kind, std::move(clipComponent)});
+  }
+  if (!project.value("transitions").isUndefined()) {
+    if (!project.value("transitions").isArray()) return false;
+    for (const auto value : project.value("transitions").toArray()) {
+      if (!value.isObject()) return false;
+      const auto transition = value.toObject();
+      const auto type = transition.value("type").toString();
+      edward::core::TransitionType transitionType;
+      if (type == QStringLiteral("flash_black")) transitionType = edward::core::TransitionType::FlashBlack;
+      else if (type == QStringLiteral("flash_white")) transitionType = edward::core::TransitionType::FlashWhite;
+      else if (type == QStringLiteral("dissolve")) transitionType = edward::core::TransitionType::Dissolve;
+      else return false;
+      if (!transition.value("leftClipId").isDouble() || !transition.value("rightClipId").isDouble() ||
+          !transition.value("startFrame").isDouble() || !transition.value("durationFrames").isDouble()) return false;
+      snapshot.transitions.push_back({transitionType, static_cast<edward::core::ClipId>(transition.value("leftClipId").toInteger()),
+                                      static_cast<edward::core::ClipId>(transition.value("rightClipId").toInteger()),
+                                      transition.value("startFrame").toInteger(), transition.value("durationFrames").toInteger()});
+    }
   }
   std::optional<edward::core::ComponentIr> component;
   if (!project.value("component").isUndefined()) {
