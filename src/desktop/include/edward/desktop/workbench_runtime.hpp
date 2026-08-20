@@ -72,6 +72,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool aiRequestBusy READ aiRequestBusy NOTIFY timelineChanged)
   Q_PROPERTY(QString aiConversation READ aiConversation NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList localComponents READ localComponents NOTIFY timelineChanged)
+  Q_PROPERTY(QString projectWindowTitle READ projectWindowTitle NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -123,6 +124,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool aiRequestBusy() const { return aiRequestBusy_; }
   [[nodiscard]] QString aiConversation() const { return aiConversation_; }
   [[nodiscard]] QVariantList localComponents() const;
+  [[nodiscard]] QString projectWindowTitle() const;
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -276,6 +278,9 @@ class WorkbenchRuntime final : public QObject {
   QTimer playbackTimer_;
   QTimer projectAutosaveTimer_;
   QString activeProjectPath_;
+  enum class ProjectSaveState { Unsaved, Saved, AutoSaved };
+  ProjectSaveState projectSaveState_ = ProjectSaveState::Unsaved;
+  bool writingProjectStatus_ = false;
   bool loadingProject_ = false;
   edward::media::AudioPreview audioPreview_;
   QHash<qint64, QVariantList> clipWaveforms_;

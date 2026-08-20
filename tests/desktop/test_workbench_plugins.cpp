@@ -16,6 +16,7 @@ int main(int argc, char** argv) {
   qputenv("QT_QPA_PLATFORM", "offscreen");
   QGuiApplication application(argc, argv);
   edward::desktop::WorkbenchRuntime runtime;
+  assert(runtime.projectWindowTitle() == QStringLiteral("未命名项目 — 未保存更改"));
   assert(!runtime.authenticated());
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
@@ -217,11 +218,13 @@ int main(int argc, char** argv) {
   const auto projectPath = directory.path() + QStringLiteral("/project.edward.json");
   runtime.setDemoOverlayText(QStringLiteral("手动保存基线"));
   assert(runtime.saveProject(projectPath));
+  assert(runtime.projectWindowTitle().endsWith(QStringLiteral("— 已保存")));
   runtime.setDemoOverlayText(QStringLiteral("自动保存草稿"));
   QEventLoop autosaveLoop;
   QTimer::singleShot(1500, &autosaveLoop, &QEventLoop::quit);
   autosaveLoop.exec();
   assert(runtime.hasProjectRecovery(projectPath));
+  assert(runtime.projectWindowTitle().endsWith(QStringLiteral("— 已保存 · 刚刚自动保存")));
   QFile officialProject(projectPath);
   assert(officialProject.open(QIODevice::ReadOnly));
   const auto officialComponent = QJsonDocument::fromJson(officialProject.readAll()).object()

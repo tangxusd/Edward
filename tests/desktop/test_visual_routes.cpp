@@ -55,6 +55,7 @@ int main() {
   assert(workbench.find("successTimer") != std::string::npos);
   assert(workbench.find("从文件导入组件") != std::string::npos);
   assert(workbench.find("ApplicationWindow") != std::string::npos);
+  assert(workbench.find("title: workbenchRuntime.projectWindowTitle") != std::string::npos);
   assert(workbench.find("videoTrackCount: workbenchRuntime.videoTrackCount") != std::string::npos);
   assert(workbench.find("selectedVideoTrackIndex: workbenchRuntime.selectedVideoTrackIndex") != std::string::npos);
   assert(workbench.find("importedMediaClips") != std::string::npos);

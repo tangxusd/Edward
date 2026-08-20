@@ -9,7 +9,7 @@ ApplicationWindow {
     property var importedMediaClips: workbenchRuntime.clips.filter(function(clip) { return clip.kind === "media"; })
     property string recoveryProjectPath: ""
     visible: true
-    title: "Edward"
+    title: workbenchRuntime.projectWindowTitle
     color: DesignTokens.background
     minimumWidth: 1100
     minimumHeight: 680

@@ -1426,9 +1426,24 @@ QString WorkbenchRuntime::recoveryPathForProject(const QString& path) const {
 bool WorkbenchRuntime::saveProject(const QString& path) {
   if (!writeProject(path)) return false;
   activeProjectPath_ = path;
+  projectSaveState_ = ProjectSaveState::Saved;
   projectAutosaveTimer_.stop();
   QFile::remove(recoveryPathForProject(path));
+  writingProjectStatus_ = true;
+  emit timelineChanged();
+  writingProjectStatus_ = false;
   return true;
+}
+
+QString WorkbenchRuntime::projectWindowTitle() const {
+  const auto name = activeProjectPath_.isEmpty() ? QStringLiteral("未命名项目")
+                                                  : QFileInfo(activeProjectPath_).completeBaseName();
+  const auto status = projectSaveState_ == ProjectSaveState::Saved
+                          ? QStringLiteral("已保存")
+                          : projectSaveState_ == ProjectSaveState::AutoSaved
+                                ? QStringLiteral("已保存 · 刚刚自动保存")
+                                : QStringLiteral("未保存更改");
+  return name + QStringLiteral(" — ") + status;
 }
 
 bool WorkbenchRuntime::hasProjectRecovery(const QString& path) const {
@@ -1452,14 +1467,27 @@ bool WorkbenchRuntime::discardProjectRecovery(const QString& path) {
 }
 
 void WorkbenchRuntime::scheduleProjectAutosave() {
-  if (loadingProject_ || activeProjectPath_.isEmpty()) return;
+  if (loadingProject_ || writingProjectStatus_ || activeProjectPath_.isEmpty()) return;
+  if (projectSaveState_ != ProjectSaveState::Unsaved) {
+    projectSaveState_ = ProjectSaveState::Unsaved;
+    writingProjectStatus_ = true;
+    emit timelineChanged();
+    writingProjectStatus_ = false;
+  }
   projectAutosaveTimer_.start();
 }
 
 void WorkbenchRuntime::saveProjectRecovery() {
   if (activeProjectPath_.isEmpty()) return;
   const auto saved = writeProject(recoveryPathForProject(activeProjectPath_));
-  if (!saved) emit operationFailed(QStringLiteral("工程自动保存失败"));
+  if (!saved) {
+    emit operationFailed(QStringLiteral("工程自动保存失败"));
+    return;
+  }
+  projectSaveState_ = ProjectSaveState::AutoSaved;
+  writingProjectStatus_ = true;
+  emit timelineChanged();
+  writingProjectStatus_ = false;
 }
 
 bool WorkbenchRuntime::loadProject(const QString& path) {
@@ -1531,6 +1559,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
   refreshDemoOverlay();
   activeProjectPath_ = path;
+  projectSaveState_ = ProjectSaveState::Saved;
   loadingProject_ = true;
   emit timelineChanged();
   loadingProject_ = false;
