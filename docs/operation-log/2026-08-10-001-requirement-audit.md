@@ -2327,3 +2327,9 @@
 - 目的：为 AI 编辑接入建立最小安全入口，使模型输出只能成为既有 `ComponentEditCommand`，不执行模型返回的 JavaScript、HTML 或任意代码。
 - 修改：新增 `component_edit_command_parser`，只接受 `setTransformNumber`、`setProperty` 和 `setKeyframeValue` 三类单条 JSON 对象命令；命令必须含有效节点、字段和标量值。变换只接受数值，关键帧只接受非负整数帧；数组、对象、未知操作和非关键帧命令中的帧字段均明确拒绝。
 - 验证：新增核心测试覆盖三类合法命令及字符串变换值、数组属性、负帧和 `eval` 操作的拒绝。`cmake --build build/0.3-runtime -j2` 成功；定向 CTest 2/2 通过；完整 `ctest --test-dir build/0.3-runtime --output-on-failure` 32/32 通过。
+
+## 2026-08-20 工作台 AI 组件编辑入口
+
+- 目的：把结构化命令解析接入工作台，使 AI 输出可以修改标准 Edward 组件并立即刷新预览，同时不允许外部插件私有结构被越权修改。
+- 修改：`WorkbenchRuntime::applyAiComponentCommand` 仅解析单个 JSON 对象，复用 `ComponentEditCommand::apply`，成功后同步属性状态、预览和时间线信号；无组件、JSON 非对象、未知操作、非法值和带插件依赖的组件均返回失败信号且不执行修改。
+- 验证：工作台测试覆盖变换、文字属性、关键帧命令，拒绝数组和 `eval`，并覆盖外部插件组件拒绝 AI 修改；`cmake --build build/0.3-runtime -j2` 成功；完整 CTest 32/32 通过。

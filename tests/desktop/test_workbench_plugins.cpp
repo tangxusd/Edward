@@ -89,7 +89,22 @@ int main(int argc, char** argv) {
   assert(runtime.componentJson().value("pluginDependency").toObject().value("pluginId") == "remotion");
   assert(runtime.componentJson().value("pluginDependency").toObject().value("version") == "1.0.0");
   assert(!runtime.exportTimeline(directory.path() + QStringLiteral("/plugin-component.mp4")));
+  assert(!runtime.applyAiComponentCommand(
+      QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"root\",\"field\":\"opacity\",\"value\":0.5}")));
   runtime.generateComponentDraft();
+  assert(runtime.applyAiComponentCommand(
+      QStringLiteral("{\"operation\":\"setTransformNumber\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":-72}")));
+  assert(runtime.demoOverlayX() == -72);
+  assert(runtime.componentJson().value("root").toObject().value("children").toArray().at(0).toObject()
+             .value("transform").toObject().value("x").toInt() == -72);
+  assert(runtime.applyAiComponentCommand(
+      QStringLiteral("{\"operation\":\"setProperty\",\"nodeId\":\"demo-text\",\"field\":\"text\",\"value\":\"AI 编辑\"}")));
+  assert(runtime.demoOverlayText() == QStringLiteral("AI 编辑"));
+  assert(runtime.applyAiComponentCommand(
+      QStringLiteral("{\"operation\":\"setKeyframeValue\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"frame\":24,\"value\":-24}")));
+  assert(!runtime.applyAiComponentCommand(QStringLiteral("[\"not-a-command\"]")));
+  assert(!runtime.applyAiComponentCommand(
+      QStringLiteral("{\"operation\":\"eval\",\"nodeId\":\"demo-box\",\"field\":\"x\",\"value\":\"alert(1)\"}")));
   assert(!runtime.uploadCurrentComponent("https://project.supabase.co/functions/v1/component-upload",
                                          "demo.component", "Demo component"));
   assert(runtime.setPlayhead(12));

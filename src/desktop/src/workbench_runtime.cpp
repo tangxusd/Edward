@@ -4,6 +4,7 @@
 #include "edward/plugins/plugin_host.hpp"
 #include "edward/resources/component_package.hpp"
 #include "edward/core/component_edit_command.hpp"
+#include "edward/core/component_edit_command_parser.hpp"
 
 #include <QVariantMap>
 #include <QFile>
@@ -248,6 +249,34 @@ void WorkbenchRuntime::generateComponentDraft() {
   demoOverlayEnabled_ = true;
   refreshDemoOverlay();
   emit timelineChanged();
+}
+
+bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
+  if (!demoOverlayIr_) {
+    emit operationFailed(QStringLiteral("AI 编辑失败：当前没有可编辑组件"));
+    return false;
+  }
+  if (demoOverlayIr_->pluginDependency().has_value()) {
+    emit operationFailed(QStringLiteral("AI 编辑失败：外部插件组件尚未声明可编辑字段"));
+    return false;
+  }
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    emit operationFailed(QStringLiteral("AI 编辑命令必须是单个 JSON 对象"));
+    return false;
+  }
+  QString error;
+  const auto command = edward::core::parseComponentEditCommand(document.object(), &error);
+  if (!command || !edward::core::ComponentEditCommand::apply(*demoOverlayIr_, *command, &error)) {
+    emit operationFailed(QStringLiteral("AI 编辑失败：%1").arg(error));
+    return false;
+  }
+  syncDemoOverlayProperties(demoOverlayIr_->toJson());
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("AI 组件编辑已应用"));
+  return true;
 }
 
 bool WorkbenchRuntime::loadComponentJson(const QString& json) {

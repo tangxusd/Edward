@@ -84,6 +84,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE void generateComponentDraft();
+  Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
   Q_INVOKABLE bool loadComponentJson(const QString& json);
   Q_INVOKABLE bool loadComponentFile(const QString& path);
   Q_INVOKABLE bool saveComponentJson(const QString& path) const;
