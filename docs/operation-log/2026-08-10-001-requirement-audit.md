@@ -2962,3 +2962,9 @@
 - 目的：避免生成的 `.app` 运行时依赖源码目录，保证移动应用包后仍能加载工作台界面。
 - 修改：将工作台、预览、时间线、设计令牌和 QML 模块清单编译进 `edward_app` 的 Qt 资源；入口改为加载 `qrc:/qml/Workbench.qml`，不再读取 `EDWARD_SOURCE_DIR`。
 - 验证：视觉路由测试覆盖资源路径；`.app` 结构检查通过；离屏启动 3 秒无 QML 错误；完整 CTest 44/44 通过，`git diff --check` 通过。动态 Qt/FFmpeg/MLT 依赖仍未封装进 bundle。
+
+## 2026-08-21 macOS 动态依赖审计
+
+- 目的：在封装运行时之前，机器可读地识别 `.app` 是否仍依赖开发机路径。
+- 修改：新增 `packaging.macos_dependency_audit`，使用 `otool -L` 生成 JSON 报告；发现 Homebrew 或本地前缀时明确输出 `developer_machine_dependencies`，不误报为可分发。
+- 验证：CTest 通过，当前报告按事实标记开发机依赖；该检查不替代后续依赖复制、路径重写和许可证审计。
