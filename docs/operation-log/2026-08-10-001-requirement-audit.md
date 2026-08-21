@@ -3074,3 +3074,9 @@
 
 - 目的：避免只验证动态库路径，却遗漏 MLT 模块或数据目录为空的问题。
 - 新增：`check_macos_development_bundle_resources` 目标，检查开发 `.app` 内真实 MLT 模块、数据条目及 `NOT_FOR_DISTRIBUTION` 标记。
+
+## 2026-08-21 Homebrew 许可证清单工具
+
+- 目的：为后续正式发行材料整理提供可复查的依赖许可证来源，不把依赖名称猜成授权结论。
+- 新增：`packaging/macos/CollectHomebrewLicenseInventory.cmake`，读取本机 Homebrew 的 MLT 递归公式清单，复制公式前缀根目录的 `LICENSE`、`COPYING`、`NOTICE`、`COPYRIGHT` 文件到构建目录并生成 `inventory.tsv`。
+- 约束：只生成开发目录审计材料，不自动声明可再分发；仍需人工核对实际打包依赖、许可证版本和源码提供义务。
