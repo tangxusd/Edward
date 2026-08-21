@@ -10,6 +10,15 @@ python3 src/resolve/resolve-sidecar/resolve_direct_health.py --json
 
 该命令只调用 `scriptapp("Resolve")` 并读取产品版本，不会修改项目或时间线。返回码为 `0` 才表示 Edward 可以进入官方直连模式；否则安装向导应转入 Bridge 检查或显示配置提示。
 
+语义侧车入口：
+
+```sh
+python3 src/resolve/resolve-sidecar/resolve_direct_sidecar.py
+```
+
+输入 `{"operation":"health"}`、`{"operation":"capabilities"}` 或
+`{"operation":"timeline.snapshot"}`，每行返回一个 JSON 响应。当前只读操作不修改 Resolve 状态；字幕、关键帧和渲染写操作会在确认门和 C++ 适配器迁移完成后加入。
+
 ```sh
 python3 src/resolve/resolve-sidecar/probe_resolve.py --json
 ```

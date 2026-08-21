@@ -14,6 +14,8 @@ Edward 以独立外部应用运行，正式连接层不再自定义一套与 Res
 
 Edward 的只读启动探针位于 `src/resolve/resolve-sidecar/probe_resolve.py`。它只报告官方模块和认证 Bridge 配置是否可用，不会安装脚本或打印 token；适配器正式接入前，先用该探针确认环境，避免把“Resolve 已打开”误判为“Edward 已连接”。
 
+官方直连侧车 `src/resolve/resolve-sidecar/resolve_direct_sidecar.py` 使用逐行 JSON 输入输出，当前提供 `health`、`capabilities` 和 `timeline.snapshot` 只读操作。它是 C++ `ResolveAdapter` 迁移到官方 API 的中间边界，不是新的产品级网络协议。
+
 ## 连接优先级
 
 1. Studio 外部脚本 API：使用 Resolve 的 `scriptapp("Resolve")`，要求 Resolve Studio 的 `External scripting using` 设置为 `Local`。
