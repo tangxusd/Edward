@@ -117,11 +117,12 @@ def _insert_subtitle_as_text_plus(resolve: Any, params: dict[str, Any]) -> dict[
         return {"accepted": False}
     item = timeline.InsertFusionTitleIntoTimeline("Text+")
     if item is None:
-        return {"accepted": False}
+        return {"accepted": False, "reason": "InsertFusionTitleIntoTimeline 返回空值"}
     # Text+ is the documented editable Fusion title fallback. Write the
     # TextPlus tool input rather than an unverified TimelineItem property.
     if int(item.GetFusionCompCount() or 0) < 1:
-        return {"accepted": False}
+        timeline.DeleteClips([item], False)
+        return {"accepted": False, "reason": "插入的 Text+ 没有 Fusion Composition"}
     comp = item.GetFusionCompByIndex(1)
     tool = None
     for name in ("TextPlus", "Text1", "Text+"):
@@ -132,11 +133,13 @@ def _insert_subtitle_as_text_plus(resolve: Any, params: dict[str, Any]) -> dict[
         if tool is not None:
             break
     if tool is None:
-        return {"accepted": False}
+        timeline.DeleteClips([item], False)
+        return {"accepted": False, "reason": "Fusion Composition 中找不到 TextPlus 工具"}
     try:
         tool.SetInput("StyledText", text)
     except Exception:
-        return {"accepted": False}
+        timeline.DeleteClips([item], False)
+        return {"accepted": False, "reason": "TextPlus StyledText 写入失败"}
     return {"accepted": True, "componentId": str(item.GetUniqueId())}
 
 
