@@ -3464,3 +3464,10 @@
 - 修改：`src/resolve/resolve-sidecar/resolve_direct_sidecar.py` 改为取得播放头所在视频片段，在该片段中创建 Fusion Composition，并连接 `MediaIn1 → Merge1（Foreground=Text1）→ MediaOut1`；新增时间线项目检查及按名称定向删除操作，仅清理本次误插入的 `Text+` 项目。
 - 外部状态：在当前 DaVinci Resolve Studio 21.0.0.47、项目 `Untitled Project 2`、时间线 `Timeline 1` 中删除两个独立 `Text+` 项目，并对 `VIDEO5.mp4` 执行一次真实叠加测试。
 - 验证：`timeline.items` 显示仅保留 `VIDEO5.mp4` 视频/音频片段；`subtitle.insert` 返回 `accepted=true` 且组件 ID 为视频片段 ID；`fusion.inspectCurrent` 显示 `MediaIn1`、`Text1`、`Merge1`、`MediaOut1` 四个节点，视频片段 `hasFusion=true`。
+
+## 2026-08-21：锁定 Resolve API 三步验证顺序
+
+- 目的：统一后续 DaVinci Resolve Studio 功能开发的 API 依据和验收标准。
+- 修改：在项目 `AGENTS.md` 写入三步顺序：本机官方 Scripting API 手册为第一依据，`davinci-resolve-mcp` 文档和实现为辅助参考，最后必须在当前 Resolve Studio 实例中真实验证通过。
+- 依据：本机 Resolve Studio 21.0.4 的 `Developer/Scripting/README.txt`、`CHANGELOG.txt` 和 `Examples/` 已更新；MCP 项目内文档存在版本差异，不能替代本机官方手册。
+- 结果：后续若文档与实机行为不一致，以当前 Studio 实机结果为准，并记录差异；未完成实机验证的功能不得标记为完成。

@@ -26,3 +26,11 @@
 - 程序代码托管在 GitHub 并开源。
 - 资源库独立托管在其他服务，不随程序代码仓库分发。
 - 成品软件与资源库采用订阅制收费。涉及 GPL 代码时，订阅设计不得额外限制用户对 GPL 代码享有的运行、修改和再分发权利；订阅应对应资源库、云端服务、官方发布与支持等独立服务价值。
+
+## Resolve API 开发验证顺序
+
+涉及 DaVinci Resolve Studio 的所有功能，必须按以下三步推进，不得跳过实机验证：
+
+1. 以本机安装的官方 API 手册为第一依据：`/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting/README.txt`，并结合 `CHANGELOG.txt`、官方 `Examples/` 和当前 Studio 版本。
+2. 以项目内 `.davinci-resolve-mcp.BeArE2/` 的 `davinci-resolve-mcp` 手册、封装和示例为辅助参考，不得将其内容视为高于本机官方手册的依据。
+3. 在当前 DaVinci Resolve Studio 实例中执行真实操作验证；只有 API 调用结果、时间线状态和用户可见结果均符合预期，才能标记功能完成。若文档与实机行为冲突，以当前 Studio 实机结果为准，并记录差异。
