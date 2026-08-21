@@ -3448,3 +3448,8 @@
 
 - 修改：新增 `src/resolve/resolve-sidecar/resolve_direct_health.py`；自动设置 macOS、Windows、Linux 的官方 Scripting API 路径，只调用 `scriptapp("Resolve")` 和版本读取。
 - 结果：健康检查返回码 `0` 才允许进入 direct 模式；模块缺失、Resolve 未运行或 External scripting 未启用都会返回结构化错误，随后由安装向导转入 Bridge 检查。
+
+## 2026-08-21：官方直连语义侧车
+
+- 修改：新增 `resolve_direct_sidecar.py`，通过逐行 JSON 提供 `health`、`capabilities` 和 `timeline.snapshot` 只读操作，作为 C++ ResolveAdapter 迁移到官方 API 的边界。
+- 验证：在 Resolve Studio 21.0.0.47、当前项目“特效”、Timeline 1 上成功读取项目名、时间线名、播放头 `01:02:53:11`、起止帧和视频/音频轨道；Python 编译检查和 `git diff --check` 通过。
