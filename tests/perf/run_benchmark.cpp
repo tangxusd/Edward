@@ -345,6 +345,9 @@ int main(int argc, char** argv) {
       report.insert("uncollectedRequiredMetrics", QJsonArray{
           QStringLiteral("gpu_memory_mb"),
           });
+      report.insert("uncollectedMetricReasons", QJsonObject{
+          {QStringLiteral("gpu_memory_mb"),
+           QStringLiteral("当前 MLT/QImage 渲染链未启用进程级 Metal、OpenGL 或 Vulkan 显存后端")}});
     }
   }
   report.insert("status", failure.isEmpty()

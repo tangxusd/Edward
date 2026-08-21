@@ -3245,3 +3245,9 @@
 
 - 修改：导出样本把原素材首帧与导出首帧转换为亮度图后按固定最多十万采样点计算 SSIM，写入 `outputSsim` 中位数；断点恢复要求该字段存在。
 - 验证：将由 `performance.collection` 与全量 CTest 验证；不使用固定值或估算值填充质量指标。
+
+## 2026-08-21 GPU 显存指标边界记录
+
+- 核查：当前 Edward 性能采集链使用 MLT 与 QImage CPU 合成，未启用 Metal、OpenGL 或 Vulkan 进程级显存后端，无法诚实产生 GPU 显存数值。
+- 修改：报告新增 `uncollectedMetricReasons.gpu_memory_mb`，明确记录未采集原因；GPU 显存仍保留在 `uncollectedRequiredMetrics`，不伪造指标。
+- 验证：将由 `performance.collection` 与全量 CTest 验证。

@@ -49,6 +49,7 @@ int main(int argc, char** argv) {
   assert(!result.contains("completedFixture"));
   assert(!result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("export_fps")));
   assert(!result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("proxy_median_ms")));
+  assert(result.value("uncollectedMetricReasons").toObject().value("gpu_memory_mb").isString());
   const auto samples = result.value("samples").toObject();
   for (const auto& id : {QStringLiteral("1080p"), QStringLiteral("4k"), QStringLiteral("vfr")}) {
     const auto sample = samples.value(id).toObject();

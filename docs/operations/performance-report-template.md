@@ -38,6 +38,7 @@
 `uncollectedRequiredMetrics`，不得将空白项补成估算值，也不得据此做发布性能或竞品比较结论。
 导出样本还必须有 `exportMedianFps` 且 `exportFirstFrameValid=true`，否则不得计入报告。
 导出样本同时必须有实际计算得到的 `outputSsim`，不得用固定常数替代。
+如果 `uncollectedRequiredMetrics` 包含 `gpu_memory_mb`，必须同时填写 `uncollectedMetricReasons.gpu_memory_mb`，说明当前渲染后端没有进程级显存采集接口。
 
 ## 结论
 
