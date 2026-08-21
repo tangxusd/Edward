@@ -2968,3 +2968,9 @@
 - 目的：在封装运行时之前，机器可读地识别 `.app` 是否仍依赖开发机路径。
 - 修改：新增 `packaging.macos_dependency_audit`，使用 `otool -L` 生成 JSON 报告；发现 Homebrew 或本地前缀时明确输出 `developer_machine_dependencies`，不误报为可分发。
 - 验证：CTest 通过，当前报告按事实标记开发机依赖；该检查不替代后续依赖复制、路径重写和许可证审计。
+
+## 2026-08-21 macOS 正式打包硬门槛
+
+- 目的：建立正式打包入口，缺少真实许可证、第三方声明或基础资源时必须拒绝执行。
+- 修改：新增 `packaging/macos/Package.cmake`，输入齐备后才调用 `macdeployqt`、复制许可证/通知/基础资源；新增 `packaging.macos_package_gate` 验证当前缺少发布材料时明确失败。
+- 验证：打包门槛测试通过；当前没有执行正式打包，因为仓库确实缺少上述输入。不得将此门槛测试误解为分发包已生成。
