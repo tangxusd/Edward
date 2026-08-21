@@ -3118,3 +3118,4 @@
 - 修改：新增 `tests/e2e/test_real_media_import.cpp`，按每个素材探测到的帧数建立时间线，验证 `TimelineController::dropMediaAtPlayhead` 及片段源范围；新增构建目标但不注册依赖用户本地路径的 CTest。
 - 验证：`./build/0.3-runtime/tests/e2e/test_real_media_import jiaju/68564-528689191.mp4 jiaju/nainiu.mov jiaju/VIDEO16.mp4` 通过，三个素材均成功导入。
 - 边界：本次不把 `VIDEO16.mp4` 误作 VFR 性能夹具；导出链路仍由内置 e2e 夹具验证，真实素材的长时导出未在本次运行中执行。
+- 追加验证：测试现已覆盖播放头分割、波纹删除及删除后首帧 MLT 渲染；三段素材均通过，删除语义为删除播放头前一段并将后段回移到 0 帧。
