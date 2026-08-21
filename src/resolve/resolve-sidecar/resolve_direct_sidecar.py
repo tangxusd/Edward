@@ -11,6 +11,7 @@ import json
 import sys
 from typing import Any
 
+import resolve_direct_health as direct_health
 from resolve_direct_health import health
 
 
@@ -18,9 +19,7 @@ def _resolve():
     status = health()
     if not status.get("connected"):
         raise RuntimeError(str(status.get("error", "Resolve Studio 未连接")))
-    import DaVinciResolveScript  # type: ignore
-
-    value = DaVinciResolveScript.scriptapp("Resolve")
+    value = direct_health.LAST_RESOLVE
     if value is None:
         raise RuntimeError("scriptapp(Resolve) 返回空值")
     return value

@@ -13,6 +13,8 @@ import os
 import sys
 from pathlib import Path
 
+LAST_RESOLVE = None
+
 
 def _paths() -> tuple[Path, Path]:
     if sys.platform == "darwin":
@@ -31,6 +33,7 @@ def _paths() -> tuple[Path, Path]:
 
 
 def health() -> dict[str, object]:
+    global LAST_RESOLVE
     api, library = _paths()
     modules = Path(os.environ.get("RESOLVE_SCRIPT_MODULES", api / "Modules")).expanduser()
     if str(modules) not in sys.path:
@@ -53,6 +56,7 @@ def health() -> dict[str, object]:
             result["error"] = "scriptapp(Resolve) 返回空值；请确认 Resolve Studio 正在运行并允许 External scripting。"
             return result
         result["connected"] = True
+        LAST_RESOLVE = resolve
         result["product"] = str(resolve.GetProductName())
         result["version"] = str(resolve.GetVersionString())
     except ModuleNotFoundError:
