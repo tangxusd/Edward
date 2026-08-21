@@ -39,7 +39,7 @@
 - [x] **Step 2: 确认红灯**：运行 `ctest --test-dir build/0.3-runtime -R 'core.project_identity|media.render_storage' --output-on-failure`，预期测试不存在或失败。
 - [x] **Step 3: 最小实现**：新工程写 UUID；旧工程下次保存时补写 UUID；目录生成和清理均验证 UUID 路径层级。
 - [x] **Step 4: 确认绿灯**：重跑同一测试；工程 JSON 不出现代理、缓存或预渲染绝对路径。
-- [ ] **Step 5: 提交**：`git commit -m "feat: add isolated render storage roots"`。
+- [x] **Step 5: 提交**：`git commit -m "feat: add isolated render storage roots"`。
 
 ### Task 2: 真实代理与预览选择
 
@@ -59,9 +59,9 @@
 
 - [ ] **Step 1: 写失败测试**：清晰代理最大宽高为 1920；流畅代理最大宽高为 854×480；原画模式返回源路径；源变更后旧代理不被选用；导出测试仍读取源路径。
 - [ ] **Step 2: 确认红灯**：运行 `ctest --test-dir build/0.3-runtime -R 'media.proxy_manager|media.preview_session' --output-on-failure`，预期失败。
-- [ ] **Step 3: 最小实现**：FFmpeg 写同目录临时文件，`MediaProbe` 验证后原子替换；稳定代理名包含源规范路径、文件大小和修改时间；清晰/流畅缺失时回退原画。
-- [ ] **Step 4: 确认绿灯**：运行 `ctest --test-dir build/0.3-runtime -R 'media.proxy_manager|media.preview_session|media.export_job' --output-on-failure`。
-- [ ] **Step 5: 提交**：`git commit -m "feat: add preview proxy generation"`。
+- [x] **Step 3: 最小实现**：FFmpeg 写同目录临时文件，`MediaProbe` 验证后原子替换；稳定代理名包含源规范路径、文件大小和修改时间；清晰/流畅缺失时回退原画。
+- [x] **Step 4: 确认绿灯**：运行 `ctest --test-dir build/0.3-runtime -R 'media.proxy_manager|media.preview_session|media.export_job' --output-on-failure`。
+- [x] **Step 5: 提交**：`git commit -m "feat: add preview proxy generation"`。
 
 ### Task 3: 设置页与工作台预览接线
 

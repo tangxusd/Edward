@@ -73,3 +73,8 @@ add_executable(test_proxy_manager test_proxy_manager.cpp)
 target_link_libraries(test_proxy_manager PRIVATE edward_media)
 add_dependencies(test_proxy_manager media_fixture)
 add_test(NAME media.proxy_manager COMMAND test_proxy_manager ${EDWARD_MEDIA_FIXTURE})
+
+add_executable(test_preview_session test_preview_session.cpp)
+target_link_libraries(test_preview_session PRIVATE edward_media)
+add_dependencies(test_preview_session media_fixture)
+add_test(NAME media.preview_session COMMAND test_preview_session ${EDWARD_MEDIA_FIXTURE})

@@ -6,6 +6,7 @@ add_library(edward_media STATIC
   src/render_graph.cpp
   src/render_storage.cpp
   src/proxy_manager.cpp
+  src/preview_session.cpp
   src/export_job.cpp
   src/component_renderer.cpp
 )
