@@ -3431,3 +3431,9 @@
 - 修改：固定 `davinci-resolve-mcp` v2.98.3（commit `132e134d3aa25d3d0df6bdf38f051bd29d128211`，MIT）；新增 `ResolveBridgeConfig`，只接受 `127.0.0.1`/`localhost`/`::1`、合法端口和最小 Token，作为正式认证 Bridge 配置边界。
 - 测试：新增 `resolve.verified_transport_config`，覆盖合法配置、非回环地址和短 Token 拒绝。
 - 验证：定向 CTest 1/1 通过；真实 Resolve Studio 连接尚未在当前机器执行。
+
+## 2026-08-21：正式桥接层 Task 9.2
+
+- 修改：新增 `src/resolve/resolve-sidecar/probe_resolve.py` 只读启动探针和使用说明；按官方 `DaVinciResolveScript` 直连、上游认证 Bridge 配置的顺序报告模式。
+- 验证：探针在当前已启动 Resolve 的环境输出 `mode=unavailable`，明确显示官方模块未发现且 `bridge.json` 不存在；Python 编译检查和 `git diff --check` 通过。探针没有修改 Resolve 或用户目录，也没有输出凭证。
+- 结论：仅启动 Resolve 不能证明 Edward 已连接；下一阶段仍需用户启用 Studio External scripting 或启动上游 `resolve_bridge`，再执行真实集成门。

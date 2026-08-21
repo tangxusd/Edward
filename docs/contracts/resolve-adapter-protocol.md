@@ -12,6 +12,8 @@ Edward 以独立外部应用运行，正式连接层不再自定义一套与 Res
 当前固定参考版本：`davinci-resolve-mcp` `v2.98.3`，Git commit
 `132e134d3aa25d3d0df6bdf38f051bd29d128211`，许可证 MIT。升级该依赖必须重新运行真实 Resolve Studio 集成门，不能只更新版本号。
 
+Edward 的只读启动探针位于 `src/resolve/resolve-sidecar/probe_resolve.py`。它只报告官方模块和认证 Bridge 配置是否可用，不会安装脚本或打印 token；适配器正式接入前，先用该探针确认环境，避免把“Resolve 已打开”误判为“Edward 已连接”。
+
 ## 连接优先级
 
 1. Studio 外部脚本 API：使用 Resolve 的 `scriptapp("Resolve")`，要求 Resolve Studio 的 `External scripting using` 设置为 `Local`。
