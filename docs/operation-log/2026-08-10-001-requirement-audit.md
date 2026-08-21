@@ -3097,3 +3097,9 @@
 
 - 目的：避免性能框架仅完成夹具校验，却被误读为已完成基准采集。
 - 修改：`edward_benchmark` 在夹具有效但尚未采集指标时输出 `status=fixtures_ready_not_collected` 和 `metricsCollected=false`；性能模板同步说明不得据此填写性能结论。
+
+## 2026-08-21 性能夹具清单生成器
+
+- 目的：减少手工填写路径和哈希造成的基准夹具错误。
+- 新增：`packaging/macos/GeneratePerformanceFixtureManifest.cmake`，要求真实的 1080p、4K、VFR 文件并自动计算 SHA-256。
+- 约束：没有真实夹具时生成器明确失败，不使用现有低分辨率测试素材替代。

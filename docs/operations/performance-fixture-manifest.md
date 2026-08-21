@@ -25,3 +25,16 @@
 ```
 
 媒体二进制不进入 Git；在两台基准机上使用同一份清单。文件内容变化、路径失效、ID 缺失或 SHA-256 不一致都会生成 `fixture_validation_failed`，不得继续采集或填写发布结论。
+
+可用 `packaging/macos/GeneratePerformanceFixtureManifest.cmake` 生成清单：
+
+```bash
+cmake \
+  -DOUTPUT_PATH=build/performance/fixtures.json \
+  -DFIXTURE_1080P=/绝对路径/edward-1080p.mp4 \
+  -DFIXTURE_4K=/绝对路径/edward-4k.mp4 \
+  -DFIXTURE_VFR=/绝对路径/edward-vfr.mp4 \
+  -P packaging/macos/GeneratePerformanceFixtureManifest.cmake
+```
+
+三个文件必须真实存在；生成器会重新计算 SHA-256，不接受手填哈希。
