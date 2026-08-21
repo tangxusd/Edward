@@ -1,6 +1,20 @@
 # Resolve Studio 适配器协议
 
-Edward 以独立外部应用运行，通过本地桥接 URL 与已启动的 Resolve Studio 通信。协议采用逐行 JSON-RPC 请求/响应；每个请求包含数值 `id`、字符串 `method` 和对象 `params`，响应必须回传相同 `id`。
+Edward 以独立外部应用运行，正式连接层不再自定义一套与 Resolve 生态无关的明文 TCP 协议。正式实现直接采用已在 `samuelgursky/davinci-resolve-mcp` 中验证的两级连接策略：Resolve Studio 官方外部脚本直连为主，Resolve 内部认证回环 Bridge 为备用。Edward 的 `ResolveAdapter` 只依赖统一的能力/时间线/组件/渲染语义，不感知底层是直连还是 Bridge。
+
+参考实现：
+
+- [DaVinci Resolve MCP README](https://github.com/samuelgursky/davinci-resolve-mcp/blob/main/README.md)
+- [Resolve 外部连接选择](https://github.com/samuelgursky/davinci-resolve-mcp/blob/main/src/utils/resolve_connection.py)
+- [认证 Bridge 客户端](https://github.com/samuelgursky/davinci-resolve-mcp/blob/main/src/utils/resolve_bridge_client.py)
+- [Resolve 内部 Bridge](https://github.com/samuelgursky/davinci-resolve-mcp/blob/main/src/utils/resolve_bridge.py)
+
+## 连接优先级
+
+1. Studio 外部脚本 API：使用 Resolve 的 `scriptapp("Resolve")`，要求 Resolve Studio 的 `External scripting using` 设置为 `Local`。
+2. 认证回环 Bridge：仅在直连不可用且用户启用 Bridge 时使用；Bridge 必须绑定 `127.0.0.1`，请求使用 HMAC-SHA256、时间戳、一次性 nonce、请求 ID 和能力探测。
+
+当前仓库的 `ResolveConnection`/fixture 仅是迁移前的测试实现，禁止继续作为正式产品协议扩展；在正式桥接替换完成前，不应宣称 Edward 已完成真实 Resolve 连接。
 
 ## 能力与时间线
 
