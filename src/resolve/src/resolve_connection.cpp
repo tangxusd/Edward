@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QJsonDocument>
 #include <QTcpSocket>
+#include <QThread>
 
 namespace edward::resolve {
 
@@ -79,10 +80,10 @@ std::optional<QJsonObject> ResolveConnection::call(const QString& method,
       continue;
     }
     const auto remaining = impl_->timeoutMs - static_cast<int>(timer.elapsed());
-    if (remaining <= 0 || !impl_->socket->waitForReadyRead(remaining)) {
+    if (remaining <= 0) {
       return fail(QStringLiteral("bridge_response_timeout"), impl_->socket->errorString());
     }
-    line += impl_->socket->readAll();
+    QThread::msleep(static_cast<unsigned long>(qMin(remaining, 2)));
   }
 
   QJsonParseError parseError;

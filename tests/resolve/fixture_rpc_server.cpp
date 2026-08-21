@@ -1,4 +1,5 @@
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -10,8 +11,12 @@ QTcpServer* createFixtureServer(QObject* parent) {
   server->listen(QHostAddress::LocalHost, 0);
   QObject::connect(server, &QTcpServer::newConnection, server, [server] {
     auto* socket = server->nextPendingConnection();
-    QObject::connect(socket, &QTcpSocket::readyRead, socket, [socket] {
-      const auto request = QJsonDocument::fromJson(socket->readLine()).object();
+    QObject::connect(socket, &QTcpSocket::readyRead, socket, [socket, server, pending = QByteArray{}]() mutable {
+      pending += socket->readAll();
+      const auto newline = pending.indexOf('\n');
+      if (newline < 0) return;
+      const auto request = QJsonDocument::fromJson(pending.left(newline)).object();
+      pending.remove(0, newline + 1);
       const auto method = request.value(QStringLiteral("method")).toString();
       const auto id = request.value(QStringLiteral("id"));
       if (method == QStringLiteral("malformed")) {
@@ -27,6 +32,43 @@ QTcpServer* createFixtureServer(QObject* parent) {
         return;
       }
       if (method == QStringLiteral("timeout")) return;
+      if (method == QStringLiteral("capabilities")) {
+        const auto version = server->property("freeCapabilities").toBool() ? QStringLiteral("free") : QStringLiteral("20.0.0");
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{
+                                                   {QStringLiteral("studioVersion"), version == QStringLiteral("free") ? QStringLiteral("free") : QStringLiteral("20.0.0")},
+                                                   {QStringLiteral("timeline"), true},
+                                                   {QStringLiteral("fusion"), true},
+                                                   {QStringLiteral("render"), true}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
+      if (method == QStringLiteral("timeline.snapshot")) {
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{
+                                                   {QStringLiteral("projectName"), QStringLiteral("Demo")},
+                                                   {QStringLiteral("timelineName"), QStringLiteral("Timeline 1")},
+                                                   {QStringLiteral("playheadFrame"), 42},
+                                                   {QStringLiteral("timelineStartFrame"), 0},
+                                                   {QStringLiteral("fpsNumerator"), 30},
+                                                   {QStringLiteral("fpsDenominator"), 1},
+                                                   {QStringLiteral("tracks"), QJsonArray{
+                                                     QJsonObject{{QStringLiteral("id"), QStringLiteral("v1")}, {QStringLiteral("name"), QStringLiteral("V1")}, {QStringLiteral("video"), true}, {QStringLiteral("audio"), false}},
+                                                     QJsonObject{{QStringLiteral("id"), QStringLiteral("a1")}, {QStringLiteral("name"), QStringLiteral("A1")}, {QStringLiteral("video"), false}, {QStringLiteral("audio"), true}}
+                                                   }}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
+      if (method == QStringLiteral("timeline.setPlayhead")) {
+        const auto frame = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("frame")).toInt();
+        const auto result = QJsonObject{{QStringLiteral("accepted"), frame >= 0 && frame <= 900}};
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id}, {QStringLiteral("result"), result}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
       if (method == QStringLiteral("echo")) {
         socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
                                                  {QStringLiteral("result"), request.value(QStringLiteral("params"))}})

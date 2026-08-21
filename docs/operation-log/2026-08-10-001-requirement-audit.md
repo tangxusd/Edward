@@ -3378,3 +3378,9 @@
 - 修改：新增 `edward_resolve` 模块和本地单行 JSON-RPC 传输边界，支持连接、请求 ID、超时、非法响应和断开状态。
 - 测试：新增 `resolve.connection`，覆盖成功响应、非法 JSON、响应 ID 不匹配、响应超时和主动断开。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 51/51 通过。
+
+## 2026-08-21：0.4.0 Resolve 状态适配器 Task 2
+
+- 修改：新增 Resolve Studio 能力探测、项目/时间线/轨道/帧率/播放头快照和播放头设置适配器。
+- 测试：新增 `resolve.adapter`，覆盖 Studio 能力、免费版拒绝、时间线快照、轨道解析和播放头范围。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 52/52 通过。
