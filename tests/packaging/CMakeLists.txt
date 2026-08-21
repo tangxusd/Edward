@@ -66,3 +66,7 @@ add_custom_target(check_macos_development_bundle_resources
     -P ${CMAKE_CURRENT_SOURCE_DIR}/check_macos_bundle_runtime_resources.cmake
   DEPENDS audit_macos_development_bundle
   COMMENT "Check bundled MLT runtime resources")
+
+add_custom_target(validate_macos_development_bundle
+  DEPENDS check_macos_development_bundle_resources
+  COMMENT "Validate complete development-only macOS app bundle")

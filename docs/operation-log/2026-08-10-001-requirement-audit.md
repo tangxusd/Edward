@@ -3103,3 +3103,9 @@
 - 目的：减少手工填写路径和哈希造成的基准夹具错误。
 - 新增：`packaging/macos/GeneratePerformanceFixtureManifest.cmake`，要求真实的 1080p、4K、VFR 文件并自动计算 SHA-256。
 - 约束：没有真实夹具时生成器明确失败，不使用现有低分辨率测试素材替代。
+
+## 2026-08-21 macOS 开发包验收聚合目标
+
+- 目的：将 `.app` 结构、主程序依赖、全树动态库依赖和 MLT 资源检查统一为一个可执行入口。
+- 新增：`validate_macos_development_bundle` 目标及 `docs/operations/macos-install-smoke.md` 验收清单。
+- 当前边界：目标只验证开发包结构与可迁移依赖，不替代 GUI 首启和正式签名/公证验收。
