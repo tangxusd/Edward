@@ -29,5 +29,7 @@ int main() {
   assert(!std::filesystem::exists(paths.proxyDirectory));
   assert(std::filesystem::exists(roots.proxyRoot / "not-a-project"));
   assert(std::filesystem::exists(roots.proxyRoot / "keep.txt"));
+  assert(edward::media::RenderStorage::clearDerived(roots, edward::media::DerivedStorageKind::Cache));
+  assert(edward::media::RenderStorage::clearDerived(roots, edward::media::DerivedStorageKind::Render));
   return 0;
 }

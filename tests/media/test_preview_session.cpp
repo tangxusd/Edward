@@ -26,5 +26,9 @@ int main(int argc, char** argv) {
   assert(session.sourceFor(source) != source);
   session.setQuality(edward::media::PreviewQuality::Original);
   assert(session.sourceFor(source) == source);
+  const auto invalid = std::filesystem::path(temporary.path().toStdString()) / "missing.mp4";
+  session.setQuality(edward::media::PreviewQuality::Clear);
+  assert(!session.prepare(invalid));
+  assert(session.sourceFor(invalid) == invalid);
   return 0;
 }
