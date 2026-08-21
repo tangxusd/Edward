@@ -1,5 +1,11 @@
+#include <edward/core/timeline.hpp>
+#include <edward/media/media_probe.hpp>
+#include <edward/media/mlt_adapter.hpp>
+
 #include <QCryptographicHash>
+#include <QCoreApplication>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -9,6 +15,7 @@
 
 #include <array>
 #include <algorithm>
+#include <vector>
 
 namespace {
 QJsonArray requiredMetrics() {
@@ -32,10 +39,62 @@ bool writeReport(const QString& path, const QJsonObject& report) {
   if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
   return file.write(QJsonDocument(report).toJson(QJsonDocument::Indented)) >= 0;
 }
+
+double percentile(std::vector<double> samples, double ratio) {
+  std::sort(samples.begin(), samples.end());
+  const auto index = static_cast<std::size_t>(std::ceil((samples.size() - 1) * ratio));
+  return samples.at(index);
+}
+
+std::optional<QJsonObject> collectFixture(const QString& path) {
+  constexpr int sampleCount = 5;
+  std::vector<double> imports;
+  imports.reserve(sampleCount);
+  std::optional<edward::media::MediaInfo> info;
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    QElapsedTimer timer;
+    timer.start();
+    info = edward::media::MediaProbe::probe(std::filesystem::path(path.toStdString()));
+    imports.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
+    if (!info) return std::nullopt;
+  }
+  const auto duration = std::max<edward::core::Frame>(1, info->durationFrames);
+  edward::core::Timeline timeline(duration);
+  const auto track = timeline.addVideoTrack();
+  if (!timeline.insertClip({1, track, std::filesystem::path(path.toStdString()), 0, duration, 0}))
+    return std::nullopt;
+  const auto snapshot = timeline.snapshot();
+  const edward::media::MltAdapter adapter;
+  std::vector<double> firstFrames;
+  std::vector<double> seeks;
+  firstFrames.reserve(sampleCount);
+  seeks.reserve(sampleCount);
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    QElapsedTimer timer;
+    timer.start();
+    const auto frame = adapter.renderFrame(snapshot, 0);
+    firstFrames.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
+    if (!frame || frame->isNull()) return std::nullopt;
+  }
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    const auto frameIndex = duration <= 1 ? 0 : duration * (sample + 1) / (sampleCount + 1);
+    QElapsedTimer timer;
+    timer.start();
+    const auto frame = adapter.renderFrame(snapshot, frameIndex);
+    seeks.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
+    if (!frame || frame->isNull()) return std::nullopt;
+  }
+  return QJsonObject{{"sampleCount", sampleCount},
+                     {"importMedianMs", percentile(imports, 0.5)},
+                     {"firstFrameMedianMs", percentile(firstFrames, 0.5)},
+                     {"seekP95Ms", percentile(seeks, 0.95)}};
+}
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 5 || QString::fromLocal8Bit(argv[1]) != QStringLiteral("--manifest") ||
+  QCoreApplication application(argc, argv);
+  const auto collect = argc == 6 && QString::fromLocal8Bit(argv[5]) == QStringLiteral("--collect");
+  if ((argc != 5 && !collect) || QString::fromLocal8Bit(argv[1]) != QStringLiteral("--manifest") ||
       QString::fromLocal8Bit(argv[3]) != QStringLiteral("--report")) return 64;
   const auto manifestPath = QString::fromLocal8Bit(argv[2]);
   const auto reportPath = QString::fromLocal8Bit(argv[4]);
@@ -76,10 +135,33 @@ int main(int argc, char** argv) {
       }
     }
   }
-  report.insert("status", failure.isEmpty() ? QStringLiteral("fixtures_ready")
-                                             : QStringLiteral("fixture_validation_failed"));
-  report.insert("metricsCollected", false);
-  if (failure.isEmpty()) report.insert("status", QStringLiteral("fixtures_ready_not_collected"));
+  if (failure.isEmpty() && collect) {
+    QJsonObject samples;
+    const auto fixtures = manifest.object().value("fixtures").toArray();
+    for (const auto& requiredId : requiredIds) {
+      const auto found = std::find_if(fixtures.begin(), fixtures.end(), [&requiredId](const QJsonValue& value) {
+        return value.toObject().value("id").toString() == requiredId;
+      });
+      const auto result = collectFixture(found->toObject().value("path").toString());
+      if (!result) {
+        failure = QStringLiteral("采集失败：%1").arg(requiredId);
+        break;
+      }
+      samples.insert(requiredId, *result);
+    }
+    if (failure.isEmpty()) {
+      report.insert("samples", samples);
+      report.insert("uncollectedRequiredMetrics", QJsonArray{
+          QStringLiteral("cold_start_median_ms"), QStringLiteral("drag_p95_ms"),
+          QStringLiteral("peak_rss_mb"), QStringLiteral("gpu_memory_mb"),
+          QStringLiteral("proxy_median_ms"), QStringLiteral("export_fps"),
+          QStringLiteral("output_ssim")});
+    }
+  }
+  report.insert("status", failure.isEmpty()
+      ? (collect ? QStringLiteral("metrics_collected_partial") : QStringLiteral("fixtures_ready_not_collected"))
+      : (collect ? QStringLiteral("metric_collection_failed") : QStringLiteral("fixture_validation_failed")));
+  report.insert("metricsCollected", failure.isEmpty() && collect);
   if (!failure.isEmpty()) report.insert("failure", failure);
   if (!writeReport(reportPath, report)) return 73;
   return failure.isEmpty() ? 0 : 2;

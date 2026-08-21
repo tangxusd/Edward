@@ -1,0 +1,58 @@
+#include <QCryptographicHash>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QProcess>
+#include <QTemporaryDir>
+
+#include <cassert>
+
+namespace {
+QString sha256(const QString& path) {
+  QFile file(path);
+  assert(file.open(QIODevice::ReadOnly));
+  QCryptographicHash hash(QCryptographicHash::Sha256);
+  hash.addData(file.readAll());
+  return QString::fromLatin1(hash.result().toHex());
+}
+}
+
+int main(int argc, char** argv) {
+  assert(argc == 3);
+  QTemporaryDir directory;
+  assert(directory.isValid());
+  const auto fixture = QString::fromLocal8Bit(argv[2]);
+  const auto manifestPath = directory.path() + QStringLiteral("/fixtures.json");
+  const auto reportPath = directory.path() + QStringLiteral("/report.json");
+  const QJsonArray fixtures{
+      QJsonObject{{"id", "1080p"}, {"path", fixture}, {"sha256", sha256(fixture)}},
+      QJsonObject{{"id", "4k"}, {"path", fixture}, {"sha256", sha256(fixture)}},
+      QJsonObject{{"id", "vfr"}, {"path", fixture}, {"sha256", sha256(fixture)}}};
+  QFile manifest(manifestPath);
+  assert(manifest.open(QIODevice::WriteOnly));
+  manifest.write(QJsonDocument(QJsonObject{{"fixtures", fixtures}}).toJson(QJsonDocument::Compact));
+  manifest.close();
+
+  QProcess benchmark;
+  benchmark.start(QString::fromLocal8Bit(argv[1]), {QStringLiteral("--manifest"), manifestPath,
+                                                     QStringLiteral("--report"), reportPath,
+                                                     QStringLiteral("--collect")});
+  assert(benchmark.waitForFinished(15000));
+  assert(benchmark.exitCode() == 0);
+  QFile report(reportPath);
+  assert(report.open(QIODevice::ReadOnly));
+  const auto result = QJsonDocument::fromJson(report.readAll()).object();
+  assert(result.value("status").toString() == QStringLiteral("metrics_collected_partial"));
+  assert(result.value("metricsCollected").toBool());
+  assert(result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("export_fps")));
+  const auto samples = result.value("samples").toObject();
+  for (const auto& id : {QStringLiteral("1080p"), QStringLiteral("4k"), QStringLiteral("vfr")}) {
+    const auto sample = samples.value(id).toObject();
+    assert(sample.value("sampleCount").toInt() == 5);
+    assert(sample.value("importMedianMs").toDouble() >= 0.0);
+    assert(sample.value("firstFrameMedianMs").toDouble() >= 0.0);
+    assert(sample.value("seekP95Ms").toDouble() >= 0.0);
+  }
+  return 0;
+}

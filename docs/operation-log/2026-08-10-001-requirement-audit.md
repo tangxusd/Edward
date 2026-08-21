@@ -3190,3 +3190,10 @@
 - 实现：新增 `PreviewFrameCache`，以“完整时间线快照、播放头、预览质量、渲染图叠加状态”的 SHA-256 键写入 `cacheRoot/<项目UUID>/`。PNG 采用 `QSaveFile` 原子提交；时间线、组件层、插件帧或预览质量任一变化都会形成新键，不会复用旧画面。
 - 验证：失败测试先确认接口缺失；随后 `media.preview_frame_cache` 验证命中、键失效、跨工程隔离和缓存统一清理。`desktop.workbench_plugins` 验证真实工作台预览会落盘，清理缓存后再次预览会重新生成。三项定向测试均通过。
 - 边界：当前缓存按键保留，依赖现有“清理缓存”入口释放空间；尚未新增自动容量淘汰策略，避免在未确认清理策略前删除用户可复用的预览结果。
+
+## 2026-08-21 性能部分采集器
+
+- 目的：把已校验的 1080p、4K、VFR 夹具从“可用”推进到可复现的本机实际采样，同时不伪造尚未实现的发布指标。
+- 实现：`edward_benchmark --collect` 对每个夹具执行五次 `MediaProbe` 导入探测、五次时间线首帧 MLT 合成、五次分布定位渲染，写入中位导入/首帧和 p95 定位耗时。结果为 `metrics_collected_partial`，且报告强制列出冷启动、拖拽、RSS、GPU、代理、导出与 SSIM 等未采集项。
+- 验证：新增 `performance.collection`，以真实内置 MP4 夹具验证三种 ID 都有 5 次样本；`performance.metrics`、`performance.collection`、`performance.vfr_fixture_generator` 均通过。使用用户素材清单的本机报告写入 `build/performance/metrics-partial.json`，不进入 Git。
+- 边界：本机样本仅说明本次开发环境的原始测量，不是 MacBook Air M1 或 Windows 发布基准，也不用于与剪映比较。

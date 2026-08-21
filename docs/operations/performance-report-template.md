@@ -31,6 +31,12 @@
 | 代理生成 |  |  |  |  |  |
 | 导出 |  |  |  |  |  |
 
+## 部分采集状态
+
+当报告 JSON 的 `status` 为 `metrics_collected_partial` 时，只能引用 `samples` 中实际存在的
+`importMedianMs`、`firstFrameMedianMs` 和 `seekP95Ms`。必须同时保留
+`uncollectedRequiredMetrics`，不得将空白项补成估算值，也不得据此做发布性能或竞品比较结论。
+
 ## 结论
 
 仅在两台指定设备均完成相同夹具、相同项目和五次采样后，才能填写与剪映 11.0.0 的比较结论。
