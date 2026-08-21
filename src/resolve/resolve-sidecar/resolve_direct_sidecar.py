@@ -119,10 +119,24 @@ def _insert_subtitle_as_text_plus(resolve: Any, params: dict[str, Any]) -> dict[
     item = timeline.InsertFusionTitleIntoTimeline("Text+")
     if item is None:
         return {"accepted": False}
-    # Text+ is the documented editable Fusion title fallback. The component's
-    # standard text property maps to StyledText; unsupported style fields stay
-    # in Edward's conversion report and are not silently dropped.
-    if not bool(item.SetProperty("StyledText", text)):
+    # Text+ is the documented editable Fusion title fallback. Write the
+    # TextPlus tool input rather than an unverified TimelineItem property.
+    if int(item.GetFusionCompCount() or 0) < 1:
+        return {"accepted": False}
+    comp = item.GetFusionCompByIndex(1)
+    tool = None
+    for name in ("TextPlus", "Text1", "Text+"):
+        try:
+            tool = comp.FindTool(name)
+        except Exception:
+            tool = None
+        if tool is not None:
+            break
+    if tool is None:
+        return {"accepted": False}
+    try:
+        tool.SetInput("StyledText", text)
+    except Exception:
         return {"accepted": False}
     return {"accepted": True, "componentId": str(item.GetUniqueId())}
 
