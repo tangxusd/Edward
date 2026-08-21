@@ -3285,3 +3285,8 @@
 - 发现：macOS 在 `.git/objects` 与 `.git/objects/pack` 写入多个 `._*` AppleDouble 元数据文件，导致 Git 报非单调索引和坏 SHA-1 文件。
 - 处理：仅删除 `.git/objects` 下明确匹配 `._*` 的 AppleDouble 文件，不触碰正常 Git 对象、源码或用户素材。
 - 验证：`git fsck --full --no-progress` 不再报告坏 SHA-1 文件；仅保留既有 dangling blob 提示。
+
+## 2026-08-21 本地产物忽略规则
+
+- 修改：`.gitignore` 增加根目录 `CMakeFiles/`、用户本地素材目录 `jiaju/` 和 `.superpowers/brainstorm/`，避免构建输出、测试素材和视觉草稿误进入提交。
+- 验证：文件保留在本机，`git status` 不再列出这些目录；未修改其他源文件。

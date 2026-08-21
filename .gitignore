@@ -4,6 +4,9 @@
 build/
 plugins/*/node_modules/
 .remotion/
+CMakeFiles/
+jiaju/
+.superpowers/brainstorm/
 
 # macOS metadata
 .DS_Store
