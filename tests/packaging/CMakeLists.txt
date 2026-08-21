@@ -58,3 +58,11 @@ add_custom_target(audit_macos_development_bundle
     -P ${CMAKE_CURRENT_SOURCE_DIR}/audit_macos_bundle_tree_dependencies.cmake
   DEPENDS package_macos_development
   COMMENT "Audit every bundled macOS dynamic library")
+
+add_custom_target(check_macos_development_bundle_resources
+  COMMAND ${CMAKE_COMMAND}
+    -DBUNDLE_DIR=${CMAKE_BINARY_DIR}/macos-development-package/Edward.app
+    -DDEVELOPMENT_ONLY=ON
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/check_macos_bundle_runtime_resources.cmake
+  DEPENDS audit_macos_development_bundle
+  COMMENT "Check bundled MLT runtime resources")

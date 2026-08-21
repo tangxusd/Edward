@@ -3069,3 +3069,8 @@
 
 - 目的：MLT 模块位于 `Contents/Resources/mlt/modules`，不在 Frameworks 内，必须单独纳入可迁移性检查。
 - 修改：全树 macOS 审计同时扫描 `Contents/Frameworks` 和 `Contents/Resources/mlt/modules` 的 Mach-O 文件。
+
+## 2026-08-21 macOS 运行时资源结构检查
+
+- 目的：避免只验证动态库路径，却遗漏 MLT 模块或数据目录为空的问题。
+- 新增：`check_macos_development_bundle_resources` 目标，检查开发 `.app` 内真实 MLT 模块、数据条目及 `NOT_FOR_DISTRIBUTION` 标记。
