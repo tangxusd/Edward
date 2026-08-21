@@ -9,6 +9,7 @@
 
 #include <optional>
 #include <functional>
+#include <filesystem>
 #include <vector>
 
 namespace edward::media {
@@ -36,6 +37,7 @@ class RenderGraph {
   void setComponentLayers(std::vector<ComponentLayer> layers);
   void setPluginFrame(std::optional<QImage> frame);
   void setPluginFrameProvider(std::function<std::optional<QImage>(edward::core::Frame)> provider);
+  void setPluginVideo(const std::filesystem::path& path, edward::core::Frame sourceIn = 0);
   [[nodiscard]] QByteArray cacheSignature() const;
   std::optional<RenderScene> build(const edward::core::TimelineSnapshot& snapshot,
                                    const RenderRequest& request) const;

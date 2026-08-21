@@ -139,6 +139,11 @@ int main(int argc, char** argv) {
   assert(animatedPluginScene);
   assert(animatedPluginScene->frame.pixelColor(1, 0).green() > 150);
   graph.setPluginFrameProvider({});
+  graph.setPluginVideo(argv[2]);
+  const auto pluginVideoScene = graph.build(timeline.snapshot(), {0});
+  assert(pluginVideoScene);
+  assert(pluginVideoScene->frame.size() == QSize(16, 16));
+  graph.setPluginVideo({});
 
   edward::core::Timeline transitionTimeline(20);
   const auto transitionTrack = transitionTimeline.addVideoTrack();

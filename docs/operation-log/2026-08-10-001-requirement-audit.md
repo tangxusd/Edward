@@ -3262,3 +3262,9 @@
 - 修改：`RenderGraph` 新增逐帧透明插件图层提供器；每次预览或导出构建帧时按 Edward 播放帧请求图层，并通过 SourceOver 合成，尺寸或 Alpha 不符合要求时拒绝该帧。
 - 边界：Remotion/HyperFrames 的透明视频解码尚未接入该提供器；在接入前，带外部插件依赖的普通导出仍保持明确拒绝。
 - 验证：将由 `media.render_graph` 与全量 CTest 验证。
+
+## 2026-08-21 插件透明视频图层接入
+
+- 修改：`RenderGraph::setPluginVideo` 新增插件导出视频路径与源入点绑定；构建每一帧时通过 MLT 读取对应视频帧，再复用逐帧 Alpha 图层校验和合成路径。
+- 边界：当前工作台尚未把外部插件 `renderExport` 结果自动交给该接口；普通导出仍要求调用方显式设置插件视频，避免误用单帧预览。
+- 验证：将由 `media.render_graph` 与全量 CTest 验证。

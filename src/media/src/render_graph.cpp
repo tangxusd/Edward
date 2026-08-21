@@ -35,6 +35,16 @@ void RenderGraph::setPluginFrameProvider(std::function<std::optional<QImage>(edw
   pluginFrameProvider_ = std::move(provider);
 }
 
+void RenderGraph::setPluginVideo(const std::filesystem::path& path, edward::core::Frame sourceIn) {
+  if (path.empty() || sourceIn < 0) {
+    pluginFrameProvider_ = {};
+    return;
+  }
+  pluginFrameProvider_ = [this, path, sourceIn](edward::core::Frame frame) {
+    return adapter_.renderSourceFrame(path, sourceIn + frame);
+  };
+}
+
 QByteArray RenderGraph::cacheSignature() const {
   QJsonObject state;
   if (overlay_) state.insert(QStringLiteral("overlay"), overlay_->toJson());
