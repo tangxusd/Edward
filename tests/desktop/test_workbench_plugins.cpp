@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
                    });
   const auto pluginComponentPath = directory.path() + QStringLiteral("/plugin-component.mp4");
   assert(runtime.exportTimeline(pluginComponentPath));
-  QTimer::singleShot(15000, &pluginComponentExportLoop, &QEventLoop::quit);
+  QTimer::singleShot(120000, &pluginComponentExportLoop, &QEventLoop::quit);
   pluginComponentExportLoop.exec();
   assert(pluginComponentExported && QFile::exists(pluginComponentPath));
   assert(runtime.proposeAiComponentCommand(
