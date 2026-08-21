@@ -33,16 +33,19 @@ void RenderGraph::setPluginFrame(std::optional<QImage> frame) {
 
 void RenderGraph::setPluginFrameProvider(std::function<std::optional<QImage>(edward::core::Frame)> provider) {
   pluginFrameProvider_ = std::move(provider);
+  pluginFrameProviderActive_ = static_cast<bool>(pluginFrameProvider_);
 }
 
 void RenderGraph::setPluginVideo(const std::filesystem::path& path, edward::core::Frame sourceIn) {
   if (path.empty() || sourceIn < 0) {
     pluginFrameProvider_ = {};
+    pluginFrameProviderActive_ = false;
     return;
   }
   pluginFrameProvider_ = [this, path, sourceIn](edward::core::Frame frame) {
     return adapter_.renderSourceFrame(path, sourceIn + frame);
   };
+  pluginFrameProviderActive_ = true;
 }
 
 QByteArray RenderGraph::cacheSignature() const {
@@ -65,6 +68,7 @@ QByteArray RenderGraph::cacheSignature() const {
     state.insert(QStringLiteral("pluginWidth"), normalized.width());
     state.insert(QStringLiteral("pluginHeight"), normalized.height());
   }
+  state.insert(QStringLiteral("pluginFrameProviderActive"), pluginFrameProviderActive_);
   return QJsonDocument(state).toJson(QJsonDocument::Compact);
 }
 

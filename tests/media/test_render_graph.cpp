@@ -135,10 +135,13 @@ int main(int argc, char** argv) {
     animatedPlugin.setPixelColor(frame == 0 ? 0 : 1, 0, QColor(0, 255, 0, 255));
     return std::optional<QImage>(animatedPlugin);
   });
+  const auto providerCacheSignature = graph.cacheSignature();
+  assert(providerCacheSignature != initialCacheSignature);
   const auto animatedPluginScene = graph.build(timeline.snapshot(), {1});
   assert(animatedPluginScene);
   assert(animatedPluginScene->frame.pixelColor(1, 0).green() > 150);
   graph.setPluginFrameProvider({});
+  assert(graph.cacheSignature() != providerCacheSignature);
   graph.setPluginVideo(argv[2]);
   const auto pluginVideoScene = graph.build(timeline.snapshot(), {0});
   assert(pluginVideoScene);

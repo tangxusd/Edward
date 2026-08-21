@@ -48,6 +48,7 @@ class RenderGraph {
   std::vector<ComponentLayer> componentLayers_;
   std::optional<QImage> pluginFrame_;
   std::function<std::optional<QImage>(edward::core::Frame)> pluginFrameProvider_;
+  bool pluginFrameProviderActive_ = false;
 };
 
 }  // namespace edward::media
