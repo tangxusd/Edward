@@ -111,6 +111,10 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return _timeline_snapshot(resolve)
     if operation == "timeline.setPlayhead":
         return _set_playhead(resolve, request.get("params") or {})
+    if operation == "subtitle.insert":
+        raise RuntimeError("Resolve Studio 脚本 API 当前不能写入单条字幕文本和时间范围；需走 SRT 导入或 Fusion Text+ 回退")
+    if operation == "ui.openDeliver":
+        return {"accepted": bool(resolve.OpenPage("deliver"))}
     raise ValueError(f"不支持的只读操作: {operation}")
 
 

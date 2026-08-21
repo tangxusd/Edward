@@ -3453,3 +3453,9 @@
 
 - 修改：新增 `resolve_direct_sidecar.py`，通过逐行 JSON 提供 `health`、`capabilities` 和 `timeline.snapshot` 只读操作，作为 C++ ResolveAdapter 迁移到官方 API 的边界。
 - 验证：在 Resolve Studio 21.0.0.47、当前项目“特效”、Timeline 1 上成功读取项目名、时间线名、播放头 `01:02:53:11`、起止帧和视频/音频轨道；Python 编译检查和 `git diff --check` 通过。
+
+## 2026-08-21：字幕 API 边界确认
+
+- 修改：侧车增加 `ui.openDeliver`，并对 `subtitle.insert` 返回明确不支持错误；不伪造单条字幕写入成功。
+- 依据：上游 Resolve 21 实时探针确认 `AddTrack("subtitle")` 可创建字幕轨道，但没有稳定的单条字幕文本/时间范围写入或 SRT 导入脚本方法。
+- 结果：字幕真实落地需下一步选择 SRT 导入或 Fusion Text+ 回退，并把不可转换属性写入报告。

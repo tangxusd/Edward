@@ -16,6 +16,8 @@ Edward 的只读启动探针位于 `src/resolve/resolve-sidecar/probe_resolve.py
 
 官方直连侧车 `src/resolve/resolve-sidecar/resolve_direct_sidecar.py` 使用逐行 JSON 输入输出，当前提供 `health`、`capabilities` 和 `timeline.snapshot` 只读操作。它是 C++ `ResolveAdapter` 迁移到官方 API 的中间边界，不是新的产品级网络协议。
 
+上游对 Resolve 21 的真实 API 探针确认：字幕轨道可以通过 `AddTrack("subtitle")` 创建，但脚本 API 没有稳定的单条字幕文本/时间范围写入或 SRT 导入方法。因此侧车对 `subtitle.insert` 明确返回不支持错误，不伪造“插入成功”；后续将实现 SRT 文件导入或 Fusion Text+ 回退，并保留转换报告。
+
 ## 连接优先级
 
 1. Studio 外部脚本 API：使用 Resolve 的 `scriptapp("Resolve")`，要求 Resolve Studio 的 `External scripting using` 设置为 `Local`。
