@@ -2974,3 +2974,10 @@
 - 目的：建立正式打包入口，缺少真实许可证、第三方声明或基础资源时必须拒绝执行。
 - 修改：新增 `packaging/macos/Package.cmake`，输入齐备后才调用 `macdeployqt`、复制许可证/通知/基础资源；新增 `packaging.macos_package_gate` 验证当前缺少发布材料时明确失败。
 - 验证：打包门槛测试通过；当前没有执行正式打包，因为仓库确实缺少上述输入。不得将此门槛测试误解为分发包已生成。
+
+## 2026-08-21 MLT 运行时资源门槛
+
+- 目的：避免只复制 MLT 主库却遗漏模块、预设、profiles 和其他运行时数据。
+- 修改：正式打包入口新增 `MLT_MODULE_DIR` 与 `MLT_DATA_DIR` 必填输入，并复制到 `Contents/Resources/mlt/modules` 与 `Contents/Resources/mlt/data`。
+- 外部事实：本机 MLT 7.40 的模块位于 `lib/mlt`，运行时数据位于 `share/mlt`。
+- 验证：打包门槛测试仍明确拒绝当前缺失的仓库内发布输入；完整回归将在本次改动后执行。
