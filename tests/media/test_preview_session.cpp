@@ -20,6 +20,10 @@ int main(int argc, char** argv) {
   assert(session.sourceFor(source) == source);
   assert(session.prepare(source));
   assert(session.sourceFor(source) != source);
+  session.setQuality(edward::media::PreviewQuality::Fluent);
+  assert(session.sourceFor(source) == source);
+  assert(session.prepare(source));
+  assert(session.sourceFor(source) != source);
   session.setQuality(edward::media::PreviewQuality::Original);
   assert(session.sourceFor(source) == source);
   return 0;
