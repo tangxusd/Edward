@@ -3,6 +3,7 @@
 #include <edward/media/media_probe.hpp>
 #include <edward/media/mlt_adapter.hpp>
 #include <edward/media/proxy_manager.hpp>
+#include <edward/media/export_job.hpp>
 
 #include <QCryptographicHash>
 #include <QCoreApplication>
@@ -10,6 +11,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -37,9 +39,13 @@ QString sha256(const QString& path) {
 }
 
 bool writeReport(const QString& path, const QJsonObject& report) {
-  QFile file(path);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
-  return file.write(QJsonDocument(report).toJson(QJsonDocument::Indented)) >= 0;
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) return false;
+  if (file.write(QJsonDocument(report).toJson(QJsonDocument::Indented)) < 0) {
+    file.cancelWriting();
+    return false;
+  }
+  return file.commit();
 }
 
 double percentile(std::vector<double> samples, double ratio) {
@@ -48,7 +54,7 @@ double percentile(std::vector<double> samples, double ratio) {
   return samples.at(index);
 }
 
-std::optional<QJsonObject> collectFixture(const QString& path, const std::filesystem::path& proxySampleRoot) {
+std::optional<QJsonObject> collectFixture(const QString& path, const std::filesystem::path& sampleRoot) {
   constexpr int sampleCount = 5;
   std::vector<double> imports;
   imports.reserve(sampleCount);
@@ -70,9 +76,11 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
   std::vector<double> firstFrames;
   std::vector<double> seeks;
   std::vector<double> proxies;
+  std::vector<double> exports;
   firstFrames.reserve(sampleCount);
   seeks.reserve(sampleCount);
   proxies.reserve(sampleCount);
+  exports.reserve(sampleCount);
   for (int sample = 0; sample < sampleCount; ++sample) {
     QElapsedTimer timer;
     timer.start();
@@ -89,9 +97,8 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
     if (!frame || frame->isNull()) return std::nullopt;
   }
   for (int sample = 0; sample < sampleCount; ++sample) {
-    const edward::media::RenderStorageRoots roots{proxySampleRoot / "proxies",
-                                                   proxySampleRoot / "cache",
-                                                   proxySampleRoot / "renders"};
+    const edward::media::RenderStorageRoots roots{sampleRoot / "proxies", sampleRoot / "cache",
+                                                   sampleRoot / "renders"};
     const edward::media::ProxyManager manager(roots, edward::core::ProjectIdentity::create());
     QElapsedTimer timer;
     timer.start();
@@ -100,11 +107,30 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
     proxies.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
     if (!proxy || !edward::media::MediaProbe::probe(*proxy)) return std::nullopt;
   }
+  const edward::media::RenderGraph graph(adapter);
+  const edward::media::ExportJob exportJob(graph);
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    const auto output = sampleRoot / "exports" / ("sample-" + std::to_string(sample) + ".mp4");
+    std::error_code cleanupError;
+    std::filesystem::remove(output, cleanupError);
+    QElapsedTimer timer;
+    timer.start();
+    const auto result = exportJob.run(snapshot, {output, QSize(info->width, info->height),
+                                                 info->fpsNumerator, info->fpsDenominator,
+                                                 edward::media::ExportQuality::High});
+    const auto milliseconds = static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0;
+    const auto outputInfo = result ? edward::media::MediaProbe::probe(output) : std::nullopt;
+    std::filesystem::remove(output, cleanupError);
+    if (!result || !outputInfo || outputInfo->width != info->width || outputInfo->height != info->height ||
+        milliseconds <= 0.0) return std::nullopt;
+    exports.push_back(static_cast<double>(result->frameCount) * 1000.0 / milliseconds);
+  }
   return QJsonObject{{"sampleCount", sampleCount},
                      {"importMedianMs", percentile(imports, 0.5)},
                      {"firstFrameMedianMs", percentile(firstFrames, 0.5)},
                      {"seekP95Ms", percentile(seeks, 0.95)},
-                     {"proxyMedianMs", percentile(proxies, 0.5)}};
+                     {"proxyMedianMs", percentile(proxies, 0.5)},
+                     {"exportMedianFps", percentile(exports, 0.5)}};
 }
 }  // namespace
 
@@ -160,7 +186,7 @@ int main(int argc, char** argv) {
         return value.toObject().value("id").toString() == requiredId;
       });
       const auto sampleRoot = std::filesystem::path(QFileInfo(reportPath).absolutePath().toStdString()) /
-                              "edward-benchmark-proxy-samples" / requiredId.toStdString();
+                              "edward-benchmark-samples" / requiredId.toStdString();
       std::error_code cleanupError;
       std::filesystem::remove_all(sampleRoot, cleanupError);
       if (cleanupError) {
@@ -174,13 +200,21 @@ int main(int argc, char** argv) {
         break;
       }
       samples.insert(requiredId, *result);
+      QJsonObject checkpoint = report;
+      checkpoint.insert("status", QStringLiteral("collecting"));
+      checkpoint.insert("metricsCollected", false);
+      checkpoint.insert("completedFixture", requiredId);
+      checkpoint.insert("samples", samples);
+      if (!writeReport(reportPath, checkpoint)) {
+        failure = QStringLiteral("无法写入采集检查点：%1").arg(requiredId);
+        break;
+      }
     }
     if (failure.isEmpty()) {
       report.insert("samples", samples);
       report.insert("uncollectedRequiredMetrics", QJsonArray{
           QStringLiteral("cold_start_median_ms"), QStringLiteral("drag_p95_ms"),
           QStringLiteral("peak_rss_mb"), QStringLiteral("gpu_memory_mb"),
-          QStringLiteral("export_fps"),
           QStringLiteral("output_ssim")});
     }
   }

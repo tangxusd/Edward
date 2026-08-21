@@ -3203,3 +3203,10 @@
 - 修改：部分采集器新增五次流畅代理生成测量。每个样本使用报告目录下的独立工程 UUID 和全新代理目录，生成后立即清理；因此 `proxyMedianMs` 不会误测为代理缓存命中。
 - 验证：`performance.collection` 先因代理字段缺失失败，接入后与 `performance.metrics` 一同通过。真实夹具报告已重写：1080p、4K、VFR 均有五次代理样本；4K 仍按原始素材实际生成代理。
 - 边界：报告继续为 `metrics_collected_partial`；代理耗时是本机原始数据，不构成跨设备或发行性能承诺。
+
+## 2026-08-21 长采样中断保护
+
+- 触发：真实 4K 原始导出五次采样期间主机发生重启，采样进程随系统中断；现有报告保留到代理阶段，未产生完整导出结论。
+- 核查：重启后无残留 `edward_benchmark`/FFmpeg 进程；诊断报告中的 `SIGABRT` 属于此前测试断言进程，不是 kernel panic 证据。无法仅凭现有日志断定重启原因，但该任务确实存在较高 CPU、内存带宽与磁盘压力。
+- 修改：性能报告改用 `QSaveFile` 原子写入；真实采集每完成一个夹具就落盘 `status=collecting`、`completedFixture` 与当前样本，避免重启丢失已完成夹具。采集标准仍保持每组五次，不以缩小分辨率替代。
+- 验证：`performance.metrics` 与 `performance.collection` 通过；本轮不再次启动高负载 4K 五次导出，待后续在可控时段恢复。

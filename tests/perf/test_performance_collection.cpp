@@ -45,7 +45,8 @@ int main(int argc, char** argv) {
   const auto result = QJsonDocument::fromJson(report.readAll()).object();
   assert(result.value("status").toString() == QStringLiteral("metrics_collected_partial"));
   assert(result.value("metricsCollected").toBool());
-  assert(result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("export_fps")));
+  assert(!result.contains("completedFixture"));
+  assert(!result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("export_fps")));
   assert(!result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("proxy_median_ms")));
   const auto samples = result.value("samples").toObject();
   for (const auto& id : {QStringLiteral("1080p"), QStringLiteral("4k"), QStringLiteral("vfr")}) {
@@ -55,6 +56,7 @@ int main(int argc, char** argv) {
     assert(sample.value("firstFrameMedianMs").toDouble() >= 0.0);
     assert(sample.value("seekP95Ms").toDouble() >= 0.0);
     assert(sample.value("proxyMedianMs").toDouble() >= 0.0);
+    assert(sample.value("exportMedianFps").toDouble() > 0.0);
   }
   return 0;
 }
