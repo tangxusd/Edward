@@ -1,4 +1,5 @@
 #include <edward/desktop/workbench_runtime.hpp>
+#include <edward/core/project_identity.hpp>
 #include <edward/media/media_probe.hpp>
 
 #include <QGuiApplication>
@@ -239,7 +240,10 @@ int main(int argc, char** argv) {
   assert(runtime.projectWindowTitle().endsWith(QStringLiteral("— 已保存 · 刚刚自动保存")));
   QFile officialProject(projectPath);
   assert(officialProject.open(QIODevice::ReadOnly));
-  const auto officialComponent = QJsonDocument::fromJson(officialProject.readAll()).object()
+  const auto officialProjectObject = QJsonDocument::fromJson(officialProject.readAll()).object();
+  const auto officialProjectId = officialProjectObject.value("projectId").toString();
+  assert(edward::core::ProjectIdentity::parse(officialProjectId));
+  const auto officialComponent = officialProjectObject
                                    .value("component").toObject().value("root").toObject()
                                    .value("children").toArray().at(1).toObject()
                                    .value("properties").toObject().value("text").toString();

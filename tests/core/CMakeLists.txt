@@ -25,3 +25,7 @@ add_test(NAME core.component_edit_command COMMAND test_component_edit_command)
 add_executable(test_component_edit_command_parser test_component_edit_command_parser.cpp)
 target_link_libraries(test_component_edit_command_parser PRIVATE edward_core)
 add_test(NAME core.component_edit_command_parser COMMAND test_component_edit_command_parser)
+
+add_executable(test_project_identity test_project_identity.cpp)
+target_link_libraries(test_project_identity PRIVATE edward_core)
+add_test(NAME core.project_identity COMMAND test_project_identity)

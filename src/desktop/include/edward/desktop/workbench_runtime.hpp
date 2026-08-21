@@ -1,6 +1,7 @@
 #pragma once
 
 #include "edward/desktop/timeline_controller.hpp"
+#include "edward/core/project_identity.hpp"
 
 #include <QObject>
 #include <QVariantList>
@@ -293,6 +294,7 @@ class WorkbenchRuntime final : public QObject {
   QTimer playbackTimer_;
   QTimer projectAutosaveTimer_;
   QString activeProjectPath_;
+  edward::core::ProjectIdentity projectIdentity_ = edward::core::ProjectIdentity::create();
   enum class ProjectSaveState { Unsaved, Saved, AutoSaved };
   ProjectSaveState projectSaveState_ = ProjectSaveState::Unsaved;
   bool writingProjectStatus_ = false;

@@ -1531,7 +1531,8 @@ bool WorkbenchRuntime::writeProject(const QString& path) const {
   }
   QJsonObject project{{"version", 1}, {"durationFrames", static_cast<qint64>(snapshot.durationFrames)},
                       {"playheadFrame", static_cast<qint64>(snapshot.playheadFrame)},
-                      {"videoTracks", tracks}, {"clips", clips}, {"transitions", transitions}};
+                      {"videoTracks", tracks}, {"clips", clips}, {"transitions", transitions},
+                      {"projectId", projectIdentity_.value()}};
   if (demoOverlayIr_) project.insert("component", demoOverlayIr_->toJson());
   if (componentClipId_ != 0) project.insert("componentClipId", static_cast<qint64>(componentClipId_));
   if (!aiConversation_.isEmpty()) project.insert("aiConversation", aiConversation_);
@@ -1634,6 +1635,13 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   if (project.value("version").toInt() != 1 || !project.value("durationFrames").isDouble() ||
       !project.value("playheadFrame").isDouble() || !project.value("videoTracks").isArray() ||
       !project.value("clips").isArray()) return false;
+  auto projectIdentity = edward::core::ProjectIdentity::create();
+  if (!project.value("projectId").isUndefined()) {
+    if (!project.value("projectId").isString()) return false;
+    const auto parsed = edward::core::ProjectIdentity::parse(project.value("projectId").toString());
+    if (!parsed) return false;
+    projectIdentity = *parsed;
+  }
   edward::core::TimelineSnapshot snapshot;
   snapshot.durationFrames = project.value("durationFrames").toInteger();
   snapshot.playheadFrame = project.value("playheadFrame").toInteger();
@@ -1701,6 +1709,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
         })) return false;
   }
   if (!timeline_.restore(snapshot)) return false;
+  projectIdentity_ = std::move(projectIdentity);
   refreshClipWaveforms();
   refreshClipThumbnails();
   demoOverlayIr_ = std::move(component);
