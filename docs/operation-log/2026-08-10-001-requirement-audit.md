@@ -3006,3 +3006,9 @@
 - 目的：遵守“暂不签名”的发行决策，同时避免工具默认进入代码签名流程。
 - 结果：对临时副本使用 `-no-codesign -no-strip` 后，Qt 框架和 FFmpeg 相关动态库已经开始复制并改写为 bundle 相对路径；默认参数的卡点定位为签名路径，而不是依赖扫描本身。
 - 修改：正式 `Package.cmake` 固定传入 `-no-codesign -no-strip`。这不表示已完成签名或正式包验收。
+
+## 2026-08-21 MLT 应用包路径接线
+
+- 目的：让复制进 `.app` 的 MLT 模块、数据和预设真正被运行时读取，而不是继续依赖开发机默认前缀。
+- 修改：MLT 初始化在 macOS 应用包内探测 `Contents/Resources/mlt/modules` 与 `Contents/Resources/mlt/data`，设置 `MLT_DATA`、`MLT_PRESETS_PATH` 并把模块目录传给 `mlt_factory_init`；非应用包运行继续使用原有系统回退。
+- 验证：现有媒体、渲染和导出测试覆盖开发环境回退路径；完整回归需在本次改动后执行。正式包路径仍待真实 MLT 资源复制后验证。

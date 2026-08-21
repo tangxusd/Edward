@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <mutex>
 
+#include <QCoreApplication>
+#include <QDir>
 #include <QPainter>
 
 namespace edward::media {
@@ -13,7 +15,28 @@ namespace {
 bool ensureMltRuntime() {
   static std::once_flag initialized;
   static bool ready = false;
-  std::call_once(initialized, [] { ready = mlt_factory_init(nullptr) != nullptr; });
+  std::call_once(initialized, [] {
+    const auto applicationDir = QCoreApplication::applicationDirPath();
+    QDir contentsDir(applicationDir);
+    QString moduleDirectory;
+    QString dataDirectory;
+    if (contentsDir.dirName() == QStringLiteral("MacOS") && contentsDir.cdUp() &&
+        contentsDir.dirName() == QStringLiteral("Contents")) {
+      const auto resourcesDir = contentsDir.filePath(QStringLiteral("Resources/mlt"));
+      const auto candidateModules = QDir(resourcesDir).filePath(QStringLiteral("modules"));
+      const auto candidateData = QDir(resourcesDir).filePath(QStringLiteral("data"));
+      if (QDir(candidateModules).exists() && QDir(candidateData).exists()) {
+        moduleDirectory = candidateModules;
+        dataDirectory = candidateData;
+      }
+    }
+    if (!dataDirectory.isEmpty()) {
+      qputenv("MLT_DATA", dataDirectory.toUtf8());
+      qputenv("MLT_PRESETS_PATH", QDir(dataDirectory).filePath(QStringLiteral("presets")).toUtf8());
+    }
+    const auto repository = moduleDirectory.isEmpty() ? QByteArray{} : moduleDirectory.toUtf8();
+    ready = mlt_factory_init(repository.isEmpty() ? nullptr : repository.constData()) != nullptr;
+  });
   return ready;
 }
 
