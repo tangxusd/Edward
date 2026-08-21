@@ -2949,3 +2949,10 @@
 - 修改：macOS 上将 `edward_app` 构建为 `Edward.app`，写入 bundle 标识与版本；新增结构检查，要求存在 `Contents/Info.plist` 和 `Contents/MacOS/Edward`。
 - 结果：本机构建生成 `build/0.3-runtime/bin/Edward.app`；离屏启动 3 秒无 QML 错误后正常结束。
 - 验证：`packaging.macos_app_structure` 通过，离屏完整 CTest 44/44 通过，`git diff --check` 通过。该产物尚未执行 Qt/FFmpeg/MLT 运行时封装、许可证与第三方通知装载、签名或 DMG 验证，不能作为分发包。
+
+## 2026-08-21 macOS 发布输入审计
+
+- 目的：为后续原生应用包运行时封装和 GPL/LGPL 合规确定真实来源，避免凭猜测生成许可证材料。
+- 涉及外部状态：本机构建链接 Qt 6.11.1、FFmpeg 8.1.2、MLT 7.40.0、libsodium 1.0.22 与 SDL3 3.4.14；FFmpeg 命令确认启用了 `--enable-gpl --enable-version3`。
+- 结果：新增 `docs/operations/macos-bundle-input-audit.md`，明确 `.app` 仍缺动态运行时、MLT 模块、许可证/通知、依赖路径检查、签名及 DMG。
+- 验证：用 Qt、FFmpeg、pkg-config 与 Homebrew 元数据命令复核版本和构建事实；本记录不替代实际许可证文件。
