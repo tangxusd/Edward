@@ -29,3 +29,7 @@ add_executable(test_resolve_render
 )
 target_link_libraries(test_resolve_render PRIVATE edward_resolve Qt6::Core Qt6::Network)
 add_test(NAME resolve.render COMMAND test_resolve_render)
+
+add_executable(test_verified_transport_config test_verified_transport_config.cpp)
+target_link_libraries(test_verified_transport_config PRIVATE edward_resolve Qt6::Core)
+add_test(NAME resolve.verified_transport_config COMMAND test_verified_transport_config)

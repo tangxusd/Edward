@@ -3425,3 +3425,9 @@
 - 决策：停止扩展当前 Edward 自定义明文 TCP 传输。正式产品连接层改为采用 `samuelgursky/davinci-resolve-mcp` 已验证的 Resolve Studio 外部脚本直连为主、认证回环 Bridge 为备用；现有 `ResolveConnection` fixture 仅作为迁移前测试实现。
 - 涉及文件：`docs/contracts/resolve-adapter-protocol.md`、`docs/superpowers/plans/2026-08-21-edward-0.4.0-resolve-foundation.md`。
 - 结果：新增 Task 9，明确固定上游实现、迁移顺序、Bridge 安全要求和移除正式目标中临时传输的验收条件；在 Task 9 完成前不宣称真实 Resolve 连接已完成。
+
+## 2026-08-21：正式桥接层 Task 9.1
+
+- 修改：固定 `davinci-resolve-mcp` v2.98.3（commit `132e134d3aa25d3d0df6bdf38f051bd29d128211`，MIT）；新增 `ResolveBridgeConfig`，只接受 `127.0.0.1`/`localhost`/`::1`、合法端口和最小 Token，作为正式认证 Bridge 配置边界。
+- 测试：新增 `resolve.verified_transport_config`，覆盖合法配置、非回环地址和短 Token 拒绝。
+- 验证：定向 CTest 1/1 通过；真实 Resolve Studio 连接尚未在当前机器执行。

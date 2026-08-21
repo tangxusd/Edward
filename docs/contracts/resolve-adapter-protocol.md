@@ -9,6 +9,9 @@ Edward 以独立外部应用运行，正式连接层不再自定义一套与 Res
 - [认证 Bridge 客户端](https://github.com/samuelgursky/davinci-resolve-mcp/blob/main/src/utils/resolve_bridge_client.py)
 - [Resolve 内部 Bridge](https://github.com/samuelgursky/davinci-resolve-mcp/blob/main/src/utils/resolve_bridge.py)
 
+当前固定参考版本：`davinci-resolve-mcp` `v2.98.3`，Git commit
+`132e134d3aa25d3d0df6bdf38f051bd29d128211`，许可证 MIT。升级该依赖必须重新运行真实 Resolve Studio 集成门，不能只更新版本号。
+
 ## 连接优先级
 
 1. Studio 外部脚本 API：使用 Resolve 的 `scriptapp("Resolve")`，要求 Resolve Studio 的 `External scripting using` 设置为 `Local`。
