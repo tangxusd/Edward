@@ -57,8 +57,8 @@
 - `PreviewSession::sourceFor(source)` 在代理可用时返回代理，否则返回原始素材。
 - `ExportJob` 不引用 `PreviewSession` 或 `ProxyManager`。
 
-- [ ] **Step 1: 写失败测试**：清晰代理最大宽高为 1920；流畅代理最大宽高为 854×480；原画模式返回源路径；源变更后旧代理不被选用；导出测试仍读取源路径。
-- [ ] **Step 2: 确认红灯**：运行 `ctest --test-dir build/0.3-runtime -R 'media.proxy_manager|media.preview_session' --output-on-failure`，预期失败。
+- [x] **Step 1: 写失败测试**：清晰代理最大宽高为 1920；流畅代理最大宽高为 854×480；原画模式返回源路径；源变更后旧代理不被选用；导出测试仍读取源路径。
+- [x] **Step 2: 确认红灯**：运行 `ctest --test-dir build/0.3-runtime -R 'media.proxy_manager|media.preview_session' --output-on-failure`，预期失败。
 - [x] **Step 3: 最小实现**：FFmpeg 写同目录临时文件，`MediaProbe` 验证后原子替换；稳定代理名包含源规范路径、文件大小和修改时间；清晰/流畅缺失时回退原画。
 - [x] **Step 4: 确认绿灯**：运行 `ctest --test-dir build/0.3-runtime -R 'media.proxy_manager|media.preview_session|media.export_job' --output-on-failure`。
 - [x] **Step 5: 提交**：`git commit -m "feat: add preview proxy generation"`。

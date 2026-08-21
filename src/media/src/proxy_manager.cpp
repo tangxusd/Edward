@@ -39,8 +39,8 @@ std::optional<std::filesystem::path> ProxyManager::ensureProxy(const std::filesy
   const auto temporaryPath = temporary.fileName();
   temporary.close();
   const auto scale = quality == PreviewQuality::Clear
-      ? QStringLiteral("scale=1920:1080:force_original_aspect_ratio=decrease")
-      : QStringLiteral("scale=854:480:force_original_aspect_ratio=decrease");
+      ? QStringLiteral("scale=1920:1080:force_original_aspect_ratio=decrease:force_divisible_by=2")
+      : QStringLiteral("scale=854:480:force_original_aspect_ratio=decrease:force_divisible_by=2");
   QProcess ffmpeg;
   ffmpeg.start(QStringLiteral("ffmpeg"), {QStringLiteral("-hide_banner"), QStringLiteral("-loglevel"),
       QStringLiteral("error"), QStringLiteral("-i"), QString::fromStdString(source.string()),

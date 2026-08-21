@@ -1,4 +1,5 @@
 #include <edward/core/project_identity.hpp>
+#include <edward/media/media_probe.hpp>
 #include <edward/media/proxy_manager.hpp>
 
 #include <QTemporaryDir>
@@ -7,7 +8,7 @@
 #include <filesystem>
 
 int main(int argc, char** argv) {
-  assert(argc == 2);
+  assert(argc == 3);
   QTemporaryDir temporary;
   assert(temporary.isValid());
   const auto root = std::filesystem::path(temporary.path().toStdString());
@@ -20,6 +21,15 @@ int main(int argc, char** argv) {
   const auto proxy = manager.ensureProxy(source, edward::media::PreviewQuality::Clear);
   assert(proxy && std::filesystem::is_regular_file(*proxy));
   assert(manager.sourceFor(source, edward::media::PreviewQuality::Clear) == *proxy);
+  const auto largeSource = std::filesystem::path(argv[2]);
+  const auto clearProxy = manager.ensureProxy(largeSource, edward::media::PreviewQuality::Clear);
+  assert(clearProxy);
+  const auto clearInfo = edward::media::MediaProbe::probe(*clearProxy);
+  assert(clearInfo && clearInfo->width <= 1920 && clearInfo->height <= 1080);
+  const auto fluentProxy = manager.ensureProxy(largeSource, edward::media::PreviewQuality::Fluent);
+  assert(fluentProxy);
+  const auto fluentInfo = edward::media::MediaProbe::probe(*fluentProxy);
+  assert(fluentInfo && fluentInfo->width <= 854 && fluentInfo->height <= 480);
   assert(!manager.ensureProxy({}, edward::media::PreviewQuality::Clear));
   return 0;
 }
