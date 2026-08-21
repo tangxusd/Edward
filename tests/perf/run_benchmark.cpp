@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSaveFile>
+#include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -58,6 +59,23 @@ double percentile(std::vector<double> samples, double ratio) {
   std::sort(samples.begin(), samples.end());
   const auto index = static_cast<std::size_t>(std::ceil((samples.size() - 1) * ratio));
   return samples.at(index);
+}
+
+std::optional<double> collectColdStartMedian(const QString& program) {
+  constexpr int sampleCount = 5;
+  std::vector<double> samples;
+  samples.reserve(sampleCount);
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    QProcess process;
+    QElapsedTimer timer;
+    timer.start();
+    process.start(program, {QStringLiteral("--startup-probe")});
+    if (!process.waitForFinished(15'000) || process.exitStatus() != QProcess::NormalExit ||
+        process.exitCode() != 0)
+      return std::nullopt;
+    samples.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
+  }
+  return percentile(samples, 0.5);
 }
 
 double peakRssMb() {
@@ -176,6 +194,7 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
 
 int main(int argc, char** argv) {
   QCoreApplication application(argc, argv);
+  if (argc == 2 && QString::fromLocal8Bit(argv[1]) == QStringLiteral("--startup-probe")) return 0;
   const auto collect = argc >= 6 && QString::fromLocal8Bit(argv[5]) == QStringLiteral("--collect");
   const auto resume = collect && argc == 7 && QString::fromLocal8Bit(argv[6]) == QStringLiteral("--resume");
   if ((argc != 5 && !collect) || (argc == 7 && !resume) ||
@@ -221,8 +240,14 @@ int main(int argc, char** argv) {
     }
   }
   if (failure.isEmpty() && collect) {
+    const auto coldStartMedian = collectColdStartMedian(QString::fromLocal8Bit(argv[0]));
+    if (!coldStartMedian) {
+      failure = QStringLiteral("冷启动采集失败");
+    } else {
+      report.insert("coldStartMedianMs", *coldStartMedian);
+    }
     QJsonObject samples;
-    if (resume) {
+    if (failure.isEmpty() && resume) {
       QFile checkpoint(reportPath);
       if (checkpoint.open(QIODevice::ReadOnly)) {
         const auto previous = QJsonDocument::fromJson(checkpoint.readAll()).object();
@@ -232,6 +257,7 @@ int main(int argc, char** argv) {
     }
     const auto fixtures = manifest.object().value("fixtures").toArray();
     for (const auto& requiredId : requiredIds) {
+      if (!failure.isEmpty()) break;
       const auto previous = samples.value(requiredId).toObject();
       if (resume && previous.value("sampleCount").toInt() == 5 &&
           previous.value("importMedianMs").isDouble() && previous.value("firstFrameMedianMs").isDouble() &&
@@ -271,7 +297,6 @@ int main(int argc, char** argv) {
     if (failure.isEmpty()) {
       report.insert("samples", samples);
       report.insert("uncollectedRequiredMetrics", QJsonArray{
-          QStringLiteral("cold_start_median_ms"),
           QStringLiteral("gpu_memory_mb"),
           QStringLiteral("output_ssim")});
     }

@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
   const auto result = QJsonDocument::fromJson(report.readAll()).object();
   assert(result.value("status").toString() == QStringLiteral("metrics_collected_partial"));
   assert(result.value("metricsCollected").toBool());
+  assert(result.value("coldStartMedianMs").toDouble() > 0.0);
   assert(!result.contains("completedFixture"));
   assert(!result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("export_fps")));
   assert(!result.value("uncollectedRequiredMetrics").toArray().contains(QStringLiteral("proxy_median_ms")));
