@@ -14,7 +14,9 @@
 
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/audio_preview.hpp"
+#include "edward/media/preview_session.hpp"
 #include "edward/media/render_graph.hpp"
+#include "edward/media/render_storage.hpp"
 #include "edward/plugins/installed_plugin.hpp"
 #include "edward/resources/auth_session_store.hpp"
 #include "edward/resources/component_upload.hpp"
@@ -77,6 +79,9 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString aiConversation READ aiConversation NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList localComponents READ localComponents NOTIFY timelineChanged)
   Q_PROPERTY(QString projectWindowTitle READ projectWindowTitle NOTIFY timelineChanged)
+  Q_PROPERTY(int previewQuality READ previewQuality NOTIFY timelineChanged)
+  Q_PROPERTY(bool previewProxyBusy READ previewProxyBusy NOTIFY timelineChanged)
+  Q_PROPERTY(bool previewProxyReady READ previewProxyReady NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -131,6 +136,9 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString aiConversation() const { return aiConversation_; }
   [[nodiscard]] QVariantList localComponents() const;
   [[nodiscard]] QString projectWindowTitle() const;
+  [[nodiscard]] int previewQuality() const;
+  [[nodiscard]] bool previewProxyBusy() const { return previewProxyBusy_; }
+  [[nodiscard]] bool previewProxyReady() const;
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -153,6 +161,7 @@ class WorkbenchRuntime final : public QObject {
   void setSelectedComponentNodeFontFamily(const QString& value);
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
+  Q_INVOKABLE bool setPreviewQuality(int quality);
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE bool selectComponentNode(const QString& nodeId);
   Q_INVOKABLE bool removeSelectedComponentNodeKeyframe(const QString& field, int frame);
@@ -240,9 +249,15 @@ class WorkbenchRuntime final : public QObject {
   void scheduleProjectAutosave();
   void saveProjectRecovery();
   [[nodiscard]] int componentKeyframeFrame() const;
+  [[nodiscard]] edward::core::TimelineSnapshot previewSnapshot() const;
   edward::core::Timeline timeline_;
   edward::core::TrackId videoTrack_;
   TimelineController controller_;
+  edward::core::ProjectIdentity projectIdentity_ = edward::core::ProjectIdentity::create();
+  edward::media::RenderStorageRoots previewStorageRoots_;
+  edward::media::PreviewSession previewSession_;
+  QFutureWatcher<bool> previewProxyWatcher_;
+  bool previewProxyBusy_ = false;
   edward::media::MltAdapter mltAdapter_;
   edward::media::RenderGraph renderGraph_;
   bool demoOverlayEnabled_ = false;
@@ -294,7 +309,6 @@ class WorkbenchRuntime final : public QObject {
   QTimer playbackTimer_;
   QTimer projectAutosaveTimer_;
   QString activeProjectPath_;
-  edward::core::ProjectIdentity projectIdentity_ = edward::core::ProjectIdentity::create();
   enum class ProjectSaveState { Unsaved, Saved, AutoSaved };
   ProjectSaveState projectSaveState_ = ProjectSaveState::Unsaved;
   bool writingProjectStatus_ = false;

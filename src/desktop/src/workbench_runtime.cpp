@@ -19,6 +19,7 @@
 #include <QRegularExpression>
 #include <QPainter>
 #include <QPointer>
+#include <QStandardPaths>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -26,6 +27,13 @@
 namespace edward::desktop {
 
 namespace {
+edward::media::RenderStorageRoots defaultPreviewStorageRoots() {
+  const auto root = std::filesystem::path(
+      QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation).toStdString()) /
+                    "preview";
+  return {root / "proxies", root / "cache", root / "renders"};
+}
+
 std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, int height, double opacity, const QString& label) {
   const QJsonObject box{{"id", "demo-box"}, {"type", "shape"},
                         {"transform", QJsonObject{{"x", x}, {"y", y}, {"width", width}, {"height", height}}},
@@ -134,6 +142,8 @@ bool pluginAllowsComponentEdit(const edward::core::ComponentIr& component,
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
+      previewStorageRoots_(defaultPreviewStorageRoots()),
+      previewSession_(previewStorageRoots_, projectIdentity_),
       renderGraph_(mltAdapter_) {
   silentUploadRetryTimer_.setInterval(3 * 60 * 1000);
   connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
@@ -152,6 +162,10 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   projectAutosaveTimer_.setSingleShot(true);
   projectAutosaveTimer_.setInterval(1000);
   connect(&projectAutosaveTimer_, &QTimer::timeout, this, &WorkbenchRuntime::saveProjectRecovery);
+  connect(&previewProxyWatcher_, &QFutureWatcher<bool>::finished, this, [this] {
+    previewProxyBusy_ = false;
+    emit timelineChanged();
+  });
   connect(this, &WorkbenchRuntime::timelineChanged, this, &WorkbenchRuntime::scheduleProjectAutosave);
   connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
           &WorkbenchRuntime::timelineChanged);
@@ -512,8 +526,60 @@ QImage WorkbenchRuntime::clipThumbnail(qlonglong id) const {
 }
 
 QImage WorkbenchRuntime::previewFrame() const {
-  const auto scene = renderGraph_.build(timeline_.snapshot(), {controller_.playheadFrame()});
+  const auto scene = renderGraph_.build(previewSnapshot(), {controller_.playheadFrame()});
   return scene ? scene->frame : QImage{};
+}
+
+int WorkbenchRuntime::previewQuality() const {
+  return static_cast<int>(previewSession_.quality());
+}
+
+bool WorkbenchRuntime::previewProxyReady() const {
+  if (previewSession_.quality() == edward::media::PreviewQuality::Original) return false;
+  const auto snapshot = timeline_.snapshot();
+  bool containsMedia = false;
+  for (const auto& clip : snapshot.clips) {
+    if (clip.kind != edward::core::TimelineClipKind::Media) continue;
+    containsMedia = true;
+    if (previewSession_.sourceFor(clip.source) == clip.source) return false;
+  }
+  return containsMedia;
+}
+
+bool WorkbenchRuntime::setPreviewQuality(int quality) {
+  if (quality < static_cast<int>(edward::media::PreviewQuality::Original) ||
+      quality > static_cast<int>(edward::media::PreviewQuality::Fluent)) return false;
+  const auto selected = static_cast<edward::media::PreviewQuality>(quality);
+  if (selected == previewSession_.quality()) return true;
+  previewSession_.setQuality(selected);
+  if (selected == edward::media::PreviewQuality::Original) {
+    emit timelineChanged();
+    return true;
+  }
+  const auto snapshot = timeline_.snapshot();
+  const auto roots = previewStorageRoots_;
+  const auto project = projectIdentity_;
+  previewProxyBusy_ = true;
+  previewProxyWatcher_.setFuture(QtConcurrent::run([snapshot, roots, project, selected] {
+    edward::media::PreviewSession session(roots, project);
+    session.setQuality(selected);
+    bool prepared = true;
+    for (const auto& clip : snapshot.clips) {
+      if (clip.kind == edward::core::TimelineClipKind::Media) prepared = session.prepare(clip.source) && prepared;
+    }
+    return prepared;
+  }));
+  emit timelineChanged();
+  return true;
+}
+
+edward::core::TimelineSnapshot WorkbenchRuntime::previewSnapshot() const {
+  auto snapshot = timeline_.snapshot();
+  for (auto& clip : snapshot.clips) {
+    if (clip.kind == edward::core::TimelineClipKind::Media)
+      clip.source = previewSession_.sourceFor(clip.source);
+  }
+  return snapshot;
 }
 
 bool WorkbenchRuntime::importMedia(const QString& path) {
@@ -1710,6 +1776,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   }
   if (!timeline_.restore(snapshot)) return false;
   projectIdentity_ = std::move(projectIdentity);
+  previewSession_ = edward::media::PreviewSession(previewStorageRoots_, projectIdentity_);
   refreshClipWaveforms();
   refreshClipThumbnails();
   demoOverlayIr_ = std::move(component);

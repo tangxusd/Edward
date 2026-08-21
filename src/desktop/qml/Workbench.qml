@@ -67,6 +67,27 @@ ApplicationWindow {
                         enabled: workbenchRuntime.clips.length > 0 && !workbenchRuntime.timelineExportBusy
                         onClicked: timelineExportPanel.open()
                     }
+                    ComboBox {
+                        Layout.fillWidth: true
+                        model: ["预览：原画", "预览：清晰", "预览：流畅"]
+                        currentIndex: workbenchRuntime.previewQuality
+                        enabled: !workbenchRuntime.previewProxyBusy
+                        onActivated: function(index) { workbenchRuntime.setPreviewQuality(index) }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: workbenchRuntime.previewProxyBusy
+                        text: "正在生成预览代理…"
+                        color: DesignTokens.textSecondary
+                        font.pixelSize: 12
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: !workbenchRuntime.previewProxyBusy && workbenchRuntime.previewProxyReady
+                        text: "预览代理已就绪"
+                        color: DesignTokens.accent
+                        font.pixelSize: 12
+                    }
                     Label {
                         Layout.alignment: Qt.AlignLeft
                         text: "已导入素材"

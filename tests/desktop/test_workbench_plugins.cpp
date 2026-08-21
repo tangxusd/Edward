@@ -20,7 +20,26 @@ int main(int argc, char** argv) {
   edward::desktop::WorkbenchRuntime runtime;
   assert(runtime.projectWindowTitle() == QStringLiteral("未命名项目 — 未保存更改"));
   assert(!runtime.authenticated());
+  assert(runtime.previewQuality() == 0);
+  assert(!runtime.setPreviewQuality(-1));
+  assert(!runtime.setPreviewQuality(3));
+  assert(runtime.setPreviewQuality(2));
+  assert(runtime.previewQuality() == 2);
+  assert(runtime.setPreviewQuality(0));
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
+  assert(runtime.setPreviewQuality(2));
+  QEventLoop proxyLoop;
+  QTimer::singleShot(15000, &proxyLoop, &QEventLoop::quit);
+  QObject::connect(&runtime, &edward::desktop::WorkbenchRuntime::timelineChanged, &proxyLoop,
+                   [&runtime, &proxyLoop] {
+                     if (!runtime.previewProxyBusy()) proxyLoop.quit();
+                   });
+  proxyLoop.exec();
+  assert(!runtime.previewProxyBusy());
+  assert(runtime.previewProxyReady());
+  assert(!runtime.previewFrame().isNull());
+  assert(runtime.setPreviewQuality(0));
+  assert(!runtime.previewProxyReady());
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));
   assert(runtime.videoTrackCount() == 2);
   const auto timelineClips = runtime.clips();
