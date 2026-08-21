@@ -3168,3 +3168,18 @@
 - 验证：`ctest --test-dir build/0.3-runtime --output-on-failure` 全部 46 项通过，总耗时约 10.52 秒。
 - 覆盖：合同、核心时间线、媒体与音频、插件沙盒与运行时解析、工作台、e2e、资源上传/认证、性能状态和 macOS 打包门禁。
 - 边界：真实用户素材导入/导出仍使用独立命令验证；DMG、签名、公证和 GUI 首次启动不在本轮自动化范围内。
+
+## 2026-08-21 VFR 夹具外部工具接入尝试
+
+- 目的：按用户指定的 `AiueoABC/Make_MP4_VFR` 仓库生成真实 VFR 性能夹具。
+- 结果：已纠正用户链接末尾的中文逗号并尝试直接 GitHub 与 `ghproxy.net` 镜像；当前环境均在 TLS 连接阶段失败，尚未下载或执行第三方源码。
+- 本机前置：已确认 FFmpeg 含 `setpts`、`concat` 过滤器和 `libx264` 编码器，拿到指定仓库源码后可在项目目录内按其说明构建并生成夹具。
+- 边界：未以自写 FFmpeg 脚本替代指定项目，也未生成或提交伪 VFR 夹具。
+
+## 2026-08-21 VFR 性能夹具生成器
+
+- 目的：基于用户提供的 Python 思路，生成可复验 VFR 夹具，而不直接修改脆弱的 MP4 box 字节布局。
+- 实现：新增 `tools/generate_vfr_fixture.py`；先逐帧导出，再用 FFmpeg concat 与指定逐帧毫秒时长重封装 H.264 MP4，最后用 FFprobe 验证相邻帧时间戳至少存在两种间隔。所有临时帧和输出均在调用方的构建目录。
+- 验证：新增 `performance.vfr_fixture_generator` CTest，通过；以 `jiaju/VIDEO16.mp4` 生成 `build/performance/edward-vfr.mp4`，FFprobe 显示 `r_frame_rate=25/1`、`avg_frame_rate=450/29`，逐帧时间戳间隔不一致。
+- 夹具状态：基于 `jiaju/nainiu.mov`、`jiaju/68564-528689191.mp4` 与生成 VFR 文件创建 `build/performance/fixtures.json`；`edward_benchmark` 校验成功并输出 `fixtures_ready_not_collected`。这表示夹具齐全，尚未填写性能结论。
+- 边界：用户素材和生成 VFR 媒体均不进入 Git；该夹具用于性能采集，不是发行资源。
