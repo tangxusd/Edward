@@ -2981,3 +2981,9 @@
 - 修改：正式打包入口新增 `MLT_MODULE_DIR` 与 `MLT_DATA_DIR` 必填输入，并复制到 `Contents/Resources/mlt/modules` 与 `Contents/Resources/mlt/data`。
 - 外部事实：本机 MLT 7.40 的模块位于 `lib/mlt`，运行时数据位于 `share/mlt`。
 - 验证：打包门槛测试仍明确拒绝当前缺失的仓库内发布输入；完整回归将在本次改动后执行。
+
+## 2026-08-21 发布打包计划状态回补
+
+- 目的：让发布计划反映已实际完成的失败门槛，而不是把已经验证的前置工作留在未开始状态。
+- 修改：将 Task 1 的“写失败测试”和“验证失败”标记为完成；成功打包、双平台安装验收和真实性能采集仍保持未完成。
+- 验证：计划状态与 `packaging.macos_package_gate`、完整 CTest 46/46 的结果一致。
