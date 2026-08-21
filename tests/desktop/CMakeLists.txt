@@ -13,3 +13,7 @@ add_dependencies(test_workbench_plugins test_rpc_plugin media_fixture media_audi
 add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins
   $<TARGET_FILE:test_rpc_plugin> ${CMAKE_BINARY_DIR}/tests/media/fixture.mp4
   ${CMAKE_BINARY_DIR}/tests/media/audio-fixture.mp4)
+
+add_executable(test_resolve_workbench test_resolve_workbench.cpp)
+target_link_libraries(test_resolve_workbench PRIVATE edward_desktop)
+add_test(NAME desktop.resolve_workbench COMMAND test_resolve_workbench)

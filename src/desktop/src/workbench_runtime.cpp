@@ -197,7 +197,9 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
       previewStorageRoots_(defaultPreviewStorageRoots()),
       previewSession_(previewStorageRoots_, projectIdentity_),
       previewFrameCache_(previewStorageRoots_, projectIdentity_),
-      renderGraph_(mltAdapter_) {
+      renderGraph_(mltAdapter_),
+      resolveConnection_(),
+      resolveAdapter_(resolveConnection_) {
   silentUploadRetryTimer_.setInterval(3 * 60 * 1000);
   connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
   playbackTimer_.setInterval(40);
@@ -1635,6 +1637,59 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
   if (playing_ && !audioPreview_.start(timeline_.snapshot(), controller_.playheadFrame(), 25, 1))
     emit operationFailed(QStringLiteral("音频预览无法启动"));
   emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::connectResolve() {
+  const auto bridgeUrl = qEnvironmentVariable("EDWARD_RESOLVE_BRIDGE_URL");
+  if (bridgeUrl.isEmpty()) {
+    resolveConnected_ = false;
+    resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
+    emit resolveStateChanged();
+    emit operationFailed(resolveStatus_);
+    return false;
+  }
+
+  QString error;
+  if (!resolveConnection_.connectToBridge(QUrl(bridgeUrl), &error) || !resolveAdapter_.attach(&error)) {
+    resolveConnected_ = false;
+    resolveStatus_ = error.isEmpty() ? QStringLiteral("Resolve Studio 连接失败")
+                                    : QStringLiteral("Resolve Studio 连接失败：%1").arg(error);
+    emit resolveStateChanged();
+    emit operationFailed(resolveStatus_);
+    return false;
+  }
+  resolveConnected_ = true;
+  resolveStatus_ = QStringLiteral("已连接 Resolve Studio");
+  emit resolveStateChanged();
+  return refreshResolveTimeline();
+}
+
+void WorkbenchRuntime::disconnectResolve() {
+  resolveConnection_.disconnect();
+  resolveConnected_ = false;
+  resolveTimelineSnapshot_.reset();
+  resolveStatus_ = QStringLiteral("未连接 Resolve Studio");
+  emit resolveStateChanged();
+}
+
+bool WorkbenchRuntime::refreshResolveTimeline() {
+  if (!resolveConnected_) {
+    resolveStatus_ = QStringLiteral("未连接 Resolve Studio");
+    emit resolveStateChanged();
+    return false;
+  }
+  QString error;
+  const auto snapshot = resolveAdapter_.timelineSnapshot(&error);
+  if (!snapshot) {
+    resolveStatus_ = QStringLiteral("Resolve 时间线读取失败：%1").arg(error);
+    emit resolveStateChanged();
+    emit operationFailed(resolveStatus_);
+    return false;
+  }
+  resolveTimelineSnapshot_ = snapshot;
+  resolveStatus_ = QStringLiteral("已连接 Resolve Studio：%1").arg(snapshot->timelineName);
+  emit resolveStateChanged();
   return true;
 }
 

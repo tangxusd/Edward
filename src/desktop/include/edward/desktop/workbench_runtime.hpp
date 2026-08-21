@@ -25,6 +25,7 @@
 #include "edward/resources/component_library.hpp"
 #include "edward/resources/model_chat_client.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
+#include "edward/resolve/resolve_adapter.hpp"
 
 namespace edward::desktop {
 
@@ -86,6 +87,8 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString proxyStorageRoot READ proxyStorageRoot NOTIFY timelineChanged)
   Q_PROPERTY(QString cacheStorageRoot READ cacheStorageRoot NOTIFY timelineChanged)
   Q_PROPERTY(QString renderStorageRoot READ renderStorageRoot NOTIFY timelineChanged)
+  Q_PROPERTY(bool resolveConnected READ resolveConnected NOTIFY resolveStateChanged)
+  Q_PROPERTY(QString resolveStatus READ resolveStatus NOTIFY resolveStateChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -217,6 +220,9 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void cancelTimelineExport();
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
+  Q_INVOKABLE bool connectResolve();
+  Q_INVOKABLE void disconnectResolve();
+  Q_INVOKABLE bool refreshResolveTimeline();
   Q_INVOKABLE bool saveProject(const QString& path);
   Q_INVOKABLE bool loadProject(const QString& path);
   Q_INVOKABLE bool hasProjectRecovery(const QString& path) const;
@@ -244,6 +250,7 @@ class WorkbenchRuntime final : public QObject {
   void timelineChanged();
   void operationFailed(QString message);
   void operationSucceeded(QString message);
+  void resolveStateChanged();
 
  private:
   bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
@@ -330,7 +337,16 @@ class WorkbenchRuntime final : public QObject {
   QHash<qint64, QImage> clipThumbnails_;
   quint64 thumbnailGeneration_ = 0;
   bool playing_ = false;
+  edward::resolve::ResolveConnection resolveConnection_;
+  edward::resolve::ResolveAdapter resolveAdapter_;
+  bool resolveConnected_ = false;
+  QString resolveStatus_ = QStringLiteral("未连接 Resolve Studio");
+  std::optional<edward::resolve::ResolveTimelineSnapshot> resolveTimelineSnapshot_;
   void dispatchSilentComponentUploads();
+
+ public:
+  [[nodiscard]] bool resolveConnected() const { return resolveConnected_; }
+  [[nodiscard]] QString resolveStatus() const { return resolveStatus_; }
 };
 
 }  // namespace edward::desktop

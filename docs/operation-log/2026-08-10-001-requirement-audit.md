@@ -3384,3 +3384,9 @@
 - 修改：新增 Resolve Studio 能力探测、项目/时间线/轨道/帧率/播放头快照和播放头设置适配器。
 - 测试：新增 `resolve.adapter`，覆盖 Studio 能力、免费版拒绝、时间线快照、轨道解析和播放头范围。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 52/52 通过。
+
+## 2026-08-21：0.4.0 工作台 Resolve 连接状态 Task 3
+
+- 修改：WorkbenchRuntime 注入 Resolve 适配器，新增连接、断开、时间线刷新入口和连接状态属性；未配置桥接 URL 时明确提示并保留本地时间线操作。
+- 测试：新增 `desktop.resolve_workbench`，覆盖未连接状态、缺少桥接配置、断开和本地播放头不受影响。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 53/53 通过。
