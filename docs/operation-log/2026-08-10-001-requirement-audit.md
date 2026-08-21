@@ -2993,3 +2993,10 @@
 - 目的：防止跨平台视觉基线依赖开发机字体，或把旧 worktree 的未审计字体误带入正式包。
 - 修改：正式打包入口新增 `FONT_DIR` 与 `FONT_MANIFEST` 必填输入，并复制到 `Contents/Resources/fonts`。
 - 结果：当前分支没有 `assets/fonts` 或 `docs/contracts/font-manifest.json`，因此打包继续按预期拒绝；旧 worktree 文件未被复制或纳入提交。
+
+## 2026-08-21 macdeployqt 本机诊断阻塞
+
+- 目的：在正式输入齐备前，验证 Qt 部署工具能处理当前 `.app`。
+- 操作：对 `build/0.3-runtime/bin/Edward.app` 的临时副本执行 `/opt/homebrew/bin/macdeployqt ... -always-overwrite -verbose=1`。
+- 结果：工具运行超过 90 秒未返回，输出日志为空；临时诊断进程已停止。临时副本仅位于构建目录，未纳入版本库，也不代表封装成功。
+- 后续：需要定位 `macdeployqt` 卡点或拆分 Qt 框架复制/路径修正步骤后，才能继续正式依赖封装。
