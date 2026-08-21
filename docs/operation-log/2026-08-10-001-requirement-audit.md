@@ -2942,3 +2942,10 @@
 - 目的：确认性能前置校验不会只会拒绝，也能准确接受完整且未篡改的三组夹具清单。
 - 修改：补充夹具清单格式说明；`performance.metrics` 现在同时验证缺少必需 ID 时的失败报告，以及三个实际文件、三个正确 SHA-256 同时存在时的 `fixtures_ready` 状态。
 - 验证：`performance.metrics` 通过，离屏完整 CTest 43/43 通过，`git diff --check` 通过。测试文件仅验证清单协议，不作为 1080p、4K 或 VFR 发布基准素材。
+
+## 2026-08-21 macOS 原生应用包基础
+
+- 目的：按当前确认范围生成可由 Finder 启动的 macOS `.app`，暂不制作或验证 DMG。
+- 修改：macOS 上将 `edward_app` 构建为 `Edward.app`，写入 bundle 标识与版本；新增结构检查，要求存在 `Contents/Info.plist` 和 `Contents/MacOS/Edward`。
+- 结果：本机构建生成 `build/0.3-runtime/bin/Edward.app`；离屏启动 3 秒无 QML 错误后正常结束。
+- 验证：`packaging.macos_app_structure` 通过，离屏完整 CTest 44/44 通过，`git diff --check` 通过。该产物尚未执行 Qt/FFmpeg/MLT 运行时封装、许可证与第三方通知装载、签名或 DMG 验证，不能作为分发包。

@@ -11,3 +11,14 @@ add_executable(edward_app src/main.cpp)
 target_compile_definitions(edward_app PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(edward_app PRIVATE edward_desktop Qt6::Gui Qt6::Quick Qt6::QuickControls2)
 set_target_properties(edward_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+if(APPLE)
+  set_target_properties(edward_app PROPERTIES
+    MACOSX_BUNDLE TRUE
+    OUTPUT_NAME Edward
+    MACOSX_BUNDLE_BUNDLE_NAME Edward
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.edward.video
+    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+  )
+endif()
