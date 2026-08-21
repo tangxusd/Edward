@@ -10,6 +10,8 @@ execute_process(
     -DBASE_RESOURCES_DIR=${SOURCE_DIR}/resources/base
     -DMLT_MODULE_DIR=${SOURCE_DIR}/third_party/mlt/modules
     -DMLT_DATA_DIR=${SOURCE_DIR}/third_party/mlt/data
+    -DFONT_DIR=${SOURCE_DIR}/assets/fonts
+    -DFONT_MANIFEST=${SOURCE_DIR}/docs/contracts/font-manifest.json
     -P "${PACKAGE_SCRIPT}"
   RESULT_VARIABLE RESULT
   OUTPUT_VARIABLE OUTPUT
@@ -17,6 +19,6 @@ execute_process(
 if(RESULT EQUAL 0)
   message(FATAL_ERROR "Packaging unexpectedly succeeded without release inputs")
 endif()
-if(NOT ERROR MATCHES "LICENSE_DIR is required|THIRD_PARTY_NOTICES is required|BASE_RESOURCES_DIR is required|MLT_MODULE_DIR is required|MLT_DATA_DIR is required")
+if(NOT ERROR MATCHES "LICENSE_DIR is required|THIRD_PARTY_NOTICES is required|BASE_RESOURCES_DIR is required|MLT_MODULE_DIR is required|MLT_DATA_DIR is required|FONT_DIR is required|FONT_MANIFEST is required")
   message(FATAL_ERROR "Packaging failed for an unexpected reason: ${ERROR}")
 endif()

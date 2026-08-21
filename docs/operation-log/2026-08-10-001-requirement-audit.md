@@ -2987,3 +2987,9 @@
 - 目的：让发布计划反映已实际完成的失败门槛，而不是把已经验证的前置工作留在未开始状态。
 - 修改：将 Task 1 的“写失败测试”和“验证失败”标记为完成；成功打包、双平台安装验收和真实性能采集仍保持未完成。
 - 验证：计划状态与 `packaging.macos_package_gate`、完整 CTest 46/46 的结果一致。
+
+## 2026-08-21 字体工件发布门槛
+
+- 目的：防止跨平台视觉基线依赖开发机字体，或把旧 worktree 的未审计字体误带入正式包。
+- 修改：正式打包入口新增 `FONT_DIR` 与 `FONT_MANIFEST` 必填输入，并复制到 `Contents/Resources/fonts`。
+- 结果：当前分支没有 `assets/fonts` 或 `docs/contracts/font-manifest.json`，因此打包继续按预期拒绝；旧 worktree 文件未被复制或纳入提交。
