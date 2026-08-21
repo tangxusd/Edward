@@ -3456,6 +3456,11 @@
 
 ## 2026-08-21：字幕 API 边界确认
 
-- 修改：侧车增加 `ui.openDeliver`，并对 `subtitle.insert` 返回明确不支持错误；不伪造单条字幕写入成功。
-- 依据：上游 Resolve 21 实时探针确认 `AddTrack("subtitle")` 可创建字幕轨道，但没有稳定的单条字幕文本/时间范围写入或 SRT 导入脚本方法。
-- 结果：字幕真实落地需下一步选择 SRT 导入或 Fusion Text+ 回退，并把不可转换属性写入报告。
+- 修改：侧车增加 `ui.openDeliver`；确认 `AddTrack("subtitle")` 可创建字幕轨道，但没有稳定的单条字幕文本/时间范围写入或 SRT 导入脚本方法。
+- 结果：字幕组件采用当前视频片段的 Fusion Composition 叠加回退，不伪造字幕轨道写入；不可转换的时间范围和样式继续由转换报告标记。
+## 2026-08-21：修复字幕组件错误插入为独立 Text+ 片段
+
+- 目的：修复 `subtitle.insert` 将 Text+ 放在视频片段前方、未形成画面叠加的问题。
+- 修改：`src/resolve/resolve-sidecar/resolve_direct_sidecar.py` 改为取得播放头所在视频片段，在该片段中创建 Fusion Composition，并连接 `MediaIn1 → Merge1（Foreground=Text1）→ MediaOut1`；新增时间线项目检查及按名称定向删除操作，仅清理本次误插入的 `Text+` 项目。
+- 外部状态：在当前 DaVinci Resolve Studio 21.0.0.47、项目 `Untitled Project 2`、时间线 `Timeline 1` 中删除两个独立 `Text+` 项目，并对 `VIDEO5.mp4` 执行一次真实叠加测试。
+- 验证：`timeline.items` 显示仅保留 `VIDEO5.mp4` 视频/音频片段；`subtitle.insert` 返回 `accepted=true` 且组件 ID 为视频片段 ID；`fusion.inspectCurrent` 显示 `MediaIn1`、`Text1`、`Merge1`、`MediaOut1` 四个节点，视频片段 `hasFusion=true`。

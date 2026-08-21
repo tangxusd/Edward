@@ -80,6 +80,42 @@ def _timeline_snapshot(resolve: Any) -> dict[str, Any]:
     }
 
 
+def _timeline_items(resolve: Any) -> dict[str, Any]:
+    _, _, timeline = _current_timeline(resolve)
+    result: list[dict[str, Any]] = []
+    for track_type, is_video in (("video", True), ("audio", False)):
+        count = int(timeline.GetTrackCount(track_type) or 0)
+        for track_index in range(1, count + 1):
+            for item in (timeline.GetItemListInTrack(track_type, track_index) or []):
+                result.append({
+                    "trackType": track_type,
+                    "trackIndex": track_index,
+                    "name": str(item.GetName() or ""),
+                    "startFrame": int(item.GetStart() or 0),
+                    "endFrame": int(item.GetEnd() or 0),
+                    "uniqueId": str(item.GetUniqueId()),
+                    "hasFusion": bool(int(item.GetFusionCompCount() or 0)) if is_video else False,
+                })
+    return {"items": result}
+
+
+def _delete_timeline_items_by_name(resolve: Any, params: dict[str, Any]) -> dict[str, Any]:
+    _, _, timeline = _current_timeline(resolve)
+    names = {str(name) for name in (params.get("names") or ["Text+"])}
+    deleted: list[str] = []
+    for track_type in ("video", "audio"):
+        count = int(timeline.GetTrackCount(track_type) or 0)
+        for track_index in range(1, count + 1):
+            matches = [
+                item for item in (timeline.GetItemListInTrack(track_type, track_index) or [])
+                if str(item.GetName() or "") in names
+            ]
+            if matches:
+                timeline.DeleteClips(matches, False)
+                deleted.extend(str(item.GetUniqueId()) for item in matches)
+    return {"deleted": deleted}
+
+
 def _set_playhead(resolve: Any, params: dict[str, Any]) -> dict[str, Any]:
     _, project, timeline = _current_timeline(resolve)
     frame = int(params.get("frame", -1))
@@ -115,30 +151,29 @@ def _insert_subtitle_as_text_plus(resolve: Any, params: dict[str, Any]) -> dict[
     text = _text_from_component(params.get("component", {})).strip()
     if not text:
         return {"accepted": False}
-    item = timeline.InsertFusionTitleIntoTimeline("Text+")
+    item = timeline.GetCurrentVideoItem()
     if item is None:
-        return {"accepted": False, "reason": "InsertFusionTitleIntoTimeline 返回空值"}
-    # Text+ is the documented editable Fusion title fallback. Write the
-    # TextPlus tool input rather than an unverified TimelineItem property.
-    if int(item.GetFusionCompCount() or 0) < 1:
-        timeline.DeleteClips([item], False)
-        return {"accepted": False, "reason": "插入的 Text+ 没有 Fusion Composition"}
-    comp = item.GetFusionCompByIndex(1)
-    tool = None
-    for name in ("TextPlus", "Text1", "Text+"):
-        try:
-            tool = comp.FindTool(name)
-        except Exception:
-            tool = None
-        if tool is not None:
-            break
-    if tool is None:
-        timeline.DeleteClips([item], False)
-        return {"accepted": False, "reason": "Fusion Composition 中找不到 TextPlus 工具"}
+        items = timeline.GetItemListInTrack("video", 1) or []
+        item = items[0] if items else None
+    if item is None:
+        return {"accepted": False, "reason": "当前时间线没有可叠加的视频片段"}
+    comp = item.GetFusionCompByIndex(1) if int(item.GetFusionCompCount() or 0) else item.AddFusionComp()
+    if comp is None:
+        return {"accepted": False, "reason": "无法创建视频片段 Fusion Composition"}
+    media_in = comp.FindTool("MediaIn1")
+    media_out = comp.FindTool("MediaOut1")
+    if media_in is None or media_out is None:
+        return {"accepted": False, "reason": "视频片段 Fusion Composition 缺少 MediaIn/MediaOut"}
+    text_tool = comp.AddTool("TextPlus", -1, -1)
+    merge = comp.AddTool("Merge", -1, -1)
+    if text_tool is None or merge is None:
+        return {"accepted": False, "reason": "无法创建 TextPlus 或 Merge 节点"}
+    merge.ConnectInput("Background", media_in)
+    merge.ConnectInput("Foreground", text_tool)
+    media_out.ConnectInput("Input", merge)
     try:
-        tool.SetInput("StyledText", text)
+        text_tool.SetInput("StyledText", text)
     except Exception:
-        timeline.DeleteClips([item], False)
         return {"accepted": False, "reason": "TextPlus StyledText 写入失败"}
     return {"accepted": True, "componentId": str(item.GetUniqueId())}
 
@@ -201,6 +236,10 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return _capabilities(resolve)
     if operation == "timeline.snapshot":
         return _timeline_snapshot(resolve)
+    if operation == "timeline.items":
+        return _timeline_items(resolve)
+    if operation == "timeline.deleteItemsByName":
+        return _delete_timeline_items_by_name(resolve, request.get("params") or {})
     if operation == "timeline.setPlayhead":
         return _set_playhead(resolve, request.get("params") or {})
     if operation == "subtitle.insert":
@@ -211,7 +250,7 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return _inspect_current_fusion(resolve)
     if operation == "fusion.inspectTool":
         return _inspect_fusion_tool(resolve, request.get("params") or {})
-    raise ValueError(f"不支持的只读操作: {operation}")
+    raise ValueError(f"不支持的操作: {operation}")
 
 
 def main() -> int:

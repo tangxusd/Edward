@@ -16,7 +16,7 @@ Edward 的只读启动探针位于 `src/resolve/resolve-sidecar/probe_resolve.py
 
 官方直连侧车 `src/resolve/resolve-sidecar/resolve_direct_sidecar.py` 使用逐行 JSON 输入输出，当前提供 `health`、`capabilities` 和 `timeline.snapshot` 只读操作。它是 C++ `ResolveAdapter` 迁移到官方 API 的中间边界，不是新的产品级网络协议。
 
-上游对 Resolve 21 的真实 API 探针确认：字幕轨道可以通过 `AddTrack("subtitle")` 创建，但脚本 API 没有稳定的单条字幕文本/时间范围写入或 SRT 导入方法。因此 `subtitle.insert` 使用文档化的 `InsertFusionTitleIntoTimeline("Text+")` 作为真实回退，只写入标准文本属性 `StyledText`；时间范围和不支持样式继续由 Edward 转换报告标记。
+上游对 Resolve 21 的真实 API 探针确认：字幕轨道可以通过 `AddTrack("subtitle")` 创建，但脚本 API 没有稳定的单条字幕文本/时间范围写入或 SRT 导入方法。因此 `subtitle.insert` 使用当前视频片段的 Fusion Composition 作为回退：在片段内创建 `TextPlus` 和 `Merge`，连接为 `MediaIn → Merge(TextPlus) → MediaOut`，只写入标准文本属性 `StyledText`；不会调用 `InsertFusionTitleIntoTimeline("Text+")`，避免生成位于视频片段前方的独立标题片段。时间范围和不支持样式继续由 Edward 转换报告标记。
 
 ## 连接优先级
 
