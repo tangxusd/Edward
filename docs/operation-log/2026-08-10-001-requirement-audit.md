@@ -3109,3 +3109,12 @@
 - 目的：将 `.app` 结构、主程序依赖、全树动态库依赖和 MLT 资源检查统一为一个可执行入口。
 - 新增：`validate_macos_development_bundle` 目标及 `docs/operations/macos-install-smoke.md` 验收清单。
 - 当前边界：目标只验证开发包结构与可迁移依赖，不替代 GUI 首启和正式签名/公证验收。
+
+## 2026-08-21 jiaju 真实素材导入烟雾验证
+
+- 目的：使用用户提供的真实素材验证媒体探测和拖入时间线，不将用户素材提交到仓库。
+- 素材：`jiaju/68564-528689191.mp4`（3840×2160、约 20.12 秒）、`jiaju/nainiu.mov`（1920×1080、约 5.24 秒）、`jiaju/VIDEO16.mp4`（2944×1248、约 4.46 秒）。三者均为可变分辨率/编码组合，但本次探测未发现真正 VFR 标记。
+- 发现：原有 `test_0_3_0_smoke` 固定 25 帧时间线，不能直接接纳多秒真实素材；`test_media_probe` 还固定断言 16×16，仅适用于内置夹具。
+- 修改：新增 `tests/e2e/test_real_media_import.cpp`，按每个素材探测到的帧数建立时间线，验证 `TimelineController::dropMediaAtPlayhead` 及片段源范围；新增构建目标但不注册依赖用户本地路径的 CTest。
+- 验证：`./build/0.3-runtime/tests/e2e/test_real_media_import jiaju/68564-528689191.mp4 jiaju/nainiu.mov jiaju/VIDEO16.mp4` 通过，三个素材均成功导入。
+- 边界：本次不把 `VIDEO16.mp4` 误作 VFR 性能夹具；导出链路仍由内置 e2e 夹具验证，真实素材的长时导出未在本次运行中执行。
