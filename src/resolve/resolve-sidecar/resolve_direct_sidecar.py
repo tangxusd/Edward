@@ -100,6 +100,33 @@ def _set_playhead(resolve: Any, params: dict[str, Any]) -> dict[str, Any]:
     return {"accepted": accepted}
 
 
+def _text_from_component(value: Any) -> str:
+    if isinstance(value, dict):
+        if value.get("type") == "text" and isinstance(value.get("properties"), dict):
+            return str(value["properties"].get("text", ""))
+        for child in value.get("children", []):
+            text = _text_from_component(child)
+            if text:
+                return text
+    return ""
+
+
+def _insert_subtitle_as_text_plus(resolve: Any, params: dict[str, Any]) -> dict[str, Any]:
+    _, _, timeline = _current_timeline(resolve)
+    text = _text_from_component(params.get("component", {})).strip()
+    if not text:
+        return {"accepted": False}
+    item = timeline.InsertFusionTitleIntoTimeline("Text+")
+    if item is None:
+        return {"accepted": False}
+    # Text+ is the documented editable Fusion title fallback. The component's
+    # standard text property maps to StyledText; unsupported style fields stay
+    # in Edward's conversion report and are not silently dropped.
+    if not bool(item.SetProperty("StyledText", text)):
+        return {"accepted": False}
+    return {"accepted": True, "componentId": str(item.GetUniqueId())}
+
+
 def handle(request: dict[str, Any]) -> dict[str, Any]:
     operation = request.get("operation")
     if operation == "health":
@@ -112,7 +139,7 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
     if operation == "timeline.setPlayhead":
         return _set_playhead(resolve, request.get("params") or {})
     if operation == "subtitle.insert":
-        raise RuntimeError("Resolve Studio 脚本 API 当前不能写入单条字幕文本和时间范围；需走 SRT 导入或 Fusion Text+ 回退")
+        return _insert_subtitle_as_text_plus(resolve, request.get("params") or {})
     if operation == "ui.openDeliver":
         return {"accepted": bool(resolve.OpenPage("deliver"))}
     raise ValueError(f"不支持的只读操作: {operation}")
