@@ -1665,6 +1665,26 @@ bool WorkbenchRuntime::connectResolve() {
   return refreshResolveTimeline();
 }
 
+bool WorkbenchRuntime::exportWithEdwardOptions(const QString& outputPath, int width, int height,
+                                               int fps, int quality) {
+  return exportTimelineWithOptions(outputPath, width, height, fps, quality);
+}
+
+bool WorkbenchRuntime::openResolveDeliverPage() {
+  if (!resolveConnected_) {
+    resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
+    emit resolveStateChanged();
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.openDeliverPage(&error)) {
+    resolveStatus_ = error.isEmpty() ? QStringLiteral("无法打开 Resolve 导出页") : error;
+    emit resolveStateChanged();
+    return false;
+  }
+  return true;
+}
+
 void WorkbenchRuntime::disconnectResolve() {
   resolveConnection_.disconnect();
   resolveConnected_ = false;

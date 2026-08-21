@@ -3408,3 +3408,9 @@
 - 修改：新增标准 Component IR 子集到 Fusion payload 的转换器；支持文本、形状、图片/容器节点的通用节点输出与标准属性；不支持属性逐项写入转换报告，不静默丢弃；当 Fusion 不可用或转换不完整时保留透明视频回退标记。
 - 测试：新增 `core.component_conversion_report` 和 `resolve.fusion_converter`，覆盖报告 JSON 稳定性、标准节点转换、不支持 CSS 属性报告和 Fusion 能力缺失回退。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 57/57 通过。
+
+## 2026-08-21：0.4.0 双通道导出 Task 7
+
+- 修改：Resolve 适配器新增常用参数渲染启动、状态轮询、取消和 Deliver 页面入口；Workbench 保留 Edward 常用导出与 Resolve Studio 高级导出两条独立入口，未连接 Resolve 时不影响本地导出。
+- 测试：新增 `resolve.render` 和 `desktop.export_channels`，覆盖渲染参数校验、启动/完成/取消、失败状态和未连接保护。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 59/59 通过。

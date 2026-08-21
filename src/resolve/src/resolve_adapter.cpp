@@ -31,6 +31,15 @@ bool hasValidSubtitleText(const QJsonObject& node) {
   }
   return false;
 }
+
+ResolveRenderState renderStateFromString(const QString& value) {
+  if (value == QStringLiteral("queued")) return ResolveRenderState::Queued;
+  if (value == QStringLiteral("rendering")) return ResolveRenderState::Rendering;
+  if (value == QStringLiteral("completed")) return ResolveRenderState::Completed;
+  if (value == QStringLiteral("failed")) return ResolveRenderState::Failed;
+  if (value == QStringLiteral("canceled")) return ResolveRenderState::Canceled;
+  return ResolveRenderState::Unknown;
+}
 }  // namespace
 
 bool ResolveAdapter::attach(QString* error) {
@@ -159,6 +168,87 @@ bool ResolveAdapter::setComponentKeyframe(const QString& componentId, const QStr
   if (!response) return fail(error, rpcError.code);
   if (!response->value(QStringLiteral("result")).toObject().value(QStringLiteral("accepted")).toBool())
     return fail(error, QStringLiteral("component_keyframe_rejected"));
+  if (error) error->clear();
+  return true;
+}
+
+bool ResolveAdapter::queueAndStartRender(const ResolveRenderOptions& options, QString* jobId,
+                                         QString* error) {
+  if (options.outputPath.trimmed().isEmpty() || options.width <= 0 || options.height <= 0 ||
+      options.fps <= 0 || options.codec.trimmed().isEmpty()) {
+    return fail(error, QStringLiteral("resolve_render_options_invalid"));
+  }
+  if (!capabilities_ && !attach(error)) return false;
+  ResolveError rpcError;
+  const auto response = connection_.call(
+      QStringLiteral("render.start"),
+      QJsonObject{{QStringLiteral("outputPath"), options.outputPath},
+                  {QStringLiteral("width"), options.width},
+                  {QStringLiteral("height"), options.height},
+                  {QStringLiteral("fps"), options.fps},
+                  {QStringLiteral("codec"), options.codec},
+                  {QStringLiteral("quality"), options.quality}},
+      &rpcError);
+  if (!response) return fail(error, rpcError.code);
+  const auto result = response->value(QStringLiteral("result")).toObject();
+  if (!result.value(QStringLiteral("accepted")).toBool()) return fail(error, QStringLiteral("resolve_render_rejected"));
+  const auto id = result.value(QStringLiteral("jobId")).toString();
+  if (id.isEmpty()) return fail(error, QStringLiteral("resolve_render_job_id_missing"));
+  if (jobId) *jobId = id;
+  if (error) error->clear();
+  return true;
+}
+
+ResolveRenderStatus ResolveAdapter::renderStatus(const QString& jobId, QString* error) {
+  ResolveRenderStatus status;
+  status.jobId = jobId;
+  if (jobId.trimmed().isEmpty()) {
+    if (error) *error = QStringLiteral("resolve_render_job_id_invalid");
+    status.state = ResolveRenderState::Failed;
+    status.error = QStringLiteral("resolve_render_job_id_invalid");
+    return status;
+  }
+  ResolveError rpcError;
+  const auto response = connection_.call(QStringLiteral("render.status"),
+                                         QJsonObject{{QStringLiteral("jobId"), jobId}}, &rpcError);
+  if (!response) {
+    if (error) *error = rpcError.code;
+    status.state = ResolveRenderState::Failed;
+    status.error = rpcError.code;
+    return status;
+  }
+  const auto result = response->value(QStringLiteral("result")).toObject();
+  status.state = renderStateFromString(result.value(QStringLiteral("state")).toString());
+  status.progress = qBound(0, result.value(QStringLiteral("progress")).toInt(), 100);
+  status.error = result.value(QStringLiteral("error")).toString();
+  if (status.state == ResolveRenderState::Unknown) {
+    if (error) *error = QStringLiteral("resolve_render_status_invalid");
+    status.state = ResolveRenderState::Failed;
+    status.error = QStringLiteral("resolve_render_status_invalid");
+    return status;
+  }
+  if (error) error->clear();
+  return status;
+}
+
+bool ResolveAdapter::cancelRender(const QString& jobId, QString* error) {
+  if (jobId.trimmed().isEmpty()) return fail(error, QStringLiteral("resolve_render_job_id_invalid"));
+  ResolveError rpcError;
+  const auto response = connection_.call(QStringLiteral("render.cancel"),
+                                         QJsonObject{{QStringLiteral("jobId"), jobId}}, &rpcError);
+  if (!response) return fail(error, rpcError.code);
+  if (!response->value(QStringLiteral("result")).toObject().value(QStringLiteral("accepted")).toBool())
+    return fail(error, QStringLiteral("resolve_render_cancel_rejected"));
+  if (error) error->clear();
+  return true;
+}
+
+bool ResolveAdapter::openDeliverPage(QString* error) {
+  ResolveError rpcError;
+  const auto response = connection_.call(QStringLiteral("ui.openDeliver"), {}, &rpcError);
+  if (!response) return fail(error, rpcError.code);
+  if (!response->value(QStringLiteral("result")).toObject().value(QStringLiteral("accepted")).toBool())
+    return fail(error, QStringLiteral("resolve_deliver_open_rejected"));
   if (error) error->clear();
   return true;
 }

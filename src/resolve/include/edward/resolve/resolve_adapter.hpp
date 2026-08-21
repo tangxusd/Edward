@@ -33,6 +33,24 @@ struct ResolveTimelineSnapshot final {
   QVector<ResolveTrack> tracks;
 };
 
+struct ResolveRenderOptions final {
+  QString outputPath;
+  int width = 0;
+  int height = 0;
+  int fps = 0;
+  QString codec;
+  int quality = 0;
+};
+
+enum class ResolveRenderState { Unknown, Queued, Rendering, Completed, Failed, Canceled };
+
+struct ResolveRenderStatus final {
+  QString jobId;
+  ResolveRenderState state = ResolveRenderState::Unknown;
+  int progress = 0;
+  QString error;
+};
+
 class ResolveAdapter final {
  public:
   explicit ResolveAdapter(ResolveConnection& connection) : connection_(connection) {}
@@ -47,6 +65,12 @@ class ResolveAdapter final {
   bool setComponentKeyframe(const QString& componentId, const QString& nodeId,
                             const QString& field, int frame, double value,
                             QString* error = nullptr);
+  bool queueAndStartRender(const ResolveRenderOptions& options, QString* jobId,
+                           QString* error = nullptr);
+  [[nodiscard]] ResolveRenderStatus renderStatus(const QString& jobId,
+                                                 QString* error = nullptr);
+  bool cancelRender(const QString& jobId, QString* error = nullptr);
+  bool openDeliverPage(QString* error = nullptr);
   [[nodiscard]] QString lastInsertedComponentId() const { return lastInsertedComponentId_; }
 
  private:

@@ -83,6 +83,38 @@ QTcpServer* createFixtureServer(QObject* parent) {
         socket->flush();
         return;
       }
+      if (method == QStringLiteral("render.start")) {
+        const auto outputPath = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("outputPath")).toString();
+        const bool accepted = !outputPath.contains(QStringLiteral("reject"));
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{{QStringLiteral("accepted"), accepted}, {QStringLiteral("jobId"), accepted ? QStringLiteral("render-1") : QString()}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
+      if (method == QStringLiteral("render.status")) {
+        const auto jobId = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("jobId")).toString();
+        const bool known = jobId == QStringLiteral("render-1");
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{{QStringLiteral("state"), known ? QStringLiteral("completed") : QStringLiteral("failed")}, {QStringLiteral("progress"), known ? 100 : 0}, {QStringLiteral("error"), known ? QString() : QStringLiteral("render_job_not_found")}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
+      if (method == QStringLiteral("render.cancel")) {
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{{QStringLiteral("accepted"), true}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
+      if (method == QStringLiteral("ui.openDeliver")) {
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{{QStringLiteral("accepted"), true}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
       if (method == QStringLiteral("echo")) {
         socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
                                                  {QStringLiteral("result"), request.value(QStringLiteral("params"))}})

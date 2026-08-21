@@ -77,6 +77,12 @@ ApplicationWindow {
                         enabled: workbenchRuntime.clips.length > 0 && !workbenchRuntime.timelineExportBusy
                         onClicked: timelineExportPanel.open()
                     }
+                    Button {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "Resolve 高级导出"
+                        enabled: workbenchRuntime.resolveConnected
+                        onClicked: workbenchRuntime.openResolveDeliverPage()
+                    }
                     ComboBox {
                         Layout.fillWidth: true
                         model: ["预览：原画", "预览：清晰", "预览：流畅"]

@@ -226,6 +226,9 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool setSelectedComponentPropertyAtPlayhead(const QString& nodeId,
                                                           const QString& field,
                                                           const QJsonValue& value);
+  Q_INVOKABLE bool exportWithEdwardOptions(const QString& outputPath, int width, int height,
+                                           int fps, int quality);
+  Q_INVOKABLE bool openResolveDeliverPage();
   Q_INVOKABLE bool saveProject(const QString& path);
   Q_INVOKABLE bool loadProject(const QString& path);
   Q_INVOKABLE bool hasProjectRecovery(const QString& path) const;
