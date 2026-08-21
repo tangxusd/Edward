@@ -3372,3 +3372,9 @@
 - 结果：Edward 简化导出和 Resolve Studio 原生高级导出并行保留，互相独立；Edward 不覆盖 Resolve 的高级导出能力。
 - 涉及文件：`docs/superpowers/specs/2026-08-21-edward-0.4.0-resolve-foundation-design.md`。
 - 验证：规格内容已补充，待实施计划阶段拆分为适配器、IR 转换、字幕垂直切片和双导出通道验收项。
+
+## 2026-08-21：0.4.0 Resolve 传输层 Task 1
+
+- 修改：新增 `edward_resolve` 模块和本地单行 JSON-RPC 传输边界，支持连接、请求 ID、超时、非法响应和断开状态。
+- 测试：新增 `resolve.connection`，覆盖成功响应、非法 JSON、响应 ID 不匹配、响应超时和主动断开。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 51/51 通过。
