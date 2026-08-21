@@ -37,6 +37,7 @@
 `coldStartMedianMs`、`importMedianMs`、`firstFrameMedianMs`、`seekP95Ms`、`dragP95Ms`、`proxyMedianMs` 和 `peakRssMb`。必须同时保留
 `uncollectedRequiredMetrics`，不得将空白项补成估算值，也不得据此做发布性能或竞品比较结论。
 导出样本还必须有 `exportMedianFps` 且 `exportFirstFrameValid=true`，否则不得计入报告。
+导出样本同时必须有实际计算得到的 `outputSsim`，不得用固定常数替代。
 
 ## 结论
 

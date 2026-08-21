@@ -59,6 +59,8 @@ int main(int argc, char** argv) {
     assert(sample.value("dragP95Ms").toDouble() >= 0.0);
     assert(sample.value("proxyMedianMs").toDouble() >= 0.0);
     assert(sample.value("exportMedianFps").toDouble() > 0.0);
+    assert(sample.value("outputSsim").toDouble() > 0.0);
+    assert(sample.value("outputSsim").toDouble() <= 1.0);
     assert(sample.value("exportFirstFrameValid").toBool());
     assert(sample.value("peakRssMb").toDouble() > 0.0);
   }

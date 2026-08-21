@@ -13,6 +13,7 @@
 #include <QFileInfo>
 #include <QSaveFile>
 #include <QProcess>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -94,6 +95,45 @@ double peakRssMb() {
 #endif
 }
 
+double ssim(const QImage& source, const QImage& output) {
+  if (source.isNull() || output.isNull() || source.size() != output.size()) return 0.0;
+  const auto sourceImage = source.convertToFormat(QImage::Format_RGB32);
+  const auto outputImage = output.convertToFormat(QImage::Format_RGB32);
+  const auto pixels = static_cast<std::size_t>(sourceImage.width()) * sourceImage.height();
+  const auto step = std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(pixels) / 100'000.0))));
+  double sourceMean = 0.0;
+  double outputMean = 0.0;
+  double sourceSquare = 0.0;
+  double outputSquare = 0.0;
+  double covariance = 0.0;
+  std::size_t count = 0;
+  for (int y = 0; y < sourceImage.height(); y += step) {
+    for (int x = 0; x < sourceImage.width(); x += step) {
+      const auto sourceLuma = static_cast<double>(qGray(sourceImage.pixel(x, y)));
+      const auto outputLuma = static_cast<double>(qGray(outputImage.pixel(x, y)));
+      sourceMean += sourceLuma;
+      outputMean += outputLuma;
+      sourceSquare += sourceLuma * sourceLuma;
+      outputSquare += outputLuma * outputLuma;
+      covariance += sourceLuma * outputLuma;
+      ++count;
+    }
+  }
+  if (count < 2) return 0.0;
+  sourceMean /= static_cast<double>(count);
+  outputMean /= static_cast<double>(count);
+  const auto denominator = static_cast<double>(count - 1);
+  const auto sourceVariance = (sourceSquare - static_cast<double>(count) * sourceMean * sourceMean) / denominator;
+  const auto outputVariance = (outputSquare - static_cast<double>(count) * outputMean * outputMean) / denominator;
+  const auto covarianceValue = (covariance - static_cast<double>(count) * sourceMean * outputMean) / denominator;
+  constexpr double c1 = 6.5025;
+  constexpr double c2 = 58.5225;
+  const auto numerator = (2.0 * sourceMean * outputMean + c1) * (2.0 * covarianceValue + c2);
+  const auto denominatorValue = (sourceMean * sourceMean + outputMean * outputMean + c1) *
+                                (sourceVariance + outputVariance + c2);
+  return denominatorValue > 0.0 ? std::clamp(numerator / denominatorValue, 0.0, 1.0) : 0.0;
+}
+
 std::optional<QJsonObject> collectFixture(const QString& path, const std::filesystem::path& sampleRoot) {
   constexpr int sampleCount = 5;
   std::vector<double> imports;
@@ -118,11 +158,15 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
   std::vector<double> drags;
   std::vector<double> proxies;
   std::vector<double> exports;
+  std::vector<double> outputSsim;
   firstFrames.reserve(sampleCount);
   seeks.reserve(sampleCount);
   drags.reserve(sampleCount);
   proxies.reserve(sampleCount);
   exports.reserve(sampleCount);
+  outputSsim.reserve(sampleCount);
+  const auto sourceFrame = adapter.renderSourceFrame(std::filesystem::path(path.toStdString()), 0);
+  if (!sourceFrame || sourceFrame->isNull()) return std::nullopt;
   for (int sample = 0; sample < sampleCount; ++sample) {
     QElapsedTimer timer;
     timer.start();
@@ -179,6 +223,7 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
     if (!result || !outputInfo || outputInfo->width != info->width || outputInfo->height != info->height ||
         !outputFrame || outputFrame->isNull() || milliseconds <= 0.0) return std::nullopt;
     exports.push_back(static_cast<double>(result->frameCount) * 1000.0 / milliseconds);
+    outputSsim.push_back(ssim(*sourceFrame, *outputFrame));
   }
   return QJsonObject{{"sampleCount", sampleCount},
                      {"importMedianMs", percentile(imports, 0.5)},
@@ -187,6 +232,7 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
                      {"dragP95Ms", percentile(drags, 0.95)},
                      {"proxyMedianMs", percentile(proxies, 0.5)},
                      {"exportMedianFps", percentile(exports, 0.5)},
+                     {"outputSsim", percentile(outputSsim, 0.5)},
                      {"exportFirstFrameValid", true},
                      {"peakRssMb", peakRssMb()}};
 }
@@ -263,7 +309,7 @@ int main(int argc, char** argv) {
           previous.value("importMedianMs").isDouble() && previous.value("firstFrameMedianMs").isDouble() &&
           previous.value("seekP95Ms").isDouble() && previous.value("dragP95Ms").isDouble() &&
           previous.value("proxyMedianMs").isDouble() &&
-          previous.value("exportMedianFps").isDouble()) {
+          previous.value("exportMedianFps").isDouble() && previous.value("outputSsim").isDouble()) {
         continue;
       }
       const auto found = std::find_if(fixtures.begin(), fixtures.end(), [&requiredId](const QJsonValue& value) {
@@ -298,7 +344,7 @@ int main(int argc, char** argv) {
       report.insert("samples", samples);
       report.insert("uncollectedRequiredMetrics", QJsonArray{
           QStringLiteral("gpu_memory_mb"),
-          QStringLiteral("output_ssim")});
+          });
     }
   }
   report.insert("status", failure.isEmpty()

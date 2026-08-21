@@ -3240,3 +3240,8 @@
 
 - 修改：采集器新增轻量 `--startup-probe` 子进程模式；完整采集时启动五次独立探针，记录进程启动至 Qt 初始化完成的中位耗时 `coldStartMedianMs`。
 - 验证：将由 `performance.collection` 与全量 CTest 验证；不再用首帧耗时替代冷启动指标。
+
+## 2026-08-21 导出 SSIM 质量采集
+
+- 修改：导出样本把原素材首帧与导出首帧转换为亮度图后按固定最多十万采样点计算 SSIM，写入 `outputSsim` 中位数；断点恢复要求该字段存在。
+- 验证：将由 `performance.collection` 与全量 CTest 验证；不使用固定值或估算值填充质量指标。
