@@ -7,7 +7,9 @@ endif()
 
 find_program(FILE_EXECUTABLE file REQUIRED)
 find_program(OTOOL_EXECUTABLE otool REQUIRED)
-file(GLOB_RECURSE bundle_files LIST_DIRECTORIES false "${BUNDLE_DIR}/Contents/Frameworks/*")
+file(GLOB_RECURSE bundle_files LIST_DIRECTORIES false
+  "${BUNDLE_DIR}/Contents/Frameworks/*"
+  "${BUNDLE_DIR}/Contents/Resources/mlt/modules/*")
 
 set(macho_count 0)
 set(developer_references "")

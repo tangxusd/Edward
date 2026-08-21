@@ -3064,3 +3064,8 @@
 
 - 发现：当前 Homebrew MLT 7.40 模块为 `.so`，不是 `.dylib`。
 - 修改：应用包内 MLT 路径探测与开发输入校验同时接受 `.dylib`、`.so`；避免真实模块被误判为占位资源而回退。
+
+## 2026-08-21 MLT 模块依赖审计范围
+
+- 目的：MLT 模块位于 `Contents/Resources/mlt/modules`，不在 Frameworks 内，必须单独纳入可迁移性检查。
+- 修改：全树 macOS 审计同时扫描 `Contents/Frameworks` 和 `Contents/Resources/mlt/modules` 的 Mach-O 文件。
