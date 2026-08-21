@@ -2,6 +2,14 @@
 
 `probe_resolve.py` 是 Edward 正式桥接层的只读启动探针。它不安装脚本、不启动 Resolve、不会输出 Bridge token，也不会修改用户目录。
 
+官方直连健康检查：
+
+```sh
+python3 src/resolve/resolve-sidecar/resolve_direct_health.py --json
+```
+
+该命令只调用 `scriptapp("Resolve")` 并读取产品版本，不会修改项目或时间线。返回码为 `0` 才表示 Edward 可以进入官方直连模式；否则安装向导应转入 Bridge 检查或显示配置提示。
+
 ```sh
 python3 src/resolve/resolve-sidecar/probe_resolve.py --json
 ```

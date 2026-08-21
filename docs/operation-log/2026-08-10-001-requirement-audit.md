@@ -3443,3 +3443,8 @@
 - 修改：探针补充 Resolve 安装包、官方脚本 API 和 `fusionscript` 动态库路径；macOS、Windows、Linux 使用上游已验证的路径规则，Windows 使用 `PROGRAMDATA`/`PROGRAMFILES`，不依赖 macOS 环境变量。
 - 设计：首次安装保存探测结果；每次启动只做轻量 health 检查，连接失败、Resolve 升级或配置变更时才重新完整探测。
 - 验证：本机探针仍明确报告模块和 Bridge 均不可用；Python 编译、JSON 输出和现有 CTest 保持通过。
+
+## 2026-08-21：官方直连健康侧车
+
+- 修改：新增 `src/resolve/resolve-sidecar/resolve_direct_health.py`；自动设置 macOS、Windows、Linux 的官方 Scripting API 路径，只调用 `scriptapp("Resolve")` 和版本读取。
+- 结果：健康检查返回码 `0` 才允许进入 direct 模式；模块缺失、Resolve 未运行或 External scripting 未启用都会返回结构化错误，随后由安装向导转入 Bridge 检查。
