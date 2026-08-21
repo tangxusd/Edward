@@ -1,6 +1,8 @@
 #include <edward/core/timeline.hpp>
+#include <edward/core/project_identity.hpp>
 #include <edward/media/media_probe.hpp>
 #include <edward/media/mlt_adapter.hpp>
+#include <edward/media/proxy_manager.hpp>
 
 #include <QCryptographicHash>
 #include <QCoreApplication>
@@ -46,7 +48,7 @@ double percentile(std::vector<double> samples, double ratio) {
   return samples.at(index);
 }
 
-std::optional<QJsonObject> collectFixture(const QString& path) {
+std::optional<QJsonObject> collectFixture(const QString& path, const std::filesystem::path& proxySampleRoot) {
   constexpr int sampleCount = 5;
   std::vector<double> imports;
   imports.reserve(sampleCount);
@@ -67,8 +69,10 @@ std::optional<QJsonObject> collectFixture(const QString& path) {
   const edward::media::MltAdapter adapter;
   std::vector<double> firstFrames;
   std::vector<double> seeks;
+  std::vector<double> proxies;
   firstFrames.reserve(sampleCount);
   seeks.reserve(sampleCount);
+  proxies.reserve(sampleCount);
   for (int sample = 0; sample < sampleCount; ++sample) {
     QElapsedTimer timer;
     timer.start();
@@ -84,10 +88,23 @@ std::optional<QJsonObject> collectFixture(const QString& path) {
     seeks.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
     if (!frame || frame->isNull()) return std::nullopt;
   }
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    const edward::media::RenderStorageRoots roots{proxySampleRoot / "proxies",
+                                                   proxySampleRoot / "cache",
+                                                   proxySampleRoot / "renders"};
+    const edward::media::ProxyManager manager(roots, edward::core::ProjectIdentity::create());
+    QElapsedTimer timer;
+    timer.start();
+    const auto proxy = manager.ensureProxy(std::filesystem::path(path.toStdString()),
+                                           edward::media::PreviewQuality::Fluent);
+    proxies.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
+    if (!proxy || !edward::media::MediaProbe::probe(*proxy)) return std::nullopt;
+  }
   return QJsonObject{{"sampleCount", sampleCount},
                      {"importMedianMs", percentile(imports, 0.5)},
                      {"firstFrameMedianMs", percentile(firstFrames, 0.5)},
-                     {"seekP95Ms", percentile(seeks, 0.95)}};
+                     {"seekP95Ms", percentile(seeks, 0.95)},
+                     {"proxyMedianMs", percentile(proxies, 0.5)}};
 }
 }  // namespace
 
@@ -142,7 +159,16 @@ int main(int argc, char** argv) {
       const auto found = std::find_if(fixtures.begin(), fixtures.end(), [&requiredId](const QJsonValue& value) {
         return value.toObject().value("id").toString() == requiredId;
       });
-      const auto result = collectFixture(found->toObject().value("path").toString());
+      const auto sampleRoot = std::filesystem::path(QFileInfo(reportPath).absolutePath().toStdString()) /
+                              "edward-benchmark-proxy-samples" / requiredId.toStdString();
+      std::error_code cleanupError;
+      std::filesystem::remove_all(sampleRoot, cleanupError);
+      if (cleanupError) {
+        failure = QStringLiteral("无法准备代理采样目录：%1").arg(requiredId);
+        break;
+      }
+      const auto result = collectFixture(found->toObject().value("path").toString(), sampleRoot);
+      std::filesystem::remove_all(sampleRoot, cleanupError);
       if (!result) {
         failure = QStringLiteral("采集失败：%1").arg(requiredId);
         break;
@@ -154,7 +180,7 @@ int main(int argc, char** argv) {
       report.insert("uncollectedRequiredMetrics", QJsonArray{
           QStringLiteral("cold_start_median_ms"), QStringLiteral("drag_p95_ms"),
           QStringLiteral("peak_rss_mb"), QStringLiteral("gpu_memory_mb"),
-          QStringLiteral("proxy_median_ms"), QStringLiteral("export_fps"),
+          QStringLiteral("export_fps"),
           QStringLiteral("output_ssim")});
     }
   }

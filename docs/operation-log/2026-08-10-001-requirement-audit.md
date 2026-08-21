@@ -3197,3 +3197,9 @@
 - 实现：`edward_benchmark --collect` 对每个夹具执行五次 `MediaProbe` 导入探测、五次时间线首帧 MLT 合成、五次分布定位渲染，写入中位导入/首帧和 p95 定位耗时。结果为 `metrics_collected_partial`，且报告强制列出冷启动、拖拽、RSS、GPU、代理、导出与 SSIM 等未采集项。
 - 验证：新增 `performance.collection`，以真实内置 MP4 夹具验证三种 ID 都有 5 次样本；`performance.metrics`、`performance.collection`、`performance.vfr_fixture_generator` 均通过。使用用户素材清单的本机报告写入 `build/performance/metrics-partial.json`，不进入 Git。
 - 边界：本机样本仅说明本次开发环境的原始测量，不是 MacBook Air M1 或 Windows 发布基准，也不用于与剪映比较。
+
+## 2026-08-21 性能代理生成采样
+
+- 修改：部分采集器新增五次流畅代理生成测量。每个样本使用报告目录下的独立工程 UUID 和全新代理目录，生成后立即清理；因此 `proxyMedianMs` 不会误测为代理缓存命中。
+- 验证：`performance.collection` 先因代理字段缺失失败，接入后与 `performance.metrics` 一同通过。真实夹具报告已重写：1080p、4K、VFR 均有五次代理样本；4K 仍按原始素材实际生成代理。
+- 边界：报告继续为 `metrics_collected_partial`；代理耗时是本机原始数据，不构成跨设备或发行性能承诺。
