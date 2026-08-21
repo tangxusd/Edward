@@ -20,6 +20,7 @@
 #include <QPainter>
 #include <QPointer>
 #include <QStandardPaths>
+#include <QSettings>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -27,11 +28,24 @@
 namespace edward::desktop {
 
 namespace {
+QString previewSettingsPath() {
+  const auto overridePath = qEnvironmentVariable("EDWARD_SETTINGS_PATH");
+  if (!overridePath.isEmpty()) return overridePath;
+  return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) +
+         QStringLiteral("/preview-storage.ini");
+}
+
 edward::media::RenderStorageRoots defaultPreviewStorageRoots() {
-  const auto root = std::filesystem::path(
+  const auto defaultRoot = std::filesystem::path(
       QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation).toStdString()) /
-                    "preview";
-  return {root / "proxies", root / "cache", root / "renders"};
+                           "preview";
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  const auto pathFor = [&settings](const QString& key, const std::filesystem::path& fallback) {
+    return std::filesystem::path(settings.value(key, QString::fromStdString(fallback.string())).toString().toStdString());
+  };
+  return {pathFor(QStringLiteral("preview/proxyRoot"), defaultRoot / "proxies"),
+          pathFor(QStringLiteral("preview/cacheRoot"), defaultRoot / "cache"),
+          pathFor(QStringLiteral("preview/renderRoot"), defaultRoot / "renders")};
 }
 
 std::optional<edward::core::ComponentIr> demoOverlay(int x, int y, int width, int height, double opacity, const QString& label) {
@@ -546,6 +560,18 @@ bool WorkbenchRuntime::previewProxyReady() const {
   return containsMedia;
 }
 
+QString WorkbenchRuntime::proxyStorageRoot() const {
+  return QString::fromStdString(previewStorageRoots_.proxyRoot.string());
+}
+
+QString WorkbenchRuntime::cacheStorageRoot() const {
+  return QString::fromStdString(previewStorageRoots_.cacheRoot.string());
+}
+
+QString WorkbenchRuntime::renderStorageRoot() const {
+  return QString::fromStdString(previewStorageRoots_.renderRoot.string());
+}
+
 bool WorkbenchRuntime::setPreviewQuality(int quality) {
   if (quality < static_cast<int>(edward::media::PreviewQuality::Original) ||
       quality > static_cast<int>(edward::media::PreviewQuality::Fluent)) return false;
@@ -571,6 +597,44 @@ bool WorkbenchRuntime::setPreviewQuality(int quality) {
   }));
   emit timelineChanged();
   return true;
+}
+
+bool WorkbenchRuntime::configurePreviewStorageRoots(const QString& proxyRoot, const QString& cacheRoot,
+                                                     const QString& renderRoot) {
+  if (previewProxyBusy_) return false;
+  const edward::media::RenderStorageRoots roots{
+      std::filesystem::path(proxyRoot.toStdString()), std::filesystem::path(cacheRoot.toStdString()),
+      std::filesystem::path(renderRoot.toStdString())};
+  if (roots.proxyRoot.empty() || roots.cacheRoot.empty() || roots.renderRoot.empty() ||
+      !roots.proxyRoot.is_absolute() || !roots.cacheRoot.is_absolute() || !roots.renderRoot.is_absolute() ||
+      roots.proxyRoot == roots.cacheRoot || roots.proxyRoot == roots.renderRoot ||
+      roots.cacheRoot == roots.renderRoot) return false;
+  std::error_code error;
+  std::filesystem::create_directories(roots.proxyRoot, error);
+  if (error) return false;
+  std::filesystem::create_directories(roots.cacheRoot, error);
+  if (error) return false;
+  std::filesystem::create_directories(roots.renderRoot, error);
+  if (error) return false;
+  previewStorageRoots_ = roots;
+  previewSession_ = edward::media::PreviewSession(previewStorageRoots_, projectIdentity_);
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  settings.setValue(QStringLiteral("preview/proxyRoot"), proxyStorageRoot());
+  settings.setValue(QStringLiteral("preview/cacheRoot"), cacheStorageRoot());
+  settings.setValue(QStringLiteral("preview/renderRoot"), renderStorageRoot());
+  settings.sync();
+  if (settings.status() != QSettings::NoError) return false;
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::clearDerivedStorage(int kind) {
+  if (kind < static_cast<int>(edward::media::DerivedStorageKind::Proxy) ||
+      kind > static_cast<int>(edward::media::DerivedStorageKind::Render)) return false;
+  const auto cleared = edward::media::RenderStorage::clearDerived(
+      previewStorageRoots_, static_cast<edward::media::DerivedStorageKind>(kind));
+  if (cleared) emit timelineChanged();
+  return cleared;
 }
 
 edward::core::TimelineSnapshot WorkbenchRuntime::previewSnapshot() const {

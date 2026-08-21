@@ -17,9 +17,22 @@ int main(int argc, char** argv) {
   assert(argc == 4);
   qputenv("QT_QPA_PLATFORM", "offscreen");
   QGuiApplication application(argc, argv);
+  QTemporaryDir settingsDirectory;
+  assert(settingsDirectory.isValid());
+  qputenv("EDWARD_SETTINGS_PATH", (settingsDirectory.path() + QStringLiteral("/settings.ini")).toUtf8());
   edward::desktop::WorkbenchRuntime runtime;
   assert(runtime.projectWindowTitle() == QStringLiteral("未命名项目 — 未保存更改"));
   assert(!runtime.authenticated());
+  assert(!runtime.configurePreviewStorageRoots({}, {}, {}));
+  const auto storageRoot = settingsDirectory.path() + QStringLiteral("/derived");
+  assert(runtime.configurePreviewStorageRoots(storageRoot + QStringLiteral("/proxy"),
+                                              storageRoot + QStringLiteral("/cache"),
+                                              storageRoot + QStringLiteral("/render")));
+  assert(runtime.proxyStorageRoot() == storageRoot + QStringLiteral("/proxy"));
+  assert(runtime.cacheStorageRoot() == storageRoot + QStringLiteral("/cache"));
+  assert(runtime.renderStorageRoot() == storageRoot + QStringLiteral("/render"));
+  assert(!runtime.clearDerivedStorage(-1));
+  assert(runtime.clearDerivedStorage(0));
   assert(runtime.previewQuality() == 0);
   assert(!runtime.setPreviewQuality(-1));
   assert(!runtime.setPreviewQuality(3));

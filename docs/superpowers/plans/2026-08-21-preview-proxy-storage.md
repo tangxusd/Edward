@@ -77,8 +77,8 @@
 - 工作台暴露 `previewQuality`、三个存储目录和 `clearDerivedStorage(kind)`。
 - 设置变更驱动 `PreviewSession`；导出仍构造只含原始媒体的 `TimelineSnapshot`。
 
-- [ ] **Step 1: 写失败测试**：选择流畅预览后请求代理；代理未就绪时仍能看到原画；清理代理不删除工程文件；导出仍成功。
-- [ ] **Step 2: 确认红灯**：运行 `QT_QPA_PLATFORM=offscreen ctest --test-dir build/0.3-runtime -R 'desktop.(visual_routes|workbench_plugins)' --output-on-failure`，预期失败。
-- [ ] **Step 3: 最小实现**：在既有“项目设置”接入目录和原画/清晰/流畅；首次代理生成异步执行并显示真实状态；清理只删除选定根目录中各 UUID 子目录。
-- [ ] **Step 4: 确认绿灯**：运行 `QT_QPA_PLATFORM=offscreen ctest --test-dir build/0.3-runtime -R 'desktop.(visual_routes|workbench_plugins)|media.(proxy_manager|preview_session|export_job)' --output-on-failure`。
-- [ ] **Step 5: 完整回归与提交**：运行离屏完整 CTest、`git diff --check`，追加操作日志后提交 `feat: connect preview storage settings`。
+- [x] **Step 1: 写失败测试**：选择流畅预览后请求代理；代理未就绪时仍能看到原画；清理代理不删除工程文件；导出仍成功。
+- [x] **Step 2: 确认红灯**：运行 `QT_QPA_PLATFORM=offscreen ctest --test-dir build/0.3-runtime -R 'desktop.(visual_routes|workbench_plugins)' --output-on-failure`，预期失败。
+- [x] **Step 3: 最小实现**：在既有“项目设置”接入目录和原画/清晰/流畅；首次代理生成异步执行并显示真实状态；清理只删除选定根目录中各 UUID 子目录。
+- [x] **Step 4: 确认绿灯**：运行 `QT_QPA_PLATFORM=offscreen ctest --test-dir build/0.3-runtime -R 'desktop.(visual_routes|workbench_plugins)|media.(proxy_manager|preview_session|export_job)' --output-on-failure`。
+- [x] **Step 5: 完整回归与提交**：运行离屏完整 CTest、`git diff --check`，追加操作日志后提交 `feat: connect preview storage settings`。

@@ -121,5 +121,8 @@ int main() {
   assert(timeline.find("root.videoTrackCount + 1") != std::string::npos);
   assert(timeline.find("signal videoTrackSelected") != std::string::npos);
   assert(preview.find("预览窗") != std::string::npos);
+  assert(workbench.find("id: previewStorageDialog") != std::string::npos);
+  assert(workbench.find("configurePreviewStorageRoots") != std::string::npos);
+  assert(workbench.find("clearDerivedStorage") != std::string::npos);
   return 0;
 }

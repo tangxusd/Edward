@@ -48,6 +48,16 @@ ApplicationWindow {
                     }
                     Button {
                         Layout.alignment: Qt.AlignHCenter
+                        text: "预览与存储设置"
+                        onClicked: {
+                            proxyRootField.text = workbenchRuntime.proxyStorageRoot
+                            cacheRootField.text = workbenchRuntime.cacheStorageRoot
+                            renderRootField.text = workbenchRuntime.renderStorageRoot
+                            previewStorageDialog.open()
+                        }
+                    }
+                    Button {
+                        Layout.alignment: Qt.AlignHCenter
                         text: "+ 导入素材"
                         onClicked: mediaDialog.open()
                     }
@@ -1007,6 +1017,47 @@ ApplicationWindow {
             TextField { id: packageDisplayName; placeholderText: "显示名称"; text: "Edward 组件" }
         }
         onAccepted: componentPackageDirectoryDialog.open()
+    }
+
+    Dialog {
+        id: previewStorageDialog
+        anchors.centerIn: Overlay.overlay
+        width: 560
+        modal: true
+        title: "预览与存储设置"
+        standardButtons: Dialog.Cancel | Dialog.Save
+        contentItem: ColumnLayout {
+            spacing: 12
+            Label {
+                Layout.fillWidth: true
+                text: "设置只影响后续代理、缓存和预渲染任务；已有派生文件不会自动迁移。"
+                wrapMode: Text.WordWrap
+                color: DesignTokens.textSecondary
+                font.pixelSize: 12
+            }
+            Label { text: "代理位置"; color: DesignTokens.textPrimary }
+            TextField { id: proxyRootField; Layout.fillWidth: true }
+            Label { text: "缓存位置"; color: DesignTokens.textPrimary }
+            TextField { id: cacheRootField; Layout.fillWidth: true }
+            Label { text: "预渲染位置"; color: DesignTokens.textPrimary }
+            TextField { id: renderRootField; Layout.fillWidth: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Label { text: "清理仅删除当前工程的派生文件"; color: DesignTokens.textSecondary; font.pixelSize: 12 }
+                Item { Layout.fillWidth: true }
+                Button { text: "清理代理"; onClicked: workbenchRuntime.clearDerivedStorage(0) }
+                Button { text: "清理缓存"; onClicked: workbenchRuntime.clearDerivedStorage(1) }
+                Button { text: "清理预渲染"; onClicked: workbenchRuntime.clearDerivedStorage(2) }
+            }
+        }
+        onAccepted: {
+            if (!workbenchRuntime.configurePreviewStorageRoots(proxyRootField.text, cacheRootField.text,
+                                                                renderRootField.text)) {
+                failureToast.text = "存储位置无效或当前代理任务尚未完成";
+                failureToast.open();
+                failureTimer.restart();
+            }
+        }
     }
 
     FolderDialog {

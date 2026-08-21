@@ -82,6 +82,9 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int previewQuality READ previewQuality NOTIFY timelineChanged)
   Q_PROPERTY(bool previewProxyBusy READ previewProxyBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool previewProxyReady READ previewProxyReady NOTIFY timelineChanged)
+  Q_PROPERTY(QString proxyStorageRoot READ proxyStorageRoot NOTIFY timelineChanged)
+  Q_PROPERTY(QString cacheStorageRoot READ cacheStorageRoot NOTIFY timelineChanged)
+  Q_PROPERTY(QString renderStorageRoot READ renderStorageRoot NOTIFY timelineChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -139,6 +142,9 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int previewQuality() const;
   [[nodiscard]] bool previewProxyBusy() const { return previewProxyBusy_; }
   [[nodiscard]] bool previewProxyReady() const;
+  [[nodiscard]] QString proxyStorageRoot() const;
+  [[nodiscard]] QString cacheStorageRoot() const;
+  [[nodiscard]] QString renderStorageRoot() const;
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -162,6 +168,9 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QImage previewFrame() const;
   Q_INVOKABLE bool importMedia(const QString& path);
   Q_INVOKABLE bool setPreviewQuality(int quality);
+  Q_INVOKABLE bool configurePreviewStorageRoots(const QString& proxyRoot, const QString& cacheRoot,
+                                                const QString& renderRoot);
+  Q_INVOKABLE bool clearDerivedStorage(int kind);
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE bool selectComponentNode(const QString& nodeId);
   Q_INVOKABLE bool removeSelectedComponentNodeKeyframe(const QString& field, int frame);
