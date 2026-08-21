@@ -3000,3 +3000,9 @@
 - 操作：对 `build/0.3-runtime/bin/Edward.app` 的临时副本执行 `/opt/homebrew/bin/macdeployqt ... -always-overwrite -verbose=1`。
 - 结果：工具运行超过 90 秒未返回，输出日志为空；临时诊断进程已停止。临时副本仅位于构建目录，未纳入版本库，也不代表封装成功。
 - 后续：需要定位 `macdeployqt` 卡点或拆分 Qt 框架复制/路径修正步骤后，才能继续正式依赖封装。
+
+## 2026-08-21 macdeployqt 无签名路径
+
+- 目的：遵守“暂不签名”的发行决策，同时避免工具默认进入代码签名流程。
+- 结果：对临时副本使用 `-no-codesign -no-strip` 后，Qt 框架和 FFmpeg 相关动态库已经开始复制并改写为 bundle 相对路径；默认参数的卡点定位为签名路径，而不是依赖扫描本身。
+- 修改：正式 `Package.cmake` 固定传入 `-no-codesign -no-strip`。这不表示已完成签名或正式包验收。
