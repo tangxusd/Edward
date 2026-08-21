@@ -3251,3 +3251,8 @@
 - 核查：当前 Edward 性能采集链使用 MLT 与 QImage CPU 合成，未启用 Metal、OpenGL 或 Vulkan 进程级显存后端，无法诚实产生 GPU 显存数值。
 - 修改：报告新增 `uncollectedMetricReasons.gpu_memory_mb`，明确记录未采集原因；GPU 显存仍保留在 `uncollectedRequiredMetrics`，不伪造指标。
 - 验证：将由 `performance.collection` 与全量 CTest 验证。
+
+## 2026-08-21 性能报告契约门
+
+- 修改：`performance.metrics` 契约测试固定检查冷启动、拖拽和输出 SSIM 必需指标，防止后续采集器回归时静默删除已完成指标。
+- 验证：将由定向性能测试与全量 CTest 验证。

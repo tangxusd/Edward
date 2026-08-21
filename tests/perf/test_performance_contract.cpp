@@ -39,6 +39,9 @@ int main(int argc, char** argv) {
   assert(object.value("status").toString() == QStringLiteral("fixture_validation_failed"));
   assert(object.value("requiredMetrics").toArray().contains(QStringLiteral("peak_rss_mb")));
   assert(object.value("requiredMetrics").toArray().contains(QStringLiteral("seek_p95_ms")));
+  assert(object.value("requiredMetrics").toArray().contains(QStringLiteral("cold_start_median_ms")));
+  assert(object.value("requiredMetrics").toArray().contains(QStringLiteral("drag_p95_ms")));
+  assert(object.value("requiredMetrics").toArray().contains(QStringLiteral("output_ssim")));
   assert(object.contains("machine"));
   assert(object.contains("dependencies"));
   report.close();
