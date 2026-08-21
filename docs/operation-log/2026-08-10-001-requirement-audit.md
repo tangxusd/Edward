@@ -3279,3 +3279,9 @@
 
 - 修改：`RenderGraph::cacheSignature` 纳入逐帧插件图层提供器状态；启用、替换或清除插件视频提供器都会改变签名，避免预览缓存复用旧插件帧。
 - 验证：`media.render_graph` 增加提供器启停前后签名差异断言；全量 CTest 继续验证。
+
+## 2026-08-21 Git AppleDouble 垃圾清理
+
+- 发现：macOS 在 `.git/objects` 与 `.git/objects/pack` 写入多个 `._*` AppleDouble 元数据文件，导致 Git 报非单调索引和坏 SHA-1 文件。
+- 处理：仅删除 `.git/objects` 下明确匹配 `._*` 的 AppleDouble 文件，不触碰正常 Git 对象、源码或用户素材。
+- 验证：`git fsck --full --no-progress` 不再报告坏 SHA-1 文件；仅保留既有 dangling blob 提示。
