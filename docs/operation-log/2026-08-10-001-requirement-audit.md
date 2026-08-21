@@ -3035,3 +3035,9 @@
 - 目的：避免手动拼接 CMake 命令，统一生成开发包占位输入。
 - 修改：macOS 构建新增 `prepare_macos_development_inputs` 目标，输出到构建目录 `macos-development-inputs`。
 - 约束：该目标只生成带 `NOT_FOR_DISTRIBUTION` 标记的开发材料，不改变正式打包门禁。
+
+## 2026-08-21 macOS 开发包目标
+
+- 目的：用占位输入实际验证 `.app` 复制、Qt 运行时部署和资源目录布局。
+- 修改：新增 `package_macos_development` 目标，显式传入 `DEVELOPMENT_ONLY=ON`，并要求 `NOT_FOR_DISTRIBUTION.txt`；生成包会在 `Contents/Resources` 保留该标记。
+- 约束：该目标不是发行目标，正式包仍使用不带开发标志的 `Package.cmake` 调用。

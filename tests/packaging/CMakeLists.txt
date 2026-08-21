@@ -24,3 +24,20 @@ add_custom_target(prepare_macos_development_inputs
     -DOUTPUT_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs
     -P ${CMAKE_SOURCE_DIR}/packaging/macos/PrepareDevelopmentInputs.cmake
   COMMENT "Generate development-only macOS package inputs")
+
+add_custom_target(package_macos_development
+  COMMAND ${CMAKE_COMMAND}
+    -DAPP_BUNDLE=$<TARGET_BUNDLE_DIR:edward_app>
+    -DOUTPUT_DIR=${CMAKE_BINARY_DIR}/macos-development-package
+    -DLICENSE_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs/licenses
+    -DTHIRD_PARTY_NOTICES=${CMAKE_BINARY_DIR}/macos-development-inputs/THIRD_PARTY_NOTICES_PLACEHOLDER.md
+    -DBASE_RESOURCES_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs/resources/base
+    -DMLT_MODULE_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs/mlt/modules
+    -DMLT_DATA_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs/mlt/data
+    -DFONT_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs/fonts
+    -DFONT_MANIFEST=${CMAKE_BINARY_DIR}/macos-development-inputs/font-manifest-placeholder.json
+    -DDEVELOPMENT_ONLY=ON
+    -DDEVELOPMENT_MARKER=${CMAKE_BINARY_DIR}/macos-development-inputs/NOT_FOR_DISTRIBUTION.txt
+    -P ${CMAKE_SOURCE_DIR}/packaging/macos/Package.cmake
+  DEPENDS edward_app prepare_macos_development_inputs
+  COMMENT "Package development-only macOS app (not for distribution)")
