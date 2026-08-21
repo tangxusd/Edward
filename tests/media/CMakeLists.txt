@@ -68,3 +68,8 @@ set_tests_properties(media.component_renderer PROPERTIES ENVIRONMENT "QT_QPA_PLA
 add_executable(test_render_storage test_render_storage.cpp)
 target_link_libraries(test_render_storage PRIVATE edward_media)
 add_test(NAME media.render_storage COMMAND test_render_storage)
+
+add_executable(test_proxy_manager test_proxy_manager.cpp)
+target_link_libraries(test_proxy_manager PRIVATE edward_media)
+add_dependencies(test_proxy_manager media_fixture)
+add_test(NAME media.proxy_manager COMMAND test_proxy_manager ${EDWARD_MEDIA_FIXTURE})
