@@ -20,6 +20,7 @@
 #include <array>
 #include <algorithm>
 #include <vector>
+#include <sys/resource.h>
 
 namespace {
 QJsonArray requiredMetrics() {
@@ -52,6 +53,16 @@ double percentile(std::vector<double> samples, double ratio) {
   std::sort(samples.begin(), samples.end());
   const auto index = static_cast<std::size_t>(std::ceil((samples.size() - 1) * ratio));
   return samples.at(index);
+}
+
+double peakRssMb() {
+  rusage usage{};
+  if (getrusage(RUSAGE_SELF, &usage) != 0) return 0.0;
+#if defined(__APPLE__)
+  return static_cast<double>(usage.ru_maxrss) / (1024.0 * 1024.0);
+#else
+  return static_cast<double>(usage.ru_maxrss) / 1024.0;
+#endif
 }
 
 std::optional<QJsonObject> collectFixture(const QString& path, const std::filesystem::path& sampleRoot) {
@@ -132,7 +143,8 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
                      {"seekP95Ms", percentile(seeks, 0.95)},
                      {"proxyMedianMs", percentile(proxies, 0.5)},
                      {"exportMedianFps", percentile(exports, 0.5)},
-                     {"exportFirstFrameValid", true}};
+                     {"exportFirstFrameValid", true},
+                     {"peakRssMb", peakRssMb()}};
 }
 }  // namespace
 
@@ -233,7 +245,7 @@ int main(int argc, char** argv) {
       report.insert("samples", samples);
       report.insert("uncollectedRequiredMetrics", QJsonArray{
           QStringLiteral("cold_start_median_ms"), QStringLiteral("drag_p95_ms"),
-          QStringLiteral("peak_rss_mb"), QStringLiteral("gpu_memory_mb"),
+          QStringLiteral("gpu_memory_mb"),
           QStringLiteral("output_ssim")});
     }
   }

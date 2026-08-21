@@ -3220,3 +3220,8 @@
 
 - 修改：每次 Edward `ExportJob` 导出样本除尺寸、时长和 FPS 外，必须再次经 `MltAdapter::renderSourceFrame` 解码首帧；新增 `exportFirstFrameValid=true`，解码失败的样本不会计入中位 FPS。
 - 验证：`performance.collection` 覆盖该字段并通过；全量回归前先完成小夹具导出与首帧复读检查。
+
+## 2026-08-21 性能峰值 RSS 采集
+
+- 修改：使用进程级 `getrusage` 记录每个夹具完整采集期间的峰值 RSS，macOS 按字节换算，其他平台按系统单位换算；GPU 显存仍保留为未采集项。
+- 验证：`performance.collection` 要求每组结果包含正数 `peakRssMb`，与 `performance.metrics` 一同通过。
