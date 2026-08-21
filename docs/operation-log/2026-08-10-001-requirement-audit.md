@@ -3326,3 +3326,49 @@
 
 - 修改：将 4K 内存门的纯黑夹具改为 3840×2160 `testsrc2` 动态图案，避免编码过于容易导致的假阴性。
 - 验证：动态 4K 夹具实际导出通过，`performance.4k_memory_guard` 通过；全量 CTest 50/50 通过。
+
+## 2026-08-21 外部插件运行时清单校验
+
+- 修改：macOS 正式打包门增加 JSON 清单校验，要求 `runtime=node`、版本、平台、可执行文件、来源和 64 位 SHA-256 字段；拒绝绝对路径、目录穿越、缺失可执行文件和非法哈希。
+- 验证：`packaging.macos_package_gate` 通过；全量 CTest 50/50 通过；当前没有真实 Node 运行时输入，正式包仍按预期拒绝生成。
+
+## 2026-08-21 外部插件运行时非法清单回归
+
+- 测试：新增伪运行时夹具，覆盖清单中的目录穿越可执行文件和非法 SHA-256。
+- 验证：非法清单被打包门拒绝；`packaging.macos_package_gate` 通过；全量 CTest 50/50 通过。
+
+## 2026-08-21 外部插件运行时哈希一致性
+
+- 修改：正式 macOS 打包现在计算运行时可执行文件的实际 SHA-256，并与清单逐字节比对；清单格式正确但文件被替换时同样拒绝打包。
+- 测试：新增伪运行时哈希不匹配回归场景；修正 CMake 正则兼容性，改为长度与字符集双重校验。
+- 验证：`packaging.macos_package_gate` 通过；全量 CTest 50/50 通过。
+
+## 2026-08-21 外部插件运行时版本一致性
+
+- 修改：正式 macOS 打包执行随包 Node 的 `--version`，要求输出与运行时清单中的 `version` 完全一致，并设置 5 秒超时。
+- 验证：打包门禁与全量 CTest 50/50 通过；真实 Node 运行时尚未纳入仓库，因此未执行真实发行包构建。
+
+## 2026-08-21 0.3.0 外部插件计划状态同步
+
+- 更新：M2 运行时版本探测和 macOS 运行时打包门禁标记为已完成；M5 标记为 macOS 门禁部分完成。
+- 保留边界：真实发行公钥、已签名夹具、macOS App Sandbox 签名环境、Windows AppContainer 和 MSI 仍未完成，不能宣称外部插件正式发布安全验收通过。
+
+## 2026-08-21 外部插件运行时打包门禁
+
+- 修改：正式 macOS 打包现在要求 `PLUGIN_RUNTIME_DIR` 和 `PLUGIN_RUNTIME_MANIFEST`，并将固定 Node 运行时及清单复制到 `Edward.app/Contents/Resources/plugins/`；开发包模式保持原有占位输入流程。
+- 文档：新增 `docs/contracts/plugin-runtime-manifest.md`，明确清单字段、资源路径和哈希/版本一致性要求。
+- 验证：已补充 macOS 打包门禁测试的运行时参数；待本轮构建后执行完整 CTest。当前没有真实发行 Node 二进制，因此正式包仍会按预期拒绝生成。
+
+## 2026-08-21：确认 0.4.0 Resolve Studio 基座路线
+
+- 目的：记录用户确认的架构边界。
+- 结果：采用独立 Edward 外部应用 + Resolve Studio 适配器，通过 API/MCP 控制已启动的 Resolve；不开发 Resolve 内嵌插件，不再以自研完整剪辑引擎作为主路线。
+- 涉及文件：`docs/superpowers/specs/2026-08-21-edward-0.4.0-resolve-foundation-design.md`。
+- 验证：已确认分支为 `codex/edward-0.4.0`；规格待用户审阅后进入实施计划。
+
+## 2026-08-21：确认 0.4.0 转换与导出边界
+
+- 结果：用户确认标准 Component IR 子集作为可编辑转换范围；无法转换的属性必须提示，并保留透明视频回退。
+- 结果：Edward 简化导出和 Resolve Studio 原生高级导出并行保留，互相独立；Edward 不覆盖 Resolve 的高级导出能力。
+- 涉及文件：`docs/superpowers/specs/2026-08-21-edward-0.4.0-resolve-foundation-design.md`。
+- 验证：规格内容已补充，待实施计划阶段拆分为适配器、IR 转换、字幕垂直切片和双导出通道验收项。
