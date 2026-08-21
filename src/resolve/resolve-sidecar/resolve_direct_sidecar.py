@@ -165,6 +165,31 @@ def _inspect_current_fusion(resolve: Any) -> dict[str, Any]:
     return {"available": True, "compositions": compositions}
 
 
+def _inspect_fusion_tool(resolve: Any, params: dict[str, Any]) -> dict[str, Any]:
+    _, _, timeline = _current_timeline(resolve)
+    item = timeline.GetCurrentVideoItem()
+    tool_name = str(params.get("toolName", "")).strip()
+    if item is None or not tool_name:
+        return {"available": False, "reason": "缺少当前视频项目或 toolName"}
+    for index in range(1, int(item.GetFusionCompCount() or 0) + 1):
+        comp = item.GetFusionCompByIndex(index)
+        tool = comp.FindTool(tool_name)
+        if tool is None:
+            continue
+        inputs: list[dict[str, Any]] = []
+        for input_name, metadata in (tool.GetInputList() or {}).items():
+            entry = {"name": str(input_name)}
+            if isinstance(metadata, dict):
+                entry["type"] = str(metadata.get("INPS_DataType", ""))
+            try:
+                entry["value"] = tool.GetInput(input_name)
+            except Exception:
+                entry["value"] = None
+            inputs.append(entry)
+        return {"available": True, "compositionIndex": index, "tool": tool_name, "inputs": inputs}
+    return {"available": False, "reason": f"找不到工具: {tool_name}"}
+
+
 def handle(request: dict[str, Any]) -> dict[str, Any]:
     operation = request.get("operation")
     if operation == "health":
@@ -182,6 +207,8 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return {"accepted": bool(resolve.OpenPage("deliver"))}
     if operation == "fusion.inspectCurrent":
         return _inspect_current_fusion(resolve)
+    if operation == "fusion.inspectTool":
+        return _inspect_fusion_tool(resolve, request.get("params") or {})
     raise ValueError(f"不支持的只读操作: {operation}")
 
 
