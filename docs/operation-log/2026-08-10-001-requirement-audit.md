@@ -3396,3 +3396,9 @@
 - 修改：新增字幕 Component IR 校验、`subtitle.insert` 插入协议和 `component.keyframe` 关键帧协议；拒绝空文字、逆序时间范围和非法关键帧请求。
 - 测试：新增 `resolve.subtitle_insertion`，覆盖有效字幕、无效字幕、播放头插入和组件关键帧写入。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 54/54 通过。
+
+## 2026-08-21：0.4.0 Resolve 播放头关键帧入口 Task 5
+
+- 修改：工作台新增基于 Resolve 当前播放头的数值属性关键帧入口；先更新 Component IR，Resolve 写入失败时恢复本地快照；未连接或未插入组件时拒绝操作。
+- 测试：新增 `desktop.resolve_keyframe_edit`，覆盖未连接保护和本地草稿不被误改。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 55/55 通过。

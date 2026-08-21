@@ -223,6 +223,9 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool connectResolve();
   Q_INVOKABLE void disconnectResolve();
   Q_INVOKABLE bool refreshResolveTimeline();
+  Q_INVOKABLE bool setSelectedComponentPropertyAtPlayhead(const QString& nodeId,
+                                                          const QString& field,
+                                                          const QJsonValue& value);
   Q_INVOKABLE bool saveProject(const QString& path);
   Q_INVOKABLE bool loadProject(const QString& path);
   Q_INVOKABLE bool hasProjectRecovery(const QString& path) const;

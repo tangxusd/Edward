@@ -17,3 +17,7 @@ add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins
 add_executable(test_resolve_workbench test_resolve_workbench.cpp)
 target_link_libraries(test_resolve_workbench PRIVATE edward_desktop)
 add_test(NAME desktop.resolve_workbench COMMAND test_resolve_workbench)
+
+add_executable(test_resolve_keyframe_edit test_resolve_keyframe_edit.cpp)
+target_link_libraries(test_resolve_keyframe_edit PRIVATE edward_desktop)
+add_test(NAME desktop.resolve_keyframe_edit COMMAND test_resolve_keyframe_edit)

@@ -47,10 +47,12 @@ class ResolveAdapter final {
   bool setComponentKeyframe(const QString& componentId, const QString& nodeId,
                             const QString& field, int frame, double value,
                             QString* error = nullptr);
+  [[nodiscard]] QString lastInsertedComponentId() const { return lastInsertedComponentId_; }
 
  private:
   ResolveConnection& connection_;
   std::optional<ResolveCapabilities> capabilities_;
+  QString lastInsertedComponentId_;
 };
 
 }  // namespace edward::resolve

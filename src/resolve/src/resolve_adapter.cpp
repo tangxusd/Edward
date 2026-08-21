@@ -136,6 +136,8 @@ bool ResolveAdapter::insertSubtitleComponent(const edward::core::ComponentIr& co
   if (!response->value(QStringLiteral("result")).toObject().value(QStringLiteral("accepted")).toBool()) {
     return fail(error, QStringLiteral("subtitle_insert_rejected"));
   }
+  lastInsertedComponentId_ = response->value(QStringLiteral("result")).toObject().value(QStringLiteral("componentId")).toString();
+  if (lastInsertedComponentId_.isEmpty()) return fail(error, QStringLiteral("subtitle_component_id_missing"));
   if (error) error->clear();
   return true;
 }

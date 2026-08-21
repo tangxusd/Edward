@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
   assert(snapshot.has_value());
   auto subtitle = makeSubtitle();
   assert(adapter.insertSubtitleComponent(subtitle, *snapshot, &error));
+  assert(adapter.lastInsertedComponentId() == QStringLiteral("subtitle-1"));
   auto invalidSubtitle = makeInvalidSubtitle();
   assert(!adapter.insertSubtitleComponent(invalidSubtitle, *snapshot, &error));
   assert(error == QStringLiteral("subtitle_component_invalid"));

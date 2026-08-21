@@ -1693,6 +1693,44 @@ bool WorkbenchRuntime::refreshResolveTimeline() {
   return true;
 }
 
+bool WorkbenchRuntime::setSelectedComponentPropertyAtPlayhead(const QString& nodeId,
+                                                               const QString& field,
+                                                               const QJsonValue& value) {
+  if (!resolveConnected_ || !resolveTimelineSnapshot_) {
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio"));
+    return false;
+  }
+  if (!demoOverlayIr_ || resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    emit operationFailed(QStringLiteral("当前组件尚未添加到 Resolve 时间线"));
+    return false;
+  }
+  if (!value.isDouble()) {
+    emit operationFailed(QStringLiteral("当前 Resolve 关键帧接口只支持数值属性"));
+    return false;
+  }
+  const auto before = demoOverlayIr_->toJson();
+  const auto frame = resolveTimelineSnapshot_->playheadFrame;
+  bool changed = false;
+  if (value.isDouble()) {
+    changed = demoOverlayIr_->setNodeTransformNumber(nodeId, field, value.toDouble()) &&
+              demoOverlayIr_->setNodeKeyframeNumber(nodeId, field, frame, value.toDouble());
+  }
+  if (!changed) {
+    emit operationFailed(QStringLiteral("组件属性无效"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.setComponentKeyframe(resolveAdapter_.lastInsertedComponentId(), nodeId, field,
+                                             frame, value.toDouble(), &error)) {
+    demoOverlayIr_ = edward::core::ComponentIr::parse(before);
+    emit operationFailed(QStringLiteral("Resolve 关键帧写入失败：%1").arg(error));
+    return false;
+  }
+  refreshDemoOverlay();
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::addDissolveToSelected() {
   return addTransitionToSelected(QStringLiteral("dissolve"));
 }
