@@ -78,6 +78,8 @@ int main(int argc, char** argv) {
   }
   report.insert("status", failure.isEmpty() ? QStringLiteral("fixtures_ready")
                                              : QStringLiteral("fixture_validation_failed"));
+  report.insert("metricsCollected", false);
+  if (failure.isEmpty()) report.insert("status", QStringLiteral("fixtures_ready_not_collected"));
   if (!failure.isEmpty()) report.insert("failure", failure);
   if (!writeReport(reportPath, report)) return 73;
   return failure.isEmpty() ? 0 : 2;

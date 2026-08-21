@@ -61,6 +61,7 @@ int main(int argc, char** argv) {
   assert(benchmark.exitCode() == 0);
   assert(report.open(QIODevice::ReadOnly));
   const auto ready = QJsonDocument::fromJson(report.readAll()).object();
-  assert(ready.value("status").toString() == QStringLiteral("fixtures_ready"));
+  assert(ready.value("status").toString() == QStringLiteral("fixtures_ready_not_collected"));
+  assert(!ready.value("metricsCollected").toBool());
   return 0;
 }
