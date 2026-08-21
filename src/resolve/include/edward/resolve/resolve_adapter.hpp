@@ -1,6 +1,7 @@
 #pragma once
 
 #include "edward/resolve/resolve_connection.hpp"
+#include "edward/core/component_ir.hpp"
 
 #include <QVector>
 
@@ -40,6 +41,12 @@ class ResolveAdapter final {
   [[nodiscard]] std::optional<ResolveCapabilities> capabilities(QString* error = nullptr);
   [[nodiscard]] std::optional<ResolveTimelineSnapshot> timelineSnapshot(QString* error = nullptr);
   bool setPlayhead(int frame, QString* error = nullptr);
+  bool insertSubtitleComponent(const edward::core::ComponentIr& component,
+                               const ResolveTimelineSnapshot& snapshot,
+                               QString* error = nullptr);
+  bool setComponentKeyframe(const QString& componentId, const QString& nodeId,
+                            const QString& field, int frame, double value,
+                            QString* error = nullptr);
 
  private:
   ResolveConnection& connection_;

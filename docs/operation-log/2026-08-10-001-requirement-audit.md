@@ -3390,3 +3390,9 @@
 - 修改：WorkbenchRuntime 注入 Resolve 适配器，新增连接、断开、时间线刷新入口和连接状态属性；未配置桥接 URL 时明确提示并保留本地时间线操作。
 - 测试：新增 `desktop.resolve_workbench`，覆盖未连接状态、缺少桥接配置、断开和本地播放头不受影响。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 53/53 通过。
+
+## 2026-08-21：0.4.0 字幕组件 Resolve 插入 Task 4
+
+- 修改：新增字幕 Component IR 校验、`subtitle.insert` 插入协议和 `component.keyframe` 关键帧协议；拒绝空文字、逆序时间范围和非法关键帧请求。
+- 测试：新增 `resolve.subtitle_insertion`，覆盖有效字幕、无效字幕、播放头插入和组件关键帧写入。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 54/54 通过。

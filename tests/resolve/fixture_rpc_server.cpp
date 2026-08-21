@@ -69,6 +69,20 @@ QTcpServer* createFixtureServer(QObject* parent) {
         socket->flush();
         return;
       }
+      if (method == QStringLiteral("subtitle.insert")) {
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{{QStringLiteral("accepted"), true}, {QStringLiteral("componentId"), QStringLiteral("subtitle-1")}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
+      if (method == QStringLiteral("component.keyframe")) {
+        socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
+                                                 {QStringLiteral("result"), QJsonObject{{QStringLiteral("accepted"), true}}}})
+                          .toJson(QJsonDocument::Compact) + '\n');
+        socket->flush();
+        return;
+      }
       if (method == QStringLiteral("echo")) {
         socket->write(QJsonDocument(QJsonObject{{QStringLiteral("id"), id},
                                                  {QStringLiteral("result"), request.value(QStringLiteral("params"))}})
