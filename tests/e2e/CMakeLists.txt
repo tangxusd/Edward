@@ -6,3 +6,6 @@ add_test(NAME e2e.edward_0_3_0_smoke
 
 add_executable(test_real_media_import test_real_media_import.cpp)
 target_link_libraries(test_real_media_import PRIVATE edward_desktop edward_media)
+
+add_executable(test_real_media_export test_real_media_export.cpp)
+target_link_libraries(test_real_media_export PRIVATE edward_media)
