@@ -35,12 +35,17 @@ def _capabilities(resolve: Any) -> dict[str, Any]:
     }
 
 
-def _timeline_snapshot(resolve: Any) -> dict[str, Any]:
+def _current_timeline(resolve: Any) -> tuple[Any, Any, Any]:
     manager = resolve.GetProjectManager()
     project = manager.GetCurrentProject() if manager else None
     timeline = project.GetCurrentTimeline() if project else None
     if project is None or timeline is None:
         raise RuntimeError("当前没有打开的 Resolve 项目或时间线")
+    return manager, project, timeline
+
+
+def _timeline_snapshot(resolve: Any) -> dict[str, Any]:
+    _, project, timeline = _current_timeline(resolve)
     tracks: list[dict[str, Any]] = []
     for kind, is_video in (("video", True), ("audio", False)):
         count = int(timeline.GetTrackCount(kind) or 0)
@@ -76,6 +81,25 @@ def _timeline_snapshot(resolve: Any) -> dict[str, Any]:
     }
 
 
+def _set_playhead(resolve: Any, params: dict[str, Any]) -> dict[str, Any]:
+    _, project, timeline = _current_timeline(resolve)
+    frame = int(params.get("frame", -1))
+    start = int(timeline.GetStartFrame() or 0)
+    end = int(timeline.GetEndFrame() or 0)
+    if frame < start or frame > end:
+        return {"accepted": False}
+    try:
+        fps = float(project.GetSetting("timelineFrameRate") or 24)
+    except (TypeError, ValueError):
+        fps = 24.0
+    relative = max(0, frame - start)
+    total_seconds, frames = divmod(relative, max(1, int(round(fps))))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    accepted = bool(timeline.SetCurrentTimecode(f"{hours:02d}:{minutes:02d}:{seconds:02d}:{frames:02d}"))
+    return {"accepted": accepted}
+
+
 def handle(request: dict[str, Any]) -> dict[str, Any]:
     operation = request.get("operation")
     if operation == "health":
@@ -85,6 +109,8 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return _capabilities(resolve)
     if operation == "timeline.snapshot":
         return _timeline_snapshot(resolve)
+    if operation == "timeline.setPlayhead":
+        return _set_playhead(resolve, request.get("params") or {})
     raise ValueError(f"不支持的只读操作: {operation}")
 
 
