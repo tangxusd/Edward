@@ -3041,3 +3041,9 @@
 - 目的：用占位输入实际验证 `.app` 复制、Qt 运行时部署和资源目录布局。
 - 修改：新增 `package_macos_development` 目标，显式传入 `DEVELOPMENT_ONLY=ON`，并要求 `NOT_FOR_DISTRIBUTION.txt`；生成包会在 `Contents/Resources` 保留该标记。
 - 约束：该目标不是发行目标，正式包仍使用不带开发标志的 `Package.cmake` 调用。
+
+## 2026-08-21 macOS 开发包依赖审计
+
+- 目的：验证开发 `.app` 不再直接依赖开发机 Homebrew 前缀。
+- 结果：`macos-development-package/Edward.app` 依赖审计状态为 `ready_for_dependency_packaging`；Qt、MLT、FFmpeg、SDL 和 libsodium 的直接引用均为 `@executable_path/../Frameworks`，其余为系统框架。
+- 验证边界：无界面启动尝试被自动执行环境在窗口常驻前终止，不能据此判定启动失败；交互式首次启动仍应在本机 GUI 会话中验证。该包仍带 `NOT_FOR_DISTRIBUTION` 占位材料，不能发布。
