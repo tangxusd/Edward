@@ -18,6 +18,10 @@ add_executable(test_component_ir test_component_ir.cpp)
 target_link_libraries(test_component_ir PRIVATE edward_core Qt6::Core)
 add_test(NAME core.component_ir COMMAND test_component_ir)
 
+add_executable(test_component_conversion_report test_component_conversion_report.cpp)
+target_link_libraries(test_component_conversion_report PRIVATE edward_core)
+add_test(NAME core.component_conversion_report COMMAND test_component_conversion_report)
+
 add_executable(test_component_edit_command test_component_edit_command.cpp)
 target_link_libraries(test_component_edit_command PRIVATE edward_core)
 add_test(NAME core.component_edit_command COMMAND test_component_edit_command)

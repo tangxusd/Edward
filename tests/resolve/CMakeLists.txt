@@ -18,3 +18,7 @@ add_executable(test_subtitle_insertion
 )
 target_link_libraries(test_subtitle_insertion PRIVATE edward_resolve edward_core Qt6::Core Qt6::Network)
 add_test(NAME resolve.subtitle_insertion COMMAND test_subtitle_insertion)
+
+add_executable(test_fusion_converter test_fusion_converter.cpp)
+target_link_libraries(test_fusion_converter PRIVATE edward_resolve edward_core Qt6::Core Qt6::Network)
+add_test(NAME resolve.fusion_converter COMMAND test_fusion_converter)

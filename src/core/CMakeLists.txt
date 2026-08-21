@@ -3,6 +3,7 @@ add_library(edward_core STATIC
   src/timeline.cpp
   src/timeline_commands.cpp
   src/component_ir.cpp
+  src/component_conversion_report.cpp
   src/component_edit_command.cpp
   src/component_edit_command_parser.cpp
   src/project_identity.cpp

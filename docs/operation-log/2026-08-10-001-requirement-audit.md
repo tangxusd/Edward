@@ -3402,3 +3402,9 @@
 - 修改：工作台新增基于 Resolve 当前播放头的数值属性关键帧入口；先更新 Component IR，Resolve 写入失败时恢复本地快照；未连接或未插入组件时拒绝操作。
 - 测试：新增 `desktop.resolve_keyframe_edit`，覆盖未连接保护和本地草稿不被误改。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 55/55 通过。
+
+## 2026-08-21：0.4.0 Component IR 到 Fusion 转换报告 Task 6
+
+- 修改：新增标准 Component IR 子集到 Fusion payload 的转换器；支持文本、形状、图片/容器节点的通用节点输出与标准属性；不支持属性逐项写入转换报告，不静默丢弃；当 Fusion 不可用或转换不完整时保留透明视频回退标记。
+- 测试：新增 `core.component_conversion_report` 和 `resolve.fusion_converter`，覆盖报告 JSON 稳定性、标准节点转换、不支持 CSS 属性报告和 Fusion 能力缺失回退。
+- 验证：`cmake --build build --parallel 4` 成功；全量 CTest 57/57 通过。
