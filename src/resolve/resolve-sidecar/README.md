@@ -17,7 +17,7 @@ python3 src/resolve/resolve-sidecar/resolve_direct_sidecar.py
 ```
 
 输入 `{"operation":"health"}`、`{"operation":"capabilities"}` 或
-`{"operation":"timeline.snapshot"}`，每行返回一个 JSON 响应。当前只读操作不修改 Resolve 状态；字幕、关键帧和渲染写操作会在确认门和 C++ 适配器迁移完成后加入。
+`{"operation":"timeline.snapshot"}`，每行返回一个 JSON 响应。另有只读操作 `fusion.inspectCurrent` 用于读取当前视频项目的 Fusion 工具名。当前只读操作不修改 Resolve 状态；字幕、关键帧和渲染写操作会在确认门和 C++ 适配器迁移完成后加入。
 
 ```sh
 python3 src/resolve/resolve-sidecar/probe_resolve.py --json

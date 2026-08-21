@@ -141,6 +141,30 @@ def _insert_subtitle_as_text_plus(resolve: Any, params: dict[str, Any]) -> dict[
     return {"accepted": True, "componentId": str(item.GetUniqueId())}
 
 
+def _inspect_current_fusion(resolve: Any) -> dict[str, Any]:
+    _, _, timeline = _current_timeline(resolve)
+    item = timeline.GetCurrentVideoItem()
+    if item is None:
+        return {"available": False, "reason": "当前没有视频时间线项目"}
+    compositions: list[dict[str, Any]] = []
+    for index in range(1, int(item.GetFusionCompCount() or 0) + 1):
+        comp = item.GetFusionCompByIndex(index)
+        tools: list[dict[str, Any]] = []
+        try:
+            tool_list = comp.GetToolList() or {}
+            values = tool_list.values() if isinstance(tool_list, dict) else tool_list
+            for tool in values:
+                attrs = tool.GetAttrs() or {}
+                tools.append({
+                    "name": str(attrs.get("TOOLS_Name", "")),
+                    "type": str(attrs.get("TOOLS_RegID", "")),
+                })
+        except Exception:
+            pass
+        compositions.append({"index": index, "tools": tools})
+    return {"available": True, "compositions": compositions}
+
+
 def handle(request: dict[str, Any]) -> dict[str, Any]:
     operation = request.get("operation")
     if operation == "health":
@@ -156,6 +180,8 @@ def handle(request: dict[str, Any]) -> dict[str, Any]:
         return _insert_subtitle_as_text_plus(resolve, request.get("params") or {})
     if operation == "ui.openDeliver":
         return {"accepted": bool(resolve.OpenPage("deliver"))}
+    if operation == "fusion.inspectCurrent":
+        return _inspect_current_fusion(resolve)
     raise ValueError(f"不支持的只读操作: {operation}")
 
 
