@@ -3294,3 +3294,8 @@
 ## 2026-08-21 Edward.app 离屏启动验证
 
 - 验证：构建 `build/0.3-runtime/bin/Edward.app/Contents/MacOS/Edward` 后以 `QT_QPA_PLATFORM=offscreen` 启动 5 秒，进程正常初始化并由验证脚本终止，未出现启动崩溃或错误退出；仅有系统字体别名提示。
+
+## 2026-08-21 0.3.0 启动与全量回归复核
+
+- 核查：搜索项目 QML、桌面源码、插件和测试代码，未发现项目显式设置 `Sans Serif`；该提示来自 Qt/macOS 字体别名回填，不修改业务字体配置。
+- 验证：`cmake --build build/0.3-runtime --target edward_app -j2` 无需重新编译；`ctest --test-dir build/0.3-runtime --output-on-failure` 49/49 通过；离屏启动 5 秒后正常初始化并由脚本终止（退出码 143 为主动终止），无崩溃。
