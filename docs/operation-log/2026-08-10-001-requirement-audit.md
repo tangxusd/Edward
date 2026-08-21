@@ -3230,3 +3230,8 @@
 
 - 修改：macOS/Linux 继续使用 `getrusage`；Windows 改用 `GetProcessMemoryInfo`，并仅在 Windows 链接 `Psapi`，避免性能采集器因 POSIX 头文件导致跨平台构建失败。
 - 验证：本机重新配置并构建 `edward_benchmark`、`test_performance_collection`；全量 CTest 49/49 通过。
+
+## 2026-08-21 拖拽定位性能采集
+
+- 修改：采集器对每个夹具执行五次连续左、中、右帧拖拽模拟，记录实际 MLT 连续渲染的 `dragP95Ms`；断点恢复只有该字段齐全才跳过夹具。
+- 验证：将由 `performance.collection` 与全量 CTest 验证；部分报告不再把拖拽列为未采集项。

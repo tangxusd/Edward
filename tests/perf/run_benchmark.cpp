@@ -97,10 +97,12 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
   const edward::media::MltAdapter adapter;
   std::vector<double> firstFrames;
   std::vector<double> seeks;
+  std::vector<double> drags;
   std::vector<double> proxies;
   std::vector<double> exports;
   firstFrames.reserve(sampleCount);
   seeks.reserve(sampleCount);
+  drags.reserve(sampleCount);
   proxies.reserve(sampleCount);
   exports.reserve(sampleCount);
   for (int sample = 0; sample < sampleCount; ++sample) {
@@ -109,6 +111,18 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
     const auto frame = adapter.renderFrame(snapshot, 0);
     firstFrames.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
     if (!frame || frame->isNull()) return std::nullopt;
+  }
+  for (int sample = 0; sample < sampleCount; ++sample) {
+    const auto anchor = duration <= 1 ? 0 : duration * (sample + 1) / (sampleCount + 1);
+    const auto delta = std::max<edward::core::Frame>(1, duration / 120);
+    QElapsedTimer timer;
+    timer.start();
+    const auto left = adapter.renderFrame(snapshot, std::max<edward::core::Frame>(0, anchor - delta));
+    const auto center = adapter.renderFrame(snapshot, anchor);
+    const auto right = adapter.renderFrame(snapshot, std::min(duration - 1, anchor + delta));
+    drags.push_back(static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0);
+    if (!left || left->isNull() || !center || center->isNull() || !right || right->isNull())
+      return std::nullopt;
   }
   for (int sample = 0; sample < sampleCount; ++sample) {
     const auto frameIndex = duration <= 1 ? 0 : duration * (sample + 1) / (sampleCount + 1);
@@ -152,6 +166,7 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
                      {"importMedianMs", percentile(imports, 0.5)},
                      {"firstFrameMedianMs", percentile(firstFrames, 0.5)},
                      {"seekP95Ms", percentile(seeks, 0.95)},
+                     {"dragP95Ms", percentile(drags, 0.95)},
                      {"proxyMedianMs", percentile(proxies, 0.5)},
                      {"exportMedianFps", percentile(exports, 0.5)},
                      {"exportFirstFrameValid", true},
@@ -220,7 +235,8 @@ int main(int argc, char** argv) {
       const auto previous = samples.value(requiredId).toObject();
       if (resume && previous.value("sampleCount").toInt() == 5 &&
           previous.value("importMedianMs").isDouble() && previous.value("firstFrameMedianMs").isDouble() &&
-          previous.value("seekP95Ms").isDouble() && previous.value("proxyMedianMs").isDouble() &&
+          previous.value("seekP95Ms").isDouble() && previous.value("dragP95Ms").isDouble() &&
+          previous.value("proxyMedianMs").isDouble() &&
           previous.value("exportMedianFps").isDouble()) {
         continue;
       }
@@ -255,7 +271,7 @@ int main(int argc, char** argv) {
     if (failure.isEmpty()) {
       report.insert("samples", samples);
       report.insert("uncollectedRequiredMetrics", QJsonArray{
-          QStringLiteral("cold_start_median_ms"), QStringLiteral("drag_p95_ms"),
+          QStringLiteral("cold_start_median_ms"),
           QStringLiteral("gpu_memory_mb"),
           QStringLiteral("output_ssim")});
     }

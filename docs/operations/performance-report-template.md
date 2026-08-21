@@ -34,7 +34,7 @@
 ## 部分采集状态
 
 当报告 JSON 的 `status` 为 `metrics_collected_partial` 时，只能引用 `samples` 中实际存在的
-`importMedianMs`、`firstFrameMedianMs`、`seekP95Ms`、`proxyMedianMs` 和 `peakRssMb`。必须同时保留
+`importMedianMs`、`firstFrameMedianMs`、`seekP95Ms`、`dragP95Ms`、`proxyMedianMs` 和 `peakRssMb`。必须同时保留
 `uncollectedRequiredMetrics`，不得将空白项补成估算值，也不得据此做发布性能或竞品比较结论。
 导出样本还必须有 `exportMedianFps` 且 `exportFirstFrameValid=true`，否则不得计入报告。
 
