@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
     assert(sample.value("seekP95Ms").toDouble() >= 0.0);
     assert(sample.value("proxyMedianMs").toDouble() >= 0.0);
     assert(sample.value("exportMedianFps").toDouble() > 0.0);
+    assert(sample.value("exportFirstFrameValid").toBool());
   }
   const auto preserved = result.value("samples").toObject().value("1080p").toObject();
   report.close();

@@ -120,9 +120,10 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
                                                  edward::media::ExportQuality::High});
     const auto milliseconds = static_cast<double>(timer.nsecsElapsed()) / 1'000'000.0;
     const auto outputInfo = result ? edward::media::MediaProbe::probe(output) : std::nullopt;
+    const auto outputFrame = result ? adapter.renderSourceFrame(output, 0) : std::nullopt;
     std::filesystem::remove(output, cleanupError);
     if (!result || !outputInfo || outputInfo->width != info->width || outputInfo->height != info->height ||
-        milliseconds <= 0.0) return std::nullopt;
+        !outputFrame || outputFrame->isNull() || milliseconds <= 0.0) return std::nullopt;
     exports.push_back(static_cast<double>(result->frameCount) * 1000.0 / milliseconds);
   }
   return QJsonObject{{"sampleCount", sampleCount},
@@ -130,7 +131,8 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
                      {"firstFrameMedianMs", percentile(firstFrames, 0.5)},
                      {"seekP95Ms", percentile(seeks, 0.95)},
                      {"proxyMedianMs", percentile(proxies, 0.5)},
-                     {"exportMedianFps", percentile(exports, 0.5)}};
+                     {"exportMedianFps", percentile(exports, 0.5)},
+                     {"exportFirstFrameValid", true}};
 }
 }  // namespace
 

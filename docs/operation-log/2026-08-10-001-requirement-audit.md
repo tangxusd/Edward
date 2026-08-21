@@ -3215,3 +3215,8 @@
 
 - 实现：`edward_benchmark --collect --resume` 读取原子检查点；样本同时具备五次导入、首帧、seek、代理和导出字段时视为完整，跳过该夹具，继续未完成夹具。
 - 验证：`performance.collection` 模拟仅完成 1080p 的检查点，恢复后保留其原始样本并补齐 4K/VFR；测试通过。
+
+## 2026-08-21 导出样本质量门禁
+
+- 修改：每次 Edward `ExportJob` 导出样本除尺寸、时长和 FPS 外，必须再次经 `MltAdapter::renderSourceFrame` 解码首帧；新增 `exportFirstFrameValid=true`，解码失败的样本不会计入中位 FPS。
+- 验证：`performance.collection` 覆盖该字段并通过；全量回归前先完成小夹具导出与首帧复读检查。
