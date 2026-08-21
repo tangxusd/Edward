@@ -51,6 +51,18 @@ int main(int argc, char** argv) {
   assert(!runtime.previewProxyBusy());
   assert(runtime.previewProxyReady());
   assert(!runtime.previewFrame().isNull());
+  const auto cacheRoot = std::filesystem::path((storageRoot + QStringLiteral("/cache")).toStdString());
+  const auto hasCachedFrame = [&cacheRoot] {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(cacheRoot)) {
+      if (entry.is_regular_file() && entry.path().extension() == ".png") return true;
+    }
+    return false;
+  };
+  assert(hasCachedFrame());
+  assert(runtime.clearDerivedStorage(1));
+  assert(!hasCachedFrame());
+  assert(!runtime.previewFrame().isNull());
+  assert(hasCachedFrame());
   assert(runtime.setPreviewQuality(0));
   assert(!runtime.previewProxyReady());
   assert(runtime.importMedia(QString::fromLocal8Bit(argv[2])));

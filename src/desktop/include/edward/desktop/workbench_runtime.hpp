@@ -15,6 +15,7 @@
 #include "edward/media/mlt_adapter.hpp"
 #include "edward/media/audio_preview.hpp"
 #include "edward/media/preview_session.hpp"
+#include "edward/media/preview_frame_cache.hpp"
 #include "edward/media/render_graph.hpp"
 #include "edward/media/render_storage.hpp"
 #include "edward/plugins/installed_plugin.hpp"
@@ -265,6 +266,7 @@ class WorkbenchRuntime final : public QObject {
   edward::core::ProjectIdentity projectIdentity_ = edward::core::ProjectIdentity::create();
   edward::media::RenderStorageRoots previewStorageRoots_;
   edward::media::PreviewSession previewSession_;
+  mutable edward::media::PreviewFrameCache previewFrameCache_;
   QFutureWatcher<bool> previewProxyWatcher_;
   bool previewProxyBusy_ = false;
   edward::media::MltAdapter mltAdapter_;

@@ -3,6 +3,10 @@
 #include "edward/media/component_renderer.hpp"
 
 #include <QPainter>
+#include <QCryptographicHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <algorithm>
 #include <vector>
 
@@ -25,6 +29,29 @@ void RenderGraph::setComponentLayers(std::vector<ComponentLayer> layers) {
 
 void RenderGraph::setPluginFrame(std::optional<QImage> frame) {
   pluginFrame_ = std::move(frame);
+}
+
+QByteArray RenderGraph::cacheSignature() const {
+  QJsonObject state;
+  if (overlay_) state.insert(QStringLiteral("overlay"), overlay_->toJson());
+  QJsonArray layers;
+  for (const auto& layer : componentLayers_) {
+    layers.append(QJsonObject{{QStringLiteral("start"), layer.startFrame},
+                              {QStringLiteral("end"), layer.endFrame},
+                              {QStringLiteral("sourceIn"), layer.sourceIn},
+                              {QStringLiteral("component"), layer.component.toJson()}});
+  }
+  state.insert(QStringLiteral("layers"), layers);
+  if (pluginFrame_ && !pluginFrame_->isNull()) {
+    const auto normalized = pluginFrame_->convertToFormat(QImage::Format_RGBA8888);
+    state.insert(QStringLiteral("plugin"), QString::fromLatin1(
+        QCryptographicHash::hash(QByteArray(reinterpret_cast<const char*>(normalized.constBits()),
+                                              static_cast<qsizetype>(normalized.sizeInBytes())),
+                               QCryptographicHash::Sha256).toHex()));
+    state.insert(QStringLiteral("pluginWidth"), normalized.width());
+    state.insert(QStringLiteral("pluginHeight"), normalized.height());
+  }
+  return QJsonDocument(state).toJson(QJsonDocument::Compact);
 }
 
 std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapshot& snapshot,

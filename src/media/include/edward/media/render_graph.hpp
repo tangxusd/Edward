@@ -5,6 +5,7 @@
 #include "edward/media/mlt_adapter.hpp"
 
 #include <QImage>
+#include <QByteArray>
 
 #include <optional>
 #include <vector>
@@ -33,6 +34,7 @@ class RenderGraph {
   void setOverlay(std::optional<edward::core::ComponentIr> overlay);
   void setComponentLayers(std::vector<ComponentLayer> layers);
   void setPluginFrame(std::optional<QImage> frame);
+  [[nodiscard]] QByteArray cacheSignature() const;
   std::optional<RenderScene> build(const edward::core::TimelineSnapshot& snapshot,
                                    const RenderRequest& request) const;
 

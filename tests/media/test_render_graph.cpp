@@ -27,6 +27,8 @@ int main(int argc, char** argv) {
   const auto overlay = edward::core::ComponentIr::parse({{"version", "1"}, {"root", root}});
   assert(overlay);
   edward::media::RenderGraph graph(adapter, *overlay);
+  const auto initialCacheSignature = graph.cacheSignature();
+  assert(!initialCacheSignature.isEmpty());
   const auto scene = graph.build(timeline.snapshot(), {0});
   assert(scene.has_value());
   assert(scene->frame.width() == 16);
@@ -114,6 +116,7 @@ int main(int argc, char** argv) {
   pluginFrame.fill(Qt::transparent);
   pluginFrame.setPixelColor(0, 0, QColor(0, 255, 0, 255));
   graph.setPluginFrame(pluginFrame);
+  assert(graph.cacheSignature() != initialCacheSignature);
   const auto pluginScene = graph.build(timeline.snapshot(), {0});
   assert(pluginScene.has_value());
   assert(pluginScene->frame.pixelColor(0, 0).green() > pluginScene->frame.pixelColor(0, 0).red());

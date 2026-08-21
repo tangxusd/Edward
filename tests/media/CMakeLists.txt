@@ -76,6 +76,10 @@ add_executable(test_render_storage test_render_storage.cpp)
 target_link_libraries(test_render_storage PRIVATE edward_media)
 add_test(NAME media.render_storage COMMAND test_render_storage)
 
+add_executable(test_preview_frame_cache test_preview_frame_cache.cpp)
+target_link_libraries(test_preview_frame_cache PRIVATE edward_media)
+add_test(NAME media.preview_frame_cache COMMAND test_preview_frame_cache)
+
 add_executable(test_proxy_manager test_proxy_manager.cpp)
 target_link_libraries(test_proxy_manager PRIVATE edward_media)
 add_dependencies(test_proxy_manager media_fixture media_large_fixture)

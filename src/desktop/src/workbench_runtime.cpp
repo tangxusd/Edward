@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QCryptographicHash>
 #include <QUrl>
 #include <QDateTime>
 #include <QRegularExpression>
@@ -33,6 +34,43 @@ QString previewSettingsPath() {
   if (!overridePath.isEmpty()) return overridePath;
   return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) +
          QStringLiteral("/preview-storage.ini");
+}
+
+QByteArray previewCacheKey(const edward::core::TimelineSnapshot& snapshot,
+                           edward::core::Frame frame,
+                           int quality,
+                           const QByteArray& renderSignature) {
+  QJsonArray tracks;
+  for (const auto track : snapshot.videoTracks) tracks.append(track);
+  QJsonArray clips;
+  for (const auto& clip : snapshot.clips) {
+    QJsonObject entry{{QStringLiteral("id"), clip.id},
+                      {QStringLiteral("track"), clip.trackId},
+                      {QStringLiteral("source"), QString::fromStdString(clip.source.generic_string())},
+                      {QStringLiteral("sourceIn"), clip.sourceIn},
+                      {QStringLiteral("sourceOut"), clip.sourceOut},
+                      {QStringLiteral("timelineStart"), clip.timelineStart},
+                      {QStringLiteral("kind"), static_cast<int>(clip.kind)}};
+    if (clip.component) entry.insert(QStringLiteral("component"), clip.component->toJson());
+    clips.append(entry);
+  }
+  QJsonArray transitions;
+  for (const auto& transition : snapshot.transitions) {
+    transitions.append(QJsonObject{{QStringLiteral("type"), static_cast<int>(transition.type)},
+                                   {QStringLiteral("left"), transition.leftClipId},
+                                   {QStringLiteral("right"), transition.rightClipId},
+                                   {QStringLiteral("start"), transition.startFrame},
+                                   {QStringLiteral("duration"), transition.durationFrames}});
+  }
+  const QJsonObject key{{QStringLiteral("duration"), snapshot.durationFrames},
+                        {QStringLiteral("frame"), frame},
+                        {QStringLiteral("quality"), quality},
+                        {QStringLiteral("tracks"), tracks},
+                        {QStringLiteral("clips"), clips},
+                        {QStringLiteral("transitions"), transitions},
+                        {QStringLiteral("render"), QString::fromLatin1(renderSignature.toHex())}};
+  return QCryptographicHash::hash(QJsonDocument(key).toJson(QJsonDocument::Compact),
+                                  QCryptographicHash::Sha256);
 }
 
 edward::media::RenderStorageRoots defaultPreviewStorageRoots() {
@@ -158,6 +196,7 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
       previewStorageRoots_(defaultPreviewStorageRoots()),
       previewSession_(previewStorageRoots_, projectIdentity_),
+      previewFrameCache_(previewStorageRoots_, projectIdentity_),
       renderGraph_(mltAdapter_) {
   silentUploadRetryTimer_.setInterval(3 * 60 * 1000);
   connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
@@ -540,7 +579,15 @@ QImage WorkbenchRuntime::clipThumbnail(qlonglong id) const {
 }
 
 QImage WorkbenchRuntime::previewFrame() const {
-  const auto scene = renderGraph_.build(previewSnapshot(), {controller_.playheadFrame()});
+  const auto snapshot = previewSnapshot();
+  const auto frame = controller_.playheadFrame();
+  const auto key = previewCacheKey(snapshot, frame, previewQuality(), renderGraph_.cacheSignature());
+  if (const auto cached = previewFrameCache_.load(key)) return *cached;
+  const auto scene = renderGraph_.build(snapshot, {frame});
+  if (scene) {
+    const auto stored = previewFrameCache_.store(key, scene->frame);
+    Q_UNUSED(stored);
+  }
   return scene ? scene->frame : QImage{};
 }
 
@@ -618,6 +665,7 @@ bool WorkbenchRuntime::configurePreviewStorageRoots(const QString& proxyRoot, co
   if (error) return false;
   previewStorageRoots_ = roots;
   previewSession_ = edward::media::PreviewSession(previewStorageRoots_, projectIdentity_);
+  previewFrameCache_ = edward::media::PreviewFrameCache(previewStorageRoots_, projectIdentity_);
   QSettings settings(previewSettingsPath(), QSettings::IniFormat);
   settings.setValue(QStringLiteral("preview/proxyRoot"), proxyStorageRoot());
   settings.setValue(QStringLiteral("preview/cacheRoot"), cacheStorageRoot());
@@ -1841,6 +1889,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   if (!timeline_.restore(snapshot)) return false;
   projectIdentity_ = std::move(projectIdentity);
   previewSession_ = edward::media::PreviewSession(previewStorageRoots_, projectIdentity_);
+  previewFrameCache_ = edward::media::PreviewFrameCache(previewStorageRoots_, projectIdentity_);
   refreshClipWaveforms();
   refreshClipThumbnails();
   demoOverlayIr_ = std::move(component);

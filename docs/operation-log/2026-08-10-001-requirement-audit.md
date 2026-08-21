@@ -3183,3 +3183,10 @@
 - 验证：新增 `performance.vfr_fixture_generator` CTest，通过；以 `jiaju/VIDEO16.mp4` 生成 `build/performance/edward-vfr.mp4`，FFprobe 显示 `r_frame_rate=25/1`、`avg_frame_rate=450/29`，逐帧时间戳间隔不一致。
 - 夹具状态：基于 `jiaju/nainiu.mov`、`jiaju/68564-528689191.mp4` 与生成 VFR 文件创建 `build/performance/fixtures.json`；`edward_benchmark` 校验成功并输出 `fixtures_ready_not_collected`。这表示夹具齐全，尚未填写性能结论。
 - 边界：用户素材和生成 VFR 媒体均不进入 Git；该夹具用于性能采集，不是发行资源。
+
+## 2026-08-21 工作台预渲染帧缓存
+
+- 目的：让预览路径具备真实的磁盘帧缓存，降低反复定位同一帧时的解码与合成成本，并保持工程隔离与可统一清理。
+- 实现：新增 `PreviewFrameCache`，以“完整时间线快照、播放头、预览质量、渲染图叠加状态”的 SHA-256 键写入 `cacheRoot/<项目UUID>/`。PNG 采用 `QSaveFile` 原子提交；时间线、组件层、插件帧或预览质量任一变化都会形成新键，不会复用旧画面。
+- 验证：失败测试先确认接口缺失；随后 `media.preview_frame_cache` 验证命中、键失效、跨工程隔离和缓存统一清理。`desktop.workbench_plugins` 验证真实工作台预览会落盘，清理缓存后再次预览会重新生成。三项定向测试均通过。
+- 边界：当前缓存按键保留，依赖现有“清理缓存”入口释放空间；尚未新增自动容量淘汰策略，避免在未确认清理策略前删除用户可复用的预览结果。
