@@ -31,6 +31,10 @@ void RenderGraph::setPluginFrame(std::optional<QImage> frame) {
   pluginFrame_ = std::move(frame);
 }
 
+void RenderGraph::setPluginFrameProvider(std::function<std::optional<QImage>(edward::core::Frame)> provider) {
+  pluginFrameProvider_ = std::move(provider);
+}
+
 QByteArray RenderGraph::cacheSignature() const {
   QJsonObject state;
   if (overlay_) state.insert(QStringLiteral("overlay"), overlay_->toJson());
@@ -200,6 +204,14 @@ std::optional<RenderScene> RenderGraph::build(const edward::core::TimelineSnapsh
     QPainter painter(&*frame);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.drawImage(0, 0, *pluginFrame_);
+  }
+  if (pluginFrameProvider_) {
+    const auto pluginFrame = pluginFrameProvider_(request.frame);
+    if (pluginFrame && pluginFrame->size() == frame->size() && pluginFrame->hasAlphaChannel()) {
+      QPainter painter(&*frame);
+      painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+      painter.drawImage(0, 0, *pluginFrame);
+    }
   }
   for (const auto& transition : snapshot.transitions) {
     const auto endFrame = transition.startFrame + transition.durationFrames;

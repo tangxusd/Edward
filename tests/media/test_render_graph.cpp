@@ -129,6 +129,16 @@ int main(int argc, char** argv) {
   const auto unchanged = graph.build(timeline.snapshot(), {0});
   assert(unchanged.has_value());
   assert(unchanged->frame == baseline->frame);
+  graph.setPluginFrameProvider([](edward::core::Frame frame) {
+    QImage animatedPlugin(QSize(16, 16), QImage::Format_RGBA8888);
+    animatedPlugin.fill(Qt::transparent);
+    animatedPlugin.setPixelColor(frame == 0 ? 0 : 1, 0, QColor(0, 255, 0, 255));
+    return std::optional<QImage>(animatedPlugin);
+  });
+  const auto animatedPluginScene = graph.build(timeline.snapshot(), {1});
+  assert(animatedPluginScene);
+  assert(animatedPluginScene->frame.pixelColor(1, 0).green() > 150);
+  graph.setPluginFrameProvider({});
 
   edward::core::Timeline transitionTimeline(20);
   const auto transitionTrack = transitionTimeline.addVideoTrack();

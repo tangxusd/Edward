@@ -8,6 +8,7 @@
 #include <QByteArray>
 
 #include <optional>
+#include <functional>
 #include <vector>
 
 namespace edward::media {
@@ -34,6 +35,7 @@ class RenderGraph {
   void setOverlay(std::optional<edward::core::ComponentIr> overlay);
   void setComponentLayers(std::vector<ComponentLayer> layers);
   void setPluginFrame(std::optional<QImage> frame);
+  void setPluginFrameProvider(std::function<std::optional<QImage>(edward::core::Frame)> provider);
   [[nodiscard]] QByteArray cacheSignature() const;
   std::optional<RenderScene> build(const edward::core::TimelineSnapshot& snapshot,
                                    const RenderRequest& request) const;
@@ -43,6 +45,7 @@ class RenderGraph {
   std::optional<edward::core::ComponentIr> overlay_;
   std::vector<ComponentLayer> componentLayers_;
   std::optional<QImage> pluginFrame_;
+  std::function<std::optional<QImage>(edward::core::Frame)> pluginFrameProvider_;
 };
 
 }  // namespace edward::media
