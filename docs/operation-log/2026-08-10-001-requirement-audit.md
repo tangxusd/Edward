@@ -3029,3 +3029,9 @@
 
 - 目的：开发占位包不能因为存在 `Resources/mlt` 目录，就误切换到无效的包内 MLT 路径。
 - 修改：运行时只有在包内 MLT 模块目录包含真实 `.dylib` 且数据目录包含实际条目时，才启用包内路径；否则继续使用开发机系统回退。
+
+## 2026-08-21 开发占位输入构建目标
+
+- 目的：避免手动拼接 CMake 命令，统一生成开发包占位输入。
+- 修改：macOS 构建新增 `prepare_macos_development_inputs` 目标，输出到构建目录 `macos-development-inputs`。
+- 约束：该目标只生成带 `NOT_FOR_DISTRIBUTION` 标记的开发材料，不改变正式打包门禁。

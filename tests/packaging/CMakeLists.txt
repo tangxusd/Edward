@@ -18,3 +18,9 @@ add_test(NAME packaging.macos_package_gate
     -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
     -P ${CMAKE_CURRENT_SOURCE_DIR}/test_macos_package_gate.cmake)
 set_tests_properties(packaging.macos_package_gate PROPERTIES DEPENDS packaging.macos_app_structure)
+
+add_custom_target(prepare_macos_development_inputs
+  COMMAND ${CMAKE_COMMAND}
+    -DOUTPUT_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs
+    -P ${CMAKE_SOURCE_DIR}/packaging/macos/PrepareDevelopmentInputs.cmake
+  COMMENT "Generate development-only macOS package inputs")
