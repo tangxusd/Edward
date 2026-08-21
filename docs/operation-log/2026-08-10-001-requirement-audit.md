@@ -3053,3 +3053,14 @@
 - 目的：主程序依赖审计不足以发现被复制的框架或动态库仍指向开发机前缀。
 - 修改：新增 `audit_macos_development_bundle` 目标，逐一检查开发包 `Contents/Frameworks` 内的 Mach-O 文件，并在发现 `/opt/homebrew` 或 `/usr/local` 引用时失败。
 - 判定：审计会忽略每个动态库 `otool -L` 的首条“自身安装名”，只检查其实际加载的其余依赖；初查的 86 个 `.dylib` 未发现开发机前缀引用，后续由新目标重复验证。
+
+## 2026-08-21 真实 MLT 开发运行时输入
+
+- 目的：让开发包可验证包内 MLT 模块和数据路径，而不仅是占位目录与系统回退。
+- 新增：`PrepareDevelopmentMltRuntime.cmake` 与 `prepare_macos_development_mlt_runtime` 目标；必须显式配置 `EDWARD_MLT_MODULE_DIR`、`EDWARD_MLT_DATA_DIR`，并检查模块目录实际包含 `.dylib` 或 `.so`。
+- 约束：复制目标仅写入构建目录，仍是开发包输入；没有把 Homebrew 路径硬编码进源码或正式发行配置。
+
+## 2026-08-21 MLT 模块扩展名修复
+
+- 发现：当前 Homebrew MLT 7.40 模块为 `.so`，不是 `.dylib`。
+- 修改：应用包内 MLT 路径探测与开发输入校验同时接受 `.dylib`、`.so`；避免真实模块被误判为占位资源而回退。

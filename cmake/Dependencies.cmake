@@ -15,6 +15,8 @@ endif()
 
 set(EDWARD_MLT_MODULE_DIR "" CACHE PATH
   "Directory containing the MLT runtime modules")
+set(EDWARD_MLT_DATA_DIR "" CACHE PATH
+  "Directory containing the MLT runtime data")
 
 add_library(edward_media_runtime INTERFACE)
 target_link_libraries(edward_media_runtime INTERFACE
@@ -30,3 +32,4 @@ target_link_libraries(edward_media_runtime INTERFACE
 message(STATUS "Edward dependency: FFmpeg ${EDWARD_FFMPEG_VERSION}")
 message(STATUS "Edward dependency: MLT ${Mlt7_VERSION}")
 message(STATUS "Edward dependency: MLT modules ${EDWARD_MLT_MODULE_DIR}")
+message(STATUS "Edward dependency: MLT data ${EDWARD_MLT_DATA_DIR}")

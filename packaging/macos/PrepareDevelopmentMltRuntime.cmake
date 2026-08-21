@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.28)
+
+if(NOT DEFINED OUTPUT_DIR OR OUTPUT_DIR STREQUAL "")
+  message(FATAL_ERROR "OUTPUT_DIR is required")
+endif()
+if(NOT DEFINED MLT_MODULE_DIR OR NOT IS_DIRECTORY "${MLT_MODULE_DIR}")
+  message(FATAL_ERROR "MLT_MODULE_DIR must point to real MLT modules")
+endif()
+if(NOT DEFINED MLT_DATA_DIR OR NOT IS_DIRECTORY "${MLT_DATA_DIR}")
+  message(FATAL_ERROR "MLT_DATA_DIR must point to real MLT data")
+endif()
+
+file(GLOB module_files "${MLT_MODULE_DIR}/*.dylib" "${MLT_MODULE_DIR}/*.so")
+file(GLOB data_files "${MLT_DATA_DIR}/*")
+if(NOT module_files)
+  message(FATAL_ERROR "MLT_MODULE_DIR must contain MLT .dylib or .so modules")
+endif()
+if(NOT data_files)
+  message(FATAL_ERROR "MLT_DATA_DIR must contain MLT data")
+endif()
+
+file(MAKE_DIRECTORY "${OUTPUT_DIR}/mlt")
+file(REMOVE_RECURSE "${OUTPUT_DIR}/mlt/modules" "${OUTPUT_DIR}/mlt/data")
+file(COPY "${MLT_MODULE_DIR}/" DESTINATION "${OUTPUT_DIR}/mlt/modules")
+file(COPY "${MLT_DATA_DIR}/" DESTINATION "${OUTPUT_DIR}/mlt/data")
+
+message(STATUS "Copied real development MLT runtime inputs to ${OUTPUT_DIR}/mlt")

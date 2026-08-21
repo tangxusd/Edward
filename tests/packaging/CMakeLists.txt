@@ -25,6 +25,15 @@ add_custom_target(prepare_macos_development_inputs
     -P ${CMAKE_SOURCE_DIR}/packaging/macos/PrepareDevelopmentInputs.cmake
   COMMENT "Generate development-only macOS package inputs")
 
+add_custom_target(prepare_macos_development_mlt_runtime
+  COMMAND ${CMAKE_COMMAND}
+    -DOUTPUT_DIR=${CMAKE_BINARY_DIR}/macos-development-inputs
+    -DMLT_MODULE_DIR=${EDWARD_MLT_MODULE_DIR}
+    -DMLT_DATA_DIR=${EDWARD_MLT_DATA_DIR}
+    -P ${CMAKE_SOURCE_DIR}/packaging/macos/PrepareDevelopmentMltRuntime.cmake
+  DEPENDS prepare_macos_development_inputs
+  COMMENT "Copy real MLT runtime into development-only package inputs")
+
 add_custom_target(package_macos_development
   COMMAND ${CMAKE_COMMAND}
     -DAPP_BUNDLE=$<TARGET_BUNDLE_DIR:edward_app>

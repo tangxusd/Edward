@@ -25,7 +25,8 @@ bool ensureMltRuntime() {
       const auto resourcesDir = contentsDir.filePath(QStringLiteral("Resources/mlt"));
       const auto candidateModules = QDir(resourcesDir).filePath(QStringLiteral("modules"));
       const auto candidateData = QDir(resourcesDir).filePath(QStringLiteral("data"));
-      const auto moduleFiles = QDir(candidateModules).entryList({QStringLiteral("*.dylib")}, QDir::Files);
+      const auto moduleFiles = QDir(candidateModules).entryList(
+          {QStringLiteral("*.dylib"), QStringLiteral("*.so")}, QDir::Files);
       const auto dataFiles = QDir(candidateData).entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
       if (!moduleFiles.isEmpty() && !dataFiles.isEmpty()) {
         moduleDirectory = candidateModules;
