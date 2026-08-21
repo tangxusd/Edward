@@ -3414,3 +3414,8 @@
 - 修改：Resolve 适配器新增常用参数渲染启动、状态轮询、取消和 Deliver 页面入口；Workbench 保留 Edward 常用导出与 Resolve Studio 高级导出两条独立入口，未连接 Resolve 时不影响本地导出。
 - 测试：新增 `resolve.render` 和 `desktop.export_channels`，覆盖渲染参数校验、启动/完成/取消、失败状态和未连接保护。
 - 验证：`cmake --build build --parallel 4` 成功；全量 CTest 59/59 通过。
+
+## 2026-08-21：0.4.0 Resolve Studio 真实集成门 Task 8（可选测试）
+
+- 修改：新增 Resolve Studio 适配器协议文档和 `e2e.resolve_studio_subtitle`；测试仅在 `EDWARD_RESOLVE_E2E=1` 且配置 `EDWARD_RESOLVE_BRIDGE_URL` 时连接外部 Resolve，未启动时明确跳过。
+- 验证：未配置真实 Resolve 环境时，CTest 中该测试正常通过并跳过；尚未宣称真实 Resolve 插入/渲染已验证，待安装并启动 Studio 桥接后执行。

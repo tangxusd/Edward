@@ -9,3 +9,7 @@ target_link_libraries(test_real_media_import PRIVATE edward_desktop edward_media
 
 add_executable(test_real_media_export test_real_media_export.cpp)
 target_link_libraries(test_real_media_export PRIVATE edward_media)
+
+add_executable(test_resolve_studio_subtitle test_resolve_studio_subtitle.cpp)
+target_link_libraries(test_resolve_studio_subtitle PRIVATE edward_resolve edward_core Qt6::Core Qt6::Network)
+add_test(NAME e2e.resolve_studio_subtitle COMMAND test_resolve_studio_subtitle)
