@@ -3290,3 +3290,7 @@
 
 - 修改：`.gitignore` 增加根目录 `CMakeFiles/`、用户本地素材目录 `jiaju/` 和 `.superpowers/brainstorm/`，避免构建输出、测试素材和视觉草稿误进入提交。
 - 验证：文件保留在本机，`git status` 不再列出这些目录；未修改其他源文件。
+
+## 2026-08-21 Edward.app 离屏启动验证
+
+- 验证：构建 `build/0.3-runtime/bin/Edward.app/Contents/MacOS/Edward` 后以 `QT_QPA_PLATFORM=offscreen` 启动 5 秒，进程正常初始化并由验证脚本终止，未出现启动崩溃或错误退出；仅有系统字体别名提示。
