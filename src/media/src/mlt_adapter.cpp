@@ -37,6 +37,10 @@ bool ensureMltRuntime() {
       qputenv("MLT_DATA", dataDirectory.toUtf8());
       qputenv("MLT_PRESETS_PATH", QDir(dataDirectory).filePath(QStringLiteral("presets")).toUtf8());
     }
+    // Limit libavformat producer contexts retained by MLT. A large 4K seek/export
+    // workload otherwise keeps several multi-gigabyte decoder caches alive.
+    if (qEnvironmentVariableIsEmpty("MLT_AVFORMAT_PRODUCER_CACHE"))
+      qputenv("MLT_AVFORMAT_PRODUCER_CACHE", QByteArrayLiteral("1"));
     const auto repository = moduleDirectory.isEmpty() ? QByteArray{} : moduleDirectory.toUtf8();
     ready = mlt_factory_init(repository.isEmpty() ? nullptr : repository.constData()) != nullptr;
   });
