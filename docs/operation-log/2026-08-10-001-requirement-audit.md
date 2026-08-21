@@ -3437,3 +3437,9 @@
 - 修改：新增 `src/resolve/resolve-sidecar/probe_resolve.py` 只读启动探针和使用说明；按官方 `DaVinciResolveScript` 直连、上游认证 Bridge 配置的顺序报告模式。
 - 验证：探针在当前已启动 Resolve 的环境输出 `mode=unavailable`，明确显示官方模块未发现且 `bridge.json` 不存在；Python 编译检查和 `git diff --check` 通过。探针没有修改 Resolve 或用户目录，也没有输出凭证。
 - 结论：仅启动 Resolve 不能证明 Edward 已连接；下一阶段仍需用户启用 Studio External scripting 或启动上游 `resolve_bridge`，再执行真实集成门。
+
+## 2026-08-21：首次安装探测与 Windows 路径
+
+- 修改：探针补充 Resolve 安装包、官方脚本 API 和 `fusionscript` 动态库路径；macOS、Windows、Linux 使用上游已验证的路径规则，Windows 使用 `PROGRAMDATA`/`PROGRAMFILES`，不依赖 macOS 环境变量。
+- 设计：首次安装保存探测结果；每次启动只做轻量 health 检查，连接失败、Resolve 升级或配置变更时才重新完整探测。
+- 验证：本机探针仍明确报告模块和 Bridge 均不可用；Python 编译、JSON 输出和现有 CTest 保持通过。

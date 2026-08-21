@@ -6,6 +6,8 @@
 python3 src/resolve/resolve-sidecar/probe_resolve.py --json
 ```
 
+安装向导应在首次运行时保存该 JSON 中的 `installation`、`direct` 和 `mode` 字段；后续启动只做 Bridge `health` 或官方脚本的轻量连接检查，失败后再重新运行探针。Windows 路径会按 `PROGRAMDATA`、`PROGRAMFILES` 和 `APPDATA` 规则自动解析，不要求用户手动填写 macOS 路径。
+
 连接优先级固定为：
 
 1. `DaVinciResolveScript` 官方 Studio 外部脚本模块；

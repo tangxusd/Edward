@@ -24,7 +24,33 @@ def _bridge_config() -> Path:
     return Path(override).expanduser() if override else Path.home() / ".config/davinci-resolve-mcp/bridge.json"
 
 
+def _resolve_paths() -> tuple[Path, Path, Path]:
+    if sys.platform == "darwin":
+        return (
+            Path("/Applications/DaVinci Resolve/DaVinci Resolve.app"),
+            Path("/Library/Application Support/Blackmagic Design/DaVinci Resolve/Developer/Scripting"),
+            Path("/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fusionscript.so"),
+        )
+    if sys.platform == "win32":
+        program_data = Path(os.environ.get("PROGRAMDATA", "C:/ProgramData"))
+        program_files = Path(os.environ.get("PROGRAMFILES", "C:/Program Files"))
+        return (
+            program_files / "Blackmagic Design/DaVinci Resolve/Resolve.exe",
+            program_data / "Blackmagic Design/DaVinci Resolve/Support/Developer/Scripting",
+            program_files / "Blackmagic Design/DaVinci Resolve/fusionscript.dll",
+        )
+    return (
+        Path("/opt/resolve/bin/resolve"),
+        Path("/opt/resolve/Developer/Scripting"),
+        Path("/opt/resolve/libs/Fusion/fusionscript.so"),
+    )
+
+
 def probe() -> dict[str, object]:
+    app_path, api_path, lib_path = _resolve_paths()
+    app_path = Path(os.environ.get("RESOLVE_APP", app_path)).expanduser()
+    api_path = Path(os.environ.get("RESOLVE_SCRIPT_API", api_path)).expanduser()
+    lib_path = Path(os.environ.get("RESOLVE_SCRIPT_LIB", lib_path)).expanduser()
     module_dir = Path(os.environ.get("RESOLVE_SCRIPT_MODULES", _default_module_dir())).expanduser()
     module_available = importlib.util.find_spec("DaVinciResolveScript") is not None
     if not module_available and module_dir.is_dir():
@@ -62,6 +88,11 @@ def probe() -> dict[str, object]:
     result: dict[str, object] = {
         "mode": mode,
         "resolve_app_running_assumed": True,
+        "installation": {
+            "app_path": str(app_path), "app_found": app_path.exists(),
+            "api_path": str(api_path), "api_found": api_path.is_dir(),
+            "library_path": str(lib_path), "library_found": lib_path.is_file(),
+        },
         "direct": {"module_available": module_available, "modules_path": str(module_dir)},
         "bridge": {"config_path": str(config_path), "configured": bridge_configured, "valid": bridge_valid},
         "next_step": next_step,
