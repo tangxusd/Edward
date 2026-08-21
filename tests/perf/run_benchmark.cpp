@@ -20,7 +20,12 @@
 #include <array>
 #include <algorithm>
 #include <vector>
+#if defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
+#else
 #include <sys/resource.h>
+#endif
 
 namespace {
 QJsonArray requiredMetrics() {
@@ -56,12 +61,18 @@ double percentile(std::vector<double> samples, double ratio) {
 }
 
 double peakRssMb() {
+#if defined(_WIN32)
+  PROCESS_MEMORY_COUNTERS counters{};
+  if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters))) return 0.0;
+  return static_cast<double>(counters.PeakWorkingSetSize) / (1024.0 * 1024.0);
+#else
   rusage usage{};
   if (getrusage(RUSAGE_SELF, &usage) != 0) return 0.0;
 #if defined(__APPLE__)
   return static_cast<double>(usage.ru_maxrss) / (1024.0 * 1024.0);
 #else
   return static_cast<double>(usage.ru_maxrss) / 1024.0;
+#endif
 #endif
 }
 

@@ -3225,3 +3225,8 @@
 
 - 修改：使用进程级 `getrusage` 记录每个夹具完整采集期间的峰值 RSS，macOS 按字节换算，其他平台按系统单位换算；GPU 显存仍保留为未采集项。
 - 验证：`performance.collection` 要求每组结果包含正数 `peakRssMb`，与 `performance.metrics` 一同通过。
+
+## 2026-08-21 性能峰值 RSS 跨平台实现
+
+- 修改：macOS/Linux 继续使用 `getrusage`；Windows 改用 `GetProcessMemoryInfo`，并仅在 Windows 链接 `Psapi`，避免性能采集器因 POSIX 头文件导致跨平台构建失败。
+- 验证：本机重新配置并构建 `edward_benchmark`、`test_performance_collection`；全量 CTest 49/49 通过。
