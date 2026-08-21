@@ -2956,3 +2956,9 @@
 - 涉及外部状态：本机构建链接 Qt 6.11.1、FFmpeg 8.1.2、MLT 7.40.0、libsodium 1.0.22 与 SDL3 3.4.14；FFmpeg 命令确认启用了 `--enable-gpl --enable-version3`。
 - 结果：新增 `docs/operations/macos-bundle-input-audit.md`，明确 `.app` 仍缺动态运行时、MLT 模块、许可证/通知、依赖路径检查、签名及 DMG。
 - 验证：用 Qt、FFmpeg、pkg-config 与 Homebrew 元数据命令复核版本和构建事实；本记录不替代实际许可证文件。
+
+## 2026-08-21 `.app` QML 自包含启动路径
+
+- 目的：避免生成的 `.app` 运行时依赖源码目录，保证移动应用包后仍能加载工作台界面。
+- 修改：将工作台、预览、时间线、设计令牌和 QML 模块清单编译进 `edward_app` 的 Qt 资源；入口改为加载 `qrc:/qml/Workbench.qml`，不再读取 `EDWARD_SOURCE_DIR`。
+- 验证：视觉路由测试覆盖资源路径；`.app` 结构检查通过；离屏启动 3 秒无 QML 错误；完整 CTest 44/44 通过，`git diff --check` 通过。动态 Qt/FFmpeg/MLT 依赖仍未封装进 bundle。

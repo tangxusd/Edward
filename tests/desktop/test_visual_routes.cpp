@@ -13,6 +13,7 @@ int main() {
   const auto workbench = read(root / "Workbench.qml");
   const auto timeline = read(root / "EdwardTimeline.qml");
   const auto preview = read(root / "EdwardPreview.qml");
+  const auto main = read(std::filesystem::path(EDWARD_DESKTOP_SOURCE_DIR) / "main.cpp");
   assert(workbench.find("EdwardPreview") != std::string::npos);
   assert(workbench.find("EdwardTimeline") != std::string::npos);
   assert(workbench.find("generateComponentDraft") != std::string::npos);
@@ -63,6 +64,7 @@ int main() {
   assert(workbench.find("successTimer") != std::string::npos);
   assert(workbench.find("从文件导入组件") != std::string::npos);
   assert(workbench.find("ApplicationWindow") != std::string::npos);
+  assert(main.find("qrc:/qml/Workbench.qml") != std::string::npos);
   assert(workbench.find("title: workbenchRuntime.projectWindowTitle") != std::string::npos);
   assert(workbench.find("videoTrackCount: workbenchRuntime.videoTrackCount") != std::string::npos);
   assert(workbench.find("selectedVideoTrackIndex: workbenchRuntime.selectedVideoTrackIndex") != std::string::npos);
