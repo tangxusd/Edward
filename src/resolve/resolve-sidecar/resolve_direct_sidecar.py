@@ -15,6 +15,9 @@ from resolve_direct_health import health
 
 
 def _resolve():
+    status = health()
+    if not status.get("connected"):
+        raise RuntimeError(str(status.get("error", "Resolve Studio 未连接")))
     import DaVinciResolveScript  # type: ignore
 
     value = DaVinciResolveScript.scriptapp("Resolve")
@@ -48,12 +51,27 @@ def _timeline_snapshot(resolve: Any) -> dict[str, Any]:
                 "video": is_video,
                 "audio": not is_video,
             })
+    start_frame = int(timeline.GetStartFrame() or 0)
+    fps_text = str(project.GetSetting("timelineFrameRate") or "24")
+    try:
+        fps = float(fps_text)
+    except ValueError:
+        fps = 24.0
+    timecode = str(timeline.GetCurrentTimecode() or "")
+    parts = timecode.split(":")
+    playhead_frame = start_frame
+    if len(parts) == 4 and all(part.isdigit() for part in parts):
+        hours, minutes, seconds, frames = (int(part) for part in parts)
+        playhead_frame = int(round((hours * 3600 + minutes * 60 + seconds) * fps + frames))
     return {
         "projectName": str(project.GetName()),
         "timelineName": str(timeline.GetName()),
-        "playheadTimecode": str(timeline.GetCurrentTimecode() or ""),
-        "timelineStartFrame": int(timeline.GetStartFrame() or 0),
+        "playheadTimecode": timecode,
+        "playheadFrame": playhead_frame,
+        "timelineStartFrame": start_frame,
         "timelineEndFrame": int(timeline.GetEndFrame() or 0),
+        "fpsNumerator": int(round(fps)),
+        "fpsDenominator": 1,
         "tracks": tracks,
     }
 
