@@ -3210,3 +3210,8 @@
 - 核查：重启后无残留 `edward_benchmark`/FFmpeg 进程；诊断报告中的 `SIGABRT` 属于此前测试断言进程，不是 kernel panic 证据。无法仅凭现有日志断定重启原因，但该任务确实存在较高 CPU、内存带宽与磁盘压力。
 - 修改：性能报告改用 `QSaveFile` 原子写入；真实采集每完成一个夹具就落盘 `status=collecting`、`completedFixture` 与当前样本，避免重启丢失已完成夹具。采集标准仍保持每组五次，不以缩小分辨率替代。
 - 验证：`performance.metrics` 与 `performance.collection` 通过；本轮不再次启动高负载 4K 五次导出，待后续在可控时段恢复。
+
+## 2026-08-21 性能采集断点恢复
+
+- 实现：`edward_benchmark --collect --resume` 读取原子检查点；样本同时具备五次导入、首帧、seek、代理和导出字段时视为完整，跳过该夹具，继续未完成夹具。
+- 验证：`performance.collection` 模拟仅完成 1080p 的检查点，恢复后保留其原始样本并补齐 4K/VFR；测试通过。

@@ -2,6 +2,9 @@
 
 `edward_benchmark --manifest <fixtures.json> --report <report.json>` 在开始任何采集前校验本清单。它要求以下三个 ID 均存在：`1080p`、`4k`、`vfr`。
 
+真实采集使用 `--collect`；若采集被重启或系统中断，可使用同一份清单和报告执行
+`--collect --resume`。程序会跳过检查点中已经完整完成的夹具，只继续剩余夹具。
+
 ```json
 {
   "fixtures": [

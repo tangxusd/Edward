@@ -136,8 +136,10 @@ std::optional<QJsonObject> collectFixture(const QString& path, const std::filesy
 
 int main(int argc, char** argv) {
   QCoreApplication application(argc, argv);
-  const auto collect = argc == 6 && QString::fromLocal8Bit(argv[5]) == QStringLiteral("--collect");
-  if ((argc != 5 && !collect) || QString::fromLocal8Bit(argv[1]) != QStringLiteral("--manifest") ||
+  const auto collect = argc >= 6 && QString::fromLocal8Bit(argv[5]) == QStringLiteral("--collect");
+  const auto resume = collect && argc == 7 && QString::fromLocal8Bit(argv[6]) == QStringLiteral("--resume");
+  if ((argc != 5 && !collect) || (argc == 7 && !resume) ||
+      QString::fromLocal8Bit(argv[1]) != QStringLiteral("--manifest") ||
       QString::fromLocal8Bit(argv[3]) != QStringLiteral("--report")) return 64;
   const auto manifestPath = QString::fromLocal8Bit(argv[2]);
   const auto reportPath = QString::fromLocal8Bit(argv[4]);
@@ -180,8 +182,23 @@ int main(int argc, char** argv) {
   }
   if (failure.isEmpty() && collect) {
     QJsonObject samples;
+    if (resume) {
+      QFile checkpoint(reportPath);
+      if (checkpoint.open(QIODevice::ReadOnly)) {
+        const auto previous = QJsonDocument::fromJson(checkpoint.readAll()).object();
+        if (previous.value("status").toString() == QStringLiteral("collecting") &&
+            previous.value("samples").isObject()) samples = previous.value("samples").toObject();
+      }
+    }
     const auto fixtures = manifest.object().value("fixtures").toArray();
     for (const auto& requiredId : requiredIds) {
+      const auto previous = samples.value(requiredId).toObject();
+      if (resume && previous.value("sampleCount").toInt() == 5 &&
+          previous.value("importMedianMs").isDouble() && previous.value("firstFrameMedianMs").isDouble() &&
+          previous.value("seekP95Ms").isDouble() && previous.value("proxyMedianMs").isDouble() &&
+          previous.value("exportMedianFps").isDouble()) {
+        continue;
+      }
       const auto found = std::find_if(fixtures.begin(), fixtures.end(), [&requiredId](const QJsonValue& value) {
         return value.toObject().value("id").toString() == requiredId;
       });

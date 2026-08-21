@@ -58,5 +58,20 @@ int main(int argc, char** argv) {
     assert(sample.value("proxyMedianMs").toDouble() >= 0.0);
     assert(sample.value("exportMedianFps").toDouble() > 0.0);
   }
+  const auto preserved = result.value("samples").toObject().value("1080p").toObject();
+  report.close();
+  QJsonObject checkpoint{{"status", "collecting"}, {"samples", QJsonObject{{"1080p", preserved}}}};
+  assert(report.open(QIODevice::WriteOnly | QIODevice::Truncate));
+  report.write(QJsonDocument(checkpoint).toJson(QJsonDocument::Compact));
+  report.close();
+  benchmark.start(QString::fromLocal8Bit(argv[1]), {QStringLiteral("--manifest"), manifestPath,
+                                                     QStringLiteral("--report"), reportPath,
+                                                     QStringLiteral("--collect"), QStringLiteral("--resume")});
+  assert(benchmark.waitForFinished(15000));
+  assert(benchmark.exitCode() == 0);
+  assert(report.open(QIODevice::ReadOnly));
+  const auto resumed = QJsonDocument::fromJson(report.readAll()).object();
+  assert(resumed.value("samples").toObject().value("1080p").toObject() == preserved);
+  assert(resumed.value("samples").toObject().size() == 3);
   return 0;
 }
