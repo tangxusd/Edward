@@ -10,6 +10,7 @@
 #include <QVariantMap>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
 #include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -1642,7 +1643,19 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
 
 bool WorkbenchRuntime::connectResolve() {
   const auto bridgeUrl = qEnvironmentVariable("EDWARD_RESOLVE_BRIDGE_URL");
-  if (bridgeUrl.isEmpty()) {
+  const auto directMode = qEnvironmentVariable("EDWARD_RESOLVE_MODE").trimmed().toLower() == QStringLiteral("direct");
+  QString error;
+  bool connected = false;
+  if (directMode) {
+    const auto python = qEnvironmentVariable("EDWARD_RESOLVE_PYTHON", "python3");
+    auto sidecar = qEnvironmentVariable("EDWARD_RESOLVE_SIDECAR");
+    if (sidecar.isEmpty()) {
+      sidecar = QDir::current().filePath(QStringLiteral("src/resolve/resolve-sidecar/resolve_direct_sidecar.py"));
+    }
+    connected = resolveConnection_.connectToDirectSidecar(python, sidecar, &error);
+  } else if (!bridgeUrl.isEmpty()) {
+    connected = resolveConnection_.connectToBridge(QUrl(bridgeUrl), &error);
+  } else {
     resolveConnected_ = false;
     resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
     emit resolveStateChanged();
@@ -1650,8 +1663,7 @@ bool WorkbenchRuntime::connectResolve() {
     return false;
   }
 
-  QString error;
-  if (!resolveConnection_.connectToBridge(QUrl(bridgeUrl), &error) || !resolveAdapter_.attach(&error)) {
+  if (!connected || !resolveAdapter_.attach(&error)) {
     resolveConnected_ = false;
     resolveStatus_ = error.isEmpty() ? QStringLiteral("Resolve Studio 连接失败")
                                     : QStringLiteral("Resolve Studio 连接失败：%1").arg(error);

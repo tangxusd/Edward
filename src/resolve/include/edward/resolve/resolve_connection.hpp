@@ -18,6 +18,9 @@ class ResolveConnection final {
   ResolveConnection& operator=(const ResolveConnection&) = delete;
 
   bool connectToBridge(const QUrl& url, QString* error = nullptr);
+  bool connectToDirectSidecar(const QString& pythonExecutable,
+                              const QString& sidecarPath,
+                              QString* error = nullptr);
   void disconnect();
   [[nodiscard]] ConnectionState state() const;
   [[nodiscard]] std::optional<QJsonObject> call(const QString& method,
