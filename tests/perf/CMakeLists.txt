@@ -19,7 +19,7 @@ set(EDWARD_4K_MEMORY_FIXTURE ${CMAKE_CURRENT_BINARY_DIR}/4k-memory-fixture.mp4)
 find_program(EDWARD_FFMPEG_EXECUTABLE ffmpeg REQUIRED)
 add_custom_command(OUTPUT ${EDWARD_4K_MEMORY_FIXTURE}
   COMMAND ${EDWARD_FFMPEG_EXECUTABLE} -hide_banner -loglevel error
-    -f lavfi -i color=c=black:s=3840x2160:r=25:d=1
+    -f lavfi -i testsrc2=s=3840x2160:r=25:d=1
     -c:v libx264 -pix_fmt yuv420p -y ${EDWARD_4K_MEMORY_FIXTURE}
   VERBATIM)
 add_custom_target(performance_4k_memory_fixture DEPENDS ${EDWARD_4K_MEMORY_FIXTURE})
