@@ -3047,3 +3047,9 @@
 - 目的：验证开发 `.app` 不再直接依赖开发机 Homebrew 前缀。
 - 结果：`macos-development-package/Edward.app` 依赖审计状态为 `ready_for_dependency_packaging`；Qt、MLT、FFmpeg、SDL 和 libsodium 的直接引用均为 `@executable_path/../Frameworks`，其余为系统框架。
 - 验证边界：无界面启动尝试被自动执行环境在窗口常驻前终止，不能据此判定启动失败；交互式首次启动仍应在本机 GUI 会话中验证。该包仍带 `NOT_FOR_DISTRIBUTION` 占位材料，不能发布。
+
+## 2026-08-21 macOS bundle 全树依赖审计
+
+- 目的：主程序依赖审计不足以发现被复制的框架或动态库仍指向开发机前缀。
+- 修改：新增 `audit_macos_development_bundle` 目标，逐一检查开发包 `Contents/Frameworks` 内的 Mach-O 文件，并在发现 `/opt/homebrew` 或 `/usr/local` 引用时失败。
+- 判定：审计会忽略每个动态库 `otool -L` 的首条“自身安装名”，只检查其实际加载的其余依赖；初查的 86 个 `.dylib` 未发现开发机前缀引用，后续由新目标重复验证。

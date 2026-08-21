@@ -41,3 +41,11 @@ add_custom_target(package_macos_development
     -P ${CMAKE_SOURCE_DIR}/packaging/macos/Package.cmake
   DEPENDS edward_app prepare_macos_development_inputs
   COMMENT "Package development-only macOS app (not for distribution)")
+
+add_custom_target(audit_macos_development_bundle
+  COMMAND ${CMAKE_COMMAND}
+    -DBUNDLE_DIR=${CMAKE_BINARY_DIR}/macos-development-package/Edward.app
+    -DREPORT_PATH=${CMAKE_BINARY_DIR}/macos-development-package/bundle-tree-dependency-audit.json
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/audit_macos_bundle_tree_dependencies.cmake
+  DEPENDS package_macos_development
+  COMMENT "Audit every bundled macOS dynamic library")
