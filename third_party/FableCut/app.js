@@ -611,7 +611,7 @@ function mediaTimeAt(c, t) {
 let toastTimer = null;
 function toast(msg) {
   if (!els.toast) return;
-  els.toast.textContent = msg;
+  els.toast.textContent = window.fablecutI18n?.t?.(msg) || msg;
   els.toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => els.toast.classList.remove("show"), 3200);
