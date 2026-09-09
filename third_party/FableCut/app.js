@@ -868,6 +868,24 @@ function syncExportFrameSel() {
     html += `<option value="custom" selected>Custom · ${ef.w}×${ef.h}</option>`;
   els.exportFrameSel.innerHTML = html;
 }
+function initMonitorSelects() {
+  document.querySelectorAll(".monitor select.head-select").forEach((select) => {
+    let wrap = select.parentElement?.querySelector(`.monitor-select-custom[data-for="${select.id}"]`);
+    if (!wrap) {
+      wrap = document.createElement("span"); wrap.className = "monitor-select-custom"; wrap.dataset.for = select.id;
+      const button = document.createElement("button"); button.type = "button"; button.className = "monitor-select-button";
+      const menu = document.createElement("div"); menu.className = "monitor-select-menu"; menu.hidden = true;
+      wrap.append(button, menu); select.hidden = true; select.parentNode.insertBefore(wrap, select);
+      button.addEventListener("click", (e) => { e.stopPropagation(); document.querySelectorAll(".monitor-select-menu").forEach((m) => { if (m !== menu) m.hidden = true; }); menu.hidden = !menu.hidden; });
+      document.addEventListener("pointerdown", (e) => { if (!wrap.contains(e.target)) menu.hidden = true; });
+      select.addEventListener("change", () => { button.textContent = select.options[select.selectedIndex]?.textContent || ""; });
+    }
+    const button = wrap.querySelector(".monitor-select-button"), menu = wrap.querySelector(".monitor-select-menu");
+    button.textContent = select.options[select.selectedIndex]?.textContent || "";
+    menu.innerHTML = "";
+    [...select.options].forEach((option) => { const item = document.createElement("button"); item.type = "button"; item.textContent = option.textContent; item.addEventListener("click", () => { select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); menu.hidden = true; }); menu.append(item); });
+  });
+}
 function applyProject(data) {
   const wa = normalizeWorkArea(data.inPoint, data.outPoint);
   Object.assign(project, {
@@ -927,6 +945,7 @@ function applyProject(data) {
   syncAspectSel();
   syncFpsSel();
   syncExportFrameSel();
+  initMonitorSelects();
   updateExportFrameOverlay();
   els.btnExportFrame?.classList.toggle("on", state.exportFrameView && !!getExportFrame());
   pruneSelection(); // keep the selection across external reloads where possible
@@ -3576,6 +3595,19 @@ function renderInspector(lite) {
     </div>`;
   }
   els.inspector.innerHTML = html;
+  const palette = ["#ffffff","#000000","#5bd3d8","#081326","#7d46b8","#ffab6b","#ffd1d1","#ff8585","#ff3030","#ff0808","#bd1d1d","#ffdcc8","#ffad87","#ff8548","#ff8517","#ff5d00","#b44b37","#fff4c2","#fff27a","#ffd400","#ffbd17","#ff9f00","#ad7930","#ffd8e8","#ffa7c3","#ff5a97","#ff2181","#ff00d9","#922050","#d9d8ff","#b1b3ff","#8a72ec","#7a4cff","#40369b","#add9f3","#88baf0","#3c93df","#2379ed","#2828ff"];
+  els.inspector.querySelectorAll('input[type="color"][data-k]').forEach((input) => {
+    const wrap = document.createElement("span"); wrap.className = "color-control";
+    const swatch = document.createElement("button"); swatch.type = "button"; swatch.className = "color-swatch";
+    const pop = document.createElement("div"); pop.className = "color-popover"; pop.hidden = true;
+    pop.innerHTML = `<div class="color-tabs"><span class="color-tab on">纯色</span><span class="color-tab">渐变</span><span class="color-tab">纹理</span></div><div class="color-field"></div><div class="color-hue"></div><div class="color-inputs"><button type="button">Hex</button><input class="color-hex" value=""><input class="color-alpha" value="100%"></div><div class="color-palette">${palette.map((c) => `<button type="button" class="color-chip" data-color="${c}" style="background:${c}"></button>`).join("")}</div>`;
+    const sync = () => { swatch.style.background = input.value || "#ffffff"; pop.querySelector(".color-hex").value = (input.value || "#ffffff").replace(/^#/, "").toUpperCase(); };
+    swatch.addEventListener("click", (e) => { e.stopPropagation(); document.querySelectorAll(".color-popover").forEach((x) => { if (x !== pop) x.hidden = true; }); pop.hidden = !pop.hidden; });
+    pop.querySelectorAll("[data-color]").forEach((chip) => chip.addEventListener("click", () => { input.value = chip.dataset.color; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); }));
+    pop.querySelector(".color-hex").addEventListener("change", (e) => { const v = e.target.value.trim().replace(/^#/, ""); if (/^[0-9a-f]{6}$/i.test(v)) { input.value = `#${v}`; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); } });
+    input.parentNode.insertBefore(wrap, input); wrap.append(input, swatch, pop); sync();
+  });
+  els.inspector.querySelectorAll('input[type="range"]').forEach((input) => { const update = () => { const min = +input.min || 0, max = +input.max || 100; input.style.setProperty("--range-progress", `${((+input.value - min) / (max - min)) * 100}%`); }; input.addEventListener("input", update); update(); });
   els.inspector.querySelectorAll("select[data-k]").forEach((select) => {
     const wrap = document.createElement("span");
     wrap.className = "insp-select-custom";
