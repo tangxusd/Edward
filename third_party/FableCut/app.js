@@ -6212,6 +6212,11 @@ async function openExportSetup() {
 }
 function startChosenExport() {
   persistExportWcOpts();
+  const directComponentClips = project.clips.filter((c) => c.kind === "component");
+  if (directComponentClips.length && !window.fablecutDirectComponents?.captureExportFrame) {
+    alert("当前项目包含直接浏览器组件，但导出捕获通道尚未就绪。为避免导出缺少组件图层，已阻止导出。");
+    return;
+  }
   const useFast = els.engineFast.checked && !els.engineFast.disabled;
   const useSecond = els.engineRealtime.checked && !els.engineRealtime.disabled;
   if (!useFast && !useSecond) {

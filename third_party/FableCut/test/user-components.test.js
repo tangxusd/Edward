@@ -20,6 +20,8 @@ test("component clips are inserted on the centered video track and exposed in th
   assert.match(html, /id="btnComponent"/);
   assert.match(app, /data-k="title"/);
   assert.match(app, /data-k="color"/);
+  assert.match(app, /directComponentClips/);
+  assert.match(app, /阻止导出/);
 });
 
 test("component service paths stay inside the component root", () => {
