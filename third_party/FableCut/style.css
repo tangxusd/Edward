@@ -53,6 +53,18 @@ body {
 .app > .timeline-panel { position: relative; z-index: 10; }
 .app > .timeline-panel .clip { z-index: 2; pointer-events: auto; }
 .app > .inspector .inspector-body { min-height: 0; }
+.app > .upper > .inspector { display: flex; flex-direction: column; overflow: hidden; }
+.inspector-ai { display: flex; flex-direction: column; flex: 0 0 46%; min-height: 150px; border-top: 1px solid var(--border); background: #151515; }
+.inspector.no-selection .inspector-body { flex: 0 0 auto; }
+.inspector.no-selection .inspector-ai { flex: 1 1 auto; }
+.inspector-ai-head { flex: none; padding: 8px 10px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); }
+.inspector-ai-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.inspector-ai-msg { max-width: 92%; padding: 6px 8px; border-radius: 5px; line-height: 1.4; }
+.inspector-ai-msg.ai { align-self: flex-start; background: #242424; color: var(--text); }
+.inspector-ai-msg.user { align-self: flex-end; background: #3a2414; color: var(--text); }
+.inspector-ai-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+.inspector-ai-form textarea { flex: 1; min-width: 0; resize: none; background: #202020; border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 6px; font: inherit; }
+.inspector-ai-form button { align-self: flex-end; }
 
 .topbar {
   flex: 0 0 46px;

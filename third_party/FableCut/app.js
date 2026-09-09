@@ -3409,6 +3409,7 @@ function pruneSelection() {
 const selectedClips = () => project.clips.filter((c) => state.selIds.has(c.id));
 function renderInspector(lite) {
   const c = getClip(state.selId);
+  document.querySelector(".inspector")?.classList.toggle("no-selection", !c);
   if (!c) {
     els.inspector.innerHTML = `<div class="inspector-empty">Select a clip to edit its<br>transform, effects &amp; audio.</div>`;
     renderKfGraphsPanel();
@@ -7731,6 +7732,13 @@ function initPanelSplit() {
 /* ── Boot ── */
 loadSettings();
 initPanelSplit();
+document.querySelector("#inspectorAiForm")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = document.querySelector("#inspectorAiInput"), text = input?.value.trim();
+  if (!text) return;
+  const box = document.querySelector("#inspectorAiMessages"), msg = document.createElement("div");
+  msg.className = "inspector-ai-msg user"; msg.textContent = text; box.appendChild(msg); input.value = ""; box.scrollTop = box.scrollHeight;
+});
 buildTrackDOM();
 rebuildClips();
 renderBin();
