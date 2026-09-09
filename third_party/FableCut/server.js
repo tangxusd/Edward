@@ -37,6 +37,11 @@ const {
   APP_DIR, DATA_DIR, MEDIA_DIR, EXPORTS_DIR, ANALYSIS_DIR, LIBRARY_DIR,
   PROJECT_FILE, LIBRARY_SUBDIRS, COMPONENTS_DIR, ensureDirs,
 } = require("./paths");
+// macOS metadata files (for example .DS_Store and ._image.svg) are never user assets.
+function isVisibleResourceName(name) {
+  const base = path.basename(String(name || ""));
+  return !!base && !base.startsWith(".");
+}
 
 /* Static app files are served from the install dir; everything the user creates
    lives under DATA_DIR. The two are the same unless FABLECUT_DATA_DIR is set. */
@@ -416,6 +421,7 @@ const server = http.createServer(async (req, res) => {
   if (p === "/api/media" && req.method === "GET") {
     try {
       const files = fs.readdirSync(MEDIA_DIR)
+        .filter(isVisibleResourceName)
         .filter((f) => fs.statSync(path.join(MEDIA_DIR, f)).isFile())
         .map((f) => ({ name: f, src: "/media/" + encodeURIComponent(f), size: fs.statSync(path.join(MEDIA_DIR, f)).size }));
       sendJSON(res, 200, files);
@@ -432,6 +438,7 @@ const server = http.createServer(async (req, res) => {
       const out = [];
       const walk = (d, rel) => {
         for (const f of fs.readdirSync(d)) {
+          if (!isVisibleResourceName(f)) continue;
           const full = path.join(d, f), r = rel ? rel + "/" + f : f;
           const st = fs.statSync(full);
           if (st.isDirectory()) walk(full, r);
@@ -452,6 +459,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const components = [];
       for (const name of fs.readdirSync(COMPONENTS_DIR)) {
+        if (!isVisibleResourceName(name)) continue;
         const dir = path.join(COMPONENTS_DIR, name);
         if (!fs.statSync(dir).isDirectory()) continue;
         const file = path.join(dir, "manifest.json");

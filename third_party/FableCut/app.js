@@ -1534,7 +1534,7 @@ function toggleSfxPreview(f, btn) {
 function renderLibrary() {
   const dir = state.binTab;
   if (dir === "project") return;
-  const files = runtime.library[dir] || [];
+  const files = (runtime.library[dir] || []).filter((f) => !String(f.name || "").startsWith("."));
   els.libList.innerHTML = "";
   if (!files.length) {
     els.libList.innerHTML = `<div class="bin-empty">
@@ -6862,6 +6862,12 @@ function finishExport(keep) {
 }
 
 /* ═══════════════════════════ WIRING ═══════════════════════════ */
+const languageSel = $("languageSel");
+if (languageSel && window.fablecutI18n) {
+  languageSel.value = window.fablecutI18n.getLanguage();
+  languageSel.addEventListener("change", () => window.fablecutI18n.setLanguage(languageSel.value));
+  window.addEventListener("fablecut-language-change", (e) => { languageSel.value = e.detail; });
+}
 els.fileInput.addEventListener("change", () => { importFiles(els.fileInput.files); els.fileInput.value = ""; });
 $("btnImportUrl")?.addEventListener("click", openImportUrl);
 $("btnCancelImportUrl")?.addEventListener("click", closeImportUrl);
