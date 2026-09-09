@@ -913,11 +913,7 @@ textarea {
   color: #b9baff;
   background: #7b6cff33;
 }
-.insp-row label.kf-graph-toggle.has-kf::after {
-  content: " ◆";
-  font-size: 8px;
-  opacity: .7;
-}
+.insp-row label.kf-graph-toggle.has-kf::after { content: none; }
 /* ── Per-track VU (RMS / LUFS / Peak) ── */
 .vu-meter {
   position: absolute;

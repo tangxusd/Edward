@@ -61,7 +61,7 @@ const DEFAULT_PROPS = {
   shake: 0, shakeSpeed: 8,                     // handheld/impact camera shake (px)
   rgbSplit: 0,                                 // chromatic aberration (px)
   grain: 0,                                    // film grain (%)
-  text: "Title", fontSize: 72, color: "#ffffff", color2: "", font: "Segoe UI",
+  text: "标题", fontSize: 72, color: "#ffffff", color2: "", font: "Segoe UI",
   bold: true, italic: false, weight: 0, align: "center",
   letterSpacing: 0, lineHeight: 1.2, uppercase: false, textShadow: 12,
   glow: 0, glowColor: "",                      // neon glow (glowColor defaults to fill)
