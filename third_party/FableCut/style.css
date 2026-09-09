@@ -1438,12 +1438,12 @@ input[type=range]::-webkit-slider-thumb {
 }
 
 .kf-btn {
-  background: #141414;
-  border: 1px solid #3a3a3a;
+  background: transparent;
+  border: 0;
   color: var(--dim);
-  width: 20px;
-  height: 20px;
-  border-radius: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 0;
   font-size: 9px;
   padding: 0;
   font-size: 0;
@@ -1454,9 +1454,9 @@ input[type=range]::-webkit-slider-thumb {
 .kf-btn::before {
   content: "";
   display: block;
-  width: 4px;
-  height: 4px;
-  margin: 2px auto;
+  width: 10px;
+  height: 10px;
+  margin: 1px auto;
   background: currentColor;
   transform: rotate(45deg);
 }
@@ -1466,12 +1466,10 @@ input[type=range]::-webkit-slider-thumb {
 
 .kf-btn:hover {
   color: #fff;
-  border-color: #4a4a56;
 }
 
 .kf-btn.has {
   color: var(--accent);
-  border-color: #ff6e0088;
 }
 
 /* Resolve-style color popover. */
