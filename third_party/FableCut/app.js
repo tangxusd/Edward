@@ -3595,13 +3595,13 @@ function renderInspector(lite) {
     </div>`;
   }
   els.inspector.innerHTML = html;
-  const palette = ["#ffffff","#000000","#5bd3d8","#081326","#7d46b8","#ffab6b","#ffd1d1","#ff8585","#ff3030","#ff0808","#bd1d1d","#ffdcc8","#ffad87","#ff8548","#ff8517","#ff5d00","#b44b37","#fff4c2","#fff27a","#ffd400","#ffbd17","#ff9f00","#ad7930","#ffd8e8","#ffa7c3","#ff5a97","#ff2181","#ff00d9","#922050","#d9d8ff","#b1b3ff","#8a72ec","#7a4cff","#40369b","#add9f3","#88baf0","#3c93df","#2379ed","#2828ff"];
+    const palette = ["#ffffff","#000000","#5bd3d8","#081326","#7d46b8","#ffab6b","#ffd1d1","#ff8585","#ff3030","#ff0808","#bd1d1d","#ffdcc8","#ffad87","#ff8548","#ff8517","#ff5d00","#b44b37","#fff4c2","#fff27a","#ffd400","#ffbd17","#ff9f00","#ad7930","#ffd8e8","#ffa7c3","#ff5a97","#ff2181","#ff00d9","#922050","#d9d8ff","#b1b3ff","#8a72ec","#7a4cff","#40369b","#add9f3","#88baf0","#3c93df","#2379ed","#2828ff","#32ed4d","#00f05a","#149447","#e9e9c8","#c5d33d","#8da01c","#5e861a","#4d793b","#3c5941","#d9d1d1","#aaa29d","#887d72","#6d6259","#514b44","#efd5d1","#d77c73","#b34f5b","#f2bf91","#d99471","#bd8051","#efdda8","#efc957","#c9b66a","#b8c184","#8ba07e","#537362","#70aaa9","#07988f","#2b817a","#8bc3d0","#6db7bd","#227f9d","#a9c0d2","#708fb7","#4a5f7d","#c9baca","#aa99ab","#86556f"];
   els.inspector.querySelectorAll('input[type="color"][data-k]').forEach((input) => {
     const wrap = document.createElement("span"); wrap.className = "color-control";
     const swatch = document.createElement("button"); swatch.type = "button"; swatch.className = "color-swatch";
     const pop = document.createElement("div"); pop.className = "color-popover"; pop.hidden = true;
     pop.innerHTML = `<div class="color-field"></div><div class="color-hue"></div><div class="color-inputs"><button type="button">Hex</button><input class="color-hex" value=""><input class="color-alpha" value="100%"></div><div class="color-palette">${palette.map((c) => `<button type="button" class="color-chip" data-color="${c}" style="background:${c}"></button>`).join("")}</div>`;
-    let picked = false, original = input.value;
+    let picked = false, original = input.value, hue = 0;
     const sync = () => { swatch.style.background = input.value || "#ffffff"; pop.querySelector(".color-hex").value = (input.value || "#ffffff").replace(/^#/, "").toUpperCase(); };
     swatch.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -3610,15 +3610,16 @@ function renderInspector(lite) {
       if (!pop.hidden) {
         original = input.value; picked = false;
         const r = swatch.getBoundingClientRect();
-        pop.style.left = `${Math.max(6, Math.min(window.innerWidth - 266, r.right - 260))}px`;
-        pop.style.top = `${Math.min(window.innerHeight - 360, r.bottom + 6)}px`;
+        pop.style.left = `${Math.max(6, Math.min(window.innerWidth - 188, r.right - 182))}px`;
+        pop.style.top = `${Math.min(window.innerHeight - 235, r.bottom + 6)}px`;
       }
     });
     const choose = (color) => { input.value = color; picked = true; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); };
     const hslHex = (h, s, l) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12; const a = s * Math.min(l, 1 - l); const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return `#${[f(0), f(8), f(4)].map((v) => Math.round(255 * v).toString(16).padStart(2, "0")).join("")}`; };
     pop.querySelectorAll("[data-color]").forEach((chip) => chip.addEventListener("click", () => choose(chip.dataset.color)));
-    pop.querySelector(".color-field").addEventListener("pointerdown", (e) => { const r = e.currentTarget.getBoundingClientRect(); const sat = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); const light = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height)); choose(hslHex(0, sat * 100, light * 50)); });
-    pop.querySelector(".color-hue").addEventListener("pointerdown", (e) => { const r = e.currentTarget.getBoundingClientRect(); const hue = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 360); choose(hslHex(hue, 100, 50)); });
+    const field = pop.querySelector(".color-field");
+    field.addEventListener("pointerdown", (e) => { const r = field.getBoundingClientRect(); const sat = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); const light = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height)); choose(hslHex(hue, sat * 100, light * 50)); });
+    pop.querySelector(".color-hue").addEventListener("pointerdown", (e) => { const r = e.currentTarget.getBoundingClientRect(); hue = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 360); field.style.background = `linear-gradient(90deg,#fff0,${hslHex(hue,100,50)}), linear-gradient(0deg,#000,#0000)`; });
     pop.querySelector(".color-hex").addEventListener("change", (e) => { const v = e.target.value.trim().replace(/^#/, ""); if (/^[0-9a-f]{6}$/i.test(v)) { input.value = `#${v}`; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); } });
     input.parentNode.insertBefore(wrap, input); wrap.append(input, swatch, pop); sync();
     document.addEventListener("pointerdown", (e) => { if (pop.hidden || wrap.contains(e.target)) return; if (!picked) { input.value = original; sync(); } pop.hidden = true; }, true);
