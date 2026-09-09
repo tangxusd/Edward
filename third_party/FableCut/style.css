@@ -1355,6 +1355,13 @@ textarea {
   padding: 3px 5px;
   font: inherit;
 }
+.insp-select-custom { position: relative; flex: 1; min-width: 0; }
+.insp-select-custom .insp-select-button { width: 100%; height: 24px; text-align: left; padding: 3px 22px 3px 7px; color: var(--text); background: #141414; border: 1px solid #303030; border-radius: 3px; font: inherit; position: relative; }
+.insp-select-custom .insp-select-button::after { content: "▾"; position: absolute; right: 7px; color: var(--dim); }
+.insp-select-menu { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 2px); max-height: 220px; overflow-y: auto; padding: 2px; background: #1a1a1a; border: 1px solid #444; box-shadow: 0 8px 20px #000b; }
+.insp-select-menu[hidden] { display: none; }
+.insp-select-menu button { display: block; width: 100%; padding: 5px 7px; border: 0; background: transparent; color: var(--text); text-align: left; font: inherit; }
+.insp-select-menu button:hover { background: #33200f; color: var(--accent); }
 
 .insp-row input[type=color] {
   width: 40px;
@@ -1382,6 +1389,24 @@ input[type=range] {
   height: 14px;
   cursor: pointer;
 }
+/* Resolve-style inspector controls: compact track, small orange thumb. */
+.insp-row input[type=range] {
+  height: 12px;
+  min-width: 80px;
+}
+.insp-row input[type=range]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0 50%, #4a4a4a 50%);
+  border-radius: 0;
+}
+.insp-row input[type=range]::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 0;
+}
 input[type=range]::-webkit-slider-runnable-track {
   height: 3px;
   background: #3a3a3a;
@@ -1407,12 +1432,26 @@ input[type=range]::-webkit-slider-thumb {
   background: #141414;
   border: 1px solid #3a3a3a;
   color: var(--dim);
+  width: 22px;
+  height: 22px;
   border-radius: 2px;
   font-size: 9px;
-  padding: 2px 4px;
+  padding: 0;
+  font-size: 0;
+  position: relative;
   cursor: pointer;
   line-height: 1;
 }
+.kf-btn::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: 6px auto;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+.kf-btn.has::before { background: var(--accent); }
 
 .kf-btn:hover {
   color: #fff;

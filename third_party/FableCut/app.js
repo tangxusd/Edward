@@ -3576,6 +3576,21 @@ function renderInspector(lite) {
     </div>`;
   }
   els.inspector.innerHTML = html;
+  els.inspector.querySelectorAll("select[data-k]").forEach((select) => {
+    const wrap = document.createElement("span");
+    wrap.className = "insp-select-custom";
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "insp-select-button";
+    const menu = document.createElement("div"); menu.className = "insp-select-menu";
+    const sync = () => { button.textContent = select.options[select.selectedIndex]?.textContent || ""; };
+    [...select.options].forEach((option) => {
+      const item = document.createElement("button"); item.type = "button"; item.textContent = option.textContent;
+      item.addEventListener("click", () => { select.value = option.value; select.dispatchEvent(new Event("input", { bubbles: true })); select.dispatchEvent(new Event("change", { bubbles: true })); sync(); menu.hidden = true; });
+      menu.appendChild(item);
+    });
+    button.addEventListener("click", () => { menu.hidden = !menu.hidden; });
+    select.hidden = true; select.parentNode.insertBefore(wrap, select); wrap.append(button, menu); sync(); menu.hidden = true;
+  });
   els.inspector.querySelectorAll("label.insp-reset[data-reset]").forEach((lab) => {
     const reset = () => {
       const keys = lab.dataset.reset.split(",").map((s) => s.trim()).filter(Boolean);
