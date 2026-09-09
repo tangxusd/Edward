@@ -3421,9 +3421,7 @@ function renderInspector(lite) {
       canReset ? "insp-reset" : "",
     ].filter(Boolean).join(" ");
     const attrs = (isGraph ? ` data-kfgraph="${k}"` : "") + (canReset ? ` data-reset="${list.join(",")}"` : "");
-    const title = isGraph && canReset ? "Click: keyframe graph · Ctrl-click: reset"
-      : isGraph ? "Show / hide keyframe graph" : "Ctrl-click to reset";
-    return `<label class="${cls}"${attrs} title="${title}">${label}</label>`;
+    return `<label class="${cls}"${attrs}>${label}</label>`;
   };
   const row = (label, inner, k = "", reset) =>
     `<div class="insp-row">${propLabel(label, k, reset)}${inner}${k ? kfCtl(k) : ""}</div>`;
@@ -3515,7 +3513,7 @@ function renderInspector(lite) {
   }
   const tsel = (label, key, tr) => {
     const active = state.transFocus === (key === "transIn" ? "in" : "out");
-    return `<div class="insp-row${active ? " trans-active" : ""}"><label class="insp-reset" data-reset="${key}" title="Ctrl-click to reset">${label}</label>
+    return `<div class="insp-row${active ? " trans-active" : ""}"><label class="insp-reset" data-reset="${key}">${label}</label>
       <span class="insp-ctrls"><select data-k="${key}">${TRANSITIONS.map((x) => `<option ${x === (tr?.type || "none") ? "selected" : ""}>${x}</option>`).join("")}</select>
        <input type="number" class="insp-dur" data-k="${key}Dur" step="0.1" min="0.1" value="${tr?.duration ?? 1}"></span></div>`;
   };
@@ -3579,9 +3577,7 @@ function renderInspector(lite) {
   }
   els.inspector.innerHTML = html;
   els.inspector.querySelectorAll("label.insp-reset[data-reset]").forEach((lab) => {
-    lab.addEventListener("click", (e) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      e.preventDefault();
+    const reset = () => {
       const keys = lab.dataset.reset.split(",").map((s) => s.trim()).filter(Boolean);
       if (!keys.length) return;
       pushUndo();
@@ -3603,6 +3599,11 @@ function renderInspector(lite) {
       }
       scheduleSave();
       renderInspector();
+    };
+    lab.addEventListener("dblclick", (e) => { e.preventDefault(); reset(); });
+    lab.addEventListener("click", (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      reset();
     });
   });
   els.inspector.querySelectorAll("[data-k]").forEach((input) => {
