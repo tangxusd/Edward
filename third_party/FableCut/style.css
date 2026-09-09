@@ -1332,6 +1332,7 @@ textarea {
 .insp-ctrls .btn {
   flex: none;
 }
+.insp-row .btn.tiny { min-height: 18px; height: 18px; padding: 1px 6px; font-size: 10px; line-height: 16px; }
 
 .insp-row input[type=range] {
   flex: 1;

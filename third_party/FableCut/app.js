@@ -3423,7 +3423,7 @@ function renderInspector(lite) {
   const p = c.props;
   const kfCount = (k) => (c.keyframes && c.keyframes[k] ? c.keyframes[k].length : 0);
   const kfCtl = (k) => !ANIMATABLE.includes(k) ? "" :
-    `<span class="kf-ctl"><button class="kf-btn${kfCount(k) ? " has" : ""}" data-kf="${k}" title="Set keyframe at playhead">${kfCount(k) || ""}</button>${kfCount(k) ? `<button class="kf-btn kf-clear" data-kfclear="${k}" title="Clear keyframes">×</button>` : ""}</span>`;
+    `<span class="kf-ctl"><button class="kf-btn${kfCount(k) ? " has" : ""}" data-kf="${k}" title="切换关键帧">${kfCount(k) || ""}</button></span>`;
   /* Label carries two affordances that key off different click modifiers:
      plain click toggles the keyframe graph (animatable props), Ctrl/Cmd-click
      resets the prop(s). `reset` overrides which keys reset; defaults to k. */
@@ -3712,8 +3712,8 @@ function renderInspector(lite) {
       const a = btn.dataset.action;
       pushUndo();
       if (a === "keyoff") c.props.chromaKey = "";
-      else if (a === "grad-off") c.props.color2 = "";
-      else if (a === "glow-auto") c.props.glowColor = "";
+      else if (a === "grad-off") c.props.color2 = c.props.color2 ? "" : c.props.color;
+      else if (a === "glow-auto") c.props.glowColor = c.props.glowColor ? "" : c.props.color;
       else if (a === "gfont-load") {
         const name = els.inspector.querySelector("[data-gfont]")?.value.trim();
         if (!name) return;
@@ -3752,18 +3752,10 @@ function renderInspector(lite) {
       if (!c.keyframes) c.keyframes = {};
       const arr = (c.keyframes[k] = c.keyframes[k] || []);
       const lt = +clamp(state.time - c.start, 0, c.duration).toFixed(3);
-      const near = arr.find((kf) => Math.abs(kf.t - lt) < 0.5 / projectFps());
-      if (near) near.v = v; else arr.push({ t: lt, v });
+      const nearIndex = arr.findIndex((kf) => Math.abs(kf.t - lt) < 0.5 / projectFps());
+      if (nearIndex >= 0) arr.splice(nearIndex, 1); else arr.push({ t: lt, v });
       arr.sort((a, b) => a.t - b.t);
-      state.dirtyTimeline = true;
-      scheduleSave(); renderInspector();
-    });
-  });
-  els.inspector.querySelectorAll("[data-kfclear]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      pushUndo();
-      delete c.keyframes[btn.dataset.kfclear];
-      if (!Object.keys(c.keyframes).length) c.keyframes = undefined;
+      if (!arr.length) { delete c.keyframes[k]; if (!Object.keys(c.keyframes).length) c.keyframes = undefined; }
       state.dirtyTimeline = true;
       scheduleSave(); renderInspector();
     });
