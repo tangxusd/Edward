@@ -6,7 +6,6 @@ export function mount({ host, props, time }) {
   function update(next = props, t = time || 0) {
     node.style.transform = `translateX(${Number(next.x) || 0}px)`;
     node.querySelectorAll(".card-6__layer").forEach((layer) => {
-      layer.style.color = next.color || "#fff";
       if (next.title) layer.textContent = next.title;
     });
     node.dataset.time = String(t);
