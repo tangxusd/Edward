@@ -1,5 +1,6 @@
 /* Direct browser component runtime. User modules render real DOM/SVG; no IR. */
 const overlay = document.getElementById("userComponentOverlay");
+const mounted = new Map();
 
 async function loadManifest(id = "demo") {
   const r = await fetch(`/api/components/${encodeURIComponent(id)}`);
@@ -25,8 +26,21 @@ async function mountDirectComponent(id, props = {}) {
   const instance = await mod.mount({ host, props, time: 0 });
   return { manifest, host, instance };
 }
+async function syncDirectComponents(clips, time) {
+  if (!overlay) return;
+  const active = new Set();
+  for (const clip of clips || []) {
+    if (clip.kind !== "component") continue;
+    active.add(clip.id);
+    let entry = mounted.get(clip.id);
+    if (!entry) { entry = await mountDirectComponent(clip.componentId || "demo", clip.props || {}); if (entry) mounted.set(clip.id, entry); }
+    if (entry) { entry.host.style.display = "flex"; entry.instance.update?.(clip.props || {}, time - clip.start); }
+  }
+  for (const [id, entry] of mounted) { if (!active.has(id)) { entry.instance.destroy?.(); entry.host.remove(); mounted.delete(id); } }
+}
+function updateDirectComponent(clip, time = 0) {
+  const entry = mounted.get(clip?.id);
+  if (entry) entry.instance.update?.(clip.props || {}, time - (clip.start || 0));
+}
 
-window.fablecutDirectComponents = { mountDirectComponent };
-mountDirectComponent("demo").catch((error) => {
-  console.error("[FableCut] direct component failed", error);
-});
+window.fablecutDirectComponents = { mountDirectComponent, syncDirectComponents, updateDirectComponent };
