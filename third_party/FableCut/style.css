@@ -1396,6 +1396,9 @@ input[type=range] {
 .insp-row input[type=range] {
   height: 12px;
   min-width: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
 }
 .insp-row input[type=range]::-webkit-slider-runnable-track {
   height: 3px;
@@ -1409,6 +1412,8 @@ input[type=range] {
   border-radius: 50%;
   background: var(--accent);
   border: 0;
+  -webkit-appearance: none;
+  appearance: none;
 }
 input[type=range]::-webkit-slider-runnable-track {
   height: 3px;
@@ -1435,8 +1440,8 @@ input[type=range]::-webkit-slider-thumb {
   background: #141414;
   border: 1px solid #3a3a3a;
   color: var(--dim);
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   border-radius: 2px;
   font-size: 9px;
   padding: 0;
@@ -1448,9 +1453,9 @@ input[type=range]::-webkit-slider-thumb {
 .kf-btn::before {
   content: "";
   display: block;
-  width: 9px;
-  height: 9px;
-  margin: 7px auto;
+  width: 8px;
+  height: 8px;
+  margin: 5px auto;
   background: currentColor;
   transform: rotate(45deg);
 }

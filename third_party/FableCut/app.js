@@ -3600,21 +3600,28 @@ function renderInspector(lite) {
     const wrap = document.createElement("span"); wrap.className = "color-control";
     const swatch = document.createElement("button"); swatch.type = "button"; swatch.className = "color-swatch";
     const pop = document.createElement("div"); pop.className = "color-popover"; pop.hidden = true;
-    pop.innerHTML = `<div class="color-tabs"><span class="color-tab on">纯色</span><span class="color-tab">渐变</span><span class="color-tab">纹理</span></div><div class="color-field"></div><div class="color-hue"></div><div class="color-inputs"><button type="button">Hex</button><input class="color-hex" value=""><input class="color-alpha" value="100%"></div><div class="color-palette">${palette.map((c) => `<button type="button" class="color-chip" data-color="${c}" style="background:${c}"></button>`).join("")}</div>`;
+    pop.innerHTML = `<div class="color-field"></div><div class="color-hue"></div><div class="color-inputs"><button type="button">Hex</button><input class="color-hex" value=""><input class="color-alpha" value="100%"></div><div class="color-palette">${palette.map((c) => `<button type="button" class="color-chip" data-color="${c}" style="background:${c}"></button>`).join("")}</div>`;
+    let picked = false, original = input.value;
     const sync = () => { swatch.style.background = input.value || "#ffffff"; pop.querySelector(".color-hex").value = (input.value || "#ffffff").replace(/^#/, "").toUpperCase(); };
     swatch.addEventListener("click", (e) => {
       e.stopPropagation();
       document.querySelectorAll(".color-popover").forEach((x) => { if (x !== pop) x.hidden = true; });
       pop.hidden = !pop.hidden;
       if (!pop.hidden) {
+        original = input.value; picked = false;
         const r = swatch.getBoundingClientRect();
         pop.style.left = `${Math.max(6, Math.min(window.innerWidth - 266, r.right - 260))}px`;
         pop.style.top = `${Math.min(window.innerHeight - 360, r.bottom + 6)}px`;
       }
     });
-    pop.querySelectorAll("[data-color]").forEach((chip) => chip.addEventListener("click", () => { input.value = chip.dataset.color; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); }));
+    const choose = (color) => { input.value = color; picked = true; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); };
+    const hslHex = (h, s, l) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12; const a = s * Math.min(l, 1 - l); const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return `#${[f(0), f(8), f(4)].map((v) => Math.round(255 * v).toString(16).padStart(2, "0")).join("")}`; };
+    pop.querySelectorAll("[data-color]").forEach((chip) => chip.addEventListener("click", () => choose(chip.dataset.color)));
+    pop.querySelector(".color-field").addEventListener("pointerdown", (e) => { const r = e.currentTarget.getBoundingClientRect(); const sat = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); const light = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height)); choose(hslHex(0, sat * 100, light * 50)); });
+    pop.querySelector(".color-hue").addEventListener("pointerdown", (e) => { const r = e.currentTarget.getBoundingClientRect(); const hue = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 360); choose(hslHex(hue, 100, 50)); });
     pop.querySelector(".color-hex").addEventListener("change", (e) => { const v = e.target.value.trim().replace(/^#/, ""); if (/^[0-9a-f]{6}$/i.test(v)) { input.value = `#${v}`; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); } });
     input.parentNode.insertBefore(wrap, input); wrap.append(input, swatch, pop); sync();
+    document.addEventListener("pointerdown", (e) => { if (pop.hidden || wrap.contains(e.target)) return; if (!picked) { input.value = original; sync(); } pop.hidden = true; }, true);
   });
   els.inspector.querySelectorAll('input[type="range"]').forEach((input) => { const update = () => { const min = +input.min || 0, max = +input.max || 100; input.style.setProperty("--range-progress", `${((+input.value - min) / (max - min)) * 100}%`); }; input.addEventListener("input", update); update(); });
   els.inspector.querySelectorAll("select[data-k]").forEach((select) => {
