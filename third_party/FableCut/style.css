@@ -1,13 +1,13 @@
 /* ══════════════════ FableCut — Premiere-style dark theme ══════════════════ */
 :root {
-  --bg: #0e0e10;
-  --panel: #1b1b1f;
-  --panel-2: #232329;
-  --border: #2d2d34;
-  --text: #d7d7dc;
-  --dim: #8b8b93;
-  --accent: #7b6cff;
-  --accent-2: #4f8cff;
+  --bg: #0a0a0a;
+  --panel: #1a1a1a;
+  --panel-2: #202020;
+  --border: #2b2b2b;
+  --text: #d0d0d0;
+  --dim: #888888;
+  --accent: #ff6e00;
+  --accent-2: #ff8533;
   --danger: #e5484d;
   --clip-video: linear-gradient(180deg, #3d5afe22, #3d5afe11), #2b3b8f;
   --track-h-video: 58px;
@@ -31,7 +31,7 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif;
+  font: 12px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .app {
@@ -393,6 +393,51 @@ body.track-size-s .clip.selected {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+}
+
+/* Resolve-inspired compact panel treatment. */
+.panel,
+.timeline-panel {
+  border-radius: 3px;
+  border-color: var(--border);
+}
+.panel-head {
+  min-height: 36px;
+  padding: 0 10px;
+  background: #121212;
+  border-bottom-color: var(--border);
+}
+.panel-head-title,
+.panel-head > span:first-child {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+.insp-section h3 {
+  font-size: 10px;
+  letter-spacing: .8px;
+  color: #9a9a9a;
+  border-bottom-color: #303030;
+}
+.insp-row {
+  gap: 7px;
+  margin-bottom: 5px;
+}
+.insp-row label {
+  color: #999;
+  font-size: 11px;
+}
+select,
+input[type="text"],
+input[type="number"],
+textarea {
+  border-radius: 3px;
+  border-color: #303030;
+  background: #141414;
+}
+.timeline-toolbar {
+  background: #121212;
+  border-bottom-color: var(--border);
 }
 
 .panel-head {
@@ -1254,7 +1299,7 @@ body.track-size-s .clip.selected {
 }
 
 .insp-row label.insp-reset {
-  cursor: help;
+  cursor: default;
 }
 
 .insp-row label.insp-reset:hover {
