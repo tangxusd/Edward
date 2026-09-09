@@ -3422,8 +3422,9 @@ function renderInspector(lite) {
   }
   const p = c.props;
   const kfCount = (k) => (c.keyframes && c.keyframes[k] ? c.keyframes[k].length : 0);
+  const kfAtPlayhead = (k) => { const lt = state.time - c.start; return (c.keyframes?.[k] || []).some((kf) => Math.abs(kf.t - lt) < 0.5 / projectFps()); };
   const kfCtl = (k) => !ANIMATABLE.includes(k) ? "" :
-    `<span class="kf-ctl"><button class="kf-btn${kfCount(k) ? " has" : ""}" data-kf="${k}" title="切换关键帧">${kfCount(k) || ""}</button></span>`;
+    `<span class="kf-ctl"><button class="kf-btn${kfAtPlayhead(k) ? " has" : ""}" data-kf="${k}" title="切换关键帧"></button></span>`;
   /* Label carries two affordances that key off different click modifiers:
      plain click toggles the keyframe graph (animatable props), Ctrl/Cmd-click
      resets the prop(s). `reset` overrides which keys reset; defaults to k. */
@@ -3611,7 +3612,7 @@ function renderInspector(lite) {
         original = input.value; picked = false;
         const r = swatch.getBoundingClientRect();
         pop.style.left = `${Math.max(6, Math.min(window.innerWidth - 188, r.right - 182))}px`;
-        pop.style.top = `${Math.min(window.innerHeight - 235, r.bottom + 6)}px`;
+        requestAnimationFrame(() => { const h = pop.offsetHeight; pop.style.top = `${Math.max(6, Math.min(window.innerHeight - h - 6, r.bottom + 6))}px`; });
       }
     });
     const choose = (color) => { input.value = color; picked = true; input.dispatchEvent(new Event("input", { bubbles: true })); sync(); };

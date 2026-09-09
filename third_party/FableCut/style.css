@@ -653,8 +653,8 @@ textarea {
 
 .bin-folder-add {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -1454,9 +1454,9 @@ input[type=range]::-webkit-slider-thumb {
 .kf-btn::before {
   content: "";
   display: block;
-  width: 8px;
-  height: 8px;
-  margin: 5px auto;
+  width: 4px;
+  height: 4px;
+  margin: 2px auto;
   background: currentColor;
   transform: rotate(45deg);
 }
@@ -1477,13 +1477,13 @@ input[type=range]::-webkit-slider-thumb {
 /* Resolve-style color popover. */
 .color-control { position: relative; display: inline-flex; }
 .color-control > input[type=color] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.color-swatch { width: 24px; height: 20px; border: 1px solid #555; border-radius: 3px; cursor: pointer; }
+.color-swatch { width: 24px; height: 10px; border: 1px solid #555; border-radius: 2px; cursor: pointer; }
 .color-popover { position: fixed; z-index: 1000; width: 182px; padding: 6px; background: #303030; border: 1px solid #454545; border-radius: 5px; box-shadow: 0 12px 28px #000c; }
 .color-popover[hidden] { display: none; }
 .color-tabs { display: flex; gap: 20px; padding-bottom: 8px; border-bottom: 1px solid #454545; font-size: 13px; font-weight: 700; }
 .color-tab { color: #eee; cursor: pointer; }
 .color-tab.on { color: #12d9e9; }
-.color-field { height: 105px; margin: 7px 0 6px; border: 1px solid #171717; border-radius: 4px; background: linear-gradient(90deg,#fff0,#f00), linear-gradient(0deg,#000,#0000); cursor: crosshair; }
+.color-field { height: 105px; margin: 3px 0 6px; border: 1px solid #171717; border-radius: 4px; background: linear-gradient(90deg,#fff0,#f00), linear-gradient(0deg,#000,#0000); cursor: crosshair; }
 .color-hue { height: 20px; border-radius: 12px; background: linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00); cursor: crosshair; }
 .color-inputs { display: flex; gap: 5px; margin-top: 9px; }
 .color-inputs input { min-width: 0; flex: 1; height: 27px; padding: 4px 6px; border: 1px solid #4d4d4d; border-radius: 4px; background: #1c1c1c; color: #eee; font: inherit; }
