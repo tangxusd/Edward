@@ -1,0 +1,10 @@
+{
+  "name": "Direct browser component demo",
+  "entry": "./component.js",
+  "style": "./component.css",
+  "props": {
+    "title": { "type": "string", "default": "Direct component" },
+    "color": { "type": "color", "default": "#22d3ee" },
+    "x": { "type": "number", "default": 0, "min": -640, "max": 640 }
+  }
+}

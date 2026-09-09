@@ -1,0 +1,9 @@
+.fablecut-demo-component {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  padding: 18px 28px;
+  font: 700 42px/1.1 system-ui, sans-serif;
+  text-shadow: 0 4px 18px #0008;
+  pointer-events: none;
+}

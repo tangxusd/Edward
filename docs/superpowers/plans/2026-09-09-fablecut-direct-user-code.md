@@ -4,7 +4,7 @@
 
 **Goal:** 在 FableCut 中让用户提供的 React/GSAP/CSS/SVG 原始代码直接进入同一预览场景，能由属性栏修改并通过同一场景逐帧导出。
 
-**Architecture:** 扩展 FableCut 本地服务提供受限的用户组件目录与 manifest；浏览器端为每个时间线组件实例挂载真实 React/DOM/SVG 图层，GSAP 直接运行并受统一时间控制。预览和导出都使用同一个场景根节点，ffmpeg 只负责最终编码，不引入 IR 或转换器。
+**Architecture:** 扩展 FableCut 本地服务提供受限的用户组件目录与 manifest；浏览器端直接加载用户提供的浏览器可执行 JavaScript/ES Module，在每个时间线组件实例中挂载真实 React/DOM/SVG 图层，GSAP 直接运行并受统一时间控制。预览和导出都使用同一个场景根节点，ffmpeg 只负责最终编码，不引入 IR、JSX/TSX 编译或转换器。
 
 **Tech Stack:** Node.js 18+、原生 JavaScript、Chromium、React、GSAP、CSS/SVG、Canvas capture、ffmpeg、Node test runner。
 
@@ -13,7 +13,8 @@
 - 禁止 IR、组件转换器、React 转 SVG、GSAP 转关键帧和 CSS 自定义解析器。
 - 用户源代码必须在本地受控页面中直接运行；默认不得访问项目目录外文件或网络。
 - 预览和导出必须调用同一场景渲染路径与统一时间控制。
-- 保留 FableCut 零运行时依赖目标；验证阶段不新增生产 npm 依赖。
+- 验证输入必须是浏览器可直接执行的 JavaScript/ES Module；不接受需要 JSX/TSX 编译的源码。
+- React/ReactDOM/GSAP 由用户代码自行提供或通过已加载的浏览器运行时提供；验证阶段不引入 Babel/Vite 编译链。
 - 所有新增文件严格位于当前 Edward 项目目录内。
 - 不接入 Resolve、Fusion、MLT 或现有 Edward C++ 主程序；这些属于第二阶段。
 
