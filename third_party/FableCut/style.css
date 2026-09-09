@@ -1414,8 +1414,8 @@ input[type=range] {
   border-radius: 0;
 }
 .insp-row input[type=range]::-webkit-slider-thumb {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   margin-top: -3.5px;
   border-radius: 50%;
   background: var(--accent);
