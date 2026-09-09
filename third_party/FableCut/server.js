@@ -466,6 +466,16 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { sendJSON(res, 500, { error: String(e) }); }
     return;
   }
+  if (p.startsWith("/api/components/") && req.method === "GET") {
+    const id = path.basename(p);
+    const file = path.join(COMPONENTS_DIR, id, "manifest.json");
+    if (!file.startsWith(COMPONENTS_DIR + path.sep) || !fs.existsSync(file)) {
+      sendJSON(res, 404, { error: "component not found" }); return;
+    }
+    try { sendJSON(res, 200, { ...JSON.parse(fs.readFileSync(file, "utf8")), id }); }
+    catch (e) { sendJSON(res, 500, { error: String(e) }); }
+    return;
+  }
 
   /* API: upload → saved into ./media */
   if (p === "/api/upload" && req.method === "POST") {
