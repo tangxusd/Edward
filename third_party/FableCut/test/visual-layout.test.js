@@ -11,4 +11,5 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.match(css, /\.app[\s\S]*display:\s*grid/);
   assert.match(css, /\.app > \.upper > \.inspector[\s\S]*grid-row:\s*2\s*\/\s*4/);
   assert.match(css, /\.app > \.timeline-panel[\s\S]*grid-column:\s*1\s*\/\s*3/);
+  assert.match(css, /\.app > \.timeline-panel \.clip[\s\S]*pointer-events:\s*auto/);
 });

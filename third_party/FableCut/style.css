@@ -50,6 +50,8 @@ body {
 .app > .upper > .inspector { grid-column: 3; grid-row: 2 / 4; min-height: 0; }
 .app > .v-split { grid-column: 1 / 3; grid-row: 3; }
 .app > .timeline-panel { grid-column: 1 / 3; grid-row: 3; min-height: 180px; }
+.app > .timeline-panel { position: relative; z-index: 10; }
+.app > .timeline-panel .clip { z-index: 2; pointer-events: auto; }
 .app > .inspector .inspector-body { min-height: 0; }
 
 .topbar {
