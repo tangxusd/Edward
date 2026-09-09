@@ -2077,7 +2077,7 @@ function addComponent() {
     props: { title: "6", color: "#007bff", x: 0, y: 0, scale: 1, opacity: 1 },
   };
   project.clips.push(c);
-  selectClip(c.id); scheduleSave(); renderInspector();
+  selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
 function addAdjust() {
   pushUndo();
