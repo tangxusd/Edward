@@ -12,7 +12,7 @@ test("Chinese-first bilingual UI resources are wired before app startup", () => 
   assert.match(i18n, /zh-CN/);
   assert.match(i18n, /en-US/);
   assert.match(i18n, /localStorage\.getItem\("fablecut-language"\)/);
-  for (const key of ["Snap", "Audio Hold", "Delete", "Shake", "Inspector", "Adjust", "Frame"]) {
+  for (const key of ["Snap", "Audio Hold", "Audio hold", "Delete", "Shake", "SHAKE", "Inspector", "INSPECTOR", "Adjust", "ADJUST", "Frame", "FRAME", "Safe", "SAFE", "wipe-right"]) {
     assert.match(i18n, new RegExp(`\\\"${key}\\\"`), `missing translation key: ${key}`);
   }
 });
