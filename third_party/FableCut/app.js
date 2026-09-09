@@ -3465,6 +3465,12 @@ function renderInspector(lite) {
     html += `<div class="insp-section"><h3>Component</h3>` +
       row("Title", `<input type="text" data-k="title" value="${String(p.title || "").replace(/"/g, "&quot;")}">`) +
       row("Color", `<input type="color" data-k="color" value="${p.color || "#007bff"}">`) +
+      row("Back color", `<input type="color" data-k="backColor" value="${p.backColor || p.color || "#007bff"}">`) +
+      row("Mid color", `<input type="color" data-k="midColor" value="${p.midColor || "#00b4ff"}">`) +
+      row("Front color", `<input type="color" data-k="frontColor" value="${p.frontColor || p.color || "#007bff"}">`) +
+      row("Back opacity", `<input type="number" data-k="backOpacity" min="0" max="1" step="0.01" value="${p.backOpacity ?? 0.18}">`) +
+      row("Mid opacity", `<input type="number" data-k="midOpacity" min="0" max="1" step="0.01" value="${p.midOpacity ?? 0.42}">`) +
+      row("Front opacity", `<input type="number" data-k="frontOpacity" min="0" max="1" step="0.01" value="${p.frontOpacity ?? 0.98}">`) +
       `</div>`;
   } else if (c.kind === "adjust") {
     html += `<div class="insp-section"><h3>Adjustment layer</h3>
