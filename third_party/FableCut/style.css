@@ -1359,6 +1359,13 @@ textarea {
   padding: 3px 5px;
   font: inherit;
 }
+.num-scrub { position: relative; display: flex; flex: 1; min-width: 0; }
+.num-scrub::after { content: "↔"; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); color: var(--dim); opacity: 0; pointer-events: none; font-size: 10px; }
+.num-scrub:hover::after { opacity: .8; }
+.num-scrub input[type=number] { width: 100%; }
+.num-scrub input[type=number]::-webkit-inner-spin-button,
+.num-scrub input[type=number]::-webkit-outer-spin-button { opacity: 0; }
+.num-scrub input[type=number] { cursor: ew-resize; }
 .insp-select-custom { position: relative; flex: 1; min-width: 0; }
 .insp-select-custom .insp-select-button { width: 100%; height: 24px; text-align: left; padding: 3px 22px 3px 7px; color: var(--text); background: #141414; border: 1px solid #303030; border-radius: 3px; font: inherit; position: relative; }
 .insp-select-custom .insp-select-button::after { content: "▾"; position: absolute; right: 7px; color: var(--dim); }

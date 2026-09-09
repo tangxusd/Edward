@@ -3596,7 +3596,27 @@ function renderInspector(lite) {
     </div>`;
   }
   els.inspector.innerHTML = html;
-    const palette = ["#ffffff","#000000","#5bd3d8","#081326","#7d46b8","#ffab6b","#ffd1d1","#ff8585","#ff3030","#ff0808","#bd1d1d","#ffdcc8","#ffad87","#ff8548","#ff8517","#ff5d00","#b44b37","#fff4c2","#fff27a","#ffd400","#ffbd17","#ff9f00","#ad7930","#ffd8e8","#ffa7c3","#ff5a97","#ff2181","#ff00d9","#922050","#d9d8ff","#b1b3ff","#8a72ec","#7a4cff","#40369b","#add9f3","#88baf0","#3c93df","#2379ed","#2828ff","#32ed4d","#00f05a","#149447","#e9e9c8","#c5d33d","#8da01c","#5e861a","#4d793b","#3c5941","#d9d1d1","#aaa29d","#887d72","#6d6259","#514b44","#efd5d1","#d77c73","#b34f5b","#f2bf91","#d99471","#bd8051","#efdda8","#efc957","#c9b66a","#b8c184","#8ba07e","#537362","#70aaa9","#07988f","#2b817a","#8bc3d0","#6db7bd","#227f9d","#a9c0d2","#708fb7","#4a5f7d","#c9baca","#aa99ab","#86556f"];
+  els.inspector.querySelectorAll('input[type="number"]').forEach((input) => {
+    const wrap = document.createElement("span"); wrap.className = "num-scrub";
+    input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
+    let x0 = 0, v0 = 0, dragging = false;
+    input.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      x0 = e.clientX; v0 = Number(input.value) || 0; dragging = false; input.setPointerCapture(e.pointerId);
+      const move = (ev) => {
+        const dx = ev.clientX - x0;
+        if (Math.abs(dx) < 3) return;
+        dragging = true;
+        const step = Number(input.step) > 0 ? Number(input.step) : 1;
+        const next = v0 - Math.round(dx / 8) * step;
+        input.value = String(Math.max(Number(input.min || -Infinity), Math.min(Number(input.max || Infinity), +next.toFixed(6))));
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      const up = () => { input.removeEventListener("pointermove", move); input.removeEventListener("pointerup", up); if (dragging) input.blur(); };
+      input.addEventListener("pointermove", move); input.addEventListener("pointerup", up, { once: true });
+    });
+  });
+  const palette = ["#ffffff","#000000","#5bd3d8","#081326","#7d46b8","#ffab6b","#ffd1d1","#ff8585","#ff3030","#ff0808","#bd1d1d","#ffdcc8","#ffad87","#ff8548","#ff8517","#ff5d00","#b44b37","#fff4c2","#fff27a","#ffd400","#ffbd17","#ff9f00","#ad7930","#ffd8e8","#ffa7c3","#ff5a97","#ff2181","#ff00d9","#922050","#d9d8ff","#b1b3ff","#8a72ec","#7a4cff","#40369b","#add9f3","#88baf0","#3c93df","#2379ed","#2828ff","#32ed4d","#00f05a","#149447","#e9e9c8","#c5d33d","#8da01c","#5e861a","#4d793b","#3c5941","#d9d1d1","#aaa29d","#887d72","#6d6259","#514b44","#efd5d1","#d77c73","#b34f5b","#f2bf91","#d99471","#bd8051","#efdda8","#efc957","#c9b66a","#b8c184","#8ba07e","#537362","#70aaa9","#07988f","#2b817a","#8bc3d0","#6db7bd","#227f9d","#a9c0d2","#708fb7","#4a5f7d","#c9baca","#aa99ab","#86556f"];
   els.inspector.querySelectorAll('input[type="color"][data-k]').forEach((input) => {
     const wrap = document.createElement("span"); wrap.className = "color-control";
     const swatch = document.createElement("button"); swatch.type = "button"; swatch.className = "color-swatch";
