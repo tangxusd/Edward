@@ -1452,6 +1452,8 @@ input[type=range]::-webkit-slider-thumb {
   transform: rotate(45deg);
 }
 .kf-btn.has::before { background: var(--accent); }
+.kf-btn.kf-clear { font-size: 13px; color: var(--dim); }
+.kf-btn.kf-clear::before { display: none; }
 
 .kf-btn:hover {
   color: #fff;
