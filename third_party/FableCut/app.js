@@ -5161,7 +5161,8 @@ function drawFrame(t = state.time) {
   ctx2d.fillStyle = project.background || "#000"; ctx2d.fillRect(0, 0, W, H);
   // render video tracks bottom-up (V1 under V2)
   for (const c of visibleClipsAt(t)) drawClip(c, W, H, t);
-  window.fablecutDirectComponents?.syncDirectComponents?.(visibleClipsAt(t), t).catch?.(() => {});
+  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(visibleClipsAt(t), t);
+  directSync?.catch?.(() => {});
   // on-canvas selection handles (never during export or playback)
   if (!state.exporting && !state.playing) drawSelectionOverlay(W, H, t);
 }
