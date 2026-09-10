@@ -1656,8 +1656,8 @@ ApplicationWindow {
                                     Text { text: effectsExpanded ? "⌄" : "›"; color: DesignTokens.textTertiary; font.pixelSize: 10 }
                                     Text { text: "效果"; color: DesignTokens.textTertiary; font.pixelSize: window.uiFontSize(9.5); font.bold: true; Layout.fillWidth: true }
                                     Text { text: "2"; color: DesignTokens.textTertiary; font.pixelSize: window.uiFontSize(9) }
-                                    MouseArea { anchors.fill: parent; onClicked: window.effectsExpanded = !window.effectsExpanded }
                                 }
+                                MouseArea { anchors.fill: parent; onClicked: window.effectsExpanded = !window.effectsExpanded }
                             }
                             Repeater {
                                 model: ["模糊效果", "胶片颗粒"]
@@ -1690,8 +1690,8 @@ ApplicationWindow {
                                     anchors.rightMargin: 8
                                     Text { text: infoExpanded ? "⌄" : "›"; color: DesignTokens.textTertiary; font.pixelSize: 10 }
                                     Text { text: "片段信息"; color: DesignTokens.textTertiary; font.pixelSize: window.uiFontSize(9.5); font.bold: true; Layout.fillWidth: true }
-                                    MouseArea { anchors.fill: parent; onClicked: window.infoExpanded = !window.infoExpanded }
                                 }
+                                MouseArea { anchors.fill: parent; onClicked: window.infoExpanded = !window.infoExpanded }
                             }
                             Repeater {
                                 model: ["文件名    Clip_001.mov", "分辨率    3840×2160", "帧率      25 fps", "时长      00:00:05:12", "编解码器  ProRes 422", "状态      ● 已链接"]
