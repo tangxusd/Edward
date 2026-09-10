@@ -416,23 +416,7 @@ ApplicationWindow {
                         Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: DesignTokens.divider }
                         RowLayout {
                             anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6; spacing: 6
-                            Text { text: "Edward"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(11.5); font.bold: true; Layout.alignment: Qt.AlignVCenter }
-                            Item { Layout.fillWidth: true }
-                            Text { text: "Davinci Resolve连接"; color: DesignTokens.textSecondary; font.pixelSize: window.uiFontSize(9); Layout.alignment: Qt.AlignVCenter }
-                            Rectangle { width: 7; height: 7; radius: 4; color: workbenchRuntime.resolveConnected ? DesignTokens.success : DesignTokens.error; Layout.alignment: Qt.AlignVCenter }
-                            Button {
-                                Layout.preferredWidth: 38; Layout.preferredHeight: 18
-                                enabled: true
-                                background: Rectangle { color: "transparent"; border.width: 1; border.color: DesignTokens.accent; radius: 2 }
-                                contentItem: Text {
-                                    text: workbenchRuntime.resolveConnected ? "已连" : "连接"
-                                    color: workbenchRuntime.resolveConnected ? DesignTokens.textSecondary : DesignTokens.accent
-                                    font.pixelSize: window.uiFontSize(9)
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                                onClicked: if (!workbenchRuntime.resolveConnected) workbenchRuntime.connectResolve()
-                            }
+                            Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(11.5); font.bold: true; Layout.alignment: Qt.AlignVCenter; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
                     }
                     Row {
