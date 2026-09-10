@@ -1617,7 +1617,7 @@ ApplicationWindow {
                                                 handle: Rectangle { x: parent.leftPadding + parent.visualPosition * (parent.availableWidth - width); y: (parent.height - 9) / 2; width: 9; height: 9; radius: 5; color: "#c0c0c0"; border.color: "#e0e0e0"; border.width: 1 }
                                             }
                                         }
-                                        Rectangle { Layout.preferredWidth: 44; Layout.preferredHeight: 17; color: DesignTokens.input; border.color: DesignTokens.border; radius: 2; Text { anchors.fill: parent; anchors.rightMargin: 4; text: modelData.value || "0.00"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(10); font.family: "monospace"; horizontalAlignment: Text.AlignRight; verticalAlignment: Text.AlignVCenter } }
+                                        Rectangle { Layout.preferredWidth: 44; Layout.preferredHeight: 17; color: DesignTokens.input; border.color: DesignTokens.border; radius: 2; Text { anchors.fill: parent; anchors.rightMargin: 4; text: modelData.value || "0.00"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(10); font.family: "Menlo"; horizontalAlignment: Text.AlignRight; verticalAlignment: Text.AlignVCenter } }
                                         Text { text: "↻"; color: DesignTokens.accent; font.pixelSize: 12; Layout.preferredWidth: 14; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                     }
                                     RowLayout {
