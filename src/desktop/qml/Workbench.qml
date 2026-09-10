@@ -3045,9 +3045,5 @@ ApplicationWindow {
         url: "http://127.0.0.1:7777/"
         settings.javascriptEnabled: true
         settings.localStorageEnabled: true
-        onLoadingChanged: function(loadRequest) {
-            if (loadRequest.status === WebEngineLoadRequest.LoadFailedStatus)
-                console.warn("FableCut 页面加载失败：" + loadRequest.errorString)
-        }
     }
 }
