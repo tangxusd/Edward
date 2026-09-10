@@ -13,6 +13,7 @@
   --track-h-video: 58px;
   --track-h-audio: 42px;
   --side-panel-w: 320px;
+  --inspector-w: 320px;
 }
 
 * {
@@ -36,7 +37,7 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: var(--side-panel-w) minmax(0, 1fr) var(--side-panel-w);
+  grid-template-columns: var(--side-panel-w) minmax(0, 1fr) var(--inspector-w);
   grid-template-rows: 46px minmax(140px, 1fr) var(--timeline-h, 400px);
   height: 100vh;
   gap: 6px;
@@ -103,10 +104,10 @@ body {
   position: absolute;
   left: 18%;
   right: 18%;
-  top: 2px;
-  height: 2px;
+  top: 3px;
+  height: 1px;
   border-radius: 1px;
-  background: var(--border);
+  background: linear-gradient(90deg, transparent, var(--accent) 18%, var(--accent) 82%, transparent);
   transition: background .15s;
 }
 
@@ -114,6 +115,29 @@ body {
 .v-split.dragging::after {
   background: var(--accent);
 }
+
+.h-split {
+  position: absolute;
+  left: calc(6px + var(--side-panel-w) + 3px);
+  top: 52px;
+  bottom: calc(var(--timeline-h, 400px) + 6px);
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 35;
+}
+.h-split::after {
+  content: "";
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 2px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--accent) 18%, var(--accent) 82%, transparent);
+}
+.h-split:hover::after,
+.h-split.dragging::after { background: var(--accent); }
+body.resizing-horizontal-panels,
+body.resizing-horizontal-panels * { cursor: ew-resize !important; }
 
 body.resizing-panels {
   cursor: ns-resize !important;
@@ -497,7 +521,7 @@ textarea {
 
 .upper {
   display: grid;
-  grid-template-columns: var(--side-panel-w) minmax(0, 1fr) var(--side-panel-w);
+  grid-template-columns: var(--side-panel-w) minmax(0, 1fr) var(--inspector-w);
   gap: 6px;
   min-height: 0;
 }

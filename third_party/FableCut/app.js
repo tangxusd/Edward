@@ -7697,6 +7697,7 @@ function clampTimelineHeight() {
 }
 function initPanelSplit() {
   const handle = $("splitUpperTimeline");
+  const horizontalHandle = $("splitBinMonitor");
   const tl = $("timelinePanel");
   if (!handle || !tl) return;
   const savedSize = localStorage.getItem(TRACK_SIZE_KEY);
@@ -7733,6 +7734,35 @@ function initPanelSplit() {
     e.preventDefault();
     resetTimelineHeight();
   });
+
+  if (horizontalHandle) {
+    const savedWidth = parseFloat(localStorage.getItem("fablecut-left-panel-width"));
+    if (savedWidth > 180) document.documentElement.style.setProperty("--side-panel-w", `${Math.min(520, savedWidth)}px`);
+    horizontalHandle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      horizontalHandle.setPointerCapture(e.pointerId);
+      horizontalHandle.classList.add("dragging");
+      document.body.classList.add("resizing-horizontal-panels");
+      const x0 = e.clientX;
+      const w0 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--side-panel-w")) || 320;
+      const onMove = (ev) => document.documentElement.style.setProperty("--side-panel-w", `${Math.round(Math.max(180, Math.min(520, w0 + ev.clientX - x0)))}px`);
+      const onUp = () => {
+        horizontalHandle.releasePointerCapture(e.pointerId);
+        horizontalHandle.classList.remove("dragging");
+        document.body.classList.remove("resizing-horizontal-panels");
+        horizontalHandle.removeEventListener("pointermove", onMove);
+        horizontalHandle.removeEventListener("pointerup", onUp);
+        localStorage.setItem("fablecut-left-panel-width", String(Math.round(parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--side-panel-w")))));
+      };
+      horizontalHandle.addEventListener("pointermove", onMove);
+      horizontalHandle.addEventListener("pointerup", onUp);
+    });
+    horizontalHandle.addEventListener("dblclick", () => {
+      document.documentElement.style.setProperty("--side-panel-w", "320px");
+      localStorage.removeItem("fablecut-left-panel-width");
+    });
+  }
 }
 
 /* ── Boot ── */
