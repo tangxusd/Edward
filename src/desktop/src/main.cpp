@@ -12,6 +12,7 @@
 #include <QWindow>
 #include <QScreen>
 #include <QtMath>
+#include <QtWebEngineQuick>
 #include <memory>
 
 class EdwardFrameProvider final : public QQuickImageProvider {
@@ -33,6 +34,7 @@ class EdwardFrameProvider final : public QQuickImageProvider {
 
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
+  QtWebEngineQuick::initialize();
   QQuickStyle::setStyle(QStringLiteral("Basic"));
   QProcess fablecutServer;
   const auto fablecutRoot = QString::fromUtf8(EDWARD_SOURCE_DIR) + QStringLiteral("/third_party/FableCut");

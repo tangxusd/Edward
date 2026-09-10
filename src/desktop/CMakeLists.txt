@@ -23,7 +23,7 @@ endforeach()
 
 add_executable(edward_app src/main.cpp)
 target_compile_definitions(edward_app PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-target_link_libraries(edward_app PRIVATE edward_desktop Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::Svg Qt6::Widgets)
+target_link_libraries(edward_app PRIVATE edward_desktop Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::Svg Qt6::Widgets Qt6::WebEngineQuick)
 set_target_properties(edward_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_custom_command(TARGET edward_app POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory

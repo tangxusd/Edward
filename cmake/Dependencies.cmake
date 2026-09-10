@@ -1,7 +1,7 @@
 include_guard(GLOBAL)
 
 find_package(PkgConfig REQUIRED)
-find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent Network)
+find_package(Qt6 6.11.1 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Concurrent Network Svg Widgets WebEngineQuick)
 pkg_check_modules(EDWARD_FFMPEG REQUIRED IMPORTED_TARGET
   libavformat libavcodec libavfilter libavutil libswresample libswscale)
 pkg_check_modules(EDWARD_SODIUM REQUIRED IMPORTED_TARGET libsodium)

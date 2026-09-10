@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtWebEngine
 import "."
 
 ApplicationWindow {
@@ -10,6 +11,7 @@ ApplicationWindow {
     property string recoveryProjectPath: ""
     property string exportOutputDirectory: ""
     property string exportFileName: "未命名项目.mp4"
+    property bool fablecutEmbedded: true
     property real uiScale: width / 388.0
     function uiFontSize(baseSize) {
         return baseSize + (uiScale < 1.0 ? 1 : 0)
@@ -3033,5 +3035,19 @@ ApplicationWindow {
             verticalAlignment: Text.AlignVCenter
         }
         Timer { id: successTimer; interval: 5000; repeat: false; onTriggered: successToast.close() }
+    }
+
+    WebEngineView {
+        id: fablecutView
+        anchors.fill: parent
+        visible: window.fablecutEmbedded
+        z: 1000
+        url: "http://127.0.0.1:7777/"
+        settings.javascriptEnabled: true
+        settings.localStorageEnabled: true
+        onLoadingChanged: function(loadRequest) {
+            if (loadRequest.status === WebEngineLoadRequest.LoadFailedStatus)
+                console.warn("FableCut 页面加载失败：" + loadRequest.errorString)
+        }
     }
 }
