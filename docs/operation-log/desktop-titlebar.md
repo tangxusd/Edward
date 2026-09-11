@@ -6,3 +6,10 @@
 - 涉及文件：`src/desktop/src/native_titlebar_macos.mm`。
 - 结果：移除 `NSTitlebarAccessoryViewController`，改为直接在系统标题栏容器内布局状态文本与右侧按钮；L 按钮显式使用橙色边框、背景和文字。
 - 验证：`cmake --build build --target edward_app -j4` 通过；已启动 `build/bin/Edward.app`。
+
+## 2026-09-11（按钮交互与文字）
+
+- 目的：恢复标题栏按钮点击逻辑并统一缩小控件字号/尺寸，项目状态文字改为纯白。
+- 涉及文件：`src/desktop/src/native_titlebar_macos.mm`、`src/desktop/qml/Workbench.qml`。
+- 结果：原生按钮通过 Qt 元对象调用 QML 统一入口；字号 10px、按钮高度 22px；状态与普通按钮文字纯白，L 选中态保留橙色。
+- 验证：`cmake --build build --target edward_app -j4` 通过；已重新启动 `build/bin/Edward.app`。
