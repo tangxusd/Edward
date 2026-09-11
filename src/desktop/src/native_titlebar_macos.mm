@@ -27,10 +27,11 @@ static NSColor *accentColor();
             for (NSView *view in container.subviews) {
                 if (![view isKindOfClass:[NSButton class]]) continue;
                 NSButton *button = (NSButton *)view;
+                if ([button.title isEqualToString:@"导出"]) continue;
                 BOOL selected = [button.title isEqualToString:self.action];
                 button.state = selected ? NSControlStateValueOn : NSControlStateValueOff;
-                button.layer.borderWidth = selected ? 1.0 : 0.0;
-                button.layer.borderColor = selected ? accentColor().CGColor : [NSColor clearColor].CGColor;
+                button.layer.borderWidth = 1.0;
+                button.layer.borderColor = selected ? accentColor().CGColor : [NSColor colorWithCalibratedWhite:0.35 alpha:1.0].CGColor;
                 button.layer.backgroundColor = selected ? [accentColor() colorWithAlphaComponent:0.2].CGColor : [NSColor clearColor].CGColor;
                 button.attributedTitle = buttonTitle(button.title, selected ? accentColor() : [NSColor whiteColor]);
             }
@@ -106,8 +107,10 @@ void installEdwardTitlebar(QWindow *window) {
         button.wantsLayer = YES;
         button.layer.backgroundColor = [NSColor clearColor].CGColor;
         button.layer.cornerRadius = 5.0;
+        button.layer.borderColor = [NSColor colorWithCalibratedWhite:0.35 alpha:1.0].CGColor;
+        button.layer.borderWidth = 1.0;
         [button.widthAnchor constraintGreaterThanOrEqualToConstant:24.0].active = YES;
-        [button.heightAnchor constraintEqualToConstant:22.0].active = YES;
+        [button.heightAnchor constraintEqualToConstant:15.0].active = YES;
         button.attributedTitle = buttonTitle(title, [NSColor whiteColor]);
         if ([title isEqualToString:@"导出"]) {
             button.layer.backgroundColor = accentColor().CGColor;
