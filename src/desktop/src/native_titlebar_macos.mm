@@ -80,7 +80,7 @@ void installEdwardTitlebar(QWindow *window) {
         button.controlSize = NSControlSizeSmall;
         button.bordered = YES;
         button.wantsLayer = YES;
-        button.layer.backgroundColor = [NSColor colorWithCalibratedWhite:0.13 alpha:1.0].CGColor;
+        button.layer.backgroundColor = [NSColor clearColor].CGColor;
         button.layer.cornerRadius = 5.0;
         [button.widthAnchor constraintGreaterThanOrEqualToConstant:24.0].active = YES;
         [button.heightAnchor constraintEqualToConstant:22.0].active = YES;
