@@ -5,9 +5,11 @@ void installEdwardTitlebar(QWindow *window) {
     NSView *view = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
     NSWindow *native = view.window;
     if (!native) return;
-    native.titleVisibility = NSWindowTitleVisible;
-    native.titlebarAppearsTransparent = NO;
+    native.titleVisibility = NSWindowTitleHidden;
+    native.titlebarAppearsTransparent = YES;
+    native.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
     NSTitlebarAccessoryViewController *accessory = [NSTitlebarAccessoryViewController new];
+    accessory.layoutAttribute = NSLayoutAttributeRight;
     NSStackView *stack = [NSStackView stackViewWithViews:@[]];
     stack.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     stack.spacing = 8;
@@ -19,6 +21,7 @@ void installEdwardTitlebar(QWindow *window) {
         NSButton *button = [NSButton buttonWithTitle:title target:nil action:nil];
         button.bezelStyle = NSBezelStyleTexturedRounded;
         button.controlSize = NSControlSizeSmall;
+        button.contentTintColor = [NSColor colorNamed:@"controlAccentColor"] ?: [NSColor colorWithCalibratedRed:1.0 green:0.43 blue:0.0 alpha:1.0];
         [stack addArrangedSubview:button];
     }
     accessory.view = stack;
