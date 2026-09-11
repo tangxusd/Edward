@@ -27,3 +27,9 @@
 - 涉及文件：`src/desktop/src/native_titlebar_macos.mm`。
 - 结果：启用 `movableByWindowBackground`，按钮区域仍由原生按钮接收点击。
 - 验证：目标构建通过并已重新启动应用。
+
+## 2026-09-11（布局与轨道按钮）
+
+- 目的：去除按钮灰色底层，恢复拖拽，并修正布局/S/M/L 的业务含义。
+- 结果：按钮改为无底色 inline 样式；“布局”调用 FableCut 默认布局；S/M/L 调用 `setTrackSize` 改变轨道高度，不再改变窗口宽度。
+- 验证：目标构建通过并已重新启动应用。
