@@ -9,7 +9,6 @@ void installEdwardTitlebar(QWindow *window) {
     native.titlebarAppearsTransparent = YES;
     native.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
     NSTitlebarAccessoryViewController *accessory = [NSTitlebarAccessoryViewController new];
-    accessory.layoutAttribute = NSLayoutAttributeRight;
     NSStackView *stack = [NSStackView stackViewWithViews:@[]];
     stack.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     stack.spacing = 8;
