@@ -4,14 +4,23 @@
 #include <QVariant>
 #include <objc/runtime.h>
 
+static NSAttributedString *buttonTitle(NSString *title, NSColor *color);
+
 @interface EdwardTitlebarTarget : NSObject
 @property(nonatomic, assign) QWindow *window;
 @property(nonatomic, copy) NSString *action;
+@property(nonatomic, assign) BOOL english;
 @end
 
 @implementation EdwardTitlebarTarget
 - (void)clicked:(id)sender {
     if (self.window) {
+        if ([self.action isEqualToString:@"language"]) {
+            self.english = !self.english;
+            NSButton *button = (NSButton *)sender;
+            button.title = self.english ? @"中文" : @"ENG";
+            button.attributedTitle = buttonTitle(button.title, [NSColor whiteColor]);
+        }
         QMetaObject::invokeMethod(self.window, "handleNativeTitlebarAction",
                                   Qt::QueuedConnection,
                                   Q_ARG(QVariant, QVariant(self.action.UTF8String)));
@@ -68,8 +77,8 @@ void installEdwardTitlebar(QWindow *window) {
     [host addSubview:buttons positioned:NSWindowAbove relativeTo:nil];
 
     NSMutableArray *targets = [NSMutableArray array];
-    NSArray *titles = @[@"布局", @"S", @"M", @"L", @"设置", @"?", @"导出", @"中文"];
-    NSArray *actions = @[@"layout", @"S", @"M", @"L", @"settings", @"help", @"export", @"language"];
+    NSArray *titles = @[@"布局", @"S", @"M", @"L", @"设置", @"导出", @"ENG"];
+    NSArray *actions = @[@"layout", @"S", @"M", @"L", @"settings", @"export", @"language"];
     for (NSUInteger index = 0; index < titles.count; ++index) {
         NSString *title = titles[index];
         EdwardTitlebarTarget *target = [EdwardTitlebarTarget new];

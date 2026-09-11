@@ -18,7 +18,7 @@ ApplicationWindow {
     }
     function handleNativeTitlebarAction(action) {
         if (action === "layout") return fablecutView.runJavaScript("restoreDefaultLayout()")
-        if (action === "settings") { activeRailIndex = -1; activeUtility = "settings"; return }
+        if (action === "settings") return aiSettingsDialog.open()
         if (action === "export") return timelineExportPanel.open()
         if (action === "help") return aiSettingsDialog.open()
         if (action === "language") return
