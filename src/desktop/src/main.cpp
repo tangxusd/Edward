@@ -63,7 +63,9 @@ int main(int argc, char** argv) {
   if (engine.rootObjects().isEmpty()) return 1;
   if (auto* window = qobject_cast<QWindow*>(engine.rootObjects().constFirst())) {
     // 使用系统原生标题栏；窗口可移动、缩放，并不再锁定到屏幕右侧。
-    window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint);
+    // macOS/Windows 保留原生窗口按钮，同时将客户区扩展到系统标题栏内部。
+    // NoTitleBarBackgroundHint 是关键：仅 ExpandedClientAreaHint 会让内容仍停在标题栏下方。
+    window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint | Qt::NoTitleBarBackgroundHint);
     window->showMaximized();
   }
   QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(); });
