@@ -63,8 +63,9 @@ int main(int argc, char** argv) {
   if (engine.rootObjects().isEmpty()) return 1;
   if (auto* window = qobject_cast<QWindow*>(engine.rootObjects().constFirst())) {
     // 使用系统原生标题栏；窗口可移动、缩放，并不再锁定到屏幕右侧。
-    // 使用标准系统标题栏，保证空白标题栏区域可拖拽、双击缩放及原生窗口按钮行为。
-    window->setFlags(Qt::Window);
+    // 扩展客户区到系统标题栏：原生窗口按钮仍由系统绘制，QML 控件可在标题栏内水平对齐。
+    // 不设置固定几何、置顶或尺寸限制，保留窗口常规移动/缩放能力。
+    window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint | Qt::NoTitleBarBackgroundHint);
     window->showMaximized();
   }
   QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(); });
