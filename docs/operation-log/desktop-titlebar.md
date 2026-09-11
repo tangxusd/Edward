@@ -20,3 +20,10 @@
 - 涉及文件：`src/desktop/src/native_titlebar_macos.mm`。
 - 结果：按钮图层背景设为透明，保留边框、文字及 L 选中态。
 - 验证：目标构建通过并已重新启动应用。
+
+## 2026-09-11（拖拽恢复）
+
+- 目的：恢复扩展客户区下系统标题栏空白区域的窗口拖拽。
+- 涉及文件：`src/desktop/src/native_titlebar_macos.mm`。
+- 结果：启用 `movableByWindowBackground`，按钮区域仍由原生按钮接收点击。
+- 验证：目标构建通过并已重新启动应用。
