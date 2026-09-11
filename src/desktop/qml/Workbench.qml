@@ -3046,18 +3046,19 @@ ApplicationWindow {
             anchors.leftMargin: 180
             anchors.rightMargin: 12
             spacing: 6
-            Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 10; font.bold: true }
+            Item { Layout.fillWidth: true }
             Rectangle { width: 7; height: 7; radius: 4; color: workbenchRuntime.resolveConnected ? DesignTokens.success : DesignTokens.error }
             Text { text: workbenchRuntime.resolveConnected ? "已连接" : "未连接"; color: DesignTokens.textSecondary; font.pixelSize: 9 }
-            Button { text: "布局"; onClicked: window.activeUtility = "settings" }
-            Button { text: "S"; onClicked: window.activeInspectorTab = 0 }
-            Button { text: "M"; onClicked: window.activeInspectorTab = 1 }
-            Button { text: "L"; onClicked: window.activeInspectorTab = 2 }
-            Button { text: "设置"; onClicked: window.activeUtility = "settings" }
-            Button { text: "?"; onClicked: window.activeUtility = "ai" }
-            Button { text: "导出"; onClicked: timelineExportPanel.open() }
-            ComboBox { model: ["中文", "English"]; currentIndex: 0; Layout.preferredWidth: 78 }
+            Button { text: "布局"; onClicked: window.activeUtility = "settings"; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.border; radius: 4 } }
+            Button { text: "S"; onClicked: window.activeInspectorTab = 0; Layout.preferredWidth: 30; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.border; radius: 4 } }
+            Button { text: "M"; onClicked: window.activeInspectorTab = 1; Layout.preferredWidth: 30; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.border; radius: 4 } }
+            Button { text: "L"; onClicked: window.activeInspectorTab = 2; Layout.preferredWidth: 30; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.accent; radius: 4 } }
+            Button { text: "设置"; onClicked: window.activeUtility = "settings"; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.border; radius: 4 } }
+            Button { text: "?"; onClicked: window.activeUtility = "ai"; Layout.preferredWidth: 30; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.border; radius: 4 } }
+            Button { text: "导出"; onClicked: timelineExportPanel.open(); Layout.preferredHeight: 24; background: Rectangle { color: DesignTokens.accent; border.color: DesignTokens.accent; radius: 4 } }
+            ComboBox { model: ["中文", "English"]; currentIndex: 0; Layout.preferredWidth: 78; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: DesignTokens.border; radius: 4 } }
         }
+        Text { anchors.centerIn: parent; text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; font.pixelSize: 10; font.bold: true; elide: Text.ElideRight; width: parent.width * 0.32; horizontalAlignment: Text.AlignHCenter }
     }
     Timer {
         interval: 500
