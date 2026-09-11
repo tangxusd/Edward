@@ -38,19 +38,19 @@ body {
 .app {
   display: grid;
   grid-template-columns: var(--side-panel-w) minmax(0, 1fr) var(--inspector-w);
-  grid-template-rows: 46px minmax(140px, 1fr) var(--timeline-h, 400px);
+  grid-template-rows: minmax(140px, 1fr) var(--timeline-h, 400px);
   height: 100vh;
   gap: 6px;
   padding: 6px;
 }
 
-.app > .topbar { grid-column: 1 / -1; grid-row: 1; }
+.app > .topbar { display: none; }
 .app > .upper { display: contents; }
-.app > .upper > .bin { grid-column: 1; grid-row: 2; }
-.app > .upper > .monitor { grid-column: 2; grid-row: 2; }
-.app > .upper > .inspector { grid-column: 3; grid-row: 2 / 4; min-height: 0; }
-.app > .v-split { grid-column: 1 / 3; grid-row: 3; align-self: start; height: 8px; margin-top: -5px; z-index: 30; }
-.app > .timeline-panel { grid-column: 1 / 3; grid-row: 3; min-height: 180px; }
+.app > .upper > .bin { grid-column: 1; grid-row: 1; }
+.app > .upper > .monitor { grid-column: 2; grid-row: 1; }
+.app > .upper > .inspector { grid-column: 3; grid-row: 1 / 3; min-height: 0; }
+.app > .v-split { grid-column: 1 / 3; grid-row: 2; align-self: start; height: 8px; margin-top: -5px; z-index: 30; }
+.app > .timeline-panel { grid-column: 1 / 3; grid-row: 2; min-height: 180px; }
 .app > .timeline-panel { position: relative; z-index: 10; }
 .app > .timeline-panel .clip { z-index: 2; pointer-events: auto; }
 .app > .inspector .inspector-body { min-height: 0; }

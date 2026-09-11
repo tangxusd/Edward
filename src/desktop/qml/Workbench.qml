@@ -3023,12 +3023,41 @@ ApplicationWindow {
 
     WebEngineView {
         id: fablecutView
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: nativeControlStrip.bottom
+        anchors.bottom: parent.bottom
         visible: window.fablecutEmbedded
         z: 1000
         url: "about:blank"
         settings.javascriptEnabled: true
         settings.localStorageEnabled: true
+    }
+    Rectangle {
+        id: nativeControlStrip
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 38
+        z: 2000
+        color: DesignTokens.panel
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 6
+            Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 11; font.bold: true }
+            Rectangle { width: 7; height: 7; radius: 4; color: workbenchRuntime.resolveConnected ? DesignTokens.success : DesignTokens.error }
+            Text { text: workbenchRuntime.resolveConnected ? "已连接" : "未连接"; color: DesignTokens.textSecondary; font.pixelSize: 9 }
+            Button { text: "布局"; onClicked: window.activeUtility = "settings" }
+            Button { text: "S"; onClicked: window.activeInspectorTab = 0 }
+            Button { text: "M"; onClicked: window.activeInspectorTab = 1 }
+            Button { text: "L"; onClicked: window.activeInspectorTab = 2 }
+            Button { text: "设置"; onClicked: window.activeUtility = "settings" }
+            Button { text: "?"; onClicked: window.activeUtility = "ai" }
+            Button { text: "导出"; onClicked: timelineExportPanel.open() }
+            ComboBox { model: ["中文", "English"]; currentIndex: 0; Layout.preferredWidth: 78 }
+        }
     }
     Timer {
         interval: 500
