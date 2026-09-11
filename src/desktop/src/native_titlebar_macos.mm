@@ -77,9 +77,9 @@ void installEdwardTitlebar(QWindow *window) {
         target.action = actions[index];
         [targets addObject:target];
         NSButton *button = [NSButton buttonWithTitle:title target:target action:@selector(clicked:)];
-        button.bezelStyle = NSBezelStyleTexturedRounded;
+        button.bezelStyle = NSBezelStyleInline;
         button.controlSize = NSControlSizeSmall;
-        button.bordered = YES;
+        button.bordered = NO;
         button.wantsLayer = YES;
         button.layer.backgroundColor = [NSColor clearColor].CGColor;
         button.layer.cornerRadius = 5.0;
