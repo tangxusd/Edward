@@ -13,3 +13,10 @@
 - 涉及文件：`src/desktop/src/native_titlebar_macos.mm`、`src/desktop/qml/Workbench.qml`。
 - 结果：原生按钮通过 Qt 元对象调用 QML 统一入口；字号 10px、按钮高度 22px；状态与普通按钮文字纯白，L 选中态保留橙色。
 - 验证：`cmake --build build --target edward_app -j4` 通过；已重新启动 `build/bin/Edward.app`。
+
+## 2026-09-11（按钮背景）
+
+- 目的：移除标题栏按钮额外灰色底层。
+- 涉及文件：`src/desktop/src/native_titlebar_macos.mm`。
+- 结果：按钮图层背景设为透明，保留边框、文字及 L 选中态。
+- 验证：目标构建通过并已重新启动应用。
