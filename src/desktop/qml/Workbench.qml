@@ -3025,7 +3025,7 @@ ApplicationWindow {
         id: fablecutView
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: nativeControlStrip.bottom
+        anchors.top: parent.top
         anchors.bottom: parent.bottom
         visible: window.fablecutEmbedded
         z: 1000
@@ -3038,15 +3038,15 @@ ApplicationWindow {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 38
+        height: 30
         z: 2000
-        color: DesignTokens.panel
+        color: "transparent"
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 12
+            anchors.leftMargin: 180
             anchors.rightMargin: 12
             spacing: 6
-            Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 11; font.bold: true }
+            Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; elide: Text.ElideRight; Layout.fillWidth: true; font.pixelSize: 10; font.bold: true }
             Rectangle { width: 7; height: 7; radius: 4; color: workbenchRuntime.resolveConnected ? DesignTokens.success : DesignTokens.error }
             Text { text: workbenchRuntime.resolveConnected ? "已连接" : "未连接"; color: DesignTokens.textSecondary; font.pixelSize: 9 }
             Button { text: "布局"; onClicked: window.activeUtility = "settings" }
