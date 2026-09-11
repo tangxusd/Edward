@@ -1,5 +1,25 @@
 #import <Cocoa/Cocoa.h>
 #include <QWindow>
+#include <QMetaObject>
+#include <QVariant>
+#include <objc/runtime.h>
+
+@interface EdwardTitlebarTarget : NSObject
+@property(nonatomic, assign) QWindow *window;
+@property(nonatomic, copy) NSString *action;
+@end
+
+@implementation EdwardTitlebarTarget
+- (void)clicked:(id)sender {
+    if (self.window) {
+        QMetaObject::invokeMethod(self.window, "handleNativeTitlebarAction",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(QVariant, QVariant(self.action.UTF8String)));
+    }
+}
+@end
+
+static char kEdwardTitlebarTargets;
 
 static NSView *titlebarHost(NSWindow *window) {
     NSView *host = [window standardWindowButton:NSWindowCloseButton].superview;
@@ -19,7 +39,7 @@ static NSColor *accentColor() {
 static NSAttributedString *buttonTitle(NSString *title, NSColor *color) {
     return [[NSAttributedString alloc] initWithString:title attributes:@{
         NSForegroundColorAttributeName: color,
-        NSFontAttributeName: [NSFont systemFontOfSize:12.0 weight:NSFontWeightMedium]
+        NSFontAttributeName: [NSFont systemFontOfSize:10.0 weight:NSFontWeightMedium]
     }];
 }
 
@@ -36,7 +56,7 @@ void installEdwardTitlebar(QWindow *window) {
 
     NSTextField *status = [NSTextField labelWithString:@"未命名项目 · 未连接"];
     status.alignment = NSTextAlignmentCenter;
-    status.textColor = [NSColor secondaryLabelColor];
+    status.textColor = [NSColor whiteColor];
     status.translatesAutoresizingMaskIntoConstraints = NO;
     [host addSubview:status positioned:NSWindowAbove relativeTo:nil];
 
@@ -46,15 +66,25 @@ void installEdwardTitlebar(QWindow *window) {
     buttons.translatesAutoresizingMaskIntoConstraints = NO;
     [host addSubview:buttons positioned:NSWindowAbove relativeTo:nil];
 
-    for (NSString *title in @[@"布局", @"S", @"M", @"L", @"设置", @"?", @"导出", @"中文"]) {
-        NSButton *button = [NSButton buttonWithTitle:title target:nil action:nil];
+    NSMutableArray *targets = [NSMutableArray array];
+    NSArray *titles = @[@"布局", @"S", @"M", @"L", @"设置", @"?", @"导出", @"中文"];
+    NSArray *actions = @[@"layout", @"S", @"M", @"L", @"settings", @"help", @"export", @"language"];
+    for (NSUInteger index = 0; index < titles.count; ++index) {
+        NSString *title = titles[index];
+        EdwardTitlebarTarget *target = [EdwardTitlebarTarget new];
+        target.window = window;
+        target.action = actions[index];
+        [targets addObject:target];
+        NSButton *button = [NSButton buttonWithTitle:title target:target action:@selector(clicked:)];
         button.bezelStyle = NSBezelStyleTexturedRounded;
         button.controlSize = NSControlSizeSmall;
         button.bordered = YES;
         button.wantsLayer = YES;
         button.layer.backgroundColor = [NSColor colorWithCalibratedWhite:0.13 alpha:1.0].CGColor;
         button.layer.cornerRadius = 5.0;
-        button.attributedTitle = buttonTitle(title, [NSColor labelColor]);
+        [button.widthAnchor constraintGreaterThanOrEqualToConstant:24.0].active = YES;
+        [button.heightAnchor constraintEqualToConstant:22.0].active = YES;
+        button.attributedTitle = buttonTitle(title, [NSColor whiteColor]);
         if ([title isEqualToString:@"L"]) {
             button.state = NSControlStateValueOn;
             button.layer.backgroundColor = [accentColor() colorWithAlphaComponent:0.2].CGColor;
@@ -64,6 +94,7 @@ void installEdwardTitlebar(QWindow *window) {
         }
         [buttons addArrangedSubview:button];
     }
+    objc_setAssociatedObject(host, &kEdwardTitlebarTargets, targets, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
     [NSLayoutConstraint activateConstraints:@[
         [status.centerXAnchor constraintEqualToAnchor:host.centerXAnchor],

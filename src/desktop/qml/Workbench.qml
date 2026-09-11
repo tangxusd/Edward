@@ -16,6 +16,17 @@ ApplicationWindow {
     function uiFontSize(baseSize) {
         return baseSize + (uiScale < 1.0 ? 1 : 0)
     }
+    function handleNativeTitlebarAction(action) {
+        if (action === "layout") return resolveLayoutFileDialog.open()
+        if (action === "settings") { activeRailIndex = -1; activeUtility = "settings"; return }
+        if (action === "export") return timelineExportPanel.open()
+        if (action === "help") return aiSettingsDialog.open()
+        if (action === "language") return
+        if (action === "S" || action === "M" || action === "L") {
+            var widths = {"S": 960, "M": 1280, "L": 1600}
+            window.width = widths[action]
+        }
+    }
     property int sidebarControlWidth: 340
     property int activeRailIndex: 0
     property int activeInspectorTab: 0
