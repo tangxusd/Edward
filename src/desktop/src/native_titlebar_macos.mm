@@ -50,6 +50,7 @@ void installEdwardTitlebar(QWindow *window) {
     native.titleVisibility = NSWindowTitleHidden;
     native.titlebarAppearsTransparent = YES;
     native.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+    native.movableByWindowBackground = YES;
 
     NSView *host = titlebarHost(native);
     if (!host) return;
