@@ -807,7 +807,7 @@ textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #000;
+  background: #2b2b2b;
   min-height: 0;
   margin: 8px;
   border-radius: 6px;
