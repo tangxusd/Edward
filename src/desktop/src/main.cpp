@@ -10,6 +10,7 @@
 #include <QProcess>
 #include <QFileInfo>
 #include <QWindow>
+#include <QStandardPaths>
 #include <QtWebEngineQuick>
 
 class EdwardFrameProvider final : public QQuickImageProvider {
@@ -38,9 +39,15 @@ int main(int argc, char** argv) {
   const auto fablecutEntry = fablecutRoot + QStringLiteral("/server.js");
   if (QFileInfo::exists(fablecutEntry)) {
     fablecutServer.setWorkingDirectory(fablecutRoot);
-    fablecutServer.setProgram(QStringLiteral("node"));
+    auto nodeProgram = QStandardPaths::findExecutable(QStringLiteral("node"));
+    if (nodeProgram.isEmpty() && QFileInfo::exists(QStringLiteral("/opt/homebrew/bin/node")))
+      nodeProgram = QStringLiteral("/opt/homebrew/bin/node");
+    if (nodeProgram.isEmpty() && QFileInfo::exists(QStringLiteral("/usr/local/bin/node")))
+      nodeProgram = QStringLiteral("/usr/local/bin/node");
+    fablecutServer.setProgram(nodeProgram.isEmpty() ? QStringLiteral("node") : nodeProgram);
     fablecutServer.setArguments({QStringLiteral("server.js")});
     fablecutServer.start();
+    fablecutServer.waitForStarted(3000);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &fablecutServer, [&fablecutServer] {
       if (fablecutServer.state() != QProcess::NotRunning) {
         fablecutServer.terminate();

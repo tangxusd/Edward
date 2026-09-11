@@ -3026,8 +3026,14 @@ ApplicationWindow {
         anchors.fill: parent
         visible: window.fablecutEmbedded
         z: 1000
-        url: "http://127.0.0.1:7777/"
+        url: "about:blank"
         settings.javascriptEnabled: true
         settings.localStorageEnabled: true
+    }
+    Timer {
+        interval: 500
+        running: true
+        repeat: false
+        onTriggered: fablecutView.url = "http://127.0.0.1:7777/"
     }
 }
