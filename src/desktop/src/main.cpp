@@ -13,6 +13,10 @@
 #include <QStandardPaths>
 #include <QtWebEngineQuick>
 
+#ifdef Q_OS_MACOS
+void installEdwardTitlebar(QWindow *window);
+#endif
+
 class EdwardFrameProvider final : public QQuickImageProvider {
  public:
   explicit EdwardFrameProvider(const edward::desktop::WorkbenchRuntime& runtime)
@@ -67,6 +71,9 @@ int main(int argc, char** argv) {
     // 不设置固定几何、置顶或尺寸限制，保留窗口常规移动/缩放能力。
     window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint | Qt::NoTitleBarBackgroundHint);
     window->showMaximized();
+#ifdef Q_OS_MACOS
+    installEdwardTitlebar(window);
+#endif
   }
   QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(); });
   return app.exec();

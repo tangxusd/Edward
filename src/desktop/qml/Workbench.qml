@@ -3025,39 +3025,13 @@ ApplicationWindow {
         id: fablecutView
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: shellControlBar.bottom
+        anchors.top: parent.top
         anchors.bottom: parent.bottom
         visible: window.fablecutEmbedded
         z: 1000
         url: "about:blank"
         settings.javascriptEnabled: true
         settings.localStorageEnabled: true
-    }
-    Rectangle {
-        id: shellControlBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 34
-        z: 2000
-        color: "#151515"
-        border.color: "#2b2b2b"
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 10
-            anchors.rightMargin: 10
-            spacing: 5
-            Text { text: workbenchRuntime.projectWindowTitle; color: "#d0d0d0"; font.pixelSize: 10; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
-            Rectangle { width: 7; height: 7; radius: 4; color: workbenchRuntime.resolveConnected ? "#5cb85c" : "#d9534f" }
-            Button { text: "布局"; onClicked: window.activeUtility = "settings"; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: "#444444"; radius: 3 } contentItem: Text { text: parent.text; color: "#d0d0d0"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            Button { text: "S"; onClicked: window.activeInspectorTab = 0; Layout.preferredWidth: 28; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: "#444444"; radius: 3 } contentItem: Text { text: parent.text; color: "#d0d0d0"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            Button { text: "M"; onClicked: window.activeInspectorTab = 1; Layout.preferredWidth: 28; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: "#444444"; radius: 3 } contentItem: Text { text: parent.text; color: "#d0d0d0"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            Button { text: "L"; onClicked: window.activeInspectorTab = 2; Layout.preferredWidth: 28; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: "#ff6e00"; radius: 3 } contentItem: Text { text: parent.text; color: "#ff6e00"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            Button { text: "设置"; onClicked: window.activeUtility = "settings"; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: "#444444"; radius: 3 } contentItem: Text { text: parent.text; color: "#d0d0d0"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            Button { text: "?"; onClicked: window.activeUtility = "ai"; Layout.preferredWidth: 28; Layout.preferredHeight: 24; background: Rectangle { color: "#242424"; border.color: "#444444"; radius: 3 } contentItem: Text { text: parent.text; color: "#d0d0d0"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            Button { text: "导出"; onClicked: timelineExportPanel.open(); Layout.preferredHeight: 24; background: Rectangle { color: "#ff6e00"; border.color: "#ff6e00"; radius: 3 } contentItem: Text { text: parent.text; color: "#ffffff"; font.pixelSize: 10; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter } }
-            ComboBox { model: ["中文", "English"]; currentIndex: 0; Layout.preferredWidth: 70; Layout.preferredHeight: 24; contentItem: Text { text: parent.displayText; color: "#d0d0d0"; font.pixelSize: 10; verticalAlignment: Text.AlignVCenter; leftPadding: 8 } background: Rectangle { color: "#242424"; border.color: "#444444"; radius: 3 } }
-        }
     }
     Timer {
         interval: 500
