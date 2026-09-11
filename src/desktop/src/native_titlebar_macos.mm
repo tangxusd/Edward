@@ -83,11 +83,11 @@ void installEdwardTitlebar(QWindow *window) {
         if (event.window != native) return event;
         NSPoint point = [host convertPoint:event.locationInWindow fromView:nil];
         if (point.y < 0 || point.y > host.bounds.size.height) return event;
-        for (NSView *subview in host.subviews) {
-            if ([subview isKindOfClass:[NSStackView class]] && NSPointInRect(point, subview.frame)) {
-                for (NSView *button in subview.subviews)
-                    if (NSPointInRect(point, button.frame)) return event;
-            }
+        NSView *hit = [host hitTest:point];
+        if ([hit isKindOfClass:[NSButton class]] || [hit.superview isKindOfClass:[NSButton class]]) return event;
+        if (event.clickCount >= 2) {
+            [native performZoom:nil];
+            return nil;
         }
         [native performWindowDragWithEvent:event];
         return nil;
