@@ -2,7 +2,8 @@
 #include <QWindow>
 
 void installEdwardTitlebar(QWindow *window) {
-    NSWindow *native = (__bridge NSWindow *)reinterpret_cast<void *>(window->winId());
+    NSView *view = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
+    NSWindow *native = view.window;
     if (!native) return;
     native.titleVisibility = NSWindowTitleVisible;
     native.titlebarAppearsTransparent = NO;
