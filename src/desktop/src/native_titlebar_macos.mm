@@ -63,7 +63,7 @@ static NSColor *accentColor() {
 static NSAttributedString *buttonTitle(NSString *title, NSColor *color) {
     return [[NSAttributedString alloc] initWithString:title attributes:@{
         NSForegroundColorAttributeName: color,
-        NSFontAttributeName: [NSFont systemFontOfSize:10.0 weight:NSFontWeightMedium]
+        NSFontAttributeName: [NSFont systemFontOfSize:11.0 weight:NSFontWeightMedium]
     }];
 }
 
@@ -78,6 +78,20 @@ void installEdwardTitlebar(QWindow *window) {
 
     NSView *host = titlebarHost(native);
     if (!host) return;
+
+    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown handler:^NSEvent *(NSEvent *event) {
+        if (event.window != native) return event;
+        NSPoint point = [host convertPoint:event.locationInWindow fromView:nil];
+        if (point.y < 0 || point.y > host.bounds.size.height) return event;
+        for (NSView *subview in host.subviews) {
+            if ([subview isKindOfClass:[NSStackView class]] && NSPointInRect(point, subview.frame)) {
+                for (NSView *button in subview.subviews)
+                    if (NSPointInRect(point, button.frame)) return event;
+            }
+        }
+        [native performWindowDragWithEvent:event];
+        return nil;
+    }];
 
     NSTextField *status = [NSTextField labelWithString:@"未命名项目 · 未连接"];
     status.alignment = NSTextAlignmentCenter;
@@ -114,6 +128,7 @@ void installEdwardTitlebar(QWindow *window) {
         button.attributedTitle = buttonTitle(title, [NSColor whiteColor]);
         if ([title isEqualToString:@"导出"]) {
             button.layer.backgroundColor = accentColor().CGColor;
+            button.layer.borderWidth = 0.0;
             button.attributedTitle = buttonTitle(title, [NSColor whiteColor]);
         }
         if ([title isEqualToString:@"L"]) {
