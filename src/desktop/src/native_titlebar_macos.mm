@@ -5,6 +5,7 @@
 #include <objc/runtime.h>
 
 static NSAttributedString *buttonTitle(NSString *title, NSColor *color);
+static NSColor *accentColor();
 
 @interface EdwardTitlebarTarget : NSObject
 @property(nonatomic, assign) QWindow *window;
@@ -20,6 +21,19 @@ static NSAttributedString *buttonTitle(NSString *title, NSColor *color);
             NSButton *button = (NSButton *)sender;
             button.title = self.english ? @"中文" : @"ENG";
             button.attributedTitle = buttonTitle(button.title, [NSColor whiteColor]);
+        }
+        if ([self.action isEqualToString:@"S"] || [self.action isEqualToString:@"M"] || [self.action isEqualToString:@"L"]) {
+            NSView *container = ((NSButton *)sender).superview;
+            for (NSView *view in container.subviews) {
+                if (![view isKindOfClass:[NSButton class]]) continue;
+                NSButton *button = (NSButton *)view;
+                BOOL selected = [button.title isEqualToString:self.action];
+                button.state = selected ? NSControlStateValueOn : NSControlStateValueOff;
+                button.layer.borderWidth = selected ? 1.0 : 0.0;
+                button.layer.borderColor = selected ? accentColor().CGColor : [NSColor clearColor].CGColor;
+                button.layer.backgroundColor = selected ? [accentColor() colorWithAlphaComponent:0.2].CGColor : [NSColor clearColor].CGColor;
+                button.attributedTitle = buttonTitle(button.title, selected ? accentColor() : [NSColor whiteColor]);
+            }
         }
         QMetaObject::invokeMethod(self.window, "handleNativeTitlebarAction",
                                   Qt::QueuedConnection,
@@ -77,8 +91,8 @@ void installEdwardTitlebar(QWindow *window) {
     [host addSubview:buttons positioned:NSWindowAbove relativeTo:nil];
 
     NSMutableArray *targets = [NSMutableArray array];
-    NSArray *titles = @[@"布局", @"S", @"M", @"L", @"设置", @"导出", @"ENG"];
-    NSArray *actions = @[@"layout", @"S", @"M", @"L", @"settings", @"export", @"language"];
+    NSArray *titles = @[@"登录", @"布局", @"S", @"M", @"L", @"设置", @"导出", @"ENG"];
+    NSArray *actions = @[@"login", @"layout", @"S", @"M", @"L", @"settings", @"export", @"language"];
     for (NSUInteger index = 0; index < titles.count; ++index) {
         NSString *title = titles[index];
         EdwardTitlebarTarget *target = [EdwardTitlebarTarget new];
@@ -95,6 +109,10 @@ void installEdwardTitlebar(QWindow *window) {
         [button.widthAnchor constraintGreaterThanOrEqualToConstant:24.0].active = YES;
         [button.heightAnchor constraintEqualToConstant:22.0].active = YES;
         button.attributedTitle = buttonTitle(title, [NSColor whiteColor]);
+        if ([title isEqualToString:@"导出"]) {
+            button.layer.backgroundColor = accentColor().CGColor;
+            button.attributedTitle = buttonTitle(title, [NSColor whiteColor]);
+        }
         if ([title isEqualToString:@"L"]) {
             button.state = NSControlStateValueOn;
             button.layer.backgroundColor = [accentColor() colorWithAlphaComponent:0.2].CGColor;

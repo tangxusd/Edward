@@ -17,6 +17,7 @@ ApplicationWindow {
         return baseSize + (uiScale < 1.0 ? 1 : 0)
     }
     function handleNativeTitlebarAction(action) {
+        if (action === "login") return workbenchRuntime.authenticated ? workbenchRuntime.signOut() : signInDialog.open()
         if (action === "layout") return fablecutView.runJavaScript("restoreDefaultLayout()")
         if (action === "settings") return aiSettingsDialog.open()
         if (action === "export") return timelineExportPanel.open()
