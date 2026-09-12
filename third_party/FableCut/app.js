@@ -502,6 +502,9 @@ const $ = (id) => document.getElementById(id);
 const els = {
   binList: $("binList"), binEmpty: $("binEmpty"), fileInput: $("fileInput"),
   binTabs: $("binTabs"), binImportTools: $("binImportTools"), libList: $("libList"), toast: $("toast"),
+  resourceBrowser: $("resourceBrowser"), resourceCategories: $("resourceCategories"),
+  resourceSort: $("resourceSort"), resourceState: $("resourceState"), resourceGrid: $("resourceGrid"),
+  resourceMore: $("resourceMore"),
   preview: $("preview"), tcCurrent: $("tcCurrent"), tcTotal: $("tcTotal"),
   btnPlay: $("btnPlay"), inspector: $("inspector"),
   trackHeaders: $("trackHeaders"), timelineScroll: $("timelineScroll"),
@@ -1618,16 +1621,131 @@ function renderLibrary() {
     els.libList.appendChild(item);
   }
 }
+
+const RESOURCE_PAGE_SIZE = 24;
+const resourceBrowserState = { tab: null, categoryId: null, sort: "latest", offset: 0, hasMore: false, categories: [] };
+const resourceCacheKey = () => `fablecut-resource-cache:${resourceBrowserState.tab}:${resourceBrowserState.categoryId || "all"}:${resourceBrowserState.sort}`;
+
+function setResourceState(message, error = false) {
+  if (!els.resourceState) return;
+  els.resourceState.textContent = message || "";
+  els.resourceState.style.color = error ? "#e39a9a" : "";
+}
+
+async function fetchResourceApi(path, options = {}) {
+  const response = await fetch(path, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
+  let value = null;
+  try { value = await response.json(); } catch { value = null; }
+  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "登录后查看资源" : (value?.error || `请求失败（${response.status}）`));
+  return value;
+}
+
+function renderResourceCategories() {
+  if (!els.resourceCategories) return;
+  const roots = resourceBrowserState.categories.filter((c) => !c.parent_id);
+  const selectedRoot = resourceBrowserState.categoryId && resourceBrowserState.categories.find((c) => c.id === resourceBrowserState.categoryId);
+  const rootId = selectedRoot?.parent_id || selectedRoot?.id || null;
+  els.resourceCategories.innerHTML = "";
+  const all = document.createElement("button");
+  all.type = "button"; all.className = `resource-category${!resourceBrowserState.categoryId ? " on" : ""}`; all.textContent = "全部资源";
+  all.addEventListener("click", () => { resourceBrowserState.categoryId = null; loadResourcePage(true); renderResourceCategories(); });
+  els.resourceCategories.appendChild(all);
+  for (const root of roots) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = `resource-category${resourceBrowserState.categoryId === root.id ? " on" : ""}`; button.textContent = root.name;
+    button.addEventListener("click", () => { resourceBrowserState.categoryId = root.id; loadResourcePage(true); renderResourceCategories(); });
+    els.resourceCategories.appendChild(button);
+    if (root.id === rootId) {
+      for (const child of resourceBrowserState.categories.filter((c) => c.parent_id === root.id)) {
+        const childButton = document.createElement("button");
+        childButton.type = "button"; childButton.className = `resource-category child${resourceBrowserState.categoryId === child.id ? " on" : ""}`; childButton.textContent = child.name;
+        childButton.addEventListener("click", () => { resourceBrowserState.categoryId = child.id; loadResourcePage(true); renderResourceCategories(); });
+        els.resourceCategories.appendChild(childButton);
+      }
+    }
+  }
+}
+
+function renderResourceCards(items) {
+  if (!els.resourceGrid) return;
+  els.resourceGrid.innerHTML = "";
+  for (const resource of items || []) {
+    const card = document.createElement("article");
+    card.className = "resource-card";
+    card.draggable = true;
+    const preview = resource.preview_url ? `<img class="resource-card-preview" src="${String(resource.preview_url).replace(/"/g, "&quot;")}" alt="">` : `<div class="resource-card-preview"></div>`;
+    card.innerHTML = `${preview}<div class="resource-card-name"></div><div class="resource-card-summary"></div><div class="resource-card-meta">收藏 ${Number(resource.favorite_count || 0)}</div>`;
+    card.querySelector(".resource-card-name").textContent = resource.name || resource.slug || "未命名资源";
+    card.querySelector(".resource-card-summary").textContent = resource.summary || "";
+    card.addEventListener("dblclick", () => fetchResourceApi(`/api/resources/detail?id=${encodeURIComponent(resource.id)}`).catch((error) => setResourceState(error.message, true)));
+    els.resourceGrid.appendChild(card);
+  }
+}
+
+async function loadResourcePage(reset = false) {
+  if (!els.resourceGrid) return;
+  if (reset) resourceBrowserState.offset = 0;
+  const cacheKey = resourceCacheKey();
+  if (reset) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+      if (cached?.items) { renderResourceCards(cached.items); setResourceState("已显示本地缓存，正在同步"); }
+    } catch { /* ignore malformed local cache */ }
+  }
+  const query = new URLSearchParams({ tabKey: resourceBrowserState.tab, sort: resourceBrowserState.sort, limit: String(RESOURCE_PAGE_SIZE), offset: String(resourceBrowserState.offset) });
+  if (resourceBrowserState.categoryId) query.set("categoryId", resourceBrowserState.categoryId);
+  try {
+    const payload = await fetchResourceApi(`/api/resources/catalog?${query}`);
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    if (reset) renderResourceCards(items); else {
+      const existing = [...els.resourceGrid.querySelectorAll(".resource-card")];
+      renderResourceCards([...existing.map((node) => ({ name: node.querySelector(".resource-card-name")?.textContent || "" })), ...items]);
+    }
+    resourceBrowserState.offset += items.length;
+    resourceBrowserState.hasMore = Boolean(payload?.nextOffset);
+    if (reset) localStorage.setItem(cacheKey, JSON.stringify({ items, savedAt: Date.now() }));
+    setResourceState(items.length ? "" : "暂无资源");
+  } catch (error) {
+    setResourceState(error.message || "资源加载失败", true);
+    if (!els.resourceGrid.children.length) renderResourceCards([]);
+  }
+  els.resourceMore?.classList.toggle("hidden", !resourceBrowserState.hasMore);
+}
+
+async function loadResourceBrowser(tab) {
+  resourceBrowserState.tab = tab;
+  resourceBrowserState.categoryId = null;
+  resourceBrowserState.sort = localStorage.getItem(`fablecut-resource-sort:${tab}`) || "latest";
+  els.resourceSort?.querySelectorAll("[data-resource-sort]").forEach((button) => button.classList.toggle("on", button.dataset.resourceSort === resourceBrowserState.sort));
+  setResourceState("正在加载资源");
+  try {
+    resourceBrowserState.categories = await fetchResourceApi(`/api/resources/categories?tabKey=${encodeURIComponent(tab)}`) || [];
+    renderResourceCategories();
+    await loadResourcePage(true);
+  } catch (error) { setResourceState(error.message || "资源分类加载失败", true); }
+}
+
+els.resourceSort?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-resource-sort]");
+  if (!button) return;
+  resourceBrowserState.sort = button.dataset.resourceSort;
+  localStorage.setItem(`fablecut-resource-sort:${resourceBrowserState.tab}`, resourceBrowserState.sort);
+  els.resourceSort.querySelectorAll("[data-resource-sort]").forEach((item) => item.classList.toggle("on", item === button));
+  loadResourcePage(true);
+});
+els.resourceMore?.addEventListener("click", () => loadResourcePage(false));
+
 function setBinTab(tab) {
   state.binTab = tab;
   for (const b of els.binTabs.querySelectorAll("[data-tab]"))
     b.classList.toggle("on", b.dataset.tab === tab);
-  const source = libraryForBinTab(tab);
-  const isProj = source === "project";
   if (els.binImportTools) els.binImportTools.hidden = tab !== "import";
-  els.binList.classList.toggle("hidden", !isProj);
-  els.libList.classList.toggle("hidden", isProj);
-  if (!isProj) fetchLibrary(source).then(renderLibrary);
+  const isImport = tab === "import";
+  els.binList.classList.toggle("hidden", !isImport);
+  els.libList.classList.toggle("hidden", true);
+  els.resourceBrowser?.classList.toggle("hidden", isImport);
+  if (isImport) renderBin();
+  else if (RESOURCE_PAGE_SIZE && els.resourceBrowser) loadResourceBrowser(tab);
 }
 
 /* ═══════════════════════════ EDIT OPERATIONS ═══════════════════════════ */

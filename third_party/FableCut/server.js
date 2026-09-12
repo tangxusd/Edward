@@ -48,6 +48,8 @@ function isVisibleResourceName(name) {
 const ROOT = APP_DIR;
 const PORT = process.env.PORT || 7777;
 const HOST = process.env.HOST || "127.0.0.1";
+const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
 
 /* Requests must come from the local machine (or an explicitly allowed host).
    The Host check stops DNS rebinding; the Origin check stops malicious web
@@ -176,6 +178,16 @@ function run(cmd, args) {
     execFile(cmd, args, { maxBuffer: 1 << 24 }, (err, _out, stderr) =>
       err ? reject(new Error((stderr || String(err)).slice(-800))) : resolve());
   });
+}
+async function supabaseProxy(pathname, req, body) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("supabase_not_configured");
+  const headers = { apikey: SUPABASE_ANON_KEY, Accept: "application/json" };
+  if (req.headers.authorization) headers.Authorization = req.headers.authorization;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const response = await fetch(SUPABASE_URL + pathname, { method: body === undefined ? "GET" : "POST", headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await response.text();
+  let value; try { value = JSON.parse(text); } catch { value = { error: text.slice(0, 300) }; }
+  return { status: response.status, value };
 }
 
 /* Remux MP4-family uploads with `+faststart` so the moov atom leads the file —
@@ -414,6 +426,38 @@ const server = http.createServer(async (req, res) => {
       fs.renameSync(tmp, PROJECT_FILE);
       sendJSON(res, 200, { ok: true, revision: data.revision });
     } catch (e) { sendJSON(res, 400, { error: String(e) }); }
+    return;
+  }
+
+  if (p === "/api/resources/categories" && req.method === "GET") {
+    try {
+      const tabKey = url.searchParams.get("tabKey") || "";
+      const q = new URLSearchParams({ select: "id,tab_key,parent_id,name,slug,sort_order,status", tab_key: `eq.${tabKey}`, status: "eq.published", order: "sort_order.asc,name.asc" });
+      const result = await supabaseProxy(`/rest/v1/resource_categories?${q}`, req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/resources/catalog" && req.method === "GET") {
+    try {
+      const query = new URLSearchParams(url.searchParams);
+      const result = await supabaseProxy(`/functions/v1/resource-catalog?${query}`, req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/resources/detail" && req.method === "GET") {
+    try {
+      const result = await supabaseProxy(`/functions/v1/resource-detail?${url.searchParams}`, req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/resources/favorite" && req.method === "POST") {
+    try {
+      const result = await supabaseProxy("/functions/v1/resource-favorite", req, JSON.parse((await readBody(req)).toString("utf8")));
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
     return;
   }
 

@@ -55,6 +55,19 @@
         <button type="button" class="bin-tabs-scroll next" aria-label="向右移动标签" title="向右移动标签">›</button>
       </div>
       <input type="file" id="fileInput" class="sr-only" multiple accept="video/*,audio/*,image/*,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.png,.jpg,.jpeg,.gif,.webp,.svg">
+      <section class="resource-browser hidden" id="resourceBrowser" aria-label="资源库">
+        <nav class="resource-categories" id="resourceCategories" aria-label="资源分类"></nav>
+        <div class="resource-results">
+          <div class="resource-sort" id="resourceSort" role="toolbar" aria-label="资源排序">
+            <button type="button" data-resource-sort="favorites">收藏</button>
+            <button type="button" data-resource-sort="popular">热门</button>
+            <button type="button" data-resource-sort="latest" class="on">最新</button>
+          </div>
+          <div class="resource-state" id="resourceState" role="status"></div>
+          <div class="resource-grid" id="resourceGrid"></div>
+          <button type="button" class="btn tiny resource-more hidden" id="resourceMore">加载更多</button>
+        </div>
+      </section>
       <div class="bin-list" id="binList">
         <div class="bin-empty" id="binEmpty">
           <div class="bin-empty-icon">🎬</div>

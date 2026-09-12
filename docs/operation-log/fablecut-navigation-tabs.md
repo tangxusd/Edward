@@ -112,3 +112,9 @@
 
 - 结果：初始化并关联 Supabase 项目 `naybqwiqgviuzjtemerc`；创建资源分类、资源、版本、收藏、浏览和权限表，配置索引与 RLS；部署 `resource-catalog`、`resource-detail`、`resource-favorite` Edge Functions。
 - 验证：`supabase db push --linked --yes` 成功；三个 Edge Functions 部署成功。部署过程未写入 service role key。
+## 2026-09-12 Supabase 资源浏览器接入
+
+- 目的：将“导入”之外的素材 Tab 切换到 Supabase 分类与资源目录，同时保留导入 Tab 的本地项目素材流程。
+- 涉及文件：`third_party/FableCut/index.html`、`third_party/FableCut/style.css`、`third_party/FableCut/app.js`、`third_party/FableCut/server.js`。
+- 结果：新增两级分类导航、收藏/热门/最新排序、分页加载和仅缓存资源元数据的本地缓存；本地代理转发浏览器 Authorization，不保存服务端密钥。
+- 验证：`node --check third_party/FableCut/app.js`、`node --check third_party/FableCut/server.js` 通过；未配置 Supabase 环境变量时接口返回 `503 supabase_not_configured`，未向匿名请求开放资源数据。
