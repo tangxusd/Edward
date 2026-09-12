@@ -554,7 +554,7 @@ textarea {
   border-bottom: 1px solid var(--border);
 }
 
-.bin-tabs button {
+.bin-tabs button:not(.bin-tabs-scroll), .bin-tabs .bin-tab {
   flex: 0 0 64px;
   display: flex;
   flex-direction: column;
@@ -571,33 +571,34 @@ textarea {
   border-radius: 2px 2px 0 0;
   position: relative;
 }
-.bin-tabs button[data-tab] { transform: translateX(var(--tab-offset)); }
+.bin-tabs button[data-tab], .bin-tabs .bin-tab[data-tab] { transform: translateX(var(--tab-offset)); }
 
 .bin-tab-icon { height: 30px; min-width: 30px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 20px/1 "SF Mono", monospace; }
 .bin-tab-icon svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .bin-tab-icon svg path[fill] { stroke: none; }
 .bin-tab-icon.import-icon, .bin-tab-icon.import-icon svg { border: 0; }
 .bin-tab-icon.import-icon svg { width: 36px; height: 36px; }
-.bin-tabs button[data-tab="import"] .bin-tab-icon { border: 0; font-size: 36px; }
-.bin-tabs button[data-tab="number"] .bin-tab-icon { font-size: 11px; }
+.bin-tabs [data-tab="import"] .bin-tab-icon { border: 0; font-size: 36px; }
+.bin-tabs [data-tab="number"] .bin-tab-icon { font-size: 11px; }
 
-.bin-tabs button:hover {
+.bin-tabs button:not(.bin-tabs-scroll):hover, .bin-tabs .bin-tab:hover {
   color: var(--text);
 }
 
-.bin-tabs button.on {
+.bin-tabs button.on:not(.bin-tabs-scroll), .bin-tabs .bin-tab.on {
   color: var(--accent);
   background: transparent;
   border-bottom: 2px solid var(--accent);
 }
 
-.bin-tabs button.on::before {
+.bin-tabs button.on::before, .bin-tabs .bin-tab.on::before {
   content: none;
 }
 
 .bin-tabs-scroll {
   position: absolute !important;
-  top: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 2;
   min-width: 18px !important;
   width: 18px !important;
@@ -610,8 +611,8 @@ textarea {
   color: var(--text) !important;
   font: 700 14px/1 sans-serif !important;
 }
-.bin-tabs-scroll.prev { left: calc(50% - 22px); }
-.bin-tabs-scroll.next { left: calc(50% + 4px); }
+.bin-tabs-scroll.prev { left: 2px; }
+.bin-tabs-scroll.next { right: 2px; }
 .bin-tabs-scroll:disabled { opacity: .3; cursor: default; }
 
 .bin-import-tools { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; padding: 6px 6px 4px; border-bottom: 1px solid var(--border); }
