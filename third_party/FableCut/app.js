@@ -7079,10 +7079,25 @@ $("trackSizeGroup").addEventListener("click", (e) => {
   const b = e.target.closest("[data-track-size]");
   if (b) setTrackSize(b.dataset.trackSize);
 });
+function syncBinTabScrollButtons() {
+  const tabs = els.binTabs;
+  const prev = tabs.querySelector(".bin-tabs-scroll.prev"), next = tabs.querySelector(".bin-tabs-scroll.next");
+  if (!prev || !next) return;
+  prev.disabled = tabs.scrollLeft <= 1;
+  next.disabled = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 1;
+}
+els.binTabs.addEventListener("scroll", syncBinTabScrollButtons, { passive: true });
+els.binTabs.querySelector(".bin-tabs-scroll.prev")?.addEventListener("click", () => {
+  els.binTabs.scrollBy({ left: -Math.max(120, els.binTabs.clientWidth * 0.6), behavior: "smooth" });
+});
+els.binTabs.querySelector(".bin-tabs-scroll.next")?.addEventListener("click", () => {
+  els.binTabs.scrollBy({ left: Math.max(120, els.binTabs.clientWidth * 0.6), behavior: "smooth" });
+});
 els.binTabs.addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
   if (b) setBinTab(b.dataset.tab);
 });
+requestAnimationFrame(syncBinTabScrollButtons);
 /* Right-click the Project tab → New folder */
 function closeBinCtxMenu() {
   if (!runtime.binCtxMenu) return;

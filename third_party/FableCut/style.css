@@ -541,41 +541,38 @@ textarea {
 
 /* ── Media bin ── */
 .bin-tabs {
-  position: absolute;
-  top: 36px;
-  bottom: 0;
-  left: 0;
-  z-index: 3;
+  position: relative;
   display: flex;
-  flex-direction: column;
-  width: 76px;
-  gap: 4px;
-  padding: 10px 4px;
-  background: #0c0c0c;
-  border-right: 1px solid #252525;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 30px 0 8px;
+  overflow: hidden;
+  background: #121212;
+  border-bottom: 1px solid var(--border);
 }
 
 .bin-tabs button {
-  flex: 0 0 54px;
+  flex: 0 0 74px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   background: none;
   border: none;
   color: var(--dim);
   font: 600 10px/1.1 "Segoe UI", sans-serif;
-  padding: 4px 2px;
+  padding: 5px 4px 7px;
   cursor: pointer;
-  white-space: normal;
-  border-radius: 3px;
+  white-space: nowrap;
+  border-radius: 2px 2px 0 0;
   position: relative;
 }
 
-.bin-tab-icon { height: 19px; min-width: 19px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 12px/1 "SF Mono", monospace; }
-.bin-tabs button[data-tab="home"] .bin-tab-icon { border: 0; font-size: 22px; }
-.bin-tabs button[data-tab="number"] .bin-tab-icon { font-size: 8px; }
+.bin-tab-icon { height: 15px; min-width: 15px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 10px/1 "SF Mono", monospace; }
+.bin-tabs button[data-tab="home"] .bin-tab-icon { border: 0; font-size: 18px; }
+.bin-tabs button[data-tab="number"] .bin-tab-icon { font-size: 7px; }
 
 .bin-tabs button:hover {
   color: var(--text);
@@ -583,23 +580,36 @@ textarea {
 
 .bin-tabs button.on {
   color: var(--accent);
-  background: #331b0d;
+  background: transparent;
+  border-bottom: 2px solid var(--accent);
 }
 
 .bin-tabs button.on::before {
-  content: "";
-  position: absolute;
-  left: -4px;
-  top: 12px;
-  bottom: 12px;
-  width: 2px;
-  background: var(--accent);
-  border-radius: 0 2px 2px 0;
+  content: none;
 }
+
+.bin-tabs-scroll {
+  position: absolute !important;
+  top: 5px;
+  z-index: 2;
+  min-width: 24px !important;
+  width: 24px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  flex: none !important;
+  background: #1e1e1e !important;
+  border: 1px solid #3a3a3a !important;
+  border-radius: 3px !important;
+  color: var(--text) !important;
+  font: 700 18px/1 sans-serif !important;
+}
+.bin-tabs-scroll.prev { left: 4px; }
+.bin-tabs-scroll.next { right: 4px; }
+.bin-tabs-scroll:disabled { opacity: .3; cursor: default; }
 
 .panel.bin .bin-list,
 .panel.bin #libList {
-  margin-left: 76px;
+  margin-left: 0;
 }
 
 .bin-list {
