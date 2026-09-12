@@ -1623,7 +1623,7 @@ function renderLibrary() {
 }
 
 const RESOURCE_PAGE_SIZE = 24;
-const resourceBrowserState = { tab: null, categoryId: null, sort: "latest", offset: 0, hasMore: false, categories: [] };
+const resourceBrowserState = { tab: null, categoryId: null, sort: "latest", offset: 0, hasMore: false, categories: [], items: [] };
 const resourceCacheKey = () => `fablecut-resource-cache:${resourceBrowserState.tab}:${resourceBrowserState.categoryId || "all"}:${resourceBrowserState.sort}`;
 
 function setResourceState(message, error = false) {
@@ -1682,6 +1682,13 @@ function renderResourceCards(items) {
   }
 }
 
+function cacheResourceItems(items) {
+  for (const item of items || []) {
+    const key = item.component_id || item.id;
+    if (key) localStorage.setItem(`fablecut-resource-item:${key}`, JSON.stringify({ item, savedAt: Date.now() }));
+  }
+}
+
 async function loadResourcePage(reset = false) {
   if (!els.resourceGrid) return;
   if (reset) resourceBrowserState.offset = 0;
@@ -1697,13 +1704,14 @@ async function loadResourcePage(reset = false) {
   try {
     const payload = await fetchResourceApi(`/api/resources/catalog?${query}`);
     const items = Array.isArray(payload?.items) ? payload.items : [];
-    if (reset) renderResourceCards(items); else {
-      const existing = [...els.resourceGrid.querySelectorAll(".resource-card")];
-      renderResourceCards([...existing.map((node) => ({ name: node.querySelector(".resource-card-name")?.textContent || "" })), ...items]);
-    }
+    resourceBrowserState.items = reset ? items : resourceBrowserState.items.concat(items);
+    renderResourceCards(resourceBrowserState.items);
     resourceBrowserState.offset += items.length;
     resourceBrowserState.hasMore = Boolean(payload?.nextOffset);
-    if (reset) localStorage.setItem(cacheKey, JSON.stringify({ items, savedAt: Date.now() }));
+    if (reset) {
+      localStorage.setItem(cacheKey, JSON.stringify({ items, savedAt: Date.now() }));
+      cacheResourceItems(items);
+    }
     setResourceState(items.length ? "" : "暂无资源");
   } catch (error) {
     setResourceState(error.message || "资源加载失败", true);
@@ -1715,6 +1723,7 @@ async function loadResourcePage(reset = false) {
 async function loadResourceBrowser(tab) {
   resourceBrowserState.tab = tab;
   resourceBrowserState.categoryId = null;
+  resourceBrowserState.items = [];
   resourceBrowserState.sort = localStorage.getItem(`fablecut-resource-sort:${tab}`) || "latest";
   els.resourceSort?.querySelectorAll("[data-resource-sort]").forEach((button) => button.classList.toggle("on", button.dataset.resourceSort === resourceBrowserState.sort));
   setResourceState("正在加载资源");
