@@ -17,6 +17,7 @@
     <div class="logo"><span class="logo-mark">▶</span> Fable<b>Cut</b></div>
     <div class="topbar-center" id="projectName"><span>未命名项目</span>  ·  <span class="connection-status connected" title="Local service connected">connected</span></div>
     <div class="topbar-right">
+      <button class="btn tiny" id="btnAuth" title="登录 Supabase">登录</button>
       <span class="layout-tools">
         <button type="button" class="btn tiny" id="btnLayoutReset" title="Restore default layout">⊡ Layout</button>
         <span class="btn-group" id="trackSizeGroup" title="Timeline track height">
@@ -183,6 +184,16 @@
       </div>
     </div>
   </section>
+</div>
+
+<div class="overlay hidden" id="authOverlay">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <h2 id="authTitle">登录</h2>
+    <label>邮箱<input type="email" id="authEmail" autocomplete="email"></label>
+    <label>密码<input type="password" id="authPassword" autocomplete="current-password"></label>
+    <p class="dim" id="authStatus"></p>
+    <div class="dialog-actions"><button class="btn" id="btnAuthCancel">取消</button><button class="btn primary" id="btnAuthSubmit">登录</button></div>
+  </div>
 </div>
 
 <!-- ══════════ IMPORT URL ══════════ -->

@@ -454,6 +454,13 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { sendJSON(res, 400, { error: String(e.message || e) }); }
     return;
   }
+  if (p === "/api/auth/entitlements" && req.method === "GET") {
+    try {
+      const result = await supabaseProxy("/rest/v1/entitlements?select=plan_key,status,starts_at,expires_at,updated_at&order=updated_at.desc", req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
   if (p === "/api/resources/catalog" && req.method === "GET") {
     try {
       const query = new URLSearchParams(url.searchParams);

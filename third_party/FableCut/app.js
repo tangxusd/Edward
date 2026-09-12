@@ -1646,12 +1646,35 @@ function setResourceState(message, error = false) {
 
 async function fetchResourceApi(path, options = {}) {
   const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
-  const response = await fetch(`${apiBase}${path}`, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
+  const session = JSON.parse(localStorage.getItem("fablecut-auth-session") || "null");
+  const auth = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+  const response = await fetch(`${apiBase}${path}`, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...auth, ...(options.headers || {}) } });
   let value = null;
   try { value = await response.json(); } catch { value = null; }
   if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "登录后查看资源" : (value?.error || `请求失败（${response.status}）`));
   return value;
 }
+
+function openAuth() { $("authOverlay")?.classList.remove("hidden"); $("authEmail")?.focus(); }
+function closeAuth() { $("authOverlay")?.classList.add("hidden"); }
+async function submitAuth() {
+  const status = $("authStatus"), email = $("authEmail")?.value.trim(), password = $("authPassword")?.value;
+  if (!email || !password) { status.textContent = "请输入邮箱和密码"; return; }
+  status.textContent = "登录中…";
+  try {
+    const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+    const response = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email, password }) });
+    const value = await response.json();
+    if (!response.ok || !value.access_token) throw new Error(value.error_description || value.msg || "登录失败");
+    localStorage.setItem("fablecut-auth-session", JSON.stringify(value));
+    $("btnAuth").textContent = "已登录"; closeAuth();
+    if (resourceBrowserState.tab) loadResourceBrowser(resourceBrowserState.tab);
+  } catch (error) { status.textContent = error.message; }
+}
+
+$("btnAuth")?.addEventListener("click", openAuth);
+$("btnAuthCancel")?.addEventListener("click", closeAuth);
+$("btnAuthSubmit")?.addEventListener("click", submitAuth);
 
 function renderResourceCategories() {
   if (!els.resourceCategories) return;
