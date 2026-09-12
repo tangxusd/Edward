@@ -401,7 +401,7 @@ const state = {
   webCodecs: false,      // VideoEncoder + Annex-B H.264 supported
   dirtyTimeline: true, gesture: false,
   workAreaPlay: false,   // when true, play + Home/End stay inside IN/OUT
-  binTab: "project",     // project | elements | sfx | svg
+  binTab: "home",
   disabledTracks: new Set(), // mirror of project.disabledTracks for fast lookup
   soloId: null,              // track id when solo is active, else null
   soloRestore: null,         // disabledTracks snapshot taken when solo engaged
@@ -1020,7 +1020,7 @@ function listenSSE() {
 async function syncFromServer(force) {
   if (state.gesture || state.exporting) { runtime.pendingSync = true; return; }
   runtime.pendingSync = false;
-  if (state.binTab !== "project") fetchLibrary(state.binTab).then(renderLibrary);
+  if (libraryForBinTab(state.binTab) !== "project") fetchLibrary(libraryForBinTab(state.binTab)).then(renderLibrary);
   loadLibraryFonts();
   fetchEncodeProfiles();
   try {
@@ -1550,8 +1550,10 @@ function toggleSfxPreview(f, btn) {
   btn.textContent = "⏸";
   runtime.sfxPreview = a;
 }
+const BIN_TAB_LIBRARY = { home: "project", media: "project", text: "elements", audio: "sfx", cards: "elements", chart: "svg", background: "elements", annotation: "svg", number: "elements" };
+function libraryForBinTab(tab) { return BIN_TAB_LIBRARY[tab] || "project"; }
 function renderLibrary() {
-  const dir = state.binTab;
+  const dir = libraryForBinTab(state.binTab);
   if (dir === "project") return;
   const files = (runtime.library[dir] || []).filter((f) => !String(f.name || "").startsWith("."));
   els.libList.innerHTML = "";
@@ -1600,10 +1602,11 @@ function setBinTab(tab) {
   state.binTab = tab;
   for (const b of els.binTabs.querySelectorAll("[data-tab]"))
     b.classList.toggle("on", b.dataset.tab === tab);
-  const isProj = tab === "project";
+  const source = libraryForBinTab(tab);
+  const isProj = source === "project";
   els.binList.classList.toggle("hidden", !isProj);
   els.libList.classList.toggle("hidden", isProj);
-  if (!isProj) fetchLibrary(tab).then(renderLibrary);
+  if (!isProj) fetchLibrary(source).then(renderLibrary);
 }
 
 /* ═══════════════════════════ EDIT OPERATIONS ═══════════════════════════ */
@@ -3374,7 +3377,7 @@ function selectClipsByMediaId(mediaId) {
   }
   clips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
   const primary = clips.find((c) => c.kind === "video") || clips[0];
-  if (state.binTab !== "project") setBinTab("project");
+  if (state.binTab !== "home") setBinTab("home");
   setSelection(clips.map((c) => c.id), primary.id);
 }
 function setSelection(ids, primary) {
@@ -7061,7 +7064,7 @@ $("setLinkSelect").addEventListener("change", (e) => {
     clearBinSelectionHighlight();
     return;
   }
-  if (selectedMediaIds().size && state.binTab !== "project") setBinTab("project");
+  if (selectedMediaIds().size && state.binTab !== "home") setBinTab("home");
   syncBinSelectionFromTimeline();
 });
 els.btnSnap.addEventListener("click", () => {
@@ -7099,7 +7102,7 @@ function openProjectTabMenu(clientX, clientY) {
   item.textContent = "New folder";
   item.addEventListener("click", () => {
     closeBinCtxMenu();
-    if (state.binTab !== "project") setBinTab("project");
+    if (state.binTab !== "home") setBinTab("home");
     addFolder(null);
   });
   menu.appendChild(item);
@@ -7113,7 +7116,7 @@ function openProjectTabMenu(clientX, clientY) {
 }
 els.binTabs.addEventListener("contextmenu", (e) => {
   const b = e.target.closest("[data-tab]");
-  if (!b || b.dataset.tab !== "project") return;
+  if (!b || b.dataset.tab !== "home") return;
   e.preventDefault();
   openProjectTabMenu(e.clientX, e.clientY);
 });

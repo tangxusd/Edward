@@ -534,38 +534,72 @@ textarea {
 
 .panel.bin {
   z-index: 1;
+  position: relative;
 }
 
 /* keep overflowing head buttons above the monitor */
 
 /* ── Media bin ── */
 .bin-tabs {
+  position: absolute;
+  top: 36px;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
   display: flex;
-  gap: 2px;
-  padding: 6px 8px 0;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  width: 76px;
+  gap: 4px;
+  padding: 10px 4px;
+  background: #0c0c0c;
+  border-right: 1px solid #252525;
 }
 
 .bin-tabs button {
-  flex: 1;
+  flex: 0 0 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
   color: var(--dim);
-  font: 600 11px/1.2 "Segoe UI", sans-serif;
-  padding: 5px 2px 7px;
+  font: 600 10px/1.1 "Segoe UI", sans-serif;
+  padding: 4px 2px;
   cursor: pointer;
-  letter-spacing: .2px;
-  white-space: nowrap;
+  white-space: normal;
+  border-radius: 3px;
+  position: relative;
 }
+
+.bin-tab-icon { height: 19px; min-width: 19px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 12px/1 "SF Mono", monospace; }
+.bin-tabs button[data-tab="home"] .bin-tab-icon { border: 0; font-size: 22px; }
+.bin-tabs button[data-tab="number"] .bin-tab-icon { font-size: 8px; }
 
 .bin-tabs button:hover {
   color: var(--text);
 }
 
 .bin-tabs button.on {
-  color: #cfc8ff;
-  border-bottom-color: var(--accent);
+  color: var(--accent);
+  background: #331b0d;
+}
+
+.bin-tabs button.on::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.panel.bin .bin-list,
+.panel.bin #libList {
+  margin-left: 76px;
 }
 
 .bin-list {
