@@ -3048,6 +3048,6 @@ ApplicationWindow {
         interval: 500
         running: true
         repeat: false
-        onTriggered: fablecutView.url = "http://127.0.0.1:7777/"
+        onTriggered: fablecutView.url = "http://127.0.0.1:7777/?edward-ui=20260912-status"
     }
 }
