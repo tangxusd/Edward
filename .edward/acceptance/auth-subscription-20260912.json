@@ -5,6 +5,7 @@
     {"id": "migration_sync", "status": "passed", "evidence": "supabase migration list --linked：202609120001-003 与远端一致"},
     {"id": "anonymous_entitlement_denied", "status": "passed", "evidence": "auth-entitlement 返回 HTTP 401"},
     {"id": "anonymous_resource_denied", "status": "passed", "evidence": "resource-catalog 返回 HTTP 401"},
+    {"id": "invalid_auth_requests", "status": "passed", "evidence": "auth-register 空请求返回 invalid_registration；auth-login 空请求返回 generic invalid_credentials"},
     {"id": "catalog_available", "status": "passed", "evidence": "subscription-catalog 返回 HTTP 200"},
     {"id": "qt_auth_build", "status": "passed", "evidence": "edward_app 与认证测试目标构建成功"},
     {"id": "qt_auth_tests", "status": "passed", "evidence": "auth_session_store、supabase_auth_client、supabase_auth_registration 3/3 通过"},
