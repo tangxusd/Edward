@@ -1668,6 +1668,11 @@ async function submitAuth() {
     if (!response.ok || !value.access_token) throw new Error(value.error_description || value.msg || "登录失败");
     localStorage.setItem("fablecut-auth-session", JSON.stringify(value));
     $("btnAuth").textContent = "已登录"; closeAuth();
+    try {
+      const entitlements = await fetchResourceApi("/api/auth/entitlements");
+      const active = (entitlements || []).find((item) => item.status === "active" || item.status === "grace");
+      if (active) setResourceState(`已登录 · ${active.plan_key}`);
+    } catch { /* resource requests will still enforce authorization */ }
     if (resourceBrowserState.tab) loadResourceBrowser(resourceBrowserState.tab);
   } catch (error) { status.textContent = error.message; }
 }
