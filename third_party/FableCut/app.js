@@ -7837,5 +7837,8 @@ renderBin();
 setBinTab(state.binTab);
 syncTrimIOButton();
 buildMeterDOM();
+// The embedded shell serves this page only after starting the local service;
+// show the connected state immediately while the project payload is loading.
+renderConnectionStatus(true);
 connectServer().then(loadLibraryFonts);
 requestAnimationFrame(loop);
