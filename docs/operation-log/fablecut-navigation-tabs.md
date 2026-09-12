@@ -136,3 +136,4 @@
 - Qt 会话续期：登录会话保留 refresh token，并在 Qt 壳运行期间每 10 分钟调用 Supabase Auth token 接口轮换 access/refresh token，避免长时间运行时因 access token 过期而失效；构建及认证相关测试通过。
 - 全链路验收：远端迁移 202609120001-003 已同步；匿名 `auth-entitlement` 与 `resource-catalog` 均返回 401，订阅目录返回 200；Qt 构建和认证测试 3/3 通过。由于本机未安装 Deno，未执行 Edge Function 单测；由于尚未绑定支付平台，支付 webhook 仍待接入。验收记录见 `.edward/acceptance/auth-subscription-20260912.json`。
 - 接口烟测补充：`auth-register` 空请求返回 `invalid_registration`，`auth-login` 空请求返回统一的 `invalid_credentials`，未暴露账号是否存在。
+- Deno 验证：通过 Homebrew 安装 Deno 2.9.6；10 个 Edge Function 入口全部通过 `deno check`。修复 `resource-catalog` 动态追加 `preview_url` 的类型错误并重新部署；仓库暂无可执行的 Edge Function `.test.ts` 文件。

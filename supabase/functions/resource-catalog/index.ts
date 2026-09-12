@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
   else query = query.order("published_at", { ascending: false, nullsFirst: false }).order("id", { ascending: false });
   const { data, error } = await query.range(offset, offset + limit - 1);
   if (error) return Response.json({ error: "catalog_unavailable" }, { status: 502, headers: cors });
-  const items = data || [];
+  const items: Array<Record<string, unknown>> = (data || []).map((item) => ({ ...item }));
   const ids = items.map((item) => item.id);
   if (ids.length) {
     const { data: versions } = await client.from("resource_versions").select("resource_id,preview_video_path").in("resource_id", ids).not("preview_video_path", "is", null).not("published_at", "is", null).order("published_at", { ascending: false });
