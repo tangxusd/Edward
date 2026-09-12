@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QWindow>
 #include <QStandardPaths>
+#include <QTcpSocket>
 #include <QtWebEngineQuick>
 
 #ifdef Q_OS_MACOS
@@ -74,7 +75,13 @@ int main(int argc, char** argv) {
     // normal-window flash during startup.
     window->show();
 #ifdef Q_OS_MACOS
-    installEdwardTitlebar(window, fablecutServer.state() == QProcess::Running);
+    bool localServiceStarted = fablecutServer.state() == QProcess::Running;
+    if (!localServiceStarted) {
+      QTcpSocket probe;
+      probe.connectToHost(QStringLiteral("127.0.0.1"), 7777);
+      localServiceStarted = probe.waitForConnected(300);
+    }
+    installEdwardTitlebar(window, localServiceStarted);
 #endif
   }
   QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(); });
