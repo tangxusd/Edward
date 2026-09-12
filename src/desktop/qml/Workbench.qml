@@ -218,7 +218,8 @@ ApplicationWindow {
     visible: true
     title: workbenchRuntime.projectWindowTitle
     color: DesignTokens.background
-    width: 1
+    width: 1280
+    height: 800
     minimumHeight: 680
 
     Connections {

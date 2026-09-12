@@ -1604,6 +1604,7 @@ function setBinTab(tab) {
     b.classList.toggle("on", b.dataset.tab === tab);
   const source = libraryForBinTab(tab);
   const isProj = source === "project";
+  if (els.binImportTools) els.binImportTools.hidden = tab !== "import";
   els.binList.classList.toggle("hidden", !isProj);
   els.libList.classList.toggle("hidden", isProj);
   if (!isProj) fetchLibrary(source).then(renderLibrary);
@@ -7804,6 +7805,7 @@ document.querySelector("#inspectorAiForm")?.addEventListener("submit", (e) => {
 buildTrackDOM();
 rebuildClips();
 renderBin();
+setBinTab(state.binTab);
 syncTrimIOButton();
 buildMeterDOM();
 connectServer().then(loadLibraryFonts);
