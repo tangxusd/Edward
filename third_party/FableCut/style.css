@@ -572,7 +572,7 @@ textarea {
 }
 
 .bin-tab-icon { height: 15px; min-width: 15px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 10px/1 "SF Mono", monospace; }
-.bin-tabs button[data-tab="home"] .bin-tab-icon { border: 0; font-size: 18px; }
+.bin-tabs button[data-tab="import"] .bin-tab-icon { border: 0; font-size: 18px; }
 .bin-tabs button[data-tab="number"] .bin-tab-icon { font-size: 7px; }
 
 .bin-tabs button:hover {

@@ -499,7 +499,7 @@ const runtime = {
 const $ = (id) => document.getElementById(id);
 const els = {
   binList: $("binList"), binEmpty: $("binEmpty"), fileInput: $("fileInput"),
-  binTabs: $("binTabs"), libList: $("libList"), toast: $("toast"),
+  binTabs: $("binTabs"), binImportTools: $("binImportTools"), libList: $("libList"), toast: $("toast"),
   preview: $("preview"), tcCurrent: $("tcCurrent"), tcTotal: $("tcTotal"),
   btnPlay: $("btnPlay"), inspector: $("inspector"),
   trackHeaders: $("trackHeaders"), timelineScroll: $("timelineScroll"),
@@ -1604,6 +1604,7 @@ function setBinTab(tab) {
     b.classList.toggle("on", b.dataset.tab === tab);
   const source = libraryForBinTab(tab);
   const isProj = source === "project";
+  if (els.binImportTools) els.binImportTools.hidden = tab !== "import";
   els.binList.classList.toggle("hidden", !isProj);
   els.libList.classList.toggle("hidden", isProj);
   if (!isProj) fetchLibrary(source).then(renderLibrary);
