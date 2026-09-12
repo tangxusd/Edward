@@ -126,3 +126,4 @@
 - 结果：发布前校验组件 ID、一级 Tab、三级分类 UUID、版本号；上传 manifest 与包文件并按 SHA-256 记录版本；服务角色密钥只从环境变量读取，不写入项目。
 - 验证：`node --test tools/resource-publisher/test/publish.test.mjs` 通过；三个函数重新部署成功；CORS 已限制到本地 FableCut 来源。
 - 补充：已创建私有 `resource-packages` Storage bucket，并推送 `202609120002_resource_storage.sql`；仅 authenticated 可读、service role 可写。
+- 预览：目录函数为已发布资源生成 60 秒私有视频签名 URL；卡片仅在鼠标悬停时播放，移出即暂停并回到起点；已移除装饰性上浮效果。演示资源模式改为显式开启（`fablecut-demo-auth=1`），默认不替代 Supabase 数据。
