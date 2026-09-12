@@ -2794,7 +2794,7 @@ function drawRulerMainThread(w, h, dpr) {
   for (const mk of project.markers || []) {
     const x = mk.t * pps - sl;
     if (x < -6 || x > w + 6) continue;
-    g.fillStyle = "#ffd166";
+    g.fillStyle = "#4f8cff";
     g.beginPath();
     g.moveTo(x, h - 9); g.lineTo(x + 4, h - 5); g.lineTo(x, h - 1); g.lineTo(x - 4, h - 5);
     g.closePath(); g.fill();
@@ -2822,14 +2822,6 @@ function drawRulerMainThread(w, h, dpr) {
     }
   }
   g.globalCompositeOperation = "source-over";
-  // playhead marker on ruler
-  const px = state.time * pps - sl;
-  if (px >= -8 && px <= w + 8) {
-    g.fillStyle = "#ff4d6a";
-    g.beginPath();
-    g.moveTo(px - 6, 12); g.lineTo(px + 6, 12); g.lineTo(px + 6, 19); g.lineTo(px, 25); g.lineTo(px - 6, 19);
-    g.closePath(); g.fill();
-  }
 }
 
 /* ── Snapping ── */
@@ -7047,6 +7039,8 @@ function onSettingsTabTrap(e) {
 function openSettings() {
   const cb = $("setLinkSelect");
   if (cb) cb.checked = !!getSetting("linkSelect");
+  const profile = $("setShortcutProfile");
+  if (profile) profile.value = localStorage.getItem("fablecut-shortcut-profile") || "jianying";
   const overlay = $("settingsOverlay");
   overlay.classList.remove("hidden");
   overlay.addEventListener("keydown", onSettingsTabTrap);
@@ -7072,6 +7066,9 @@ $("setLinkSelect").addEventListener("change", (e) => {
   }
   if (selectedMediaIds().size && state.binTab !== "import") setBinTab("import");
   syncBinSelectionFromTimeline();
+});
+$("setShortcutProfile")?.addEventListener("change", (e) => {
+  localStorage.setItem("fablecut-shortcut-profile", e.target.value);
 });
 els.btnSnap.addEventListener("click", () => {
   state.snap = !state.snap;
@@ -7587,6 +7584,16 @@ window.addEventListener("keydown", (e) => {
   else if ((k === "j" || k === "J") && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     if (!state.playing) play(); else stepPreviewRate(-1); // tap again = slower
+  }
+  // Jianying shortcuts: Cmd/Ctrl+B split, Q/W trim the selected clip to the playhead.
+  else if ((e.ctrlKey || e.metaKey) && !e.altKey && (k === "b" || k === "B")) {
+    e.preventDefault(); splitAtPlayhead();
+  }
+  else if ((k === "q" || k === "Q") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault(); trimToPlayhead("in");
+  }
+  else if ((k === "w" || k === "W") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault(); trimToPlayhead("out");
   }
   else if (k === "s" || k === "S") splitAtPlayhead();
   else if ((k === "g" || k === "G") && !e.ctrlKey && !e.metaKey && !e.altKey) {
