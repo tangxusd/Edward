@@ -525,6 +525,11 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
             if (success) dispatchSilentComponentUploads();
             emit timelineChanged();
           });
+  connect(&authClient_, &edward::resources::SupabaseAuthClient::entitlementCompleted, this,
+          [this](bool success, const QString& status, const QString& expiresAt, qint64 credits) {
+            if (success) { subscriptionStatus_ = status; subscriptionExpiresAt_ = expiresAt; subscriptionCredits_ = credits; }
+            emit timelineChanged();
+          });
   connect(&componentUploadClient_, &edward::resources::ComponentUploadClient::completed, this,
           [this](bool success, const QString& message, const QJsonObject& response) {
             componentUploadBusy_ = false;
@@ -2935,6 +2940,10 @@ bool WorkbenchRuntime::signUpWithSupabase(const QString& projectUrl, const QStri
   emit timelineChanged();
   if (!authClient_.signUpWithPassword({projectUrl, anonKey}, email, password)) { signInBusy_ = false; emit timelineChanged(); return false; }
   return true;
+}
+
+bool WorkbenchRuntime::refreshSupabaseEntitlement(const QString& projectUrl, const QString& anonKey) {
+  return authenticated() && authClient_.fetchEntitlement({projectUrl, anonKey}, sessions_.session());
 }
 
 void WorkbenchRuntime::signOut() {

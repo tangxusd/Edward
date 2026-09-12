@@ -1,6 +1,7 @@
 #include "edward/resources/supabase_auth_client.hpp"
 
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPointer>
@@ -73,6 +74,23 @@ bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, co
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
   auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email}, {"password", password}, {"username", email.section('@', 0, 0)}}).toJson(QJsonDocument::Compact));
   connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString()); reply->deleteLater(); });
+  return true;
+}
+
+bool SupabaseAuthClient::fetchEntitlement(const SupabaseAuthConfig& config, const AuthSession& session) {
+  if (session.accessToken.isEmpty()) return false;
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/auth-entitlement"));
+  QNetworkRequest request{endpoint}; request.setRawHeader("apikey", config.anonKey.toUtf8()); request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + session.accessToken).toUtf8());
+  auto* reply = network_.get(request);
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object();
+    const auto trial = object.value("trial").toObject();
+    const auto subscriptions = object.value("subscriptions").toArray();
+    QString status = trial.value("status").toString(); QString expires = trial.value("ends_at").toString();
+    if (!subscriptions.isEmpty()) { const auto current = subscriptions.first().toObject(); status = current.value("status").toString(); expires = current.value("current_period_end").toString(); }
+    qint64 credits = 0; for (const auto& value : object.value("credits").toArray()) credits += value.toObject().value("amount").toVariant().toLongLong();
+    emit entitlementCompleted(reply->error() == QNetworkReply::NoError, status, expires, credits); reply->deleteLater();
+  });
   return true;
 }
 

@@ -709,6 +709,16 @@ ApplicationWindow {
                                    ? workbenchRuntime.signOut()
                                    : signInDialog.open()
                     }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: window.sidebarControlWidth
+                        visible: workbenchRuntime.authenticated
+                        text: workbenchRuntime.subscriptionStatus === "" ? "权益状态：检查中" : "权益：" + workbenchRuntime.subscriptionStatus + (workbenchRuntime.subscriptionExpiresAt !== "" ? " · 至 " + workbenchRuntime.subscriptionExpiresAt.slice(0, 10) : "") + "\n抵扣余额：" + workbenchRuntime.subscriptionCredits
+                        color: DesignTokens.textSecondary
+                        font.pixelSize: window.uiFontSize(9)
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                    }
                     Button {
                         objectName: "sidecarSettingsButton"
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -2622,8 +2632,9 @@ ApplicationWindow {
         footer: RowLayout {
             width: parent.width; height: 48; spacing: 8; anchors.margins: 14
             Button { Layout.fillWidth: true; text: "取消"; onClicked: signInDialog.close() }
-            Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) signInDialog.close() } }
+            Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) { entitlementTimer.start(); signInDialog.close() } } }
         }
+        Timer { id: entitlementTimer; interval: 1500; repeat: false; onTriggered: workbenchRuntime.refreshSupabaseEntitlement(supabaseProjectUrl.text, supabaseAnonKey.text) }
     }
 
     Dialog {

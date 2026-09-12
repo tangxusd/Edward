@@ -170,6 +170,9 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int timelineExportProgress() const { return timelineExportProgress_; }
   [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
+  [[nodiscard]] QString subscriptionStatus() const { return subscriptionStatus_; }
+  [[nodiscard]] QString subscriptionExpiresAt() const { return subscriptionExpiresAt_; }
+  [[nodiscard]] qint64 subscriptionCredits() const { return subscriptionCredits_; }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
   [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
   [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
@@ -289,6 +292,7 @@ class WorkbenchRuntime final : public QObject {
                                       const QString& email, const QString& password);
   Q_INVOKABLE bool signUpWithSupabase(const QString& projectUrl, const QString& anonKey,
                                       const QString& email, const QString& password);
+  Q_INVOKABLE bool refreshSupabaseEntitlement(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE void signOut();
   Q_INVOKABLE bool uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
                                           const QString& displayName);
@@ -432,6 +436,9 @@ class WorkbenchRuntime final : public QObject {
   QString aiComponentDraftJson_;
   edward::resources::ModelChatClient modelChatClient_;
   bool aiRequestBusy_ = false;
+  QString subscriptionStatus_;
+  QString subscriptionExpiresAt_;
+  qint64 subscriptionCredits_ = 0;
   QString aiConversation_;
   QString aiModelEndpoint_;
   QString aiProviderName_;
