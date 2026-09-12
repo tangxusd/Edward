@@ -1631,9 +1631,9 @@ const DEMO_RESOURCE_CATEGORIES = [
   { id: "demo-overlay", parent_id: "demo-basic", name: "叠加" },
 ];
 const DEMO_RESOURCE_ITEMS = [
-  { id: "demo-1", component_id: "demo.basic.01", name: "基础标题", summary: "演示组件 · 已授权", favorite_count: 12 },
-  { id: "demo-2", component_id: "demo.basic.02", name: "简洁字幕", summary: "演示组件 · 已授权", favorite_count: 8 },
-  { id: "demo-3", component_id: "demo.overlay.01", name: "柔光叠加", summary: "演示组件 · 已授权", favorite_count: 5 },
+  { id: "demo-1", component_id: "demo.basic.01", name: "基础标题", summary: "", favorite_count: 12 },
+  { id: "demo-2", component_id: "demo.basic.02", name: "简洁字幕", summary: "", favorite_count: 8 },
+  { id: "demo-3", component_id: "demo.overlay.01", name: "柔光叠加", summary: "", favorite_count: 5 },
 ];
 const isDemoResourceMode = window.location.protocol === "file:" && localStorage.getItem("fablecut-demo-auth") !== "0";
 const resourceCacheKey = () => `fablecut-resource-cache:${resourceBrowserState.tab}:${resourceBrowserState.categoryId || "all"}:${resourceBrowserState.sort}`;
