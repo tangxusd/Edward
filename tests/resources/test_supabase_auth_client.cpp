@@ -8,8 +8,8 @@ int main() {
   const auto request = edward::resources::SupabaseAuthClient::buildPasswordSignInRequest(
       config, "demo@example.com", "password", &error);
   assert(request);
-  assert(request->endpoint == "https://project.supabase.co/auth/v1/token?grant_type=password");
-  assert(request->body.value("email").toString() == "demo@example.com");
+  assert(request->endpoint == "https://project.supabase.co/functions/v1/auth-login");
+  assert(request->body.value("identifier").toString() == "demo@example.com");
   assert(!edward::resources::SupabaseAuthClient::buildPasswordSignInRequest(
       {"https://project.supabase.co/rest/v1", "anon-key"}, "demo@example.com", "password", &error));
   assert(!edward::resources::SupabaseAuthClient::buildPasswordSignInRequest(

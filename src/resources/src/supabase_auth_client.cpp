@@ -19,12 +19,11 @@ std::optional<SupabaseSignInRequest> SupabaseAuthClient::buildPasswordSignInRequ
       projectUrl.host().isEmpty() || (!projectUrl.path().isEmpty() && projectUrl.path() != QStringLiteral("/")))
     return fail(QStringLiteral("Supabase project URL must be an HTTPS origin"));
   if (config.anonKey.isEmpty()) return fail(QStringLiteral("Supabase anon key is required"));
-  if (email.isEmpty() || password.isEmpty()) return fail(QStringLiteral("email and password are required"));
+  if (email.isEmpty() || password.isEmpty()) return fail(QStringLiteral("identifier and password are required"));
   QUrl endpoint(projectUrl);
-  endpoint.setPath(QStringLiteral("/auth/v1/token"));
-  endpoint.setQuery(QStringLiteral("grant_type=password"));
+  endpoint.setPath(QStringLiteral("/functions/v1/auth-login"));
   return SupabaseSignInRequest{endpoint.toString(), config.anonKey,
-                               QJsonObject{{"email", email}, {"password", password}}};
+                               QJsonObject{{"identifier", email}, {"password", password}}};
 }
 
 bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, const QString& email,
@@ -69,9 +68,9 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
 bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, const QString& email,
                                             const QString& password) {
   if (email.isEmpty() || password.isEmpty()) { emit completed(false, QStringLiteral("邮箱和密码不能为空")); return false; }
-  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/signup"));
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/auth-register"));
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
-  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email}, {"password", password}}).toJson(QJsonDocument::Compact));
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email}, {"password", password}, {"username", email.section('@', 0, 0)}}).toJson(QJsonDocument::Compact));
   connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString()); reply->deleteLater(); });
   return true;
 }
