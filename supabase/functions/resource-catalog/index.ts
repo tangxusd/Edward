@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { hasActiveEntitlement } from "../_shared/billing.ts";
 
 const cors = { "Access-Control-Allow-Origin": "http://127.0.0.1:7777", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const allowedTabs = new Set(["media", "text", "audio", "cards", "chart", "background", "annotation", "number"]);
@@ -10,6 +11,7 @@ Deno.serve(async (req) => {
   const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
   const { data: user } = await client.auth.getUser();
   if (!user.user) return Response.json({ error: "authentication_required" }, { status: 401, headers: cors });
+  if (!await hasActiveEntitlement(client, user.user.id)) return Response.json({ error: "entitlement_required" }, { status: 403, headers: cors });
   const url = new URL(req.url);
   const tabKey = url.searchParams.get("tabKey") || "";
   if (!allowedTabs.has(tabKey)) return Response.json({ error: "invalid_tab" }, { status: 400, headers: cors });
