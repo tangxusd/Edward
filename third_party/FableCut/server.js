@@ -448,7 +448,7 @@ const server = http.createServer(async (req, res) => {
   if ((p === "/api/auth/login" || p === "/api/auth/signup" || p === "/api/auth/refresh") && req.method === "POST") {
     try {
       const body = JSON.parse((await readBody(req)).toString("utf8"));
-      const pathName = p === "/api/auth/login" ? "/auth/v1/token?grant_type=password" : p === "/api/auth/signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=refresh_token";
+      const pathName = p === "/api/auth/login" ? "/functions/v1/auth-login" : p === "/api/auth/signup" ? "/functions/v1/auth-register" : "/auth/v1/token?grant_type=refresh_token";
       const result = await supabaseAuth(pathName, body);
       sendJSON(res, result.status, result.value);
     } catch (e) { sendJSON(res, 400, { error: String(e.message || e) }); }
