@@ -4296,7 +4296,8 @@ const meterState = {
     peakHoldTL: 0, peakHoldTR: 0 },
 };
 function audioMeterTracks() {
-  return TRACKS.filter((t) => t.kind === "audio");
+  const active = new Set((project.clips || []).filter((c) => c.kind === "audio").map((c) => c.track));
+  return TRACKS.filter((t) => t.kind === "audio" && active.has(t.id));
 }
 function cycleMeterMode(ev) {
   if (ev) { ev.preventDefault(); ev.stopPropagation(); }
