@@ -10,7 +10,8 @@
     {"id": "qt_auth_build", "status": "passed", "evidence": "edward_app 与认证测试目标构建成功"},
     {"id": "qt_auth_tests", "status": "passed", "evidence": "auth_session_store、supabase_auth_client、supabase_auth_registration 3/3 通过"},
     {"id": "edge_function_typecheck", "status": "passed", "evidence": "安装 Deno 2.9.6 后，10 个 Edge Function 入口全部通过 deno check；resource-catalog 类型问题已修复并重新部署"},
-    {"id": "edge_function_tests", "status": "blocked", "evidence": "仓库当前没有 supabase/tests/*.test.ts 可执行测试文件；已完成部署和匿名 HTTP 烟测"},
+    {"id": "billing_function_tests", "status": "passed", "evidence": "deno test supabase/tests/billing-functions.test.ts：2/2 通过，覆盖折扣优先、抵扣上限和负数输入"},
+    {"id": "edge_function_tests", "status": "blocked", "evidence": "认证、资源和推荐函数暂无可脱离 Supabase 环境的集成测试；已完成部署、类型检查和匿名 HTTP 烟测"},
     {"id": "payment_webhook", "status": "blocked", "evidence": "用户尚未绑定支付平台，真实扣款、续订和退款回调待接入"}
   ]
 }

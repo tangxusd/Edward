@@ -2,6 +2,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 export const cors = { "Access-Control-Allow-Origin": "http://127.0.0.1:7777", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 export function userClient(req: Request) { const auth = req.headers.get("Authorization"); if (!auth?.startsWith("Bearer ")) return null; return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } }); }
 export const adminClient = () => createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+export function calculateOrderAmounts(unitAmount: number, discountPercent: number, availableCredit: number, maxCredit: number) {
+  const discount = Math.min(100, Math.max(0, Number(discountPercent) || 0));
+  const original = Math.max(0, Math.round(Number(unitAmount) || 0));
+  const discounted = Math.max(0, Math.round(original * (100 - discount) / 100));
+  const credit = Math.min(discounted, Math.max(0, Math.min(Number(maxCredit) || 0, Number(availableCredit) || 0)));
+  return { original, discountAmount: original - discounted, creditAmount: credit, paidAmount: discounted - credit };
+}
 export async function requireUser(req: Request) { const client = userClient(req); if (!client) return { client: null, user: null }; const { data } = await client.auth.getUser(); return { client, user: data.user || null }; }
 export async function hasActiveEntitlement(client: ReturnType<typeof userClient>, userId: string) {
   if (!client) return false;
