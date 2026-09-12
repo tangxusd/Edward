@@ -13,6 +13,7 @@ struct AuthSession final {
   QString userId;
   QString username;
   QString accessToken;
+  QString refreshToken;
 };
 
 struct ComponentUploadRequest final {

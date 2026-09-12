@@ -13,7 +13,7 @@ class AuthSessionStore final : public QObject {
   Q_PROPERTY(QString username READ username NOTIFY changed)
 
  public:
-  explicit AuthSessionStore(QObject* parent = nullptr) : QObject(parent) {}
+  explicit AuthSessionStore(QObject* parent = nullptr);
   bool authenticated() const;
   QString userId() const;
   QString username() const;

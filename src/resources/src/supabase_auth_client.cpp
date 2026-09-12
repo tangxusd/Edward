@@ -51,9 +51,10 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
     const auto userId = object.value("user").toObject().value("id").toString();
     const auto username = object.value("user").toObject().value("email").toString();
     const auto accessToken = object.value("access_token").toString();
+    const auto refreshToken = object.value("refresh_token").toString();
     const bool success = reply->error() == QNetworkReply::NoError && !userId.isEmpty() &&
                          !username.isEmpty() && !accessToken.isEmpty();
-    if (success && sessionStore) sessionStore->setSession({userId, username, accessToken});
+    if (success && sessionStore) sessionStore->setSession({userId, username, accessToken, refreshToken});
     const auto message = success ? QStringLiteral("登录成功")
                                  : (reply->error() == QNetworkReply::NoError
                                         ? QStringLiteral("登录响应缺少会话字段")
