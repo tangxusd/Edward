@@ -1,5 +1,9 @@
 create extension if not exists pgcrypto;
 
+insert into storage.buckets (id, name, public)
+values ('resource-packages', 'resource-packages', false)
+on conflict (id) do update set public = excluded.public;
+
 create table if not exists public.resource_categories (
   id uuid primary key default gen_random_uuid(),
   tab_key text not null check (tab_key in ('media','text','audio','cards','chart','background','annotation','number')),
