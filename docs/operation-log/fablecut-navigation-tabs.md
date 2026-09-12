@@ -125,3 +125,4 @@
 - 涉及文件：`tools/resource-publisher/publish.mjs`、`tools/resource-publisher/manifest-schema.json`、`tools/resource-publisher/test/publish.test.mjs`、三个 Edge Function。
 - 结果：发布前校验组件 ID、一级 Tab、三级分类 UUID、版本号；上传 manifest 与包文件并按 SHA-256 记录版本；服务角色密钥只从环境变量读取，不写入项目。
 - 验证：`node --test tools/resource-publisher/test/publish.test.mjs` 通过；三个函数重新部署成功；CORS 已限制到本地 FableCut 来源。
+- 补充：已创建私有 `resource-packages` Storage bucket，并推送 `202609120002_resource_storage.sql`；仅 authenticated 可读、service role 可写。
