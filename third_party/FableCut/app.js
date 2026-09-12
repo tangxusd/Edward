@@ -1659,10 +1659,19 @@ function renderResourceCategories() {
   const selectedRoot = resourceBrowserState.categoryId && resourceBrowserState.categories.find((c) => c.id === resourceBrowserState.categoryId);
   const rootId = selectedRoot?.parent_id || selectedRoot?.id || null;
   els.resourceCategories.innerHTML = "";
-  const all = document.createElement("button");
-  all.type = "button"; all.className = `resource-category${!resourceBrowserState.categoryId ? " on" : ""}`; all.textContent = "全部资源";
-  all.addEventListener("click", () => { resourceBrowserState.categoryId = null; loadResourcePage(true); renderResourceCategories(); });
-  els.resourceCategories.appendChild(all);
+  const special = [
+    ["favorites", "我的收藏"],
+    ["latest", "最新"],
+    ["popular", "热门"],
+  ];
+  for (const [sort, label] of special) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `resource-category${!resourceBrowserState.categoryId && resourceBrowserState.sort === sort ? " on" : ""}`;
+    button.textContent = label;
+    button.addEventListener("click", () => { resourceBrowserState.categoryId = null; resourceBrowserState.sort = sort; loadResourcePage(true); renderResourceCategories(); });
+    els.resourceCategories.appendChild(button);
+  }
   for (const root of roots) {
     const button = document.createElement("button");
     button.type = "button"; button.className = `resource-category${resourceBrowserState.categoryId === root.id ? " on" : ""}`; button.textContent = root.name;
@@ -1689,9 +1698,11 @@ function renderResourceCards(items) {
     card.className = "resource-card";
     card.draggable = true;
     const preview = resource.preview_url ? `<img class="resource-card-preview" src="${String(resource.preview_url).replace(/"/g, "&quot;")}" alt="">` : `<div class="resource-card-preview"></div>`;
-    card.innerHTML = `${preview}<div class="resource-card-name"></div><div class="resource-card-summary"></div><div class="resource-card-meta">收藏 ${Number(resource.favorite_count || 0)}</div>`;
+    card.innerHTML = `${preview}<button type="button" class="resource-card-favorite" aria-label="收藏资源" title="收藏"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M536.380952 48.761905c256 0 463.238095 207.238095 463.238096 463.238095s-207.238095 463.238095-463.238096 463.238095h-48.761904C231.619048 975.238095 24.380952 768 24.380952 512S231.619048 48.761905 487.619048 48.761905h48.761904m0-24.380953h-48.761904C219.428571 24.380952 0 243.809524 0 512s219.428571 487.619048 487.619048 487.619048h48.761904c268.190476 0 487.619048-219.428571 487.619048-487.619048S804.571429 24.380952 536.380952 24.380952z"/><path d="M687.542857 828.952381c-12.190476 0-21.942857-2.438095-34.133333-7.314286L512 755.809524l-141.409524 65.828571c-24.380952 12.190476-51.2 9.752381-68.266666-2.438095-17.066667-12.190476-26.819048-36.571429-24.380953-63.390476l17.066667-156.038095-104.838095-114.590477c-17.066667-21.942857-24.380952-46.32381-17.066667-68.266666 7.314286-21.942857 26.819048-36.571429 53.638095-41.447619l153.6-31.695238 75.580953-136.533334C470.552381 185.295238 490.057143 170.666667 512 170.666667c21.942857 0 43.885714 14.628571 56.07619 39.009523l75.580953 136.533334 153.6 31.695238c26.819048 4.87619 46.32381 21.942857 53.638095 41.447619 7.314286 21.942857 0 43.885714-19.504762 65.828571l-104.838095 114.590477 17.066667 156.038095c2.438095 26.819048-4.87619 51.2-24.380953 63.390476-7.314286 7.314286-19.504762 9.752381-31.695238 9.752381zM512 702.171429l160.914286 75.580952c9.752381 2.438095 17.066667 2.438095 19.504762 2.438095 2.438095-2.438095 4.87619-9.752381 2.438095-19.504762l-19.504762-177.980952 119.466667-131.657143c7.314286-7.314286 9.752381-14.628571 7.314285-17.066667 0-2.438095-7.314286-7.314286-17.066666-9.752381L609.52381 390.095238l-87.771429-156.038095c0-9.752381-7.314286-14.628571-9.752381-14.628572-2.438095 0-4.87619 4.87619-14.628571 14.628572L409.6 390.095238l-175.542857 34.133333c-9.752381 2.438095-17.066667 4.87619-17.066667 9.752381 0 2.438095 2.438095 9.752381 7.314286 17.066667l119.466667 131.657143-19.504762 177.980952c-2.438095 9.752381 0 17.066667 2.438095 19.504762 2.438095 2.438095 9.752381 2.438095 19.504762-2.438095l165.790476-75.580952z"/></svg></button><div class="resource-card-name"></div><div class="resource-card-summary"></div><div class="resource-card-meta">收藏 ${Number(resource.favorite_count || 0)}</div><button type="button" class="resource-card-add" aria-label="添加资源" title="添加">+</button>`;
     card.querySelector(".resource-card-name").textContent = resource.name || resource.slug || "未命名资源";
     card.querySelector(".resource-card-summary").textContent = resource.summary || "";
+    card.querySelector(".resource-card-favorite").addEventListener("click", (event) => { event.stopPropagation(); setResourceState("收藏操作需要登录"); });
+    card.querySelector(".resource-card-add").addEventListener("click", (event) => { event.stopPropagation(); setResourceState(`${resource.name || "资源"} 已加入时间线`); });
     card.addEventListener("dblclick", () => fetchResourceApi(`/api/resources/detail?id=${encodeURIComponent(resource.id)}`).catch((error) => setResourceState(error.message, true)));
     els.resourceGrid.appendChild(card);
   }
