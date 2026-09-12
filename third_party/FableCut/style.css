@@ -685,7 +685,7 @@ textarea {
 .bin-item .bin-thumb { width: 100%; height: 76px; }
 .bin-item .bin-meta { width: 100%; padding-right: 32px; }
 .bin-item .lib-add { position: absolute; right: 6px; bottom: 6px; width: 22px; height: 18px; padding: 0; font-size: 12px; }
-.bin-list:has(.bin-empty) { display: flex; align-items: center; justify-content: center; }
+.bin-list:has(.bin-empty:not(.hidden)) { display: flex; align-items: center; justify-content: center; }
 .bin-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: auto; text-align: center; }
 .bin-folder { grid-column: 1 / -1; }
 
@@ -1123,9 +1123,9 @@ textarea {
 }
 .vu-scale {
   position: relative;
-  /* Compact scale matching the 2.5px meter segments. */
-  width: 8px;
-  height: 60px;
+  /* Scale matching the enlarged 5px meter segments. */
+  width: 10px;
+  height: 119px;
   flex-shrink: 0;
   pointer-events: none;
 }

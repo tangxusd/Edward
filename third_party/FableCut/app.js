@@ -1288,7 +1288,8 @@ async function importFromUrl(url) {
 function renderBin() {
   els.binList.querySelectorAll(".bin-item, .bin-folder, .bin-drop-root").forEach((n) => n.remove());
   const empty = !project.media.length && !project.folders.length;
-  els.binEmpty.style.display = empty ? "" : "none";
+  els.binEmpty.classList.toggle("hidden", !empty);
+  els.binEmpty.style.display = "";
   if (empty) return;
 
   const clearBinDropHints = () => {
@@ -4160,7 +4161,7 @@ function meterMarkTopPct(db) {
 const METER_MODES = ["rms", "lufs", "peak"];
 const METER_MODE_LABEL = { rms: "RMS", lufs: "LUFS", peak: "PEAK" };
 /* Each channel's segment ladder is one <canvas>  - index 0 = bottom = quietest. */
-const METER_SEG_W = 2.5, METER_SEG_H = 2.5, METER_SEG_GAP = 0.5;
+const METER_SEG_W = 5, METER_SEG_H = 5, METER_SEG_GAP = 1;
 const METER_COL_W = METER_SEG_W;
 const METER_COL_H = METER_SEGS * METER_SEG_H + (METER_SEGS - 1) * METER_SEG_GAP;
 function makeMeterCanvas(cv) {
