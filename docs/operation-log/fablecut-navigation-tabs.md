@@ -132,3 +132,5 @@
 - Qt 认证：Qt 壳认证客户端已改为调用 `auth-login`/`auth-register` Edge Functions，账号名解析和注册限流不再可被客户端直连绕过；登录请求测试和 Qt 构建通过。
 - 会话：Qt `AuthSessionStore` 现在持久化用户 ID、账号名及轮换 access/refresh token，退出登录会清除认证命名空间；认证客户端和会话存储测试通过。
 - 资源授权：目录、详情和收藏函数统一检查服务端有效试用/订阅及周期结束时间；无有效权益返回 `403 entitlement_required`，已重新部署三个函数。
+- Qt 权益：登录后由 Qt 壳调用 `auth-entitlement`，显示试用/订阅状态、到期日期和推荐抵扣余额；构建及认证相关测试通过。
+- Qt 会话续期：登录会话保留 refresh token，并在 Qt 壳运行期间每 10 分钟调用 Supabase Auth token 接口轮换 access/refresh token，避免长时间运行时因 access token 过期而失效；构建及认证相关测试通过。

@@ -2946,6 +2946,10 @@ bool WorkbenchRuntime::refreshSupabaseEntitlement(const QString& projectUrl, con
   return authenticated() && authClient_.fetchEntitlement({projectUrl, anonKey}, sessions_.session());
 }
 
+bool WorkbenchRuntime::refreshSupabaseSession(const QString& projectUrl, const QString& anonKey) {
+  return authenticated() && authClient_.refreshSession({projectUrl, anonKey}, &sessions_);
+}
+
 void WorkbenchRuntime::signOut() {
   sessions_.clear();
   emit operationSucceeded(QStringLiteral("已退出登录"));

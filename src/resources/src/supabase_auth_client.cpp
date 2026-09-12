@@ -6,6 +6,7 @@
 #include <QNetworkRequest>
 #include <QPointer>
 #include <QUrl>
+#include <QUrlQuery>
 
 namespace edward::resources {
 
@@ -74,6 +75,40 @@ bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, co
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
   auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email}, {"password", password}, {"username", email.section('@', 0, 0)}}).toJson(QJsonDocument::Compact));
   connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString()); reply->deleteLater(); });
+  return true;
+}
+
+bool SupabaseAuthClient::refreshSession(const SupabaseAuthConfig& config, AuthSessionStore* sessions) {
+  if (!sessions || sessions->session().refreshToken.isEmpty()) {
+    emit sessionRefreshed(false, QStringLiteral("登录会话已过期"));
+    return false;
+  }
+  QUrl endpoint(config.projectUrl);
+  endpoint.setPath(QStringLiteral("/auth/v1/token"));
+  QUrlQuery query;
+  query.addQueryItem(QStringLiteral("grant_type"), QStringLiteral("refresh_token"));
+  endpoint.setQuery(query);
+  QNetworkRequest request{endpoint};
+  request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("apikey", config.anonKey.toUtf8());
+  const auto previous = sessions->session();
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"refresh_token", previous.refreshToken}})
+                                         .toJson(QJsonDocument::Compact));
+  QPointer<AuthSessionStore> sessionStore(sessions);
+  connect(reply, &QNetworkReply::finished, this, [this, reply, sessionStore, previous] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object();
+    const auto accessToken = object.value(QStringLiteral("access_token")).toString();
+    const auto refreshToken = object.value(QStringLiteral("refresh_token")).toString();
+    const bool success = reply->error() == QNetworkReply::NoError && !accessToken.isEmpty() &&
+                         !sessionStore.isNull();
+    if (success) {
+      sessionStore->setSession({previous.userId, previous.username, accessToken,
+                                refreshToken.isEmpty() ? previous.refreshToken : refreshToken});
+    }
+    emit sessionRefreshed(success, success ? QStringLiteral("登录会话已续期")
+                                           : QStringLiteral("登录会话已过期，请重新登录"));
+    reply->deleteLater();
+  });
   return true;
 }
 

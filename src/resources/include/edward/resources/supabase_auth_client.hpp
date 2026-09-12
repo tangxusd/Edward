@@ -33,11 +33,13 @@ class SupabaseAuthClient final : public QObject {
                           const QString& password, AuthSessionStore* sessions);
   bool signUpWithPassword(const SupabaseAuthConfig& config, const QString& email,
                           const QString& password);
+  bool refreshSession(const SupabaseAuthConfig& config, AuthSessionStore* sessions);
   bool fetchEntitlement(const SupabaseAuthConfig& config, const AuthSession& session);
 
  signals:
   void completed(bool success, QString message);
   void entitlementCompleted(bool success, QString status, QString expiresAt, qint64 credits);
+  void sessionRefreshed(bool success, QString message);
 
  private:
   QNetworkAccessManager network_;

@@ -2635,6 +2635,13 @@ ApplicationWindow {
             Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) { entitlementTimer.start(); signInDialog.close() } } }
         }
         Timer { id: entitlementTimer; interval: 1500; repeat: false; onTriggered: workbenchRuntime.refreshSupabaseEntitlement(supabaseProjectUrl.text, supabaseAnonKey.text) }
+        Timer {
+            id: sessionRefreshTimer
+            interval: 10 * 60 * 1000
+            repeat: true
+            running: workbenchRuntime.authenticated
+            onTriggered: workbenchRuntime.refreshSupabaseSession(supabaseProjectUrl.text, supabaseAnonKey.text)
+        }
     }
 
     Dialog {
