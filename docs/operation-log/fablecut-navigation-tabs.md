@@ -131,3 +131,4 @@
 - 认证订阅实施：已推送 `202609120003_auth_subscription.sql`，部署 `auth-register`、`auth-login`、`auth-entitlement`、`subscription-catalog`、`subscription-create-order`、`subscription-cancel`、`referral-credit`。注册/登录按账号名或邮箱解析，服务端限流；订单金额由套餐与规则快照计算，推荐奖励通过 service-role 内部函数幂等发放。
 - Qt 认证：Qt 壳认证客户端已改为调用 `auth-login`/`auth-register` Edge Functions，账号名解析和注册限流不再可被客户端直连绕过；登录请求测试和 Qt 构建通过。
 - 会话：Qt `AuthSessionStore` 现在持久化用户 ID、账号名及轮换 access/refresh token，退出登录会清除认证命名空间；认证客户端和会话存储测试通过。
+- 资源授权：目录、详情和收藏函数统一检查服务端有效试用/订阅及周期结束时间；无有效权益返回 `403 entitlement_required`，已重新部署三个函数。
