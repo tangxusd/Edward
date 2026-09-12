@@ -189,6 +189,13 @@ async function supabaseProxy(pathname, req, body) {
   let value; try { value = JSON.parse(text); } catch { value = { error: text.slice(0, 300) }; }
   return { status: response.status, value };
 }
+async function supabaseAuth(pathname, body) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("supabase_not_configured");
+  const response = await fetch(SUPABASE_URL + pathname, { method: "POST", headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) });
+  const text = await response.text();
+  let value; try { value = JSON.parse(text); } catch { value = { error: "auth_unavailable" }; }
+  return { status: response.status, value };
+}
 
 /* Remux MP4-family uploads with `+faststart` so the moov atom leads the file —
    without it <video> stalls for seconds probing over Range requests. */
@@ -436,6 +443,15 @@ const server = http.createServer(async (req, res) => {
       const result = await supabaseProxy(`/rest/v1/resource_categories?${q}`, req);
       sendJSON(res, result.status, result.value);
     } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if ((p === "/api/auth/login" || p === "/api/auth/signup" || p === "/api/auth/refresh") && req.method === "POST") {
+    try {
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const pathName = p === "/api/auth/login" ? "/auth/v1/token?grant_type=password" : p === "/api/auth/signup" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=refresh_token";
+      const result = await supabaseAuth(pathName, body);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 400, { error: String(e.message || e) }); }
     return;
   }
   if (p === "/api/resources/catalog" && req.method === "GET") {
