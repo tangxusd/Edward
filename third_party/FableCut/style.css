@@ -549,6 +549,7 @@ textarea {
   gap: 0;
   padding: 4px 28px 0 4px;
   overflow: hidden;
+  --tab-offset: 0px;
   background: #121212;
   border-bottom: 1px solid var(--border);
 }
@@ -556,7 +557,7 @@ textarea {
 .bin-tabs button {
   flex: 0 0 64px;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
@@ -570,6 +571,7 @@ textarea {
   border-radius: 2px 2px 0 0;
   position: relative;
 }
+.bin-tabs button[data-tab] { transform: translateX(var(--tab-offset)); }
 
 .bin-tab-icon { height: 15px; min-width: 15px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 10px/1 "SF Mono", monospace; }
 .bin-tabs button[data-tab="import"] .bin-tab-icon { border: 0; font-size: 18px; }
@@ -608,7 +610,7 @@ textarea {
 .bin-tabs-scroll.next { right: 4px; }
 .bin-tabs-scroll:disabled { opacity: .3; cursor: default; }
 
-.bin-import-tools { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 6px 4px; border-bottom: 1px solid var(--border); }
+.bin-import-tools { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; padding: 6px 6px 4px; border-bottom: 1px solid var(--border); }
 .bin-import-tools .btn { flex: 1 1 auto; white-space: nowrap; }
 
 .panel.bin .bin-list,

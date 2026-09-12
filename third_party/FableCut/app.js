@@ -1604,7 +1604,6 @@ function setBinTab(tab) {
     b.classList.toggle("on", b.dataset.tab === tab);
   const source = libraryForBinTab(tab);
   const isProj = source === "project";
-  if (els.binImportTools) els.binImportTools.hidden = tab !== "import";
   els.binList.classList.toggle("hidden", !isProj);
   els.libList.classList.toggle("hidden", isProj);
   if (!isProj) fetchLibrary(source).then(renderLibrary);
@@ -6967,9 +6966,9 @@ els.importUrlInput?.addEventListener("keydown", (e) => {
 els.importUrlOverlay?.addEventListener("click", (e) => {
   if (e.target === els.importUrlOverlay) closeImportUrl();
 });
-$("btnTitle").addEventListener("click", addTitle);
+$("btnTitle")?.addEventListener("click", addTitle);
 $("btnComponent")?.addEventListener("click", addComponent);
-$("btnAdjust").addEventListener("click", addAdjust);
+$("btnAdjust")?.addEventListener("click", addAdjust);
 $("btnSplit").addEventListener("click", splitAtPlayhead);
 $("btnCloseGap").addEventListener("click", closeGapAtPlayhead);
 $("btnNextGap").addEventListener("click", goToNextGap);
@@ -7084,15 +7083,23 @@ function syncBinTabScrollButtons() {
   const tabs = els.binTabs;
   const prev = tabs.querySelector(".bin-tabs-scroll.prev"), next = tabs.querySelector(".bin-tabs-scroll.next");
   if (!prev || !next) return;
-  prev.disabled = tabs.scrollLeft <= 1;
-  next.disabled = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 1;
+  const items = [...tabs.querySelectorAll("[data-tab]")];
+  const contentWidth = items.reduce((sum, item) => sum + item.offsetWidth, 0) + Math.max(0, items.length - 1) * 2;
+  const available = tabs.clientWidth - 32;
+  const offset = Number(tabs.dataset.tabOffset || 0);
+  const maxOffset = Math.max(0, contentWidth - available);
+  tabs.dataset.tabOffset = String(Math.max(-maxOffset, Math.min(0, offset)));
+  tabs.style.setProperty("--tab-offset", `${tabs.dataset.tabOffset}px`);
+  prev.disabled = Number(tabs.dataset.tabOffset) >= 0;
+  next.disabled = Number(tabs.dataset.tabOffset) <= -maxOffset;
 }
-els.binTabs.addEventListener("scroll", syncBinTabScrollButtons, { passive: true });
 els.binTabs.querySelector(".bin-tabs-scroll.prev")?.addEventListener("click", () => {
-  els.binTabs.scrollBy({ left: -Math.max(120, els.binTabs.clientWidth * 0.6), behavior: "smooth" });
+  els.binTabs.dataset.tabOffset = String(Number(els.binTabs.dataset.tabOffset || 0) + Math.max(100, els.binTabs.clientWidth * 0.5));
+  syncBinTabScrollButtons();
 });
 els.binTabs.querySelector(".bin-tabs-scroll.next")?.addEventListener("click", () => {
-  els.binTabs.scrollBy({ left: Math.max(120, els.binTabs.clientWidth * 0.6), behavior: "smooth" });
+  els.binTabs.dataset.tabOffset = String(Number(els.binTabs.dataset.tabOffset || 0) - Math.max(100, els.binTabs.clientWidth * 0.5));
+  syncBinTabScrollButtons();
 });
 els.binTabs.addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
