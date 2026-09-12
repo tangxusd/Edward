@@ -2600,22 +2600,29 @@ ApplicationWindow {
     Dialog {
         id: signInDialog
         anchors.centerIn: Overlay.overlay
-        width: 420
+        width: 360
+        height: 360
         modal: true
-        title: "登录"
-        standardButtons: Dialog.Cancel | Dialog.Ok
-        contentItem: Column {
-            spacing: 10
-            TextField { id: supabaseProjectUrl; placeholderText: "Supabase 项目 URL" }
-            TextField { id: supabaseAnonKey; placeholderText: "Supabase anon key"; echoMode: TextInput.Password }
-            TextField { id: signInEmail; placeholderText: "邮箱或账号名" }
-            TextField { id: signInPassword; placeholderText: "密码"; echoMode: TextInput.Password }
-            Button { text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) signInDialog.close() } }
+        title: ""
+        padding: 0
+        background: Rectangle { color: DesignTokens.panel; border.color: DesignTokens.border; border.width: 1; radius: 6 }
+        header: Rectangle {
+            width: parent.width; height: 46; color: DesignTokens.background
+            Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: DesignTokens.divider }
+            Text { anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: "登录 Edward"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(14); font.bold: true }
         }
-        onAccepted: {
-            if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text,
-                                                     signInEmail.text, signInPassword.text))
-                close()
+        contentItem: Column {
+            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
+            TextField { id: supabaseProjectUrl; width: parent.width; placeholderText: "Supabase 项目 URL"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
+            TextField { id: supabaseAnonKey; width: parent.width; placeholderText: "Supabase anon key"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
+            TextField { id: signInEmail; width: parent.width; placeholderText: "邮箱或账号名"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
+            TextField { id: signInPassword; width: parent.width; placeholderText: "密码"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
+            Button { width: parent.width; text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) signInDialog.close() } }
+        }
+        footer: RowLayout {
+            width: parent.width; height: 48; spacing: 8; anchors.margins: 14
+            Button { Layout.fillWidth: true; text: "取消"; onClicked: signInDialog.close() }
+            Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) signInDialog.close() } }
         }
     }
 
