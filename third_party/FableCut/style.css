@@ -548,7 +548,7 @@ textarea {
   align-items: stretch;
   gap: 0;
   padding: 4px 28px 0 4px;
-  overflow: hidden;
+  overflow: visible;
   --tab-offset: 0px;
   background: #121212;
   border-bottom: 1px solid var(--border);
@@ -575,6 +575,9 @@ textarea {
 
 .bin-tab-icon { height: 30px; min-width: 30px; display: grid; place-items: center; color: currentColor; border: 1px solid currentColor; border-radius: 2px; font: 700 20px/1 "SF Mono", monospace; }
 .bin-tab-icon svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bin-tab-icon svg path[fill] { stroke: none; }
+.bin-tab-icon.import-icon, .bin-tab-icon.import-icon svg { border: 0; }
+.bin-tab-icon.import-icon svg { width: 36px; height: 36px; }
 .bin-tabs button[data-tab="import"] .bin-tab-icon { border: 0; font-size: 36px; }
 .bin-tabs button[data-tab="number"] .bin-tab-icon { font-size: 11px; }
 
@@ -612,6 +615,7 @@ textarea {
 .bin-tabs-scroll:disabled { opacity: .3; cursor: default; }
 
 .bin-import-tools { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; padding: 6px 6px 4px; border-bottom: 1px solid var(--border); }
+.bin-import-tools[hidden] { display: none; }
 .bin-import-tools .btn { flex: 1 1 auto; white-space: nowrap; }
 
 .panel.bin .bin-list,
