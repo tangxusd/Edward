@@ -655,7 +655,7 @@ textarea {
 .resource-state { min-height: 18px; padding: 5px 8px 0; color: var(--dim); font-size: 10px; }
 .resource-grid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); align-content: start; gap: 7px; padding: 6px; }
 .resource-card { min-width: 0; position: relative; display: flex; flex-direction: column; gap: 3px; padding: 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); cursor: grab; transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
-.resource-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px #0008; }
+.resource-card:hover { border-color: var(--accent); }
 .resource-card-preview { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 3px; background: #292929; }
 .resource-card-name { overflow: hidden; color: var(--text); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .resource-card-summary { display: -webkit-box; overflow: hidden; color: var(--dim); font-size: 9px; line-height: 1.2; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

@@ -23,5 +23,18 @@ Deno.serve(async (req) => {
   else query = query.order("published_at", { ascending: false, nullsFirst: false }).order("id", { ascending: false });
   const { data, error } = await query.range(offset, offset + limit - 1);
   if (error) return Response.json({ error: "catalog_unavailable" }, { status: 502, headers: cors });
-  return Response.json({ items: data || [], nextOffset: (data?.length || 0) === limit ? offset + limit : null }, { headers: { ...cors, "Cache-Control": "private, max-age=30" } });
+  const items = data || [];
+  const ids = items.map((item) => item.id);
+  if (ids.length) {
+    const { data: versions } = await client.from("resource_versions").select("resource_id,preview_video_path").in("resource_id", ids).not("preview_video_path", "is", null).not("published_at", "is", null).order("published_at", { ascending: false });
+    const latest = new Map();
+    for (const version of versions || []) if (!latest.has(version.resource_id)) latest.set(version.resource_id, version.preview_video_path);
+    await Promise.all(items.map(async (item) => {
+      const objectPath = latest.get(item.id);
+      if (!objectPath) return;
+      const { data: signed } = await client.storage.from("resource-packages").createSignedUrl(objectPath, 60);
+      if (signed?.signedUrl) item.preview_url = signed.signedUrl;
+    }));
+  }
+  return Response.json({ items, nextOffset: items.length === limit ? offset + limit : null }, { headers: { ...cors, "Cache-Control": "private, max-age=30" } });
 });
