@@ -14,7 +14,7 @@
 #include <QtWebEngineQuick>
 
 #ifdef Q_OS_MACOS
-void installEdwardTitlebar(QWindow *window);
+void installEdwardTitlebar(QWindow *window, bool localServiceStarted);
 #endif
 
 class EdwardFrameProvider final : public QQuickImageProvider {
@@ -70,9 +70,11 @@ int main(int argc, char** argv) {
     // 扩展客户区到系统标题栏：原生窗口按钮仍由系统绘制，QML 控件可在标题栏内水平对齐。
     // 不设置固定几何、置顶或尺寸限制，保留窗口常规移动/缩放能力。
     window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint | Qt::NoTitleBarBackgroundHint);
-    window->showMaximized();
+    // QML sets Maximized before the first frame is shown, avoiding a visible
+    // normal-window flash during startup.
+    window->show();
 #ifdef Q_OS_MACOS
-    installEdwardTitlebar(window);
+    installEdwardTitlebar(window, fablecutServer.state() == QProcess::Running);
 #endif
   }
   QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(); });

@@ -67,7 +67,7 @@ static NSAttributedString *buttonTitle(NSString *title, NSColor *color) {
     }];
 }
 
-void installEdwardTitlebar(QWindow *window) {
+void installEdwardTitlebar(QWindow *window, bool localServiceStarted) {
     NSView *view = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
     NSWindow *native = view.window;
     if (!native) return;
@@ -93,7 +93,14 @@ void installEdwardTitlebar(QWindow *window) {
         return nil;
     }];
 
-    NSTextField *status = [NSTextField labelWithString:@"未命名项目 · 未连接"];
+    NSTextField *status = [NSTextField labelWithString:@""];
+    NSString *stateText = localServiceStarted ? @"connected" : @"未连接";
+    NSColor *stateColor = localServiceStarted ? [NSColor systemGreenColor] : [NSColor systemOrangeColor];
+    NSMutableAttributedString *statusText = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"未命名项目 · ● %@", stateText]];
+    [statusText addAttribute:NSForegroundColorAttributeName value:[NSColor whiteColor] range:NSMakeRange(0, statusText.length)];
+    NSRange dotRange = [[statusText string] rangeOfString:@"●"];
+    [statusText addAttribute:NSForegroundColorAttributeName value:stateColor range:dotRange];
+    status.attributedStringValue = statusText;
     status.alignment = NSTextAlignmentCenter;
     status.textColor = [NSColor whiteColor];
     status.translatesAutoresizingMaskIntoConstraints = NO;

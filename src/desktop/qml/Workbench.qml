@@ -7,6 +7,7 @@ import "."
 
 ApplicationWindow {
     id: window
+    visibility: Window.Maximized
     property var importedMediaClips: workbenchRuntime.clips.filter(function(clip) { return clip.kind === "media"; })
     property string recoveryProjectPath: ""
     property string exportOutputDirectory: ""
