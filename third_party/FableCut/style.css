@@ -555,7 +555,7 @@ textarea {
 }
 
 .bin-tabs button:not(.bin-tabs-scroll), .bin-tabs .bin-tab {
-  flex: 0 0 64px;
+  flex: 0 0 58px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -629,9 +629,10 @@ textarea {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  align-content: start;
+  gap: 8px;
 }
 
 .lib-item .lib-play,
@@ -680,6 +681,10 @@ textarea {
   border: 1px solid var(--border);
   cursor: grab;
 }
+.bin-item { flex-direction: column; align-items: stretch; min-width: 0; }
+.bin-item .bin-thumb { width: 100%; height: 76px; }
+.bin-item .bin-meta { width: 100%; }
+.bin-folder { grid-column: 1 / -1; }
 
 .bin-item:hover,
 .bin-folder:hover {
@@ -1159,6 +1164,11 @@ textarea {
   font: 11px "Segoe UI", sans-serif;
   max-width: 170px;
 }
+.monitor .panel-head-actions { gap: 4px; }
+.monitor .panel-head-actions .btn,
+.monitor .panel-head-actions .head-select,
+.monitor .panel-head-actions .dim { font-size: 11px; height: 24px; }
+.monitor .panel-head-actions .monitor-select-button { height: 24px; font-size: 11px; }
 .monitor-select-custom { position: relative; display: inline-flex; min-width: 88px; }
 .monitor-select-button { width: 100%; height: 30px; padding: 4px 24px 4px 9px; border: 1px solid #303030; border-radius: 4px; background: #202020; color: var(--text); text-align: left; font: inherit; position: relative; white-space: nowrap; }
 .monitor-select-button::after { content: "▾"; position: absolute; right: 8px; color: var(--dim); }
