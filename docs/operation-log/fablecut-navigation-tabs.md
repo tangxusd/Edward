@@ -128,3 +128,4 @@
 - 补充：已创建私有 `resource-packages` Storage bucket，并推送 `202609120002_resource_storage.sql`；仅 authenticated 可读、service role 可写。
 - 预览：目录函数为已发布资源生成 60 秒私有视频签名 URL；卡片仅在鼠标悬停时播放，移出即暂停并回到起点；已移除装饰性上浮效果。演示资源模式改为显式开启（`fablecut-demo-auth=1`），默认不替代 Supabase 数据。
 - 账号：本地服务增加 `/api/auth/login`、`/api/auth/signup`、`/api/auth/refresh` 代理，密码仅转发至 Supabase Auth，不写入本地或日志；订阅权限继续由 `entitlements` RLS 表控制，前端登录界面接入仍需下一步完成。
+- 认证订阅实施：已推送 `202609120003_auth_subscription.sql`，部署 `auth-register`、`auth-login`、`auth-entitlement`、`subscription-catalog`、`subscription-create-order`、`subscription-cancel`、`referral-credit`。注册/登录按账号名或邮箱解析，服务端限流；订单金额由套餐与规则快照计算，推荐奖励通过 service-role 内部函数幂等发放。
