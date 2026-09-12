@@ -1653,12 +1653,14 @@ function renderResourceCategories() {
   for (const root of roots) {
     const button = document.createElement("button");
     button.type = "button"; button.className = `resource-category${resourceBrowserState.categoryId === root.id ? " on" : ""}`; button.textContent = root.name;
+    button.setAttribute("aria-level", "2");
     button.addEventListener("click", () => { resourceBrowserState.categoryId = root.id; loadResourcePage(true); renderResourceCategories(); });
     els.resourceCategories.appendChild(button);
     if (root.id === rootId) {
       for (const child of resourceBrowserState.categories.filter((c) => c.parent_id === root.id)) {
         const childButton = document.createElement("button");
         childButton.type = "button"; childButton.className = `resource-category child${resourceBrowserState.categoryId === child.id ? " on" : ""}`; childButton.textContent = child.name;
+        childButton.setAttribute("aria-level", "3");
         childButton.addEventListener("click", () => { resourceBrowserState.categoryId = child.id; loadResourcePage(true); renderResourceCategories(); });
         els.resourceCategories.appendChild(childButton);
       }
