@@ -648,6 +648,10 @@ async function connectServer() {
   } catch {
     state.connected = false;
     renderConnectionStatus(false);
+    // The embedded Qt shell starts the local service asynchronously; retry
+    // until it is ready so the status turns green without a page reload.
+    clearTimeout(connectServer.retryTimer);
+    connectServer.retryTimer = setTimeout(() => connectServer(), 1000);
   }
   await probeMissingMeta();
 }
