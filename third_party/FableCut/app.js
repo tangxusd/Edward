@@ -401,7 +401,7 @@ const state = {
   webCodecs: false,      // VideoEncoder + Annex-B H.264 supported
   dirtyTimeline: true, gesture: false,
   workAreaPlay: false,   // when true, play + Home/End stay inside IN/OUT
-  binTab: "home",
+  binTab: "import",
   disabledTracks: new Set(), // mirror of project.disabledTracks for fast lookup
   soloId: null,              // track id when solo is active, else null
   soloRestore: null,         // disabledTracks snapshot taken when solo engaged
@@ -1550,7 +1550,7 @@ function toggleSfxPreview(f, btn) {
   btn.textContent = "⏸";
   runtime.sfxPreview = a;
 }
-const BIN_TAB_LIBRARY = { home: "project", media: "project", text: "elements", audio: "sfx", cards: "elements", chart: "svg", background: "elements", annotation: "svg", number: "elements" };
+const BIN_TAB_LIBRARY = { import: "project", media: "project", text: "elements", audio: "sfx", cards: "elements", chart: "svg", background: "elements", annotation: "svg", number: "elements" };
 function libraryForBinTab(tab) { return BIN_TAB_LIBRARY[tab] || "project"; }
 function renderLibrary() {
   const dir = libraryForBinTab(state.binTab);
@@ -3377,7 +3377,7 @@ function selectClipsByMediaId(mediaId) {
   }
   clips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
   const primary = clips.find((c) => c.kind === "video") || clips[0];
-  if (state.binTab !== "home") setBinTab("home");
+  if (state.binTab !== "import") setBinTab("import");
   setSelection(clips.map((c) => c.id), primary.id);
 }
 function setSelection(ids, primary) {
@@ -7064,7 +7064,7 @@ $("setLinkSelect").addEventListener("change", (e) => {
     clearBinSelectionHighlight();
     return;
   }
-  if (selectedMediaIds().size && state.binTab !== "home") setBinTab("home");
+  if (selectedMediaIds().size && state.binTab !== "import") setBinTab("import");
   syncBinSelectionFromTimeline();
 });
 els.btnSnap.addEventListener("click", () => {
@@ -7117,7 +7117,7 @@ function openProjectTabMenu(clientX, clientY) {
   item.textContent = "New folder";
   item.addEventListener("click", () => {
     closeBinCtxMenu();
-    if (state.binTab !== "home") setBinTab("home");
+    if (state.binTab !== "import") setBinTab("import");
     addFolder(null);
   });
   menu.appendChild(item);
@@ -7131,7 +7131,7 @@ function openProjectTabMenu(clientX, clientY) {
 }
 els.binTabs.addEventListener("contextmenu", (e) => {
   const b = e.target.closest("[data-tab]");
-  if (!b || b.dataset.tab !== "home") return;
+  if (!b || b.dataset.tab !== "import") return;
   e.preventDefault();
   openProjectTabMenu(e.clientX, e.clientY);
 });

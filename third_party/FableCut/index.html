@@ -41,18 +41,8 @@
 
     <!-- Media bin -->
     <aside class="panel bin">
-      <div class="panel-head">
-        <span>Assets</span>
-        <span class="panel-head-actions">
-          <button type="button" class="btn tiny" id="btnTitle" title="Add a title card at the playhead">+ Title</button>
-          <button type="button" class="btn tiny" id="btnComponent" title="Add a direct browser component at the playhead">+ Component</button>
-          <button type="button" class="btn tiny" id="btnAdjust" title="Add an adjustment layer (grades everything below it)">+ Adjust</button>
-          <label class="btn tiny accent" id="btnImport" for="fileInput" title="Import media files">+ Import</label>
-          <button type="button" class="btn tiny" id="btnImportUrl" title="Download media from an HTTPS URL into the project">+ URL</button>
-        </span>
-      </div>
       <div class="bin-tabs" id="binTabs">
-        <button type="button" data-tab="home" class="on" title="项目素材"><span class="bin-tab-icon">⌂</span><span>首页</span></button>
+        <button type="button" data-tab="import" class="on" title="导入素材"><span class="bin-tab-icon">⌂</span><span>导入</span></button>
         <button type="button" data-tab="media" title="媒体素材"><span class="bin-tab-icon">▻</span><span>媒体</span></button>
         <button type="button" data-tab="text" title="文本元素"><span class="bin-tab-icon">T</span><span>文本</span></button>
         <button type="button" data-tab="audio" title="音效素材"><span class="bin-tab-icon">▥</span><span>音频</span></button>
@@ -63,6 +53,13 @@
         <button type="button" data-tab="number" title="数字元素"><span class="bin-tab-icon">123</span><span>数字</span></button>
         <button type="button" class="bin-tabs-scroll prev" aria-label="向左移动标签" title="向左移动标签">‹</button>
         <button type="button" class="bin-tabs-scroll next" aria-label="向右移动标签" title="向右移动标签">›</button>
+      </div>
+      <div class="bin-import-tools" id="binImportTools">
+        <button type="button" class="btn tiny" id="btnTitle" title="Add a title card at the playhead">+ 标题</button>
+        <button type="button" class="btn tiny" id="btnComponent" title="Add a direct browser component at the playhead">+ 组件</button>
+        <button type="button" class="btn tiny" id="btnAdjust" title="Add an adjustment layer">+ 调整层</button>
+        <label class="btn tiny accent" id="btnImport" for="fileInput" title="Import media files">+ 导入</label>
+        <button type="button" class="btn tiny" id="btnImportUrl" title="Download media from an HTTPS URL into the project">+ URL</button>
       </div>
       <input type="file" id="fileInput" class="sr-only" multiple accept="video/*,audio/*,image/*,.mp4,.mov,.webm,.mkv,.mp3,.wav,.m4a,.png,.jpg,.jpeg,.gif,.webp,.svg">
       <div class="bin-list" id="binList">
