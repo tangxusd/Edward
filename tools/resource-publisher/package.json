@@ -1,0 +1,6 @@
+{
+  "name": "edward-resource-publisher",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/publish.test.mjs" }
+}

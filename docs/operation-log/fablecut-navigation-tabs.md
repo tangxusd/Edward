@@ -118,3 +118,10 @@
 - 涉及文件：`third_party/FableCut/index.html`、`third_party/FableCut/style.css`、`third_party/FableCut/app.js`、`third_party/FableCut/server.js`。
 - 结果：新增两级分类导航、收藏/热门/最新排序、分页加载和仅缓存资源元数据的本地缓存；本地代理转发浏览器 Authorization，不保存服务端密钥。
 - 验证：`node --check third_party/FableCut/app.js`、`node --check third_party/FableCut/server.js` 通过；未配置 Supabase 环境变量时接口返回 `503 supabase_not_configured`，未向匿名请求开放资源数据。
+
+## 2026-09-12 Supabase 资源录入管道
+
+- 目的：提供仅供本地/Codex 调用的资源发布 CLI。
+- 涉及文件：`tools/resource-publisher/publish.mjs`、`tools/resource-publisher/manifest-schema.json`、`tools/resource-publisher/test/publish.test.mjs`、三个 Edge Function。
+- 结果：发布前校验组件 ID、一级 Tab、三级分类 UUID、版本号；上传 manifest 与包文件并按 SHA-256 记录版本；服务角色密钥只从环境变量读取，不写入项目。
+- 验证：`node --test tools/resource-publisher/test/publish.test.mjs` 通过；三个函数重新部署成功；CORS 已限制到本地 FableCut 来源。

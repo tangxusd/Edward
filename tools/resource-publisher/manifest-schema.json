@@ -1,0 +1,6 @@
+{
+  "required": ["component_id", "tab_key", "category_id", "name", "version"],
+  "tab_keys": ["media", "text", "audio", "cards", "chart", "background", "annotation", "number"],
+  "component_id": "^[a-z0-9][a-z0-9._-]{2,127}$",
+  "version": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+}
