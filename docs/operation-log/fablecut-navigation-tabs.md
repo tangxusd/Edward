@@ -107,3 +107,8 @@
 
 - 结果：原生标题栏不再只依据 Qt 子进程状态判断连接；当已有本地服务占用 7777 端口时，通过 TCP 可达性确认并显示绿色状态。
 - 验证：CMake 构建成功。
+
+## 2026-09-12（Supabase 资源库基础设施）
+
+- 结果：初始化并关联 Supabase 项目 `naybqwiqgviuzjtemerc`；创建资源分类、资源、版本、收藏、浏览和权限表，配置索引与 RLS；部署 `resource-catalog`、`resource-detail`、`resource-favorite` Edge Functions。
+- 验证：`supabase db push --linked --yes` 成功；三个 Edge Functions 部署成功。部署过程未写入 service role key。
