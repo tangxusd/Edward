@@ -1624,6 +1624,18 @@ function renderLibrary() {
 
 const RESOURCE_PAGE_SIZE = 24;
 const resourceBrowserState = { tab: null, categoryId: null, sort: "latest", offset: 0, hasMore: false, categories: [], items: [] };
+const DEMO_RESOURCE_CATEGORIES = [
+  { id: "demo-all", parent_id: null, name: "全部" },
+  { id: "demo-basic", parent_id: null, name: "基础" },
+  { id: "demo-title", parent_id: "demo-basic", name: "标题" },
+  { id: "demo-overlay", parent_id: "demo-basic", name: "叠加" },
+];
+const DEMO_RESOURCE_ITEMS = [
+  { id: "demo-1", component_id: "demo.basic.01", name: "基础标题", summary: "演示组件 · 已授权", favorite_count: 12 },
+  { id: "demo-2", component_id: "demo.basic.02", name: "简洁字幕", summary: "演示组件 · 已授权", favorite_count: 8 },
+  { id: "demo-3", component_id: "demo.overlay.01", name: "柔光叠加", summary: "演示组件 · 已授权", favorite_count: 5 },
+];
+const isDemoResourceMode = window.location.protocol === "file:" && localStorage.getItem("fablecut-demo-auth") !== "0";
 const resourceCacheKey = () => `fablecut-resource-cache:${resourceBrowserState.tab}:${resourceBrowserState.categoryId || "all"}:${resourceBrowserState.sort}`;
 
 function setResourceState(message, error = false) {
@@ -1695,6 +1707,14 @@ function cacheResourceItems(items) {
 async function loadResourcePage(reset = false) {
   if (!els.resourceGrid) return;
   if (reset) resourceBrowserState.offset = 0;
+  if (isDemoResourceMode) {
+    resourceBrowserState.items = DEMO_RESOURCE_ITEMS.filter((item) => !resourceBrowserState.categoryId || resourceBrowserState.categoryId === "demo-all" || (resourceBrowserState.categoryId === "demo-title" && item.component_id.includes("basic")) || (resourceBrowserState.categoryId === "demo-overlay" && item.component_id.includes("overlay")));
+    renderResourceCards(resourceBrowserState.items);
+    resourceBrowserState.hasMore = false;
+    setResourceState("演示账号 · 已授权");
+    els.resourceMore?.classList.add("hidden");
+    return;
+  }
   const cacheKey = resourceCacheKey();
   if (reset) {
     try {
@@ -1730,6 +1750,12 @@ async function loadResourceBrowser(tab) {
   resourceBrowserState.sort = localStorage.getItem(`fablecut-resource-sort:${tab}`) || "latest";
   els.resourceSort?.querySelectorAll("[data-resource-sort]").forEach((button) => button.classList.toggle("on", button.dataset.resourceSort === resourceBrowserState.sort));
   setResourceState("正在加载资源");
+  if (isDemoResourceMode) {
+    resourceBrowserState.categories = DEMO_RESOURCE_CATEGORIES;
+    renderResourceCategories();
+    await loadResourcePage(true);
+    return;
+  }
   try {
     resourceBrowserState.categories = await fetchResourceApi(`/api/resources/categories?tabKey=${encodeURIComponent(tab)}`) || [];
     renderResourceCategories();
