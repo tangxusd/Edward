@@ -216,6 +216,26 @@ body.resizing-panels * {
   text-align: center;
   color: var(--dim);
 }
+.connection-status::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: #f59e0b;
+  vertical-align: 1px;
+}
+.connection-status.connected::before { background: #22c55e; }
+.connection-status.disconnected {
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.connection-status.disconnected:hover { color: #fff; }
 
 .topbar-right {
   display: flex;

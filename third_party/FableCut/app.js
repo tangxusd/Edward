@@ -639,7 +639,7 @@ async function connectServer() {
     const data = await res.json();
     applyProject(data);
     state.connected = true;
-    els.projectName.textContent = project.name + "  ·  🟢 connected";
+    renderConnectionStatus(true);
     listenSSE();
     fetch("/api/export/ffmpeg").then((r) => r.json())
       .then((j) => { state.ffmpeg = !!j.available; }).catch(() => { });
@@ -647,9 +647,22 @@ async function connectServer() {
     detectWebCodecs();
   } catch {
     state.connected = false;
-    els.projectName.textContent = project.name + "  ·  ⚪ local session";
+    renderConnectionStatus(false);
   }
   await probeMissingMeta();
+}
+function renderConnectionStatus(connected) {
+  if (!els.projectName) return;
+  els.projectName.textContent = "";
+  const name = document.createElement("span");
+  name.textContent = project.name;
+  const sep = document.createTextNode("  ·  ");
+  const status = document.createElement(connected ? "span" : "button");
+  status.className = "connection-status " + (connected ? "connected" : "disconnected");
+  status.textContent = connected ? "connected" : "未连接";
+  status.title = connected ? "Local service connected" : "点击重新连接本地服务";
+  if (!connected) status.addEventListener("click", (e) => { e.stopPropagation(); connectServer(); });
+  els.projectName.append(name, sep, status);
 }
 /* Main-profile AVC level by canvas height; Annex-B is required so ffmpeg
    can ingest the elementary stream with `-f h264` and no avcC converter. */
