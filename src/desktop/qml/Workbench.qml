@@ -2608,8 +2608,9 @@ ApplicationWindow {
             spacing: 10
             TextField { id: supabaseProjectUrl; placeholderText: "Supabase 项目 URL" }
             TextField { id: supabaseAnonKey; placeholderText: "Supabase anon key"; echoMode: TextInput.Password }
-            TextField { id: signInEmail; placeholderText: "邮箱" }
+            TextField { id: signInEmail; placeholderText: "邮箱或账号名" }
             TextField { id: signInPassword; placeholderText: "密码"; echoMode: TextInput.Password }
+            Button { text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) signInDialog.close() } }
         }
         onAccepted: {
             if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text,

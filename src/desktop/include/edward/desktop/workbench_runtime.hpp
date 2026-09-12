@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QVariantList>
 #include <QImage>
+#include <QJsonArray>
 #include <QFutureWatcher>
 #include <QHash>
 #include <QTimer>
@@ -18,14 +19,19 @@
 #include "edward/media/preview_frame_cache.hpp"
 #include "edward/media/render_graph.hpp"
 #include "edward/media/render_storage.hpp"
+#include "edward/media/export_job.hpp"
 #include "edward/plugins/installed_plugin.hpp"
 #include "edward/resources/auth_session_store.hpp"
 #include "edward/resources/component_upload.hpp"
 #include "edward/resources/component_upload_dispatcher.hpp"
 #include "edward/resources/component_library.hpp"
+#include "edward/resources/fusion_artifact_cache.hpp"
 #include "edward/resources/model_chat_client.hpp"
+#include "edward/resources/resolve_api_manuals.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
 #include "edward/resolve/resolve_adapter.hpp"
+#include "edward/resolve/resolve_action_planner.hpp"
+#include "edward/resolve/resolve_capability_telemetry.hpp"
 
 namespace edward::desktop {
 
@@ -60,6 +66,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(int selectedComponentNodeWidth READ selectedComponentNodeWidth WRITE setSelectedComponentNodeWidth NOTIFY timelineChanged)
   Q_PROPERTY(int selectedComponentNodeHeight READ selectedComponentNodeHeight WRITE setSelectedComponentNodeHeight NOTIFY timelineChanged)
   Q_PROPERTY(double selectedComponentNodeRotation READ selectedComponentNodeRotation WRITE setSelectedComponentNodeRotation NOTIFY timelineChanged)
+  Q_PROPERTY(double selectedComponentNodeScale READ selectedComponentNodeScale WRITE setSelectedComponentNodeScale NOTIFY timelineChanged)
   Q_PROPERTY(double selectedComponentNodeOpacity READ selectedComponentNodeOpacity WRITE setSelectedComponentNodeOpacity NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeColor READ selectedComponentNodeColor WRITE setSelectedComponentNodeColor NOTIFY timelineChanged)
   Q_PROPERTY(QString selectedComponentNodeBorderColor READ selectedComponentNodeBorderColor WRITE setSelectedComponentNodeBorderColor NOTIFY timelineChanged)
@@ -71,14 +78,31 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool timelineExportBusy READ timelineExportBusy NOTIFY timelineChanged)
   Q_PROPERTY(int timelineExportProgress READ timelineExportProgress NOTIFY timelineChanged)
+  Q_PROPERTY(bool exportDialogRequested READ exportDialogRequested NOTIFY timelineChanged)
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool componentUploadBusy READ componentUploadBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool aiComponentDraftAvailable READ aiComponentDraftAvailable NOTIFY timelineChanged)
+  Q_PROPERTY(bool aiAnalysisDraftAvailable READ aiAnalysisDraftAvailable NOTIFY timelineChanged)
   Q_PROPERTY(QString aiComponentDraft READ aiComponentDraft NOTIFY timelineChanged)
   Q_PROPERTY(bool aiRequestBusy READ aiRequestBusy NOTIFY timelineChanged)
   Q_PROPERTY(QString aiConversation READ aiConversation NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiModelEndpoint READ aiModelEndpoint NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiProviderName READ aiProviderName NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiTestModel READ aiTestModel NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiModelList READ aiModelList NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiContextWindow READ aiContextWindow NOTIFY timelineChanged)
+  Q_PROPERTY(QStringList aiAvailableModels READ aiAvailableModels NOTIFY timelineChanged)
+  Q_PROPERTY(bool aiModelListBusy READ aiModelListBusy NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiModelId READ aiModelId NOTIFY timelineChanged)
+  Q_PROPERTY(bool aiModelConfigured READ aiModelConfigured NOTIFY timelineChanged)
+  Q_PROPERTY(bool aiModelCredentialsConfigured READ aiModelCredentialsConfigured NOTIFY timelineChanged)
+  Q_PROPERTY(QString resolveApiAssessment READ resolveApiAssessment NOTIFY timelineChanged)
+  Q_PROPERTY(QString resolveActionPlan READ resolveActionPlan NOTIFY timelineChanged)
+  Q_PROPERTY(QString resolveActionLastResult READ resolveActionLastResult NOTIFY timelineChanged)
+  Q_PROPERTY(QString resolveRebuildTransactionId READ resolveRebuildTransactionId NOTIFY timelineChanged)
+  Q_PROPERTY(QString resolveRebuildTransactionState READ resolveRebuildTransactionState NOTIFY timelineChanged)
   Q_PROPERTY(QVariantList localComponents READ localComponents NOTIFY timelineChanged)
   Q_PROPERTY(QString projectWindowTitle READ projectWindowTitle NOTIFY timelineChanged)
   Q_PROPERTY(int previewQuality READ previewQuality NOTIFY timelineChanged)
@@ -87,8 +111,18 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString proxyStorageRoot READ proxyStorageRoot NOTIFY timelineChanged)
   Q_PROPERTY(QString cacheStorageRoot READ cacheStorageRoot NOTIFY timelineChanged)
   Q_PROPERTY(QString renderStorageRoot READ renderStorageRoot NOTIFY timelineChanged)
+  Q_PROPERTY(bool qualityImprovementEnabled READ qualityImprovementEnabled NOTIFY timelineChanged)
+  Q_PROPERTY(bool qualityImprovementNoticeRequired READ qualityImprovementNoticeRequired NOTIFY timelineChanged)
   Q_PROPERTY(bool resolveConnected READ resolveConnected NOTIFY resolveStateChanged)
+  Q_PROPERTY(bool resolveComponentImportBusy READ resolveComponentImportBusy NOTIFY timelineChanged)
   Q_PROPERTY(QString resolveStatus READ resolveStatus NOTIFY resolveStateChanged)
+  Q_PROPERTY(QString resolveContextSummary READ resolveContextSummary NOTIFY resolveStateChanged)
+  Q_PROPERTY(QString resolveSelectionId READ resolveSelectionId NOTIFY resolveStateChanged)
+  Q_PROPERTY(QString resolveSelectionKind READ resolveSelectionKind NOTIFY resolveStateChanged)
+  Q_PROPERTY(QString resolveSelectionName READ resolveSelectionName NOTIFY resolveStateChanged)
+  Q_PROPERTY(QVariantList resolveRenderFormats READ resolveRenderFormats NOTIFY resolveRenderCapabilitiesChanged)
+  Q_PROPERTY(QVariantList resolveRenderCodecs READ resolveRenderCodecs NOTIFY resolveRenderCapabilitiesChanged)
+  Q_PROPERTY(QVariantList resolveRenderResolutions READ resolveRenderResolutions NOTIFY resolveRenderCapabilitiesChanged)
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
@@ -122,6 +156,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] int selectedComponentNodeWidth() const;
   [[nodiscard]] int selectedComponentNodeHeight() const;
   [[nodiscard]] double selectedComponentNodeRotation() const;
+  [[nodiscard]] double selectedComponentNodeScale() const;
   [[nodiscard]] double selectedComponentNodeOpacity() const;
   [[nodiscard]] QString selectedComponentNodeColor() const;
   [[nodiscard]] QString selectedComponentNodeBorderColor() const;
@@ -138,9 +173,28 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
   [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
   [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
+  [[nodiscard]] bool aiAnalysisDraftAvailable() const {
+    return aiComponentDraft_.has_value() && aiComponentDraftIsAnalysis_;
+  }
   [[nodiscard]] QString aiComponentDraft() const { return aiComponentDraftJson_; }
   [[nodiscard]] bool aiRequestBusy() const { return aiRequestBusy_; }
   [[nodiscard]] QString aiConversation() const { return aiConversation_; }
+  Q_INVOKABLE void appendAiConversationError(const QString& message);
+  [[nodiscard]] QString aiModelEndpoint() const { return aiModelEndpoint_; }
+  [[nodiscard]] QString aiProviderName() const { return aiProviderName_; }
+  [[nodiscard]] QString aiTestModel() const { return aiTestModel_; }
+  [[nodiscard]] QString aiModelList() const { return aiModelList_; }
+  [[nodiscard]] QString aiContextWindow() const { return aiContextWindow_; }
+  [[nodiscard]] QStringList aiAvailableModels() const { return aiAvailableModels_; }
+  [[nodiscard]] bool aiModelListBusy() const { return aiModelListBusy_; }
+  [[nodiscard]] QString aiModelId() const { return aiModelId_; }
+  [[nodiscard]] bool aiModelConfigured() const { return !aiModelEndpoint_.isEmpty() && !aiModelId_.isEmpty() && !aiModelApiKey_.isEmpty(); }
+  [[nodiscard]] bool aiModelCredentialsConfigured() const { return !aiModelEndpoint_.isEmpty() && !aiModelApiKey_.isEmpty(); }
+  [[nodiscard]] QString resolveApiAssessment() const { return resolveApiAssessment_; }
+  [[nodiscard]] QString resolveActionPlan() const { return resolveActionPlan_; }
+  [[nodiscard]] QString resolveActionLastResult() const { return resolveActionLastResult_; }
+  [[nodiscard]] QString resolveRebuildTransactionId() const { return resolveRebuildTransactionId_; }
+  [[nodiscard]] QString resolveRebuildTransactionState() const { return resolveRebuildTransactionState_; }
   [[nodiscard]] QVariantList localComponents() const;
   [[nodiscard]] QString projectWindowTitle() const;
   [[nodiscard]] int previewQuality() const;
@@ -149,6 +203,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString proxyStorageRoot() const;
   [[nodiscard]] QString cacheStorageRoot() const;
   [[nodiscard]] QString renderStorageRoot() const;
+  [[nodiscard]] bool qualityImprovementEnabled() const;
+  [[nodiscard]] bool qualityImprovementNoticeRequired() const;
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -165,6 +221,7 @@ class WorkbenchRuntime final : public QObject {
   void setSelectedComponentNodeWidth(int value);
   void setSelectedComponentNodeHeight(int value);
   void setSelectedComponentNodeRotation(double value);
+  void setSelectedComponentNodeScale(double value);
   void setSelectedComponentNodeOpacity(double value);
   void setSelectedComponentNodeColor(const QString& value);
   void setSelectedComponentNodeBorderColor(const QString& value);
@@ -174,6 +231,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool setPreviewQuality(int quality);
   Q_INVOKABLE bool configurePreviewStorageRoots(const QString& proxyRoot, const QString& cacheRoot,
                                                 const QString& renderRoot);
+  Q_INVOKABLE bool setQualityImprovementEnabled(bool enabled);
+  Q_INVOKABLE bool acknowledgeQualityImprovementNotice();
   Q_INVOKABLE bool clearDerivedStorage(int kind);
   Q_INVOKABLE bool selectClip(qlonglong id);
   Q_INVOKABLE bool selectComponentNode(const QString& nodeId);
@@ -186,8 +245,30 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
   Q_INVOKABLE bool requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
                                            const QString& model, const QString& prompt);
+  Q_INVOKABLE bool deleteLastAiInsertions(int count = -1, int index = -1);
+  Q_INVOKABLE QString pasteAiAttachment();
+  Q_INVOKABLE QStringList pasteAiAttachments();
+  Q_INVOKABLE QStringList chooseAiAttachments();
+  Q_INVOKABLE bool analyzeCurrentClipWithAi(const QString& prompt = {});
+  Q_INVOKABLE bool configureAiModel(const QString& providerName, const QString& endpoint,
+                                    const QString& apiKey, const QString& model,
+                                    const QString& testModel = {}, const QString& modelList = {},
+                                    const QString& contextWindow = {});
+  Q_INVOKABLE bool refreshAiModelList();
+  Q_INVOKABLE bool selectAiModel(const QString& model);
+  Q_INVOKABLE void assessResolveRequest(const QString& request);
+  Q_INVOKABLE void planResolveAction(const QString& request);
+  Q_INVOKABLE bool executeResolveActionPlan();
+  // 首页快捷操作的统一入口：先按当前 Resolve 上下文规划，再执行并回读。
+  Q_INVOKABLE bool executeResolveQuickAction(const QString& action);
+  Q_INVOKABLE bool beginResolveRebuild();
+  Q_INVOKABLE bool importResolveRebuildFile(const QString& path);
+  Q_INVOKABLE bool validateResolveRebuild(const QString& timelineName = {}, const QString& renderJobId = {}, const QString& outputPath = {});
+  Q_INVOKABLE bool commitResolveRebuild();
+  Q_INVOKABLE bool rollbackResolveRebuild();
   Q_INVOKABLE bool proposeAiComponentCommand(const QString& json);
   Q_INVOKABLE bool applyPendingAiComponentCommand();
+  Q_INVOKABLE bool applyAiAnalysisDraftToResolve(int durationFrames = 150);
   Q_INVOKABLE void discardPendingAiComponentCommand();
   Q_INVOKABLE bool loadComponentJson(const QString& json);
   Q_INVOKABLE bool loadComponentFile(const QString& path);
@@ -198,9 +279,15 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool saveCurrentComponentToLibrary(const QString& resourceId, const QString& displayName,
                                                  const QString& category = QStringLiteral("my"));
   Q_INVOKABLE bool loadLibraryComponent(const QString& resourceId);
+  Q_INVOKABLE bool insertLibraryComponentAtPlayhead(const QString& resourceId,
+                                                     int durationFrames = 150);
+  Q_INVOKABLE bool downloadFusionArtifact(const QString& url, const QString& destination,
+                                          const QString& sha256);
   Q_INVOKABLE bool configureSilentComponentUploads(const QString& endpoint, const QString& statePath,
                                                     const QString& pendingRoot);
   Q_INVOKABLE bool signInWithSupabase(const QString& projectUrl, const QString& anonKey,
+                                      const QString& email, const QString& password);
+  Q_INVOKABLE bool signUpWithSupabase(const QString& projectUrl, const QString& anonKey,
                                       const QString& email, const QString& password);
   Q_INVOKABLE void signOut();
   Q_INVOKABLE bool uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
@@ -217,18 +304,29 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE bool exportTimelineWithOptions(const QString& outputPath, int width, int height,
                                              int fps, int quality);
+  Q_INVOKABLE void clearExportDialogRequest();
   Q_INVOKABLE void cancelTimelineExport();
   Q_INVOKABLE void clearComponentOverlay();
   Q_INVOKABLE bool setPlayhead(int frame);
-  Q_INVOKABLE bool connectResolve();
+  Q_INVOKABLE bool connectResolve(bool notifyFailure = true);
   Q_INVOKABLE void disconnectResolve();
   Q_INVOKABLE bool refreshResolveTimeline();
+  Q_INVOKABLE bool refreshResolveRenderCapabilities();
   Q_INVOKABLE bool setSelectedComponentPropertyAtPlayhead(const QString& nodeId,
                                                           const QString& field,
                                                           const QJsonValue& value);
+  Q_INVOKABLE QVariantList inspectSelectedResolveTool(const QString& toolName);
+  Q_INVOKABLE bool setSelectedResolveAttribute(const QString& toolName,
+                                               const QString& inputName,
+                                               const QJsonValue& value);
   Q_INVOKABLE bool exportWithEdwardOptions(const QString& outputPath, int width, int height,
                                            int fps, int quality);
   Q_INVOKABLE bool openResolveDeliverPage();
+  Q_INVOKABLE bool importResolveLayoutPreset(const QString& path, const QString& name = {});
+  Q_INVOKABLE bool loadResolveLayoutPreset(const QString& name);
+  Q_INVOKABLE bool saveResolveLayoutPreset(const QString& name);
+  Q_INVOKABLE bool exportResolveLayoutPreset(const QString& name, const QString& path);
+  Q_INVOKABLE bool ensureResolveSubtitleTrack();
   Q_INVOKABLE bool saveProject(const QString& path);
   Q_INVOKABLE bool loadProject(const QString& path);
   Q_INVOKABLE bool hasProjectRecovery(const QString& path) const;
@@ -257,6 +355,7 @@ class WorkbenchRuntime final : public QObject {
   void operationFailed(QString message);
   void operationSucceeded(QString message);
   void resolveStateChanged();
+  void resolveRenderCapabilitiesChanged();
 
  private:
   bool exportInstalledPlugin(const QString& requestId, const QString& compositionId,
@@ -288,6 +387,7 @@ class WorkbenchRuntime final : public QObject {
   std::optional<edward::core::ComponentIr> demoOverlayIr_;
   edward::core::ClipId componentClipId_ = 0;
   edward::core::ClipId editingComponentClipId_ = 0;
+  QHash<QString, QString> resolveComponentNodeTimelineIds_;
   int demoOverlayX_ = 24;
   int demoOverlayY_ = 24;
   int demoOverlayWidth_ = 220;
@@ -312,6 +412,11 @@ class WorkbenchRuntime final : public QObject {
   bool pluginExportBusy_ = false;
   struct TimelineExportResult { QString error; QString outputPath; };
   QFutureWatcher<TimelineExportResult> timelineExportWatcher_;
+  QTimer resolveRenderPollTimer_;
+  QTimer resolveContextPollTimer_;
+  QTimer resolveReconnectTimer_;
+  QString resolveRenderJobId_;
+  QString resolveRenderOutputPath_;
   bool timelineExportBusy_ = false;
   int timelineExportProgress_ = 0;
   std::shared_ptr<std::atomic_bool> timelineExportCancel_;
@@ -320,13 +425,33 @@ class WorkbenchRuntime final : public QObject {
   bool signInBusy_ = false;
   edward::resources::ComponentUploadClient componentUploadClient_;
   edward::resources::ComponentLibrary componentLibrary_;
+  edward::resources::FusionArtifactCache fusionArtifactCache_;
   bool componentUploadBusy_ = false;
   std::optional<edward::core::ComponentIr> aiComponentDraft_;
+  bool aiComponentDraftIsAnalysis_ = false;
   QString aiComponentDraftJson_;
   edward::resources::ModelChatClient modelChatClient_;
   bool aiRequestBusy_ = false;
   QString aiConversation_;
+  QString aiModelEndpoint_;
+  QString aiProviderName_;
+  QString aiModelApiKey_;
+  QString aiModelId_;
+  QString aiTestModel_;
+  QString aiModelList_;
+  QString aiContextWindow_;
+  QStringList aiAvailableModels_;
+  bool aiModelListBusy_ = false;
+  QString resolveApiAssessment_;
+  QString resolveActionPlan_;
+  QString resolveActionLastResult_;
+  QString resolveRebuildTransactionId_;
+  QString resolveRebuildTransactionState_;
+  edward::resources::ResolveApiManuals resolveApiManuals_;
   QString pendingAiPrompt_;
+  QJsonArray aiLastInsertionRecords_;
+  bool pendingAiAnalysis_ = false;
+  bool pendingAiConversationOnly_ = false;
   std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;
@@ -346,13 +471,34 @@ class WorkbenchRuntime final : public QObject {
   edward::resolve::ResolveConnection resolveConnection_;
   edward::resolve::ResolveAdapter resolveAdapter_;
   bool resolveConnected_ = false;
+  bool resolveComponentImportBusy_ = false;
+  bool exportDialogRequested_ = false;
   QString resolveStatus_ = QStringLiteral("未连接 Resolve Studio");
+  QString resolveContextSummary_ = QStringLiteral("尚未读取 Resolve 当前上下文");
+  QString resolveSelectionId_;
+  QString resolveSelectionKind_ = QStringLiteral("none");
+  QString resolveSelectionName_;
+  QVariantList resolveRenderFormats_;
+  QVariantList resolveRenderCodecs_;
+  QVariantList resolveRenderResolutions_;
   std::optional<edward::resolve::ResolveTimelineSnapshot> resolveTimelineSnapshot_;
+  void recordResolveCapabilityEvent(const QString& capabilityId, bool success,
+                                    const QString& errorCode = {});
+  void recordResolveError(const QString& method, const QString& errorCode);
   void dispatchSilentComponentUploads();
 
  public:
   [[nodiscard]] bool resolveConnected() const { return resolveConnected_; }
+  [[nodiscard]] bool exportDialogRequested() const { return exportDialogRequested_; }
+  [[nodiscard]] bool resolveComponentImportBusy() const { return resolveComponentImportBusy_; }
   [[nodiscard]] QString resolveStatus() const { return resolveStatus_; }
+  [[nodiscard]] QString resolveContextSummary() const { return resolveContextSummary_; }
+  [[nodiscard]] QString resolveSelectionId() const { return resolveSelectionId_; }
+  [[nodiscard]] QString resolveSelectionKind() const { return resolveSelectionKind_; }
+  [[nodiscard]] QString resolveSelectionName() const { return resolveSelectionName_; }
+  [[nodiscard]] QVariantList resolveRenderFormats() const { return resolveRenderFormats_; }
+  [[nodiscard]] QVariantList resolveRenderCodecs() const { return resolveRenderCodecs_; }
+  [[nodiscard]] QVariantList resolveRenderResolutions() const { return resolveRenderResolutions_; }
 };
 
 }  // namespace edward::desktop

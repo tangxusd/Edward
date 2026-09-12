@@ -31,6 +31,8 @@ class SupabaseAuthClient final : public QObject {
       QString* error = nullptr);
   bool signInWithPassword(const SupabaseAuthConfig& config, const QString& email,
                           const QString& password, AuthSessionStore* sessions);
+  bool signUpWithPassword(const SupabaseAuthConfig& config, const QString& email,
+                          const QString& password);
 
  signals:
   void completed(bool success, QString message);

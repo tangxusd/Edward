@@ -66,4 +66,14 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
   return true;
 }
 
+bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, const QString& email,
+                                            const QString& password) {
+  if (email.isEmpty() || password.isEmpty()) { emit completed(false, QStringLiteral("邮箱和密码不能为空")); return false; }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/signup"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email}, {"password", password}}).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString()); reply->deleteLater(); });
+  return true;
+}
+
 }  // namespace edward::resources

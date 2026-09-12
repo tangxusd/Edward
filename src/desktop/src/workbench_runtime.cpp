@@ -4,10 +4,14 @@
 #include "edward/media/audio_waveform.hpp"
 #include "edward/plugins/plugin_host.hpp"
 #include "edward/resources/component_package.hpp"
+#include "edward/resolve/fusion_converter.hpp"
+#include "edward/resolve/resolve_component_capability_matrix.hpp"
 #include "edward/core/component_edit_command.hpp"
 #include "edward/core/component_edit_command_parser.hpp"
+#include "edward/desktop/diagnostics_reporter.hpp"
 
 #include <QVariantMap>
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -23,6 +27,12 @@
 #include <QPointer>
 #include <QStandardPaths>
 #include <QSettings>
+#include <QFileDialog>
+#include <QGuiApplication>
+#include <QClipboard>
+#include <QMimeData>
+#include <QStringList>
+#include <QUuid>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
@@ -35,6 +45,171 @@ QString previewSettingsPath() {
   if (!overridePath.isEmpty()) return overridePath;
   return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) +
          QStringLiteral("/preview-storage.ini");
+}
+
+QString telemetryInstallationId() {
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  auto identifier = settings.value(QStringLiteral("diagnostics/installationId")).toString().trimmed();
+  if (!identifier.isEmpty()) return identifier;
+  identifier = QUuid::createUuid().toString(QUuid::WithoutBraces);
+  settings.setValue(QStringLiteral("diagnostics/installationId"), identifier);
+  settings.sync();
+  return settings.status() == QSettings::NoError ? identifier : QString{};
+}
+
+QString projectAgentInstructions() {
+  auto directory = QDir::current();
+  for (int i = 0; i < 6; ++i) {
+    const auto path = directory.filePath(QStringLiteral("AGENTS.md"));
+    QFile file(path);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+      const auto text = QString::fromUtf8(file.read(24 * 1024));
+      return text;
+    }
+    if (!directory.cdUp()) break;
+  }
+  return {};
+}
+
+QString normalizeAiAssetPath(const QJsonObject& object, const QString& prompt) {
+  const QStringList keys{QStringLiteral("asset_path"), QStringLiteral("file_path"), QStringLiteral("media_path"),
+                         QStringLiteral("path"), QStringLiteral("file"), QStringLiteral("url")};
+  for (const auto& key : keys) {
+    const auto value = object.value(key).toString().trimmed();
+    if (!value.isEmpty()) return QUrl(value).isLocalFile() ? QUrl(value).toLocalFile() : value;
+  }
+  static const QRegularExpression pathPattern(QStringLiteral("(?:file://)?/[^\\s\\\"']+\\.(?:png|jpe?g|webp|gif|mp4|mov|mkv|mp3|wav|m4a)"), QRegularExpression::CaseInsensitiveOption);
+  const auto match = pathPattern.match(prompt);
+  return match.hasMatch() ? match.captured(0) : QString{};
+}
+
+QStringList attachmentPathsFromPrompt(const QString& prompt) {
+  QStringList paths;
+  static const QRegularExpression pattern(QStringLiteral("(?:file://)?/[^\\s]+\\.(?:png|jpe?g|webp|gif|mp4|mov|mkv|mp3|wav|m4a|txt|md|json|csv)"), QRegularExpression::CaseInsensitiveOption);
+  auto match = pattern.globalMatch(prompt);
+  while (match.hasNext()) {
+    const auto value = match.next().captured(0);
+    if (!paths.contains(value)) paths.append(value);
+  }
+  return paths;
+}
+
+QJsonObject normalizeComponentResponse(QJsonObject object) {
+  if (!object.value(QStringLiteral("root")).isUndefined()) return object;
+  const auto legacyNodes = object.value(QStringLiteral("nodes")).toArray();
+  if (legacyNodes.isEmpty()) return object;
+  const auto normalizeNode = [](const auto& self, QJsonObject node) -> QJsonObject {
+    QJsonObject transform = node.value(QStringLiteral("transform")).toObject();
+    QJsonObject properties = node.value(QStringLiteral("properties")).toObject();
+    for (const auto& key : {QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("width"), QStringLiteral("height")}) {
+      if (node.contains(key)) { transform.insert(key, node.value(key)); node.remove(key); }
+    }
+    for (auto it = node.constBegin(); it != node.constEnd(); ++it) {
+      if (it.key() != QStringLiteral("id") && it.key() != QStringLiteral("type") &&
+          it.key() != QStringLiteral("children") && it.key() != QStringLiteral("keyframes") &&
+          it.key() != QStringLiteral("transform") && it.key() != QStringLiteral("properties"))
+        properties.insert(it.key(), it.value());
+    }
+    if (!transform.isEmpty()) node.insert(QStringLiteral("transform"), transform);
+    if (!properties.isEmpty()) node.insert(QStringLiteral("properties"), properties);
+    const auto children = node.value(QStringLiteral("children")).toArray();
+    if (!children.isEmpty()) {
+      QJsonArray normalizedChildren;
+      for (const auto& child : children) normalizedChildren.append(self(self, child.toObject()));
+      node.insert(QStringLiteral("children"), normalizedChildren);
+    }
+    const auto legacyKeyframes = node.value(QStringLiteral("keyframes"));
+    if (legacyKeyframes.isArray()) {
+      QJsonObject grouped;
+      for (const auto& value : legacyKeyframes.toArray()) {
+        const auto point = value.toObject();
+        const auto property = point.value(QStringLiteral("property")).toString();
+        if (property.isEmpty() || !point.value(QStringLiteral("value")).isDouble()) continue;
+        auto points = grouped.value(property).toArray();
+        points.append(QJsonObject{{QStringLiteral("frame"), point.value(QStringLiteral("time"))},
+                                  {QStringLiteral("value"), point.value(QStringLiteral("value"))}});
+        grouped.insert(property, points);
+      }
+      node.insert(QStringLiteral("keyframes"), grouped);
+    }
+    return node;
+  };
+  QJsonArray children;
+  for (const auto& value : legacyNodes) children.append(normalizeNode(normalizeNode, value.toObject()));
+  object.remove(QStringLiteral("nodes"));
+  object.insert(QStringLiteral("root"), QJsonObject{{QStringLiteral("id"), object.value(QStringLiteral("name")).toString(QStringLiteral("root"))},
+                                                     {QStringLiteral("type"), QStringLiteral("container")},
+                                                     {QStringLiteral("children"), children}});
+  return object;
+}
+
+QString promptWithTextAttachmentContents(const QString& prompt) {
+  QString expanded = prompt;
+  const auto paths = attachmentPathsFromPrompt(prompt);
+  constexpr qsizetype maxAttachmentBytes = 192 * 1024;
+  for (const auto& rawPath : paths) {
+    const auto path = QUrl(rawPath).isLocalFile() ? QUrl(rawPath).toLocalFile() : rawPath;
+    const auto suffix = QFileInfo(path).suffix().toLower();
+    if (suffix != QStringLiteral("txt") && suffix != QStringLiteral("md") && suffix != QStringLiteral("json") &&
+        suffix != QStringLiteral("csv"))
+      continue;
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
+    const auto content = file.read(maxAttachmentBytes + 1);
+    if (content.size() > maxAttachmentBytes) continue;
+    expanded += QStringLiteral("\n\n[文本附件内容: %1]\n`````\n%2\n`````\n")
+                    .arg(QFileInfo(path).fileName(), QString::fromUtf8(content));
+  }
+  return expanded;
+}
+
+QJsonArray parseAiOperations(const QString& raw) {
+  QString candidate = raw.trimmed();
+  const auto fenceStart = candidate.indexOf(QStringLiteral("```"));
+  if (fenceStart >= 0) {
+    const auto bodyStart = candidate.indexOf(QLatin1Char('\n'), fenceStart);
+    const auto fenceEnd = candidate.indexOf(QStringLiteral("```"), bodyStart + 1);
+    if (bodyStart >= 0 && fenceEnd > bodyStart)
+      candidate = candidate.mid(bodyStart + 1, fenceEnd - bodyStart - 1).trimmed();
+  }
+  QJsonParseError parseError;
+  auto document = QJsonDocument::fromJson(candidate.toUtf8(), &parseError);
+  if (document.isArray()) return document.array();
+  if (document.isObject()) return document.object().value(QStringLiteral("operations")).toArray();
+  const auto arrayStart = candidate.indexOf(QLatin1Char('['));
+  const auto arrayEnd = candidate.lastIndexOf(QLatin1Char(']'));
+  if (arrayStart >= 0 && arrayEnd > arrayStart) {
+    document = QJsonDocument::fromJson(candidate.mid(arrayStart, arrayEnd - arrayStart + 1).toUtf8(), &parseError);
+    if (document.isArray()) return document.array();
+  }
+  return {};
+}
+
+QString fusionConversionFailureMessage(const edward::core::ComponentConversionReport& report) {
+  QStringList entries;
+  for (const auto& unsupported : report.unsupported) {
+    entries.append(QStringLiteral("节点 %1 的 %2 不支持：%3")
+                       .arg(unsupported.nodeId, unsupported.field, unsupported.reason));
+  }
+  return QStringLiteral("组件无法转换为 Fusion：%1").arg(entries.join(QStringLiteral("；")));
+}
+
+QJsonObject parseAiCommandObject(const QString& raw) {
+  QString candidate = raw.trimmed();
+  const auto fenceStart = candidate.indexOf(QStringLiteral("```"));
+  if (fenceStart >= 0) {
+    const auto bodyStart = candidate.indexOf(QLatin1Char('\n'), fenceStart);
+    const auto fenceEnd = candidate.indexOf(QStringLiteral("```"), bodyStart + 1);
+    if (bodyStart >= 0 && fenceEnd > bodyStart) candidate = candidate.mid(bodyStart + 1, fenceEnd - bodyStart - 1).trimmed();
+  }
+  QJsonParseError parseError;
+  auto document = QJsonDocument::fromJson(candidate.toUtf8(), &parseError);
+  if (!document.isObject()) {
+    const auto start = candidate.indexOf(QLatin1Char('{'));
+    const auto end = candidate.lastIndexOf(QLatin1Char('}'));
+    if (start >= 0 && end > start) document = QJsonDocument::fromJson(candidate.mid(start, end - start + 1).toUtf8(), &parseError);
+  }
+  return document.isObject() ? document.object() : QJsonObject{};
 }
 
 QByteArray previewCacheKey(const edward::core::TimelineSnapshot& snapshot,
@@ -111,6 +286,67 @@ std::optional<QJsonObject> findNode(const QJsonObject& node, const QString& id) 
   return std::nullopt;
 }
 
+struct ComponentImageSource final {
+  QString nodeId;
+  QString path;
+};
+
+QVector<ComponentImageSource> imageSources(const edward::core::ComponentIr& component) {
+  QVector<ComponentImageSource> sources;
+  const auto visit = [&sources](const auto& self, const QJsonObject& node) -> void {
+    if (node.value(QStringLiteral("type")).toString() == QStringLiteral("image")) {
+      const auto properties = node.value(QStringLiteral("properties")).toObject();
+      // SVG assets are Fusion Loader layers, not Resolve timeline media. They
+      // must stay in the single Fusion component route; treating them as
+      // external image sources incorrectly activates the multi-media overlay
+      // path and rejects valid sibling layers.
+      if (properties.contains(QStringLiteral("svgAttributes"))) {
+        for (const auto& child : node.value(QStringLiteral("children")).toArray()) {
+          if (child.isObject()) self(self, child.toObject());
+        }
+        return;
+      }
+      const auto path = properties
+                            .value(QStringLiteral("src")).toString().trimmed();
+      const auto nodeId = node.value(QStringLiteral("id")).toString().trimmed();
+      if (!nodeId.isEmpty() && !path.isEmpty() && QFileInfo::exists(path))
+        sources.push_back({nodeId, path});
+    }
+    for (const auto& child : node.value(QStringLiteral("children")).toArray()) {
+      if (child.isObject()) self(self, child.toObject());
+    }
+  };
+  visit(visit, component.toJson().value(QStringLiteral("root")).toObject());
+  return sources;
+}
+
+QSet<QString> imageLayerNodeIds(const QJsonObject& imageNode) {
+  QSet<QString> ids;
+  const auto visit = [&ids](const auto& self, const QJsonObject& node) -> void {
+    const auto id = node.value(QStringLiteral("id")).toString().trimmed();
+    if (!id.isEmpty()) ids.insert(id);
+    for (const auto& child : node.value(QStringLiteral("children")).toArray()) {
+      if (child.isObject()) self(self, child.toObject());
+    }
+  };
+  visit(visit, imageNode);
+  return ids;
+}
+
+bool extractSingleTextNode(const edward::core::ComponentNode& node, QString* text, QString* font) {
+  if (node.type == edward::core::ComponentNodeType::Text) {
+    if (!text || !text->isEmpty()) return false;
+    *text = node.properties.value(QStringLiteral("text")).toString().trimmed();
+    if (font) *font = node.properties.value(QStringLiteral("fontFamily")).toString().trimmed();
+    return !text->isEmpty();
+  }
+  if (node.type != edward::core::ComponentNodeType::Container) return false;
+  for (const auto& child : node.children) {
+    if (!extractSingleTextNode(child, text, font)) return false;
+  }
+  return true;
+}
+
 void appendComponentNodes(const QJsonObject& node, QVariantList& result) {
   const auto id = node.value("id").toString();
   const auto type = node.value("type").toString();
@@ -182,6 +418,18 @@ void setPropertyAndKeyframe(edward::core::ComponentIr& component, const QString&
       component, {edward::core::ComponentEditKind::SetKeyframeValue, nodeId, field, frame, value});
 }
 
+void setTransformStatic(edward::core::ComponentIr& component, const QString& nodeId,
+                        const QString& field, double value) {
+  edward::core::ComponentEditCommand::apply(
+      component, {edward::core::ComponentEditKind::SetTransformNumber, nodeId, field, 0, value});
+}
+
+void setPropertyStatic(edward::core::ComponentIr& component, const QString& nodeId,
+                       const QString& field, const QJsonValue& value) {
+  edward::core::ComponentEditCommand::apply(
+      component, {edward::core::ComponentEditKind::SetProperty, nodeId, field, 0, value});
+}
+
 bool pluginAllowsComponentEdit(const edward::core::ComponentIr& component,
                                const std::optional<edward::plugins::InstalledPlugin>& plugin,
                                const edward::core::ComponentEditCommand& command) {
@@ -200,7 +448,28 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
       previewFrameCache_(previewStorageRoots_, projectIdentity_),
       renderGraph_(mltAdapter_),
       resolveConnection_(),
-      resolveAdapter_(resolveConnection_) {
+      resolveAdapter_(resolveConnection_),
+      resolveApiManuals_(edward::resources::ResolveApiManuals::load()) {
+  {
+    QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+    aiModelEndpoint_ = settings.value(QStringLiteral("ai/endpoint")).toString();
+    aiProviderName_ = settings.value(QStringLiteral("ai/provider")).toString();
+    aiModelApiKey_ = settings.value(QStringLiteral("ai/apiKey")).toString();
+    aiModelId_ = settings.value(QStringLiteral("ai/model")).toString();
+    aiTestModel_ = settings.value(QStringLiteral("ai/testModel")).toString();
+    aiModelList_ = settings.value(QStringLiteral("ai/modelList")).toString();
+    aiContextWindow_ = settings.value(QStringLiteral("ai/contextWindow")).toString();
+    aiConversation_ = settings.value(QStringLiteral("ai/conversation")).toString();
+    QJsonParseError insertionParseError;
+    const auto insertionDocument = QJsonDocument::fromJson(settings.value(QStringLiteral("ai/lastInsertionRecords")).toByteArray(), &insertionParseError);
+    if (insertionDocument.isArray()) aiLastInsertionRecords_ = insertionDocument.array();
+    aiAvailableModels_ = aiModelList_.split(QRegularExpression(QStringLiteral("[\\r\\n,]+")), Qt::SkipEmptyParts);
+    aiAvailableModels_.replaceInStrings(QRegularExpression(QStringLiteral("^\\s+|\\s+$")), QString());
+    aiAvailableModels_.removeAll(QString());
+    aiAvailableModels_.removeDuplicates();
+    if (!aiModelId_.trimmed().isEmpty() && !aiAvailableModels_.contains(aiModelId_.trimmed()))
+      aiAvailableModels_.prepend(aiModelId_.trimmed());
+  }
   silentUploadRetryTimer_.setInterval(3 * 60 * 1000);
   connect(&silentUploadRetryTimer_, &QTimer::timeout, this, &WorkbenchRuntime::dispatchSilentComponentUploads);
   playbackTimer_.setInterval(40);
@@ -215,6 +484,21 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     }
     emit timelineChanged();
   });
+  resolveContextPollTimer_.setInterval(1000);
+  connect(&resolveContextPollTimer_, &QTimer::timeout, this, [this] {
+    if (resolveConnected_) refreshResolveTimeline();
+    else resolveContextPollTimer_.stop();
+  });
+  resolveReconnectTimer_.setInterval(2000);
+  connect(&resolveReconnectTimer_, &QTimer::timeout, this, [this] {
+    if (resolveConnected_) {
+      resolveReconnectTimer_.stop();
+      return;
+    }
+    connectResolve(false);
+  });
+  // 心跳持续维护 Resolve 连接：即使上下文读取失败，也立即进入重连，而非等待用户手动点击。
+  resolveReconnectTimer_.start();
   projectAutosaveTimer_.setSingleShot(true);
   projectAutosaveTimer_.setInterval(1000);
   connect(&projectAutosaveTimer_, &QTimer::timeout, this, &WorkbenchRuntime::saveProjectRecovery);
@@ -223,6 +507,12 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     emit timelineChanged();
   });
   connect(this, &WorkbenchRuntime::timelineChanged, this, &WorkbenchRuntime::scheduleProjectAutosave);
+  connect(this, &WorkbenchRuntime::timelineChanged, this, [this] {
+    QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+    const auto conversation = aiConversation_.size() > 100000 ? aiConversation_.right(100000) : aiConversation_;
+    settings.setValue(QStringLiteral("ai/conversation"), conversation);
+    settings.sync();
+  });
   connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
           &WorkbenchRuntime::timelineChanged);
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
@@ -254,21 +544,367 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
             }
             emit timelineChanged();
           });
+  connect(&fusionArtifactCache_, &edward::resources::FusionArtifactCache::completed, this,
+          [this](bool success, const QString&, const QString& message) {
+            if (success)
+              emit operationSucceeded(message);
+            else
+              emit operationFailed(message);
+            emit timelineChanged();
+          });
   connect(&modelChatClient_, &edward::resources::ModelChatClient::completed, this,
           [this](bool success, const QString& result) {
             aiRequestBusy_ = false;
-            if (!success) {
-              pendingAiPrompt_.clear();
-              emit operationFailed(QStringLiteral("AI 请求失败：%1").arg(result));
-            } else if (!proposeAiComponentCommand(result)) {
-              pendingAiPrompt_.clear();
-              return;
-            } else {
+            const auto clearProcessingMessage = [this] {
+              aiConversation_.replace(QStringLiteral("\nAI：正在处理..."), QString());
+              if (aiConversation_ == QStringLiteral("AI：正在处理...")) aiConversation_.clear();
+            };
+            const auto appendAiError = [this](const QString& message) {
               if (!pendingAiPrompt_.isEmpty()) {
                 if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
-                aiConversation_ += QStringLiteral("用户：") + pendingAiPrompt_ +
-                                   QStringLiteral("\nAI：") + result;
+                aiConversation_ += QStringLiteral("AI：") + message;
               }
+              pendingAiAnalysis_ = false;
+              pendingAiConversationOnly_ = false;
+              pendingAiPrompt_.clear();
+              emit timelineChanged();
+            };
+            if (!success) {
+              clearProcessingMessage();
+              appendAiError(QStringLiteral("AI 请求失败：%1").arg(result));
+            } else if (pendingAiConversationOnly_) {
+              clearProcessingMessage();
+              pendingAiConversationOnly_ = false;
+              if (!pendingAiPrompt_.isEmpty()) {
+                if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                aiConversation_ += QStringLiteral("AI：") + result.trimmed();
+              }
+              pendingAiPrompt_.clear();
+              emit timelineChanged();
+            } else if ([&result]() {
+                         QJsonParseError error;
+                         const auto document = QJsonDocument::fromJson(result.toUtf8(), &error);
+                         return error.error == QJsonParseError::NoError && document.isObject() &&
+                                document.object().contains(QStringLiteral("react"));
+                       }()) {
+              QJsonParseError reactError;
+              const auto reactObject = QJsonDocument::fromJson(result.toUtf8(), &reactError).object();
+              if (!resolveConnected_) {
+                appendAiError(QStringLiteral("React 已识别，但需要连接 Resolve 侧车才能生成 Component IR"));
+                emit timelineChanged();
+                return;
+              }
+              edward::resolve::ResolveError bridgeError;
+              const auto normalized = resolveConnection_.call(
+                  QStringLiteral("component.reactToIr"),
+                  QJsonObject{{QStringLiteral("source"), reactObject.value(QStringLiteral("react"))}}, &bridgeError);
+              const auto normalizedObject = normalized ? normalized->value(QStringLiteral("result")).toObject() : QJsonObject{};
+              // 统一语义 IR 是 Fusion 的唯一新主路线；保留 component 仅用于旧包兼容。
+              const auto semanticObject = normalizedObject.value(QStringLiteral("semanticIR")).toObject();
+              const auto componentObject = semanticObject.contains(QStringLiteral("root"))
+                  ? semanticObject
+                  : normalizedObject.value(QStringLiteral("component")).toObject();
+              auto candidate = componentObject.isEmpty() ? std::nullopt : edward::core::ComponentIr::parse(componentObject);
+              if (!candidate) {
+                appendAiError(QStringLiteral("React 规范化或 Component IR 生成失败：%1")
+                                  .arg(bridgeError.message.isEmpty() ? QStringLiteral("结果无效") : bridgeError.message));
+                emit timelineChanged();
+                return;
+              }
+              aiComponentDraft_ = std::move(candidate);
+              aiComponentDraftJson_ = QString::fromUtf8(QJsonDocument(componentObject).toJson(QJsonDocument::Compact));
+              aiComponentDraftIsAnalysis_ = true;
+              pendingAiAnalysis_ = false;
+              pendingAiPrompt_.clear();
+              aiConversation_ += QStringLiteral("\nAI：已将 React 组件经过理解层转换为 Component IR 草案。确认后可转写为 Fusion。\n");
+              emit timelineChanged();
+            } else if ([&result]() {
+                         QJsonParseError error;
+                         const auto document = QJsonDocument::fromJson(result.toUtf8(), &error);
+                         return error.error == QJsonParseError::NoError && document.isObject() &&
+                                document.object().contains(QStringLiteral("css")) &&
+                                !document.object().contains(QStringLiteral("root"));
+                       }()) {
+              QJsonParseError cssError;
+              const auto cssObject = QJsonDocument::fromJson(result.toUtf8(), &cssError).object();
+              if (!resolveConnected_) {
+                appendAiError(QStringLiteral("CSS 已识别，但需要连接 Resolve 侧车才能生成 Component IR"));
+                emit timelineChanged();
+                return;
+              }
+              edward::resolve::ResolveError bridgeError;
+              const auto normalized = resolveConnection_.call(
+                  QStringLiteral("component.cssToIr"),
+                  QJsonObject{{QStringLiteral("css"), cssObject.value(QStringLiteral("css"))},
+                              {QStringLiteral("html"), cssObject.value(QStringLiteral("html"))}},
+                  &bridgeError);
+              const auto normalizedObject = normalized ? normalized->value(QStringLiteral("result")).toObject() : QJsonObject{};
+              const auto semanticObject = normalizedObject.value(QStringLiteral("semanticIR")).toObject();
+              const auto componentObject = semanticObject.contains(QStringLiteral("root"))
+                  ? semanticObject
+                  : normalizedObject.value(QStringLiteral("component")).toObject();
+              auto candidate = componentObject.isEmpty() ? std::nullopt : edward::core::ComponentIr::parse(componentObject);
+              if (!candidate) {
+                appendAiError(QStringLiteral("CSS 规范化或 Component IR 生成失败：%1")
+                                  .arg(bridgeError.message.isEmpty() ? QStringLiteral("结果无效") : bridgeError.message));
+                emit timelineChanged();
+                return;
+              }
+              aiComponentDraft_ = std::move(candidate);
+              aiComponentDraftJson_ = QString::fromUtf8(QJsonDocument(componentObject).toJson(QJsonDocument::Compact));
+              aiComponentDraftIsAnalysis_ = true;
+              pendingAiAnalysis_ = false;
+              pendingAiPrompt_.clear();
+              aiConversation_ += QStringLiteral("\nAI：已将 CSS 经过规范化层转换为 Component IR 草案。确认后可转写为 Fusion。\n");
+              emit timelineChanged();
+            } else if (pendingAiAnalysis_ || [&result]() {
+                         QJsonParseError error;
+                         const auto document = QJsonDocument::fromJson(result.toUtf8(), &error);
+                         return error.error == QJsonParseError::NoError && document.isObject() &&
+                                document.object().contains(QStringLiteral("version")) &&
+                                (document.object().contains(QStringLiteral("root")) ||
+                                 document.object().contains(QStringLiteral("nodes")));
+                       }()) {
+              clearProcessingMessage();
+              QJsonParseError parseError;
+              const auto document = QJsonDocument::fromJson(result.toUtf8(), &parseError);
+              auto candidate = document.isObject() && parseError.error == QJsonParseError::NoError
+                                   ? edward::core::ComponentIr::parse(normalizeComponentResponse(document.object()))
+                                   : std::nullopt;
+              if (!candidate) {
+                pendingAiAnalysis_ = false;
+                pendingAiPrompt_.clear();
+                appendAiError(QStringLiteral("AI 分析结果不是有效的 Component IR"));
+                emit timelineChanged();
+                return;
+              }
+              aiComponentDraft_ = std::move(candidate);
+              aiComponentDraftJson_ = result.trimmed();
+              aiComponentDraftIsAnalysis_ = true;
+              pendingAiAnalysis_ = false;
+              if (!pendingAiPrompt_.isEmpty()) {
+                if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                aiConversation_ += QStringLiteral("AI：已根据当前 Resolve 片段生成组件草案。确认后可直接转写为 Fusion 并添加到时间线。");
+              }
+              pendingAiPrompt_.clear();
+              emit operationSucceeded(QStringLiteral("AI 分析已生成组件草案，请确认后应用"));
+            } else {
+              clearProcessingMessage();
+              auto commandObject = parseAiCommandObject(result);
+              const auto operations = parseAiOperations(result);
+              if (!operations.isEmpty()) {
+                bool allInserted = true;
+                int insertedCount = 0;
+                int missingCount = 0;
+                QStringList batchFailures;
+                QJsonArray insertionRecords;
+                const auto promptPaths = attachmentPathsFromPrompt(pendingAiPrompt_);
+                const auto insertMode = operations.isEmpty() ? QString{} : operations.first().toObject().value(QStringLiteral("insert_mode")).toString().trimmed().toLower();
+                const auto sequentialRequested = insertMode == QStringLiteral("sequence") ||
+                                                 insertMode == QStringLiteral("sequential") ||
+                                                 pendingAiPrompt_.contains(QStringLiteral("顺序插入")) ||
+                                                 pendingAiPrompt_.contains(QStringLiteral("依次插入")) ||
+                                                 pendingAiPrompt_.contains(QStringLiteral("一个接一个"));
+                for (int operationIndex = 0; operationIndex < operations.size(); ++operationIndex) {
+                  const auto operationValue = operations.at(operationIndex);
+                  const auto operationObject = operationValue.toObject();
+                  const auto operation = operationObject.value(QStringLiteral("operation")).toString().trimmed().toLower();
+                  if (operation == QStringLiteral("delete_last_insertions") || operation == QStringLiteral("delete_recent_insertions") ||
+                      operation == QStringLiteral("delete_last_batch") || operation == QStringLiteral("delete_insertion")) {
+                    const auto requestedCount = operationObject.value(QStringLiteral("count")).toInt(-1);
+                    const auto requestedIndex = operationObject.value(QStringLiteral("index")).toInt(-1);
+                    deleteLastAiInsertions(requestedCount, requestedIndex);
+                    pendingAiConversationOnly_ = false;
+                    pendingAiPrompt_.clear();
+                    emit timelineChanged();
+                    return;
+                  }
+                  if (operation != QStringLiteral("import_and_insert") && operation != QStringLiteral("insert_media") &&
+                      operation != QStringLiteral("insert_media_into_timeline")) { allInserted = false; break; }
+                  auto normalizedPath = normalizeAiAssetPath(operationObject, pendingAiPrompt_);
+                  // 附件来源以用户实际粘贴/选择的路径为准，模型返回的路径只作无附件时的回退。
+                  if (operationIndex < promptPaths.size()) {
+                    const auto userPath = QUrl(promptPaths.at(operationIndex)).isLocalFile()
+                                              ? QUrl(promptPaths.at(operationIndex)).toLocalFile()
+                                              : promptPaths.at(operationIndex);
+                    if (QFileInfo::exists(userPath)) normalizedPath = userPath;
+                  }
+                  if ((!QFileInfo::exists(normalizedPath) || normalizedPath.isEmpty()) && operationIndex < promptPaths.size())
+                    normalizedPath = QUrl(promptPaths.at(operationIndex)).isLocalFile() ? QUrl(promptPaths.at(operationIndex)).toLocalFile() : promptPaths.at(operationIndex);
+                  if (normalizedPath.trimmed().isEmpty() || !QFileInfo::exists(normalizedPath)) {
+                    ++missingCount;
+                    continue;
+                  }
+                  const auto positionValue = operationObject.value(QStringLiteral("position"));
+                  const auto explicitFrame = positionValue.isDouble() ? positionValue.toInt() :
+                      positionValue.toObject().value(QStringLiteral("frame")).toInt(operationObject.value(QStringLiteral("frame")).toInt(-1));
+                  QString error;
+                  if (!resolveConnected_) {
+                    appendAiError(QStringLiteral("AI 素材批量插入失败：请先连接 Resolve Studio。"));
+                    allInserted = false;
+                    break;
+                  }
+                  const auto currentTimeline = resolveAdapter_.timelineSnapshot(&error);
+                  if (!currentTimeline) {
+                    appendAiError(QStringLiteral("AI 素材批量插入失败：无法读取当前播放头：%1").arg(error));
+                    allInserted = false;
+                    break;
+                  }
+                  const auto recordFrame = sequentialRequested ? currentTimeline->playheadFrame : (explicitFrame >= 0 ? explicitFrame : currentTimeline->playheadFrame);
+                  const auto suffix = QFileInfo(normalizedPath).suffix().toLower();
+                  const bool isStillImage = suffix == QStringLiteral("png") || suffix == QStringLiteral("jpg") ||
+                                            suffix == QStringLiteral("jpeg") || suffix == QStringLiteral("webp") ||
+                                            suffix == QStringLiteral("gif");
+                  int durationFrames = isStillImage ? 120 : -1;
+                  if (isStillImage && operationIndex + 1 < operations.size()) {
+                    const auto nextObject = operations.at(operationIndex + 1).toObject();
+                    const auto nextPosition = nextObject.value(QStringLiteral("position"));
+                    const auto nextFrame = nextPosition.isDouble()
+                                               ? nextPosition.toInt()
+                                               : nextPosition.toObject().value(QStringLiteral("frame"))
+                                                     .toInt(nextObject.value(QStringLiteral("frame")).toInt(-1));
+                    if (nextFrame > recordFrame) durationFrames = nextFrame - recordFrame;
+                  }
+                  // 批量 AI 操作直接按每条 operation 的目标帧追加，避免反复设置播放头触发 playhead_rejected。
+                  if (normalizedPath.trimmed().isEmpty()) {
+                    appendAiError(QStringLiteral("请明确要插入的素材文件路径，我再继续处理。"));
+                    allInserted = false;
+                    break;
+                  }
+                  if (!resolveAdapter_.insertMediaAtFrame(normalizedPath, recordFrame, durationFrames, &error)) {
+                    batchFailures.append(QStringLiteral("第 %1 段：%2").arg(operationIndex + 1).arg(error));
+                    allInserted = false;
+                    continue;
+                  }
+                  const auto items = resolveAdapter_.lastWriteResult().value(QStringLiteral("items")).toArray();
+                  if (!items.isEmpty()) {
+                    auto insertionRecord = items.first().toObject();
+                    // 同一视频素材可能同时返回视频与关联音频项目；完整保留
+                    // 本次 Resolve 写入结果，供撤销、诊断和后续属性回读使用。
+                    insertionRecord.insert(QStringLiteral("linkedItems"), items);
+                    insertionRecords.append(insertionRecord);
+                  } else {
+                    insertionRecords.append(QJsonObject{{QStringLiteral("trackIndex"), 1},
+                                                        {QStringLiteral("startFrame"), recordFrame},
+                                                        {QStringLiteral("endFrame"), recordFrame + (durationFrames > 0 ? durationFrames : 1)}});
+                  }
+                  auto endFrame = !items.isEmpty()
+                                      ? items.first().toObject().value(QStringLiteral("endFrame")).toInt(-1)
+                                      : -1;
+                  if (endFrame <= recordFrame) endFrame = recordFrame + (durationFrames > 0 ? durationFrames : 1);
+                  QString playheadError;
+                  if (!resolveAdapter_.setPlayhead(endFrame, &playheadError)) {
+                    // Resolve 可能暂时拒绝精确尾帧，重试尾帧前一帧，保证批量循环继续。
+                    QString retryError;
+                    const auto retryFrame = std::max(recordFrame, endFrame - 1);
+                    if (!resolveAdapter_.setPlayhead(retryFrame, &retryError)) {
+                      batchFailures.append(QStringLiteral("第 %1 段已插入但跳尾失败：%2").arg(operationIndex + 1).arg(playheadError));
+                      allInserted = false;
+                    }
+                  }
+                  ++insertedCount;
+                }
+                if (!insertionRecords.isEmpty()) {
+                  aiLastInsertionRecords_ = insertionRecords;
+                  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+                  settings.setValue(QStringLiteral("ai/lastInsertionRecords"), QJsonDocument(aiLastInsertionRecords_).toJson(QJsonDocument::Compact));
+                  settings.sync();
+                }
+                if (allInserted && missingCount == 0) {
+                  if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                  aiConversation_ += QStringLiteral("AI：已将 %1 个素材按轨道策略插入 Resolve 时间线。").arg(operations.size());
+                  emit operationSucceeded(QStringLiteral("AI 素材已批量插入 Resolve 时间线"));
+                  if (missingCount > 0) {
+                    if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                    aiConversation_ += QStringLiteral("AI：有 %1 个素材文件不存在，已跳过；其余素材已插入。").arg(missingCount);
+                  }
+                } else if (insertedCount > 0) {
+                  if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                  aiConversation_ += QStringLiteral("AI：已插入 %1 个素材。").arg(insertedCount);
+                  if (!batchFailures.isEmpty()) aiConversation_ += QStringLiteral("失败明细：%1").arg(batchFailures.join(QStringLiteral("；")));
+                  emit operationSucceeded(QStringLiteral("AI 已部分插入素材，等待轨道确认"));
+                } else {
+                  appendAiError(QStringLiteral("AI 素材批量插入失败：%1").arg(batchFailures.isEmpty()
+                                                                 ? QStringLiteral("请确认 Resolve 已连接、文件存在且轨道位置可用。")
+                                                                 : batchFailures.join(QStringLiteral("；"))));
+                }
+                pendingAiConversationOnly_ = false;
+                pendingAiPrompt_.clear();
+                emit timelineChanged();
+                return;
+              }
+              const bool isCommand = commandObject.contains(QStringLiteral("operation"));
+              auto operation = commandObject.value(QStringLiteral("operation")).toString().trimmed().toLower();
+              if (operation == QStringLiteral("delete_last_insertions") || operation == QStringLiteral("delete_recent_insertions") ||
+                  operation == QStringLiteral("delete_last_batch") || operation == QStringLiteral("delete_insertion")) {
+                const auto requestedCount = commandObject.value(QStringLiteral("count")).toInt(-1);
+                const auto requestedIndex = commandObject.value(QStringLiteral("index")).toInt(-1);
+                deleteLastAiInsertions(requestedCount, requestedIndex);
+                pendingAiConversationOnly_ = false;
+                pendingAiPrompt_.clear();
+                emit timelineChanged();
+                return;
+              }
+              if (operation == QStringLiteral("insert_media") ||
+                  operation == QStringLiteral("insert_media_into_timeline") ||
+                  operation == QStringLiteral("import_and_insert")) {
+                const auto normalizedPath = normalizeAiAssetPath(commandObject, pendingAiPrompt_);
+                auto resolvedPath = normalizedPath;
+                const auto promptPaths = attachmentPathsFromPrompt(pendingAiPrompt_);
+                if ((!QFileInfo::exists(resolvedPath) || resolvedPath.isEmpty()) && !promptPaths.isEmpty())
+                  resolvedPath = QUrl(promptPaths.first()).isLocalFile() ? QUrl(promptPaths.first()).toLocalFile() : promptPaths.first();
+                const auto positionValue = commandObject.value(QStringLiteral("position"));
+                const auto position = positionValue.toObject();
+                const auto frame = position.value(QStringLiteral("frame")).toInt(
+                    positionValue.isDouble() ? positionValue.toInt() :
+                    commandObject.value(QStringLiteral("frame")).toInt(-1));
+                QString error;
+                bool inserted = resolveConnected_;
+                if (!inserted) {
+                  appendAiError(QStringLiteral("AI 素材插入失败：请先连接 Resolve Studio"));
+                } else {
+                  if (resolvedPath.trimmed().isEmpty()) {
+                    appendAiError(QStringLiteral("请明确要插入的素材文件路径，我再继续处理。"));
+                    inserted = false;
+                  } else {
+                    const auto suffix = QFileInfo(resolvedPath).suffix().toLower();
+                    const bool isStillImage = suffix == QStringLiteral("png") || suffix == QStringLiteral("jpg") ||
+                                              suffix == QStringLiteral("jpeg") || suffix == QStringLiteral("webp") ||
+                                              suffix == QStringLiteral("gif");
+                    const auto timeline = resolveAdapter_.timelineSnapshot(&error);
+                    const auto recordFrame = frame >= 0 ? frame : (timeline ? timeline->playheadFrame : -1);
+                    inserted = recordFrame >= 0 && resolveAdapter_.insertMediaAtFrame(resolvedPath, recordFrame,
+                                                                                         isStillImage ? 120 : -1, &error);
+                  }
+                  if (!inserted) appendAiError(QStringLiteral("AI 素材插入失败：%1").arg(error));
+                }
+                if (inserted && !pendingAiPrompt_.isEmpty()) {
+                  const auto items = resolveAdapter_.lastWriteResult().value(QStringLiteral("items")).toArray();
+                  if (!items.isEmpty()) {
+                    aiLastInsertionRecords_ = items;
+                    QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+                    settings.setValue(QStringLiteral("ai/lastInsertionRecords"), QJsonDocument(aiLastInsertionRecords_).toJson(QJsonDocument::Compact));
+                    settings.sync();
+                    const auto endFrame = items.first().toObject().value(QStringLiteral("endFrame")).toInt(-1);
+                    if (endFrame >= 0) {
+                      QString playheadError;
+                      if (!resolveAdapter_.setPlayhead(endFrame, &playheadError))
+                        appendAiError(QStringLiteral("素材已插入，但无法将播放头移动到素材结尾：%1").arg(playheadError));
+                    }
+                  }
+                  if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                  aiConversation_ += QStringLiteral("AI：已将素材插入 Resolve 播放头位置。");
+                  emit operationSucceeded(QStringLiteral("AI 素材已插入 Resolve 时间线"));
+                }
+              } else if (isCommand && proposeAiComponentCommand(result)) {
+                emit operationSucceeded(QStringLiteral("AI 组件草案已生成，请确认后应用"));
+              } else {
+                if (!pendingAiPrompt_.isEmpty()) {
+                  if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+                  aiConversation_ += QStringLiteral("AI：") + result.trimmed();
+                }
+              }
+              pendingAiConversationOnly_ = false;
               pendingAiPrompt_.clear();
             }
             emit timelineChanged();
@@ -283,6 +919,21 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     }
     emit timelineChanged();
   });
+  connect(&modelChatClient_, &edward::resources::ModelChatClient::modelsCompleted, this,
+          [this](bool success, const QStringList& models, const QString& message) {
+            aiModelListBusy_ = false;
+            if (success) {
+              aiAvailableModels_ = models;
+              aiModelList_ = models.join(QStringLiteral("\n"));
+              QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+              settings.setValue(QStringLiteral("ai/modelList"), aiModelList_);
+              settings.sync();
+              emit operationSucceeded(message);
+            } else {
+              emit operationFailed(QStringLiteral("模型列表获取失败：%1").arg(message));
+            }
+            emit timelineChanged();
+          });
   connect(&pluginExportWatcher_, &QFutureWatcher<PluginExportResult>::finished, this, [this] {
     pluginExportBusy_ = false;
     const auto result = pluginExportWatcher_.result();
@@ -319,6 +970,644 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     }
     emit timelineChanged();
   });
+  resolveRenderPollTimer_.setInterval(500);
+  connect(&resolveRenderPollTimer_, &QTimer::timeout, this, [this] {
+    if (!timelineExportBusy_ || resolveRenderJobId_.isEmpty()) {
+      resolveRenderPollTimer_.stop();
+      return;
+    }
+    QString error;
+    const auto status = resolveAdapter_.renderStatus(resolveRenderJobId_, &error, resolveRenderOutputPath_);
+    timelineExportProgress_ = status.progress;
+    if (status.state == edward::resolve::ResolveRenderState::Completed) {
+      resolveRenderPollTimer_.stop();
+      timelineExportBusy_ = false;
+      resolveRenderJobId_.clear();
+      resolveRenderOutputPath_.clear();
+      timelineExportProgress_ = 100;
+      recordResolveCapabilityEvent(QStringLiteral("resolve.render.status"), true);
+      emit operationSucceeded(QStringLiteral("Resolve 已完成导出：%1").arg(status.outputPath));
+    } else if (status.state == edward::resolve::ResolveRenderState::Failed ||
+               status.state == edward::resolve::ResolveRenderState::Canceled) {
+      resolveRenderPollTimer_.stop();
+      timelineExportBusy_ = false;
+      resolveRenderJobId_.clear();
+      resolveRenderOutputPath_.clear();
+      timelineExportProgress_ = 0;
+      recordResolveCapabilityEvent(
+          QStringLiteral("resolve.render.status"), false,
+          status.state == edward::resolve::ResolveRenderState::Canceled
+              ? QStringLiteral("render_canceled")
+              : (status.error.isEmpty() ? QStringLiteral("render_failed") : status.error));
+      recordResolveError(QStringLiteral("render.status"),
+                         status.state == edward::resolve::ResolveRenderState::Canceled
+                             ? QStringLiteral("render_canceled")
+                             : (status.error.isEmpty() ? QStringLiteral("render_failed") : status.error));
+      emit operationFailed(status.error.isEmpty() ? QStringLiteral("Resolve 导出失败") : status.error);
+    } else if (!error.isEmpty()) {
+      resolveRenderPollTimer_.stop();
+      timelineExportBusy_ = false;
+      resolveRenderJobId_.clear();
+      resolveRenderOutputPath_.clear();
+      timelineExportProgress_ = 0;
+      recordResolveCapabilityEvent(QStringLiteral("resolve.render.status"), false,
+                                   QStringLiteral("render_status_failed"));
+      recordResolveError(QStringLiteral("render.status"), QStringLiteral("render_status_failed"));
+      emit operationFailed(error);
+    }
+    emit timelineChanged();
+  });
+}
+
+void WorkbenchRuntime::appendAiConversationError(const QString& message) {
+  const auto text = message.trimmed();
+  if (text.isEmpty()) return;
+  if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+  aiConversation_ += QStringLiteral("AI：") + text;
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::assessResolveRequest(const QString& request) {
+  const auto result = resolveApiManuals_.assess(request);
+  resolveApiAssessment_ = QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact));
+  planResolveAction(request);
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::planResolveAction(const QString& request) {
+  // 规划前重新读取 Resolve，避免用户移动播放头或更换片段后仍使用旧上下文。
+  if (resolveConnected_) refreshResolveTimeline();
+  resolveApiAssessment_ = QString::fromUtf8(
+      QJsonDocument(resolveApiManuals_.assess(request)).toJson(QJsonDocument::Compact));
+  edward::resolve::ResolveProjectContext context;
+  context.hasResolveConnection = resolveConnected_;
+  context.hasCurrentProject = resolveConnected_ && resolveTimelineSnapshot_.has_value() &&
+                              !resolveTimelineSnapshot_->projectName.isEmpty();
+  context.hasTimeline = context.hasCurrentProject && !resolveTimelineSnapshot_->timelineName.isEmpty();
+  context.hasPlayhead = context.hasTimeline;
+  QString currentItemError;
+  const auto currentItem = context.hasTimeline ? resolveAdapter_.currentItem(&currentItemError) : std::nullopt;
+  context.hasCurrentClip = currentItem.has_value();
+  context.currentClipId = currentItem ? currentItem->timelineItemId : QString();
+  if (currentItem) {
+    context.clipStartFrame = currentItem->startFrame;
+    context.clipEndFrame = currentItem->endFrame;
+    context.hasFusion = currentItem->fusionCompCount > 0;
+  }
+  if (resolveTimelineSnapshot_) context.playheadFrame = resolveTimelineSnapshot_->playheadFrame;
+  if (resolveTimelineSnapshot_) {
+    context.timelineStartFrame = resolveTimelineSnapshot_->timelineStartFrame;
+    context.timelineEndFrame = resolveTimelineSnapshot_->timelineEndFrame;
+    context.markInFrame = resolveTimelineSnapshot_->markInFrame;
+    context.markOutFrame = resolveTimelineSnapshot_->markOutFrame;
+  }
+  const auto plan = edward::resolve::planResolveRequest(request, context);
+  auto planJson = plan.toJson();
+  QJsonParseError manualError;
+  const auto manualDocument = QJsonDocument::fromJson(resolveApiAssessment_.toUtf8(), &manualError);
+  if (manualError.error == QJsonParseError::NoError && manualDocument.isObject()) {
+    const auto methods = manualDocument.object().value(QStringLiteral("methods"));
+    if (methods.isArray() && !methods.toArray().isEmpty()) {
+      planJson.insert(QStringLiteral("manualEvidence"), methods);
+      planJson.insert(QStringLiteral("manualEvidencePriority"),
+                      QStringLiteral("official_resolve_21.0.4_first_mcp_second"));
+    }
+  }
+  resolveActionPlan_ = QString::fromUtf8(QJsonDocument(planJson).toJson(QJsonDocument::Compact));
+  emit timelineChanged();
+}
+
+bool WorkbenchRuntime::executeResolveQuickAction(const QString& action) {
+  const auto id = action.trimmed().toLower();
+  QString request;
+  if (id == QStringLiteral("delete")) request = QStringLiteral("删除当前片段");
+  else if (id == QStringLiteral("ripple-delete")) request = QStringLiteral("波纹删除当前片段");
+  else if (id == QStringLiteral("subtitle")) request = QStringLiteral("自动生成字幕");
+  else if (id == QStringLiteral("fade-in")) request = QStringLiteral("将当前片段淡入");
+  else if (id == QStringLiteral("fade-out")) request = QStringLiteral("将当前片段淡出");
+  else if (id == QStringLiteral("keep-range")) request = QStringLiteral("保留当前范围");
+  else if (id == QStringLiteral("add-marker")) request = QStringLiteral("在当前播放头添加重点标记");
+  else if (id == QStringLiteral("clip-color")) request = QStringLiteral("将当前片段标为蓝色");
+  else if (id == QStringLiteral("set-in")) request = QStringLiteral("设置入点");
+  else if (id == QStringLiteral("set-out")) request = QStringLiteral("设置出点");
+  else if (id == QStringLiteral("clear-io")) request = QStringLiteral("清除 I/O");
+  else {
+    emit operationFailed(QStringLiteral("未支持的 Resolve 快捷操作：%1").arg(action));
+    return false;
+  }
+  if (!resolveConnected_) {
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio"));
+    return false;
+  }
+  planResolveAction(request);
+  return executeResolveActionPlan();
+}
+
+bool WorkbenchRuntime::executeResolveActionPlan() {
+  resolveAdapter_.clearLastWriteResult();
+  resolveActionLastResult_.clear();
+  if (!resolveConnected_) {
+    recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("resolve_not_connected"));
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio"));
+    return false;
+  }
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(resolveActionPlan_.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("plan_invalid"));
+    emit operationFailed(QStringLiteral("操作计划格式无效"));
+    return false;
+  }
+  const auto plan = document.object();
+  if (!plan.value(QStringLiteral("supported")).toBool()) {
+    recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("plan_unsupported"));
+    auto message = plan.value(QStringLiteral("error")).toString(QStringLiteral("当前操作不支持"));
+    const auto fallbackReason = plan.value(QStringLiteral("fallbackReason")).toString().trimmed();
+    if (!fallbackReason.isEmpty()) message += QStringLiteral("：%1").arg(fallbackReason);
+    emit operationFailed(message);
+    return false;
+  }
+  if (plan.value(QStringLiteral("requiresLogin")).toBool() && !authenticated()) {
+    recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("login_required"));
+    emit operationFailed(QStringLiteral("此操作需要先登录并配置云端能力"));
+    return false;
+  }
+  if (plan.value(QStringLiteral("requiresCloud")).toBool() && !authenticated()) {
+    recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("cloud_auth_required"));
+    emit operationFailed(QStringLiteral("此操作需要已登录的云端服务"));
+    return false;
+  }
+  const auto commands = plan.value(QStringLiteral("commands")).toArray();
+  if (commands.isEmpty()) {
+    recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("plan_empty"));
+    emit operationFailed(QStringLiteral("操作计划没有可执行命令"));
+    return false;
+  }
+  QString expectedTimelineItemId;
+  QJsonObject readResult;
+  for (const auto& raw : commands) {
+    const auto method = raw.toObject().value(QStringLiteral("method")).toString();
+    if (method == QStringLiteral("timeline.deleteCurrent") ||
+        method == QStringLiteral("timeline.unlinkCurrent")) continue;
+    const auto id = raw.toObject().value(QStringLiteral("params")).toObject()
+                        .value(QStringLiteral("timelineItemId")).toString().trimmed();
+    if (!id.isEmpty()) {
+      expectedTimelineItemId = id;
+      break;
+    }
+  }
+  for (const auto& raw : commands) {
+    const auto command = raw.toObject();
+    const auto method = command.value(QStringLiteral("method")).toString();
+    if (method != QStringLiteral("fusion.setInput") && method != QStringLiteral("fusion.addKeyframe") &&
+        method != QStringLiteral("fusion.ensureOpacityGraph") &&
+        method != QStringLiteral("fusion.ensureTransformGraph") &&
+        method != QStringLiteral("fusion.addTextOverlay") &&
+        method != QStringLiteral("fusion.addTextPositionKeyframe") &&
+        method != QStringLiteral("timeline.createSubtitlesFromAudio") &&
+        method != QStringLiteral("timeline.insertResolveTitle") &&
+        method != QStringLiteral("timeline.deleteCurrent") &&
+        method != QStringLiteral("timeline.unlinkCurrent") &&
+        method != QStringLiteral("timeline.setMarkInOut") &&
+        method != QStringLiteral("timeline.deleteMarkedRange") &&
+        method != QStringLiteral("timeline.keepMarkedRange") &&
+        method != QStringLiteral("timeline.addMarker") &&
+        method != QStringLiteral("timeline.deleteMarker") &&
+        method != QStringLiteral("timeline.deleteMarkersByColor") &&
+        method != QStringLiteral("timeline.setCurrentFlag") &&
+        method != QStringLiteral("timeline.setClipColor") &&
+        method != QStringLiteral("timeline.snapshot") &&
+        method != QStringLiteral("timeline.currentItem") &&
+        method != QStringLiteral("resolve.capabilityMatrix") &&
+        method != QStringLiteral("ui.openSimpleExport")) {
+      emit operationFailed(QStringLiteral("暂不支持该操作计划命令"));
+      recordResolveError(method, QStringLiteral("command_unsupported"));
+      return false;
+    }
+    const auto params = command.value(QStringLiteral("params")).toObject();
+    if (method == QStringLiteral("ui.openSimpleExport")) {
+      exportDialogRequested_ = true;
+      continue;
+    }
+    if (method == QStringLiteral("timeline.snapshot")) {
+      QString error;
+      const auto snapshot = resolveAdapter_.timelineSnapshot(&error);
+      if (!snapshot) { recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("读取 Resolve 时间线标记失败：%1").arg(error)); return false; }
+      QJsonObject markers = snapshot->markers;
+      readResult.insert(QStringLiteral("markers"), markers);
+      readResult.insert(QStringLiteral("markerCount"), markers.size());
+      continue;
+    }
+    if (method == QStringLiteral("timeline.currentItem")) {
+      QString error;
+      const auto item = resolveAdapter_.currentItem(&error);
+      if (!item) { recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("读取当前片段状态失败：%1").arg(error)); return false; }
+      readResult.insert(QStringLiteral("timelineItemId"), item->timelineItemId); readResult.insert(QStringLiteral("name"), item->name);
+      readResult.insert(QStringLiteral("trackType"), item->trackType); readResult.insert(QStringLiteral("trackIndex"), item->trackIndex);
+      readResult.insert(QStringLiteral("linkedCount"), item->linkedCount); readResult.insert(QStringLiteral("clipColor"), item->clipColor);
+      QJsonArray flags;
+      for (const auto& flag : item->flags) flags.append(flag);
+      readResult.insert(QStringLiteral("flags"), flags);
+      readResult.insert(QStringLiteral("selectedCount"), item->selectedCount);
+      readResult.insert(QStringLiteral("fusionCompCount"), item->fusionCompCount);
+      readResult.insert(QStringLiteral("selectionSource"), item->selectionSource); readResult.insert(QStringLiteral("startFrame"), item->startFrame); readResult.insert(QStringLiteral("endFrame"), item->endFrame);
+      continue;
+    }
+    if (method == QStringLiteral("resolve.capabilityMatrix")) {
+      QJsonArray entries;
+      for (const auto& capability : resolve::ResolveComponentCapabilityMatrix::defaults()) {
+        const auto status = capability.status == resolve::ResolveComponentStatus::Verified ? QStringLiteral("verified")
+                           : capability.status == resolve::ResolveComponentStatus::CandidateVerified ? QStringLiteral("candidate_verified")
+                           : capability.status == resolve::ResolveComponentStatus::Unverified ? QStringLiteral("unverified")
+                           : capability.status == resolve::ResolveComponentStatus::Disabled ? QStringLiteral("disabled")
+                           : QStringLiteral("unsupported");
+        entries.append(QJsonObject{{QStringLiteral("id"), capability.id},
+                                   {QStringLiteral("status"), status},
+                                   {QStringLiteral("editableFields"), QJsonArray::fromStringList(capability.editableFields)},
+                                   {QStringLiteral("keyframeFields"), QJsonArray::fromStringList(capability.keyframeFields)},
+                                   {QStringLiteral("verifiedResolveVersion"), capability.verifiedResolveVersion},
+                                   {QStringLiteral("fallbackReason"), capability.fallbackReason}});
+      }
+      readResult.insert(QStringLiteral("capabilities"), entries);
+      readResult.insert(QStringLiteral("capabilityCount"), entries.size());
+      continue;
+    }
+    if (method == QStringLiteral("timeline.createSubtitlesFromAudio")) {
+      QString error;
+      const resolve::ResolveSubtitleGenerationOptions options{
+          params.value(QStringLiteral("language")).toString(), params.value(QStringLiteral("preset")).toString(),
+          params.value(QStringLiteral("charsPerLine")).toInt(), params.value(QStringLiteral("lineBreak")).toString(),
+          params.value(QStringLiteral("gap")).toInt()};
+      if (!resolveAdapter_.createSubtitlesFromAudio(options, &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 自动字幕生成失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.insertResolveTitle")) {
+      QString error;
+      const auto insertMethod = params.value(QStringLiteral("insertMethod")).toString().trimmed().toLower();
+      const auto name = params.value(QStringLiteral("name")).toString();
+      const bool accepted = insertMethod == QStringLiteral("fusion")
+                                ? resolveAdapter_.insertFusionTitle(name, &error)
+                                : resolveAdapter_.insertResolveTitle(name, &error);
+      if (!accepted) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        if (error == QStringLiteral("resolve_title_template_not_discovered") &&
+            resolveAdapter_.lastWriteResult().value(QStringLiteral("templateRefreshRequired")).toBool()) {
+          emit operationFailed(QStringLiteral("Resolve 已找到该 OGraf 模板文件，但当前进程尚未发现；请重启 Resolve 或刷新模板浏览器后重试"));
+          return false;
+        }
+        emit operationFailed(QStringLiteral("Resolve 标题模板插入失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.deleteCurrent")) {
+      QString error;
+      if (!resolveAdapter_.deleteCurrentClip(params.value(QStringLiteral("ripple")).toBool(),
+                                             params.value(QStringLiteral("timelineItemId")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 删除片段失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.unlinkCurrent")) {
+      QString error;
+      if (!resolveAdapter_.unlinkCurrentClip(params.value(QStringLiteral("timelineItemId")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 解除链接失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.setMarkInOut")) {
+      QString error;
+      const auto markParams = params;
+      const bool ok = markParams.value(QStringLiteral("clear")).toBool()
+                          ? resolveAdapter_.clearMarkInOut(&error)
+                          : resolveAdapter_.setMarkInOut(markParams.value(QStringLiteral("inFrame")).toInt(),
+                                                         markParams.value(QStringLiteral("outFrame")).toInt(), &error);
+      if (!ok) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 设置 I/O 失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.deleteMarkedRange")) {
+      QString error;
+      if (!resolveAdapter_.deleteMarkedRange(params.value(QStringLiteral("startFrame")).toInt(),
+                                              params.value(QStringLiteral("endFrame")).toInt(),
+                                              params.value(QStringLiteral("ripple")).toBool(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 范围删除失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.keepMarkedRange")) {
+      QString error;
+      if (!resolveAdapter_.keepMarkedRange(params.value(QStringLiteral("startFrame")).toInt(), params.value(QStringLiteral("endFrame")).toInt(), params.value(QStringLiteral("ripple")).toBool(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 范围保留失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.addMarker")) {
+      QString error;
+      if (!resolveAdapter_.addMarker(params.value(QStringLiteral("frame")).toInt(), params.value(QStringLiteral("name")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("Resolve 添加标记失败：%1").arg(error)); return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.deleteMarker")) {
+      QString error;
+      if (!resolveAdapter_.deleteMarker(params.value(QStringLiteral("frame")).toInt(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("Resolve 删除标记失败：%1").arg(error)); return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.deleteMarkersByColor")) {
+      QString error;
+      if (!resolveAdapter_.deleteMarkersByColor(params.value(QStringLiteral("color")).toString(), &error)) { recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("Resolve 批量删除标记失败：%1").arg(error)); return false; }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.setCurrentFlag")) {
+      QString error;
+      if (!resolveAdapter_.setCurrentFlag(params.value(QStringLiteral("color")).toString(), params.value(QStringLiteral("clear")).toBool(), params.value(QStringLiteral("timelineItemId")).toString(), &error)) { recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("Resolve 片段标记操作失败：%1").arg(error)); return false; }
+      continue;
+    }
+    if (method == QStringLiteral("timeline.setClipColor")) {
+      QString error;
+      if (!resolveAdapter_.setClipColor(params.value(QStringLiteral("color")).toString(), params.value(QStringLiteral("timelineItemId")).toString(), &error)) { recordResolveError(method, QStringLiteral("resolve_command_failed")); emit operationFailed(QStringLiteral("Resolve 片段颜色修改失败：%1").arg(error)); return false; }
+      continue;
+    }
+    if (method == QStringLiteral("fusion.ensureOpacityGraph")) {
+      QString error;
+      if (!resolveAdapter_.ensureFusionOpacityGraph(params.value(QStringLiteral("timelineItemId")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 操作执行失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("fusion.ensureTransformGraph")) {
+      QString error;
+      if (!resolveAdapter_.ensureFusionTransformGraph(params.value(QStringLiteral("timelineItemId")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 操作执行失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("fusion.addTextOverlay")) {
+      QString error;
+      if (!resolveAdapter_.addFusionTextOverlay(params.value(QStringLiteral("text")).toString(),
+                                                 params.value(QStringLiteral("font")).toString(),
+                                                 params.value(QStringLiteral("timelineItemId")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 操作执行失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    if (method == QStringLiteral("fusion.addTextPositionKeyframe")) {
+      QString error;
+      if (!resolveAdapter_.addFusionTextPositionKeyframe(
+              params.value(QStringLiteral("frame")).toInt(-1),
+              params.value(QStringLiteral("x")).toDouble(),
+              params.value(QStringLiteral("y")).toDouble(),
+              params.value(QStringLiteral("timelineItemId")).toString(), &error)) {
+        recordResolveError(method, QStringLiteral("resolve_command_failed"));
+        emit operationFailed(QStringLiteral("Resolve 操作执行失败：%1").arg(error));
+        return false;
+      }
+      continue;
+    }
+    const auto toolName = params.value(QStringLiteral("toolName")).toString();
+    const auto inputName = params.value(QStringLiteral("inputName")).toString();
+    const auto timelineItemId = params.value(QStringLiteral("timelineItemId")).toString();
+    if (toolName.isEmpty() || inputName.isEmpty() || !params.contains(QStringLiteral("value"))) {
+      recordResolveError(method, QStringLiteral("params_invalid"));
+      emit operationFailed(QStringLiteral("操作计划参数不完整"));
+      return false;
+    }
+    QString error;
+    const auto value = params.value(QStringLiteral("value"));
+    bool accepted = false;
+    if (method == QStringLiteral("fusion.addKeyframe")) {
+      const auto frame = params.value(QStringLiteral("frame")).toInt(-1);
+      if (frame < 0) {
+        recordResolveError(method, QStringLiteral("frame_invalid"));
+        emit operationFailed(QStringLiteral("关键帧帧号无效"));
+        return false;
+      }
+      accepted = resolveAdapter_.addFusionKeyframe(toolName, inputName, frame, value, timelineItemId, &error);
+    } else {
+      accepted = resolve::resolvePropertyBinding(inputName).has_value()
+                   ? resolveAdapter_.setFusionProperty(toolName, inputName, value, timelineItemId, &error)
+                   : resolveAdapter_.setFusionInput(toolName, inputName, value, timelineItemId, &error);
+    }
+    if (!accepted) {
+      recordResolveError(method, QStringLiteral("resolve_command_failed"));
+      emit operationFailed(QStringLiteral("Resolve 操作执行失败：%1").arg(error));
+      return false;
+    }
+  }
+  // 执行后同步回读，确保侧栏显示的是 Resolve 实际接受后的上下文。
+  refreshResolveTimeline();
+  auto lastWriteResult = resolveAdapter_.lastWriteResult();
+  if (!readResult.isEmpty()) lastWriteResult = readResult;
+  QJsonObject executionAudit{
+      {QStringLiteral("status"), QStringLiteral("applied")},
+      {QStringLiteral("commandsApplied"), commands.size()},
+      {QStringLiteral("lastWriteResult"), lastWriteResult},
+      {QStringLiteral("playheadFrame"), resolveTimelineSnapshot_
+                                            ? resolveTimelineSnapshot_->playheadFrame
+                                            : -1}};
+  if (!expectedTimelineItemId.isEmpty()) {
+    QString verifyError;
+    const auto verified = resolveAdapter_.currentItem(&verifyError);
+    if (!verified || verified->timelineItemId != expectedTimelineItemId) {
+      recordResolveError(QStringLiteral("resolve.action_plan"), QStringLiteral("timeline_item_verification_failed"));
+      emit operationFailed(QStringLiteral("Resolve 操作已发送，但当前片段回读校验失败：%1")
+                               .arg(verifyError.isEmpty() ? QStringLiteral("片段 ID 不一致") : verifyError));
+      return false;
+    }
+    executionAudit.insert(QStringLiteral("verifiedTimelineItemId"), verified->timelineItemId);
+    executionAudit.insert(QStringLiteral("verification"), QStringLiteral("current_item_id_match"));
+  } else {
+    executionAudit.insert(QStringLiteral("verification"), QStringLiteral("timeline_context_refreshed"));
+  }
+  resolveActionLastResult_ = QString::fromUtf8(QJsonDocument(executionAudit).toJson(QJsonDocument::Compact));
+  auto auditedPlan = plan;
+  auditedPlan.insert(QStringLiteral("execution"), executionAudit);
+  resolveActionPlan_ = QString::fromUtf8(QJsonDocument(auditedPlan).toJson(QJsonDocument::Compact));
+  if (!activeProjectPath_.isEmpty()) {
+    QJsonArray irWrites;
+    for (const auto& raw : commands) {
+      const auto command = raw.toObject();
+      const auto method = command.value(QStringLiteral("method")).toString();
+      if (!method.startsWith(QStringLiteral("fusion."))) continue;
+      irWrites.append(QJsonObject{{QStringLiteral("timestamp"), QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)},
+                                  {QStringLiteral("method"), method},
+                                  {QStringLiteral("params"), command.value(QStringLiteral("params"))},
+                                  {QStringLiteral("status"), QStringLiteral("applied")},
+                                  {QStringLiteral("execution"), executionAudit}});
+    }
+    if (!irWrites.isEmpty()) {
+      const auto registerPath = activeProjectPath_ + QStringLiteral(".resolve-register.json");
+      QJsonObject registerObject;
+      QFile registerInput(registerPath);
+      if (registerInput.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QJsonParseError registerError;
+        const auto registerDocument = QJsonDocument::fromJson(registerInput.readAll(), &registerError);
+        if (registerDocument.isObject()) registerObject = registerDocument.object();
+      }
+      auto history = registerObject.value(QStringLiteral("irOperations")).toArray();
+      for (const auto& write : irWrites) history.append(write);
+      registerObject.insert(QStringLiteral("irOperations"), history);
+      registerObject.insert(QStringLiteral("lastUpdated"), QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+      QSaveFile registerOutput(registerPath);
+      if (registerOutput.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        registerOutput.write(QJsonDocument(registerObject).toJson(QJsonDocument::Indented));
+        registerOutput.commit();
+      }
+    }
+  }
+  const auto firstMethod = commands.first().toObject().value(QStringLiteral("method")).toString();
+  recordResolveCapabilityEvent(firstMethod, true);
+  if (firstMethod == QStringLiteral("ui.openSimpleExport")) {
+    emit operationSucceeded(QStringLiteral("已打开 Edward 简化导出面板，请选择导出位置并确认"));
+  } else if (firstMethod == QStringLiteral("timeline.createSubtitlesFromAudio")) {
+    const auto createdTrackName = lastWriteResult.value(QStringLiteral("createdTrackName")).toString().trimmed();
+    const auto createdTrackIndex = lastWriteResult.value(QStringLiteral("createdTrackIndex")).toInt();
+    const auto trackLabel = !createdTrackName.isEmpty()
+                              ? createdTrackName
+                              : QStringLiteral("字幕轨 %1").arg(createdTrackIndex);
+    emit operationSucceeded(QStringLiteral("自动字幕已生成：Resolve 已新增原生%1，请在时间线确认内容")
+                                .arg(trackLabel));
+  } else {
+    emit operationSucceeded(QStringLiteral("操作已发送并完成回读，请在 Resolve 原生预览中确认效果"));
+  }
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::beginResolveRebuild() {
+  if (!resolveConnected_) { emit operationFailed(QStringLiteral("请先连接 Resolve Studio")); return false; }
+  if (!resolveRebuildTransactionId_.isEmpty() &&
+      (resolveRebuildTransactionState_ == QStringLiteral("open") ||
+       resolveRebuildTransactionState_ == QStringLiteral("validated"))) {
+    emit operationFailed(QStringLiteral("已有未完成的 Resolve 重建事务，请先提交或回滚"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.beginRebuild(&error)) { emit operationFailed(QStringLiteral("无法开始 Resolve 重建事务：%1").arg(error)); return false; }
+  const auto result = resolveAdapter_.lastWriteResult();
+  resolveRebuildTransactionId_ = result.value(QStringLiteral("transactionId")).toString();
+  resolveRebuildTransactionState_ = result.value(QStringLiteral("state")).toString(QStringLiteral("open"));
+  emit timelineChanged();
+  return !resolveRebuildTransactionId_.isEmpty();
+}
+
+bool WorkbenchRuntime::importResolveRebuildFile(const QString& path) {
+  if (!resolveConnected_) {
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio"));
+    return false;
+  }
+  if (path.trimmed().isEmpty()) {
+    emit operationFailed(QStringLiteral("重建文件路径不能为空"));
+    return false;
+  }
+  if (!beginResolveRebuild()) return false;
+  QString error;
+  if (!resolveAdapter_.importTimelineFile(path, {}, &error)) {
+    const auto importError = error.isEmpty() ? QStringLiteral("导入失败") : error;
+    // 回滚失败也不覆盖原始导入错误；事务句柄会保留在 open 状态供用户重试。
+    if (!resolveAdapter_.rollbackRebuild(resolveRebuildTransactionId_, &error)) {
+      emit operationFailed(QStringLiteral("重建文件导入失败：%1；自动回滚失败：%2")
+                               .arg(importError, error));
+      return false;
+    }
+    resolveRebuildTransactionState_ = QStringLiteral("rolled_back");
+    emit timelineChanged();
+    emit operationFailed(QStringLiteral("重建文件导入失败，已回滚原时间线：%1").arg(importError));
+    return false;
+  }
+  refreshResolveTimeline();
+  emit operationSucceeded(QStringLiteral("重建文件已导入隔离时间线，请先校验，再确认提交"));
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::validateResolveRebuild(const QString& timelineName, const QString& renderJobId, const QString& outputPath) {
+  if (resolveRebuildTransactionId_.isEmpty()) { emit operationFailed(QStringLiteral("没有打开的 Resolve 重建事务")); return false; }
+  QString error;
+  if (!resolveAdapter_.validateRebuild(resolveRebuildTransactionId_, timelineName, renderJobId, outputPath, &error)) {
+    resolveRebuildTransactionState_ = QStringLiteral("open");
+    emit operationFailed(QStringLiteral("Resolve 重建事务校验失败：%1").arg(error)); emit timelineChanged(); return false;
+  }
+  resolveRebuildTransactionState_ = QStringLiteral("validated"); emit timelineChanged(); return true;
+}
+
+bool WorkbenchRuntime::commitResolveRebuild() {
+  if (resolveRebuildTransactionId_.isEmpty()) { emit operationFailed(QStringLiteral("没有打开的 Resolve 重建事务")); return false; }
+  if (resolveRebuildTransactionState_ != QStringLiteral("validated")) {
+    emit operationFailed(QStringLiteral("Resolve 重建事务尚未校验，不能提交"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.commitRebuild(resolveRebuildTransactionId_, &error)) { emit operationFailed(QStringLiteral("Resolve 重建事务未提交：%1").arg(error)); return false; }
+  resolveRebuildTransactionState_ = QStringLiteral("committed"); emit operationSucceeded(QStringLiteral("Resolve 重建事务已提交")); emit timelineChanged(); return true;
+}
+
+bool WorkbenchRuntime::rollbackResolveRebuild() {
+  if (resolveRebuildTransactionId_.isEmpty()) { emit operationFailed(QStringLiteral("没有打开的 Resolve 重建事务")); return false; }
+  if (resolveRebuildTransactionState_ != QStringLiteral("open") &&
+      resolveRebuildTransactionState_ != QStringLiteral("validated")) {
+    emit operationFailed(QStringLiteral("Resolve 重建事务已结束，不能再次回滚"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.rollbackRebuild(resolveRebuildTransactionId_, &error)) { emit operationFailed(QStringLiteral("Resolve 重建事务回滚失败：%1").arg(error)); return false; }
+  resolveRebuildTransactionState_ = QStringLiteral("rolled_back"); emit operationSucceeded(QStringLiteral("Resolve 重建事务已回滚到原时间线")); emit timelineChanged(); return true;
+}
+
+void WorkbenchRuntime::recordResolveCapabilityEvent(const QString& capabilityId, const bool success,
+                                                    const QString& errorCode) {
+  if (!qualityImprovementEnabled()) return;
+  const auto root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+  const auto path = QDir(root).filePath(QStringLiteral("diagnostics/resolve-capabilities.jsonl"));
+  const auto versionMatch = QRegularExpression(QStringLiteral("\\b\\d+\\.\\d+\\.\\d+\\b"))
+                                .match(resolveStatus_);
+  const auto resolveVersion = versionMatch.hasMatch() ? versionMatch.captured(0) : QStringLiteral("unknown");
+  const auto event = edward::resolve::ResolveCapabilityTelemetry::makeEvent(
+      capabilityId, success ? edward::resolve::ResolveCapabilityStatus::CandidateVerified
+                            : edward::resolve::ResolveCapabilityStatus::Unverified,
+      QCoreApplication::applicationVersion().isEmpty() ? QStringLiteral("0.4.0")
+                                                        : QCoreApplication::applicationVersion(),
+      resolveVersion, success, errorCode, telemetryInstallationId(), projectIdentity_.value());
+  QString ignored;
+  edward::resolve::ResolveCapabilityTelemetry::append(path, event, &ignored);
+}
+
+void WorkbenchRuntime::recordResolveError(const QString& method, const QString& errorCode) {
+  const auto root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+  const auto path = QDir(root).filePath(QStringLiteral("diagnostics/resolve-errors.jsonl"));
+  const auto versionMatch = QRegularExpression(QStringLiteral("\\b\\d+\\.\\d+\\.\\d+\\b"))
+                                .match(resolveStatus_);
+  const auto resolveVersion = versionMatch.hasMatch() ? versionMatch.captured(0) : QStringLiteral("unknown");
+  QString ignored;
+  DiagnosticsReporter::appendResolveError(
+      path, method, errorCode,
+      QCoreApplication::applicationVersion().isEmpty() ? QStringLiteral("0.4.0")
+                                                        : QCoreApplication::applicationVersion(),
+      resolveVersion, &ignored);
 }
 
 void WorkbenchRuntime::refreshDemoOverlay() {
@@ -484,6 +1773,12 @@ double WorkbenchRuntime::selectedComponentNodeRotation() const {
   return node ? node->value("transform").toObject().value("rotation").toDouble() : 0.0;
 }
 
+double WorkbenchRuntime::selectedComponentNodeScale() const {
+  if (!demoOverlayIr_) return 1.0;
+  const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
+  return node ? node->value("transform").toObject().value("scale").toDouble(1.0) : 1.0;
+}
+
 double WorkbenchRuntime::selectedComponentNodeOpacity() const {
   if (!demoOverlayIr_) return 0.0;
   const auto node = findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_);
@@ -622,6 +1917,34 @@ QString WorkbenchRuntime::renderStorageRoot() const {
   return QString::fromStdString(previewStorageRoots_.renderRoot.string());
 }
 
+bool WorkbenchRuntime::qualityImprovementEnabled() const {
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  return settings.value(QStringLiteral("diagnostics/telemetryEnabled"), true).toBool();
+}
+
+bool WorkbenchRuntime::qualityImprovementNoticeRequired() const {
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  return !settings.value(QStringLiteral("diagnostics/telemetryNoticeAcknowledged"), false).toBool();
+}
+
+bool WorkbenchRuntime::setQualityImprovementEnabled(const bool enabled) {
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  settings.setValue(QStringLiteral("diagnostics/telemetryEnabled"), enabled);
+  settings.sync();
+  if (settings.status() != QSettings::NoError) return false;
+  emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::acknowledgeQualityImprovementNotice() {
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  settings.setValue(QStringLiteral("diagnostics/telemetryNoticeAcknowledged"), true);
+  settings.sync();
+  if (settings.status() != QSettings::NoError) return false;
+  emit timelineChanged();
+  return true;
+}
+
 bool WorkbenchRuntime::setPreviewQuality(int quality) {
   if (quality < static_cast<int>(edward::media::PreviewQuality::Original) ||
       quality > static_cast<int>(edward::media::PreviewQuality::Fluent)) return false;
@@ -702,10 +2025,23 @@ bool WorkbenchRuntime::importMedia(const QString& path) {
     emit operationFailed(QStringLiteral("素材无法添加：播放头位置存在冲突，或媒体不可读"));
     return false;
   }
+  if (resolveConnected_) {
+    QString resolveError;
+    if (!resolveAdapter_.insertMediaAtPlayhead(path, &resolveError)) {
+      controller_.undo();
+      emit operationFailed(QStringLiteral("Resolve 素材插入失败：%1").arg(resolveError));
+      return false;
+    }
+  }
   if (const auto clip = timeline_.clip(controller_.selectedClip())) requestClipWaveform(*clip);
   if (const auto clip = timeline_.clip(controller_.selectedClip())) requestClipThumbnail(*clip);
   emit timelineChanged();
-  emit operationSucceeded(QStringLiteral("素材已加入时间线"));
+  if (resolveConnected_ && resolveAdapter_.lastMediaInsertConflictShifted()) {
+    emit operationSucceeded(QStringLiteral("素材已加入时间线，并因 Resolve 时间线冲突顺延到第 %1 帧")
+                                .arg(resolveAdapter_.lastMediaInsertActualFrame()));
+  } else {
+    emit operationSucceeded(QStringLiteral("素材已加入时间线"));
+  }
   return true;
 }
 
@@ -843,6 +2179,133 @@ bool WorkbenchRuntime::bindComponentToSelectedClip() {
 }
 
 bool WorkbenchRuntime::addCurrentComponentToTimeline(int durationFrames) {
+  if (resolveConnected_) {
+    if (resolveComponentImportBusy_) {
+      emit operationFailed(QStringLiteral("组件正在导入 Resolve"));
+      return false;
+    }
+    if (!demoOverlayIr_) {
+      emit operationFailed(QStringLiteral("请先载入或生成组件"));
+      return false;
+    }
+    resolveComponentNodeTimelineIds_.clear();
+    QString error;
+    const auto capabilities = resolveAdapter_.capabilities(&error);
+    if (capabilities && capabilities->fusion) {
+      const auto converted = edward::resolve::convertComponentToFusion(*demoOverlayIr_, *capabilities);
+      if (!converted.report.complete()) {
+        emit operationFailed(fusionConversionFailureMessage(converted.report));
+        return false;
+      }
+      const auto sources = imageSources(*demoOverlayIr_);
+      if (!sources.isEmpty()) {
+        QSet<QString> imageNodeIds;
+        for (const auto& source : sources) imageNodeIds.insert(source.nodeId);
+        QHash<QString, QSet<QString>> sourceLayerIds;
+        const auto root = demoOverlayIr_->toJson().value(QStringLiteral("root")).toObject();
+        for (const auto& source : sources) {
+          const auto imageNode = findNode(root, source.nodeId);
+          if (imageNode) sourceLayerIds.insert(source.nodeId, imageLayerNodeIds(*imageNode));
+        }
+        if (sources.size() > 1) {
+          for (const auto& binding : converted.bindings) {
+            const auto object = binding.toObject();
+            if (object.value(QStringLiteral("tool")).toString() == QStringLiteral("MediaImage")) continue;
+            bool belongsToImageLayer = false;
+            const auto bindingNodeId = object.value(QStringLiteral("nodeId")).toString();
+            for (const auto& ids : sourceLayerIds) belongsToImageLayer = belongsToImageLayer || ids.contains(bindingNodeId);
+            if (!belongsToImageLayer) {
+              emit operationFailed(QStringLiteral("多图组件的文字和形状子节点必须归属于对应图片图层"));
+              return false;
+            }
+          }
+        }
+        int recordFrame = -1;
+        for (const auto& source : sources) {
+          if (!resolveAdapter_.insertImageOverlayAtPlayhead(source.path, &error)) {
+            emit operationFailed(QStringLiteral("图片组件插入 Resolve 失败：%1").arg(error));
+            return false;
+          }
+          const auto imageReceipt = resolveAdapter_.lastWriteResult();
+          const auto imageItems = imageReceipt.value(QStringLiteral("items")).toArray();
+          const auto imageTimelineItemId = imageItems.isEmpty()
+              ? QString()
+              : imageItems.first().toObject().value(QStringLiteral("timelineItemId")).toString();
+          if (imageTimelineItemId.isEmpty()) {
+            emit operationFailed(QStringLiteral("图片组件插入 Resolve 失败：缺少时间线片段 ID"));
+            return false;
+          }
+          const auto sourceRecordFrame = imageItems.isEmpty() ? -1 :
+              imageItems.first().toObject().value(QStringLiteral("startFrame")).toInt(-1);
+          if (recordFrame < 0) recordFrame = sourceRecordFrame;
+          QJsonArray imageBindings;
+          const auto layerIds = sourceLayerIds.value(source.nodeId);
+          for (const auto& layerId : layerIds) {
+            resolveComponentNodeTimelineIds_.insert(layerId, imageTimelineItemId);
+          }
+          for (const auto& binding : converted.bindings) {
+            const auto object = binding.toObject();
+            if (!layerIds.contains(object.value(QStringLiteral("nodeId")).toString()) ||
+                object.value(QStringLiteral("tool")).toString() == QStringLiteral("MediaImage")) continue;
+            imageBindings.append(binding);
+          }
+          if (!imageBindings.isEmpty() &&
+              !resolveAdapter_.applyFusionBindings(imageBindings,
+                                                   resolveAdapter_.lastInsertedComponentId(), &error)) {
+            emit operationFailed(QStringLiteral("图片组件 Fusion 变换写入失败：%1").arg(error));
+            return false;
+          }
+        }
+        if (recordFrame < 0 || !resolveAdapter_.setPlayhead(recordFrame, &error)) {
+          emit operationFailed(QStringLiteral("图片组件插入后无法恢复 Resolve 播放头：%1")
+                                   .arg(error.isEmpty() ? QStringLiteral("缺少插入帧") : error));
+          return false;
+        }
+        emit operationSucceeded(QStringLiteral("图片组件已作为独立媒体片段叠加到 Resolve 当前播放头"));
+        refreshResolveTimeline();
+        return true;
+      }
+      if (!resolveAdapter_.insertFusionComponentOverlay(converted.bindings, durationFrames, &error)) {
+        emit operationFailed(QStringLiteral("Fusion 组件插入 Resolve 失败：%1").arg(error));
+        return false;
+      }
+      // Resolve 21.0.4 may accept the component graph while pruning an
+      // unreferenced border subgraph during InsertFusionCompositionIntoTimeline.
+      // Re-apply each declared rectangle border through the verified style API
+      // after the clip has a stable timelineItemId, then require its readback.
+      const auto insertedItemId = resolveAdapter_.lastInsertedComponentId();
+      const auto recordFrame = resolveAdapter_.lastWriteResult().value(QStringLiteral("recordFrame")).toInt(-1);
+      for (const auto& rawBinding : converted.bindings) {
+        const auto binding = rawBinding.toObject();
+        if (binding.value(QStringLiteral("tool")).toString() != QStringLiteral("RectangleOverlay")) continue;
+        const auto values = binding.value(QStringLiteral("values")).toObject();
+        if (!values.value(QStringLiteral("borderColor")).isString() ||
+            !values.value(QStringLiteral("borderWidth")).isDouble() ||
+            values.value(QStringLiteral("borderWidth")).toDouble() <= 0) continue;
+        if (!resolveAdapter_.setFusionRectangleStyle(
+                binding.value(QStringLiteral("toolName")).toString(),
+                values.value(QStringLiteral("borderColor")).toString(),
+                values.value(QStringLiteral("borderWidth")).toDouble(), insertedItemId, &error)) {
+          emit operationFailed(QStringLiteral("Fusion 组件边框写入 Resolve 失败：%1").arg(error));
+          return false;
+        }
+      }
+      if (recordFrame < 0 || !resolveAdapter_.setPlayhead(recordFrame, &error)) {
+        // Resolve can reject a timecode immediately after extending an empty
+        // timeline even though the clip is already committed. Do not roll
+        // back a verified insertion; refresh the timeline and leave the
+        // actual Resolve playhead untouched for the user.
+        emit operationSucceeded(QStringLiteral("组件已写入 Resolve；播放头未能回到插入起点"));
+      } else {
+        emit operationSucceeded(QStringLiteral("组件已作为独立 Fusion 片段叠加到 Resolve 当前播放头"));
+      }
+      refreshResolveTimeline();
+      return true;
+    }
+
+    emit operationFailed(QStringLiteral("当前 Resolve 未验证 Fusion 组件路径，组件未写入时间线"));
+    return false;
+  }
   if (!demoOverlayIr_ || !controller_.dropComponentAtPlayhead(*demoOverlayIr_, durationFrames)) {
     emit operationFailed(QStringLiteral("组件无法添加到时间线"));
     return false;
@@ -895,37 +2358,302 @@ bool WorkbenchRuntime::applyAiComponentCommand(const QString& json) {
 
 bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
                                                const QString& model, const QString& prompt) {
-  if (aiRequestBusy_) return false;
-  if (!demoOverlayIr_) {
-    emit operationFailed(QStringLiteral("AI 请求失败：当前没有可编辑组件"));
+  if (aiRequestBusy_) {
+    emit operationFailed(QStringLiteral("AI 请求未发送：上一个请求仍在处理中，请等待完成或重启请求。"));
     return false;
   }
-  const auto systemPrompt = QStringLiteral(
-      "Return exactly one JSON object for Edward component editing. Allowed operations are "
-      "setTransformNumber, setProperty, setKeyframeValue. Do not use Markdown or code fences.");
-  const auto componentContext = QString::fromUtf8(
-      QJsonDocument(demoOverlayIr_->toJson()).toJson(QJsonDocument::Compact));
-  const auto dependency = demoOverlayIr_->pluginDependency();
-  const auto editable = dependency && installedPlugin_ &&
-                                dependency->pluginId == installedPlugin_->manifest.pluginId &&
-                                dependency->version == installedPlugin_->manifest.version
-                            ? installedPlugin_->manifest.editableProps.join(QStringLiteral(","))
-                            : QStringLiteral("standard Edward fields");
-  const auto contextualPrompt = QStringLiteral(
-      "Current Component IR (read-only context): %1\nAllowed plugin editable fields: %2\nPrevious conversation: %3\nUser request: %4")
-                                    .arg(componentContext, editable, aiConversation_, prompt);
-  if (contextualPrompt.toUtf8().size() > 64 * 1024) {
-    emit operationFailed(QStringLiteral("AI 请求失败：组件上下文或提示词过大"));
+  if (!prompt.trimmed().isEmpty()) {
+    if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+    aiConversation_ += QStringLiteral("用户：") + prompt.trimmed();
+    aiConversation_ += QStringLiteral("\nAI：正在处理...");
+    emit timelineChanged();
+  }
+  // 所有后续校验失败都必须能关联到这次发送，不能等到网络请求前才保存。
+  pendingAiPrompt_ = prompt;
+  const auto effectiveEndpoint = endpoint.trimmed().isEmpty() ? aiModelEndpoint_ : endpoint.trimmed();
+  const auto effectiveApiKey = apiKey.trimmed().isEmpty() ? aiModelApiKey_ : apiKey.trimmed();
+  const auto effectiveModel = model.trimmed().isEmpty() ? aiModelId_ : model.trimmed();
+  if (effectiveEndpoint.isEmpty() || effectiveApiKey.isEmpty() || effectiveModel.isEmpty()) {
+    emit operationFailed(QStringLiteral("AI 请求失败：请先在设置中配置模型"));
+    return false;
+  }
+  QString systemPrompt;
+  QString contextualPrompt;
+  const auto agents = projectAgentInstructions();
+  const auto agentContext = agents.isEmpty() ? QString() : QStringLiteral("\n项目 AGENTS.md 约束（必须遵守）：\n%1").arg(agents);
+  if (!demoOverlayIr_) {
+    systemPrompt = QStringLiteral("You are Edward, a concise Chinese video editing assistant. First understand the user's intent and confidence from the complete natural-language request and attachments; do not route by isolated keywords. If intent is ambiguous or you are not confident, ask one concise clarification question. Then choose exactly one response mode: ordinary conversation (plain text), a verified Resolve operation JSON, or a Fusion component conversion. For media insertion, return one JSON object using operation import_and_insert with asset_path and position when the requested file and position are clear. If the user says 顺序插入/依次插入/一个接一个, set insert_mode to sequence and preserve the operation order. Video files must always be inserted at their complete source duration; never ask the user to provide a video duration and never add startFrame/endFrame for a video. Still images may use the editor default still duration. When the user asks to convert attached React/JSX/styled-components code into a Fusion template, return exactly one JSON object {\"react\":\"...\"} containing the complete source. When the user asks to convert attached HTML/CSS code, return exactly one JSON object {\"css\":\"...\",\"html\":\"...\"} containing the complete source. Edward will normalize it and generate Component IR deterministically. Do not omit unsupported properties. Only explicit component edits may return an operation field.");
+    contextualPrompt = QStringLiteral("Resolve 当前上下文：%1\n历史对话：%2\n用户请求：%3")
+                           .arg(resolveContextSummary_, aiConversation_, promptWithTextAttachmentContents(prompt)) + agentContext;
+    // 普通对话仍允许显式 operation（例如 insert_media）进入已验证的 Resolve 命令链路。
+    // 是否触发 IR/Resolve 由响应中的 operation 决定，而不是由当前是否选中组件决定。
+    pendingAiConversationOnly_ = false;
+    pendingAiAnalysis_ = false;
+  } else {
+    systemPrompt = QStringLiteral(
+        "You are Edward's independent chat sandbox. Answer ordinary conversation in plain text. "
+        "Understand natural-language requests and map them to verified operations when the intent and target are unambiguous. "
+        "If the asset, position, or requested action is ambiguous, ask a concise clarification question instead of guessing. "
+        "Only when the user explicitly requests a component edit or uses /component, return exactly one JSON object "
+        "with an operation field; allowed operations are setTransformNumber, setProperty, setKeyframeValue. "
+        "Do not use Markdown or code fences for JSON.");
+    const auto componentContext = QString::fromUtf8(
+        QJsonDocument(demoOverlayIr_->toJson()).toJson(QJsonDocument::Compact));
+    const auto dependency = demoOverlayIr_->pluginDependency();
+    const auto editable = dependency && installedPlugin_ &&
+                                  dependency->pluginId == installedPlugin_->manifest.pluginId &&
+                                  dependency->version == installedPlugin_->manifest.version
+                              ? installedPlugin_->manifest.editableProps.join(QStringLiteral(","))
+                              : QStringLiteral("standard Edward fields");
+    contextualPrompt = QStringLiteral(
+        "Current Component IR (read-only context): %1\nAllowed plugin editable fields: %2\nPrevious conversation: %3\nUser request: %4")
+                          .arg(componentContext, editable, aiConversation_, prompt) + agentContext;
+    pendingAiConversationOnly_ = false;
+  }
+  if (contextualPrompt.toUtf8().size() > 256 * 1024) {
+    emit operationFailed(QStringLiteral("AI 请求失败：代码或上下文超过 256 KB 输入上限"));
     return false;
   }
   aiRequestBusy_ = true;
   emit timelineChanged();
-  if (!modelChatClient_.request({endpoint, apiKey, model}, systemPrompt, contextualPrompt)) {
+  if (!modelChatClient_.request({effectiveEndpoint, effectiveApiKey, effectiveModel}, systemPrompt, contextualPrompt)) {
+    aiRequestBusy_ = false;
+    pendingAiAnalysis_ = false;
+    emit timelineChanged();
+    return false;
+  }
+  return true;
+}
+
+bool WorkbenchRuntime::deleteLastAiInsertions(int count, int index) {
+  if (!resolveConnected_) {
+    appendAiConversationError(QStringLiteral("删除失败：请先连接 Resolve Studio。"));
+    return false;
+  }
+  if (aiLastInsertionRecords_.isEmpty()) {
+    appendAiConversationError(QStringLiteral("没有可删除的最近一次 AI 插入记录。"));
+    return false;
+  }
+  int deletedCount = 0;
+  QStringList failures;
+  QSet<int> selectedIndexes;
+  if (index >= 0 && index < aiLastInsertionRecords_.size()) {
+    selectedIndexes.insert(index);
+  } else if (count < 0 || count >= aiLastInsertionRecords_.size()) {
+    for (int i = 0; i < aiLastInsertionRecords_.size(); ++i) selectedIndexes.insert(i);
+  } else {
+    for (int i = aiLastInsertionRecords_.size() - count; i < aiLastInsertionRecords_.size(); ++i)
+      selectedIndexes.insert(i);
+  }
+  for (int i = aiLastInsertionRecords_.size() - 1; i >= 0; --i) {
+    if (!selectedIndexes.contains(i)) continue;
+    const auto record = aiLastInsertionRecords_.at(i).toObject();
+    QString error;
+    bool deleted = false;
+    const auto id = record.value(QStringLiteral("timelineItemId")).toString().trimmed();
+    if (!id.isEmpty()) deleted = resolveAdapter_.deleteCurrentClip(false, id, &error);
+    if (!deleted && error != QStringLiteral("bridge_not_connected")) {
+      const auto track = record.value(QStringLiteral("trackIndex")).toInt(0);
+      const auto start = record.value(QStringLiteral("startFrame")).toInt(-1);
+      const auto end = record.value(QStringLiteral("endFrame")).toInt(-1);
+      if (track > 0 && start >= 0) deleted = resolveAdapter_.deleteTimelineItemByPosition(track, start, end, &error);
+    }
+    if (deleted) {
+      ++deletedCount;
+    } else if (error == QStringLiteral("bridge_not_connected")) {
+      // Resolve 可能已执行 DeleteClips，但回执在桥接断开时丢失；不要把这种情况报告成确定失败。
+      ++deletedCount;
+    } else {
+      failures.append(error.isEmpty() ? QStringLiteral("未知错误") : error);
+    }
+  }
+  QJsonArray remainingRecords;
+  for (int i = 0; i < aiLastInsertionRecords_.size(); ++i)
+    if (!selectedIndexes.contains(i)) remainingRecords.append(aiLastInsertionRecords_.at(i));
+  aiLastInsertionRecords_ = remainingRecords;
+  {
+    QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+    if (aiLastInsertionRecords_.isEmpty())
+      settings.remove(QStringLiteral("ai/lastInsertionRecords"));
+    else
+      settings.setValue(QStringLiteral("ai/lastInsertionRecords"), QJsonDocument(aiLastInsertionRecords_).toJson(QJsonDocument::Compact));
+    settings.sync();
+  }
+  if (deletedCount > 0) {
+    appendAiConversationError(QStringLiteral("已提交删除最近一次 AI 插入的 %1 个素材。%2")
+                                  .arg(deletedCount)
+                                  .arg(failures.isEmpty() ? QString() : QStringLiteral("仍有 %1 个未删除。 ").arg(failures.size())));
+    refreshResolveTimeline();
+    return failures.isEmpty();
+  }
+  appendAiConversationError(QStringLiteral("删除最近一次 AI 插入失败：%1").arg(failures.join(QStringLiteral("；"))));
+  return false;
+}
+
+QString WorkbenchRuntime::pasteAiAttachment() {
+  const auto *clipboard = QGuiApplication::clipboard();
+  if (!clipboard) return {};
+  const auto *mime = clipboard->mimeData();
+  if (mime->hasUrls()) {
+    const auto urls = mime->urls();
+    if (!urls.isEmpty()) return urls.first().toString();
+  }
+  if (mime->hasImage()) {
+    const auto image = qvariant_cast<QImage>(mime->imageData());
+    if (!image.isNull()) {
+      const auto dir = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("../../../../ai-attachments"));
+      QDir().mkpath(dir);
+      const auto path = QDir(dir).filePath(QStringLiteral("clipboard-%1.png").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+      if (image.save(path, "PNG")) return QUrl::fromLocalFile(path).toString();
+    }
+  }
+  if (mime->hasText()) return mime->text();
+  return {};
+}
+
+QStringList WorkbenchRuntime::pasteAiAttachments() {
+  const auto *clipboard = QGuiApplication::clipboard();
+  if (!clipboard) return {};
+  const auto *mime = clipboard->mimeData();
+  QStringList result;
+  if (mime->hasUrls()) {
+    for (const auto& url : mime->urls()) result.append(url.toString());
+    return result;
+  }
+  if (mime->hasText()) {
+    const auto text = mime->text();
+    constexpr qsizetype longTextThreshold = 16 * 1024;
+    if (text.toUtf8().size() > longTextThreshold) {
+      const auto dir = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("../../../../ai-attachments"));
+      QDir().mkpath(dir);
+      const auto path = QDir(dir).filePath(QStringLiteral("clipboard-code-%1.txt").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+      QFile file(path);
+      if (file.open(QIODevice::WriteOnly | QIODevice::Text) && file.write(text.toUtf8()) == text.toUtf8().size()) {
+        result.append(QUrl::fromLocalFile(path).toString());
+        return result;
+      }
+    }
+  }
+  const auto single = pasteAiAttachment();
+  if (!single.isEmpty()) result.append(single);
+  return result;
+}
+
+QStringList WorkbenchRuntime::chooseAiAttachments() {
+  const auto urls = QFileDialog::getOpenFileUrls(nullptr, QStringLiteral("添加图片、视频、音频或文本"), QUrl(),
+                                                   QStringLiteral("支持的文件 (*.png *.jpg *.jpeg *.webp *.gif *.mp4 *.mov *.mkv *.mp3 *.wav *.m4a *.txt *.md *.json *.csv);;所有文件 (*)"));
+  QStringList result;
+  for (const auto& url : urls) result.append(url.toString());
+  return result;
+}
+
+bool WorkbenchRuntime::analyzeCurrentClipWithAi(const QString& prompt) {
+  if (aiRequestBusy_) return false;
+  const auto request = prompt.trimmed().isEmpty()
+                           ? QStringLiteral("分析当前 Resolve 选中的视频片段，生成一个可叠加的 Edward Component IR 组件。")
+                           : prompt.trimmed();
+  const auto effectiveEndpoint = aiModelEndpoint_;
+  const auto effectiveApiKey = aiModelApiKey_;
+  const auto effectiveModel = aiModelId_;
+  if (effectiveEndpoint.isEmpty() || effectiveApiKey.isEmpty() || effectiveModel.isEmpty()) {
+    emit operationFailed(QStringLiteral("AI 分析失败：请先在设置中配置模型"));
+    return false;
+  }
+  const auto systemPrompt = QStringLiteral(
+      "Return exactly one valid Edward Component IR JSON object. Version must be 1. "
+      "Allowed node types are container, text, shape, image. Use only properties and keyframes "
+      "supported by the current Component IR schema. Do not use Markdown or code fences.");
+  const auto context = QStringLiteral("Resolve 当前上下文：%1\n用户要求：%2")
+                           .arg(resolveContextSummary_, request);
+  pendingAiPrompt_ = request;
+  pendingAiAnalysis_ = true;
+  aiRequestBusy_ = true;
+  emit timelineChanged();
+  if (!modelChatClient_.request({effectiveEndpoint, effectiveApiKey, effectiveModel}, systemPrompt, context)) {
+    pendingAiAnalysis_ = false;
     aiRequestBusy_ = false;
     emit timelineChanged();
     return false;
   }
-  pendingAiPrompt_ = prompt;
+  return true;
+}
+
+bool WorkbenchRuntime::configureAiModel(const QString& providerName, const QString& endpoint,
+                                        const QString& apiKey, const QString& model,
+                                        const QString& testModel, const QString& modelList,
+                                        const QString& contextWindow) {
+  const QUrl url(endpoint.trimmed());
+  const auto effectiveApiKey = apiKey.trimmed().isEmpty() ? aiModelApiKey_ : apiKey.trimmed();
+  if (!url.isValid() || url.scheme().compare(QStringLiteral("https"), Qt::CaseInsensitive) != 0 ||
+      url.host().isEmpty() || effectiveApiKey.isEmpty() || model.trimmed().isEmpty()) {
+    emit operationFailed(QStringLiteral("AI 模型配置无效：需要 HTTPS 端点、API Key 和模型 ID"));
+    return false;
+  }
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  settings.setValue(QStringLiteral("ai/provider"), providerName.trimmed());
+  settings.setValue(QStringLiteral("ai/endpoint"), url.toString());
+  settings.setValue(QStringLiteral("ai/apiKey"), effectiveApiKey);
+  settings.setValue(QStringLiteral("ai/model"), model.trimmed());
+  settings.setValue(QStringLiteral("ai/testModel"), testModel.trimmed());
+  settings.setValue(QStringLiteral("ai/modelList"), modelList.trimmed());
+  settings.setValue(QStringLiteral("ai/contextWindow"), contextWindow.trimmed());
+  settings.sync();
+  if (settings.status() != QSettings::NoError) {
+    emit operationFailed(QStringLiteral("AI 模型配置无法保存"));
+    return false;
+  }
+  aiModelEndpoint_ = url.toString();
+  aiProviderName_ = providerName.trimmed();
+  aiModelApiKey_ = effectiveApiKey;
+  aiModelId_ = model.trimmed();
+  aiTestModel_ = testModel.trimmed();
+  const auto suppliedModels = modelList.trimmed().split(QRegularExpression(QStringLiteral("[\\r\\n,]+")), Qt::SkipEmptyParts);
+  const bool preserveFetchedModels = aiAvailableModels_.size() > suppliedModels.size() && aiAvailableModels_.size() > 1;
+  if (!preserveFetchedModels) aiAvailableModels_ = suppliedModels;
+  aiModelList_ = aiAvailableModels_.join(QStringLiteral("\n"));
+  aiAvailableModels_.replaceInStrings(QRegularExpression(QStringLiteral("^\\s+|\\s+$")), QString());
+  aiAvailableModels_.removeAll(QString());
+  aiAvailableModels_.removeDuplicates();
+  if (!aiModelId_.trimmed().isEmpty() && !aiAvailableModels_.contains(aiModelId_.trimmed()))
+    aiAvailableModels_.prepend(aiModelId_.trimmed());
+  aiModelList_ = aiAvailableModels_.join(QStringLiteral("\n"));
+  settings.setValue(QStringLiteral("ai/modelList"), aiModelList_);
+  settings.sync();
+  aiContextWindow_ = contextWindow.trimmed();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("AI 模型配置已保存"));
+  return true;
+}
+
+bool WorkbenchRuntime::refreshAiModelList() {
+  if (aiModelListBusy_) return false;
+  if (!aiModelCredentialsConfigured()) {
+    emit operationFailed(QStringLiteral("请先保存供应商端点和 API Key，再获取模型列表"));
+    return false;
+  }
+  aiModelListBusy_ = true;
+  emit timelineChanged();
+  if (!modelChatClient_.requestModels({aiModelEndpoint_, aiModelApiKey_, aiModelId_})) {
+    aiModelListBusy_ = false;
+    emit timelineChanged();
+    return false;
+  }
+  return true;
+}
+
+bool WorkbenchRuntime::selectAiModel(const QString& model) {
+  const auto selected = model.trimmed();
+  if (selected.isEmpty()) return false;
+  if (!aiAvailableModels_.isEmpty() && !aiAvailableModels_.contains(selected)) return false;
+  aiModelId_ = selected;
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  settings.setValue(QStringLiteral("ai/model"), aiModelId_);
+  settings.sync();
+  if (settings.status() != QSettings::NoError) {
+    emit operationFailed(QStringLiteral("AI 模型选择无法保存"));
+    return false;
+  }
+  emit timelineChanged();
   return true;
 }
 
@@ -951,6 +2679,7 @@ bool WorkbenchRuntime::proposeAiComponentCommand(const QString& json) {
   }
   aiComponentDraft_ = std::move(candidate);
   aiComponentDraftJson_ = json.trimmed();
+  aiComponentDraftIsAnalysis_ = false;
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("AI 草案已生成，确认后应用"));
   return true;
@@ -961,7 +2690,9 @@ bool WorkbenchRuntime::applyPendingAiComponentCommand() {
     emit operationFailed(QStringLiteral("没有待应用的 AI 草案"));
     return false;
   }
-  demoOverlayIr_ = std::move(aiComponentDraft_);
+  const auto draft = *aiComponentDraft_;
+  demoOverlayIr_ = draft;
+  aiComponentDraftIsAnalysis_ = false;
   aiComponentDraftJson_.clear();
   syncDemoOverlayProperties(demoOverlayIr_->toJson());
   refreshDemoOverlay();
@@ -970,9 +2701,44 @@ bool WorkbenchRuntime::applyPendingAiComponentCommand() {
   return true;
 }
 
+bool WorkbenchRuntime::applyAiAnalysisDraftToResolve(int durationFrames) {
+  if (!aiComponentDraft_ || !aiComponentDraftIsAnalysis_) {
+    emit operationFailed(QStringLiteral("没有可添加到 Resolve 的 AI 分析组件草案"));
+    return false;
+  }
+  if (!resolveConnected_) {
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio，再添加 AI 分析组件"));
+    return false;
+  }
+  if (durationFrames <= 0) {
+    emit operationFailed(QStringLiteral("AI 分析组件时长无效"));
+    return false;
+  }
+  const auto draft = *aiComponentDraft_;
+  demoOverlayIr_ = draft;
+  aiComponentDraft_.reset();
+  aiComponentDraftIsAnalysis_ = false;
+  aiComponentDraftJson_.clear();
+  componentClipId_ = 0;
+  editingComponentClipId_ = 0;
+  demoOverlayEnabled_ = true;
+  syncDemoOverlayProperties(demoOverlayIr_->toJson());
+  refreshDemoOverlay();
+  if (!addCurrentComponentToTimeline(durationFrames)) {
+    aiComponentDraft_ = draft;
+    aiComponentDraftIsAnalysis_ = true;
+    aiComponentDraftJson_ = QString::fromUtf8(QJsonDocument(draft.toJson()).toJson(QJsonDocument::Compact));
+    emit timelineChanged();
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("AI 分析组件已转写为 Fusion 并添加到 Resolve"));
+  return true;
+}
+
 void WorkbenchRuntime::discardPendingAiComponentCommand() {
   if (!aiComponentDraft_) return;
   aiComponentDraft_.reset();
+  aiComponentDraftIsAnalysis_ = false;
   aiComponentDraftJson_.clear();
   emit timelineChanged();
 }
@@ -994,6 +2760,7 @@ bool WorkbenchRuntime::loadComponentJson(const QString& json) {
   editingComponentClipId_ = 0;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
+  pendingAiConversationOnly_ = false;
   syncDemoOverlayProperties(document.object());
   demoOverlayEnabled_ = true;
   refreshDemoOverlay();
@@ -1085,10 +2852,40 @@ bool WorkbenchRuntime::loadLibraryComponent(const QString& resourceId) {
   demoOverlayEnabled_ = true;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
+  pendingAiConversationOnly_ = false;
   syncDemoOverlayProperties(demoOverlayIr_->toJson());
   refreshDemoOverlay();
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("资源库组件已载入为独立实例"));
+  return true;
+}
+
+bool WorkbenchRuntime::insertLibraryComponentAtPlayhead(const QString& resourceId, int durationFrames) {
+  if (resourceId.trimmed().isEmpty() || durationFrames <= 0) {
+    emit operationFailed(QStringLiteral("资源库组件参数无效"));
+    return false;
+  }
+  QString packageError;
+  const auto package = componentLibrary_.load(resourceId, &packageError);
+  if (!package) {
+    emit operationFailed(QStringLiteral("资源库组件无法读取：%1").arg(packageError));
+    return false;
+  }
+  // 用户侧/本地组件主路径固定为 Component IR → Fusion 转写 → Resolve 回读。
+  // 公共资源库的 fusionComp 下载→缓存→直接导入属于后续独立路径，当前不在此入口接入。
+  if (!loadLibraryComponent(resourceId)) return false;
+  if (!addCurrentComponentToTimeline(durationFrames)) return false;
+  emit operationSucceeded(QStringLiteral("资源库组件已添加到当前播放头"));
+  return true;
+}
+
+bool WorkbenchRuntime::downloadFusionArtifact(const QString& url, const QString& destination,
+                                              const QString& sha256) {
+  QString error;
+  if (!fusionArtifactCache_.download(url, destination, sha256, &error)) {
+    emit operationFailed(QStringLiteral("Fusion 公共组件下载失败：%1").arg(error));
+    return false;
+  }
   return true;
 }
 
@@ -1128,6 +2925,15 @@ bool WorkbenchRuntime::signInWithSupabase(const QString& projectUrl, const QStri
     emit timelineChanged();
     return false;
   }
+  return true;
+}
+
+bool WorkbenchRuntime::signUpWithSupabase(const QString& projectUrl, const QString& anonKey,
+                                          const QString& email, const QString& password) {
+  if (signInBusy_) return false;
+  signInBusy_ = true;
+  emit timelineChanged();
+  if (!authClient_.signUpWithPassword({projectUrl, anonKey}, email, password)) { signInBusy_ = false; emit timelineChanged(); return false; }
   return true;
 }
 
@@ -1345,9 +3151,44 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
   }
   const auto path = std::filesystem::path(outputPath.toStdString());
   std::error_code pathError;
-  if (!path.is_absolute() || path.filename().empty() || path.extension() != ".mp4"
-      || !std::filesystem::is_directory(path.parent_path(), pathError)) {
-    emit operationFailed(QStringLiteral("导出路径必须是现有目录中的 MP4 文件"));
+  if (!path.is_absolute() || path.filename().empty() ||
+      !std::filesystem::is_directory(path.parent_path(), pathError)) {
+    emit operationFailed(QStringLiteral("导出路径必须是现有目录中的视频文件"));
+    return false;
+  }
+  if (resolveConnected_) {
+    edward::resolve::ResolveRenderOptions options;
+    options.outputPath = outputPath;
+    options.width = width;
+    options.height = height;
+    options.fps = fps;
+    options.codec = QStringLiteral("H264");
+    options.quality = quality;
+    if (resolveTimelineSnapshot_ && resolveTimelineSnapshot_->markInFrame >= 0 &&
+        resolveTimelineSnapshot_->markOutFrame >= resolveTimelineSnapshot_->markInFrame) {
+      options.startFrame = resolveTimelineSnapshot_->markInFrame;
+      options.endFrame = resolveTimelineSnapshot_->markOutFrame;
+    }
+    QString error;
+    QString jobId;
+    if (!resolveAdapter_.queueAndStartRender(options, &jobId, &error)) {
+      recordResolveCapabilityEvent(QStringLiteral("resolve.render.start"), false,
+                                   QStringLiteral("render_start_failed"));
+      recordResolveError(QStringLiteral("render.start"), QStringLiteral("render_start_failed"));
+      emit operationFailed(error.isEmpty() ? QStringLiteral("无法启动 Resolve 导出") : error);
+      return false;
+    }
+    resolveRenderJobId_ = jobId;
+    resolveRenderOutputPath_ = outputPath;
+    timelineExportBusy_ = true;
+    timelineExportProgress_ = 0;
+    recordResolveCapabilityEvent(QStringLiteral("resolve.render.start"), true);
+    resolveRenderPollTimer_.start();
+    emit timelineChanged();
+    return true;
+  }
+  if (path.extension() != ".mp4") {
+    emit operationFailed(QStringLiteral("未连接 Resolve 时仅支持导出 MP4"));
     return false;
   }
   auto snapshot = timeline_.snapshot();
@@ -1427,7 +3268,14 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
 }
 
 void WorkbenchRuntime::cancelTimelineExport() {
-  if (!timelineExportBusy_ || !timelineExportCancel_) return;
+  if (!timelineExportBusy_) return;
+  if (!resolveRenderJobId_.isEmpty()) {
+    QString error;
+    if (!resolveAdapter_.cancelRender(resolveRenderJobId_, &error, resolveRenderOutputPath_) && !error.isEmpty())
+      emit operationFailed(error);
+    return;
+  }
+  if (!timelineExportCancel_) return;
   timelineExportCancel_->store(true);
 }
 
@@ -1437,6 +3285,7 @@ void WorkbenchRuntime::clearComponentOverlay() {
   editingComponentClipId_ = 0;
   aiConversation_.clear();
   pendingAiPrompt_.clear();
+  pendingAiConversationOnly_ = false;
   demoOverlayEnabled_ = false;
   renderGraph_.setOverlay(std::nullopt);
   emit timelineChanged();
@@ -1521,10 +3370,21 @@ void WorkbenchRuntime::setDemoOverlayOpacity(double value) {
 
 void WorkbenchRuntime::setDemoOverlayText(const QString& value) {
   if (!componentPlayheadIsEditable()) return;
-  demoOverlayText_ = value.left(120);
+  const auto text = value.left(120);
+  if (resolveConnected_ && demoOverlayIr_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    const auto nodeId = editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_);
+    if (nodeId.isEmpty()) {
+      emit operationFailed(QStringLiteral("当前组件没有可编辑的文字节点"));
+      return;
+    }
+    if (setSelectedComponentPropertyAtPlayhead(nodeId, QStringLiteral("text"), text))
+      demoOverlayText_ = text;
+    return;
+  }
+  demoOverlayText_ = text;
   if (demoOverlayIr_)
-    setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
-                           "text", demoOverlayText_, componentKeyframeFrame());
+    setPropertyStatic(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
+                      "text", demoOverlayText_);
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1533,24 +3393,39 @@ void WorkbenchRuntime::setDemoOverlayFontSize(int value) {
   if (!componentPlayheadIsEditable()) return;
   demoOverlayFontSize_ = std::max(8, std::min(value, 96));
   if (demoOverlayIr_)
-    setPropertyAndKeyframe(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
-                           "fontSize", demoOverlayFontSize_, componentKeyframeFrame());
+    setPropertyStatic(*demoOverlayIr_, editableTextNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
+                      "fontSize", demoOverlayFontSize_);
   refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setDemoOverlayBorderWidth(int value) {
   if (!componentPlayheadIsEditable()) return;
-  demoOverlayBorderWidth_ = std::max(0, std::min(value, 32));
+  const auto clamped = std::max(0, std::min(value, 32));
+  if (resolveConnected_ && demoOverlayIr_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    const auto nodeId = editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_);
+    if (setSelectedComponentPropertyAtPlayhead(nodeId, QStringLiteral("borderWidth"), clamped)) {
+      demoOverlayBorderWidth_ = clamped;
+      emit timelineChanged();
+    }
+    return;
+  }
+  demoOverlayBorderWidth_ = clamped;
   if (demoOverlayIr_)
-    setPropertyAndKeyframe(*demoOverlayIr_, editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
-                           "borderWidth", demoOverlayBorderWidth_, componentKeyframeFrame());
+    demoOverlayIr_->setNodeProperty(
+        editableShapeNodeId(demoOverlayIr_->toJson(), selectedComponentNodeId_),
+        QStringLiteral("borderWidth"), demoOverlayBorderWidth_);
   refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
   if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("x"),
+                                           std::max(-640, std::min(value, 640)));
+    return;
+  }
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("x"),
                           std::max(-640, std::min(value, 640)), componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1559,6 +3434,11 @@ void WorkbenchRuntime::setSelectedComponentNodeX(int value) {
 
 void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
   if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("y"),
+                                           std::max(-360, std::min(value, 360)));
+    return;
+  }
   setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("y"),
                           std::max(-360, std::min(value, 360)), componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1567,16 +3447,26 @@ void WorkbenchRuntime::setSelectedComponentNodeY(int value) {
 
 void WorkbenchRuntime::setSelectedComponentNodeWidth(int value) {
   if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
-  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("width"),
-                          std::max(1, std::min(value, 640)), componentKeyframeFrame());
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("width"),
+                                           std::max(1, std::min(value, 640)));
+    return;
+  }
+  setTransformStatic(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("width"),
+                     std::max(1, std::min(value, 640)));
   refreshDemoOverlay();
   emit timelineChanged();
 }
 
 void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
   if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
-  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("height"),
-                          std::max(1, std::min(value, 360)), componentKeyframeFrame());
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("height"),
+                                           std::max(1, std::min(value, 360)));
+    return;
+  }
+  setTransformStatic(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("height"),
+                     std::max(1, std::min(value, 360)));
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1584,8 +3474,24 @@ void WorkbenchRuntime::setSelectedComponentNodeHeight(int value) {
 void WorkbenchRuntime::setSelectedComponentNodeRotation(double value) {
   if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto clamped = std::max(-180.0, std::min(value, 180.0));
-  setTransformAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("rotation"),
-                          clamped, componentKeyframeFrame());
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("rotation"), clamped);
+    return;
+  }
+  setTransformStatic(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("rotation"), clamped);
+  refreshDemoOverlay();
+  emit timelineChanged();
+}
+
+void WorkbenchRuntime::setSelectedComponentNodeScale(double value) {
+  if (!demoOverlayIr_ || !componentPlayheadIsEditable() ||
+      !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
+  const auto clamped = std::max(0.1, std::min(value, 3.0));
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("scale"), clamped);
+    return;
+  }
+  setTransformStatic(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("scale"), clamped);
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1593,6 +3499,10 @@ void WorkbenchRuntime::setSelectedComponentNodeRotation(double value) {
 void WorkbenchRuntime::setSelectedComponentNodeOpacity(double value) {
   if (!demoOverlayIr_ || !componentPlayheadIsEditable() || !findNode(demoOverlayIr_->toJson().value("root").toObject(), selectedComponentNodeId_)) return;
   const auto clamped = std::max(0.0, std::min(value, 1.0));
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("opacity"), clamped);
+    return;
+  }
   setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("opacity"),
                          clamped, componentKeyframeFrame());
   refreshDemoOverlay();
@@ -1606,7 +3516,11 @@ void WorkbenchRuntime::setSelectedComponentNodeColor(const QString& value) {
   const auto field = type == QStringLiteral("shape") ? QStringLiteral("fill") : QStringLiteral("color");
   const auto color = value.trimmed().left(32);
   if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
-  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, field, color, componentKeyframeFrame());
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, field, color);
+    return;
+  }
+  setPropertyStatic(*demoOverlayIr_, selectedComponentNodeId_, field, color);
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1617,7 +3531,11 @@ void WorkbenchRuntime::setSelectedComponentNodeBorderColor(const QString& value)
   if (!node || node->value("type").toString() != QStringLiteral("shape")) return;
   const auto color = value.trimmed().left(32);
   if (!color.startsWith(QLatin1Char('#')) || (color.size() != 4 && color.size() != 7 && color.size() != 9)) return;
-  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("borderColor"), color, componentKeyframeFrame());
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("borderColor"), color);
+    return;
+  }
+  setPropertyStatic(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("borderColor"), color);
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1628,7 +3546,11 @@ void WorkbenchRuntime::setSelectedComponentNodeFontFamily(const QString& value) 
   if (!node || node->value("type").toString() != QStringLiteral("text")) return;
   const auto family = value.trimmed().left(120);
   if (family.isEmpty() || family.contains(QRegularExpression(QStringLiteral("[\\r\\n]")))) return;
-  setPropertyAndKeyframe(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("fontFamily"), family, componentKeyframeFrame());
+  if (resolveConnected_ && !resolveAdapter_.lastInsertedComponentId().isEmpty()) {
+    setSelectedComponentPropertyAtPlayhead(selectedComponentNodeId_, QStringLiteral("fontFamily"), family);
+    return;
+  }
+  setPropertyStatic(*demoOverlayIr_, selectedComponentNodeId_, QStringLiteral("fontFamily"), family);
   refreshDemoOverlay();
   emit timelineChanged();
 }
@@ -1641,16 +3563,38 @@ bool WorkbenchRuntime::setPlayhead(int frame) {
   return true;
 }
 
-bool WorkbenchRuntime::connectResolve() {
+bool WorkbenchRuntime::connectResolve(bool notifyFailure) {
+  // 每次建立新连接都使旧的重建事务句柄失效，避免跨连接误提交。
+  resolveRebuildTransactionId_.clear();
+  resolveRebuildTransactionState_.clear();
+  emit timelineChanged();
   const auto bridgeUrl = qEnvironmentVariable("EDWARD_RESOLVE_BRIDGE_URL");
-  const auto directMode = qEnvironmentVariable("EDWARD_RESOLVE_MODE").trimmed().toLower() == QStringLiteral("direct");
+  const auto configuredMode = qEnvironmentVariable("EDWARD_RESOLVE_MODE").trimmed().toLower();
+  const auto directMode = configuredMode == QStringLiteral("direct") ||
+                          (configuredMode.isEmpty() && bridgeUrl.isEmpty());
   QString error;
   bool connected = false;
   if (directMode) {
     const auto python = qEnvironmentVariable("EDWARD_RESOLVE_PYTHON", "python3");
     auto sidecar = qEnvironmentVariable("EDWARD_RESOLVE_SIDECAR");
     if (sidecar.isEmpty()) {
-      sidecar = QDir::current().filePath(QStringLiteral("src/resolve/resolve-sidecar/resolve_direct_sidecar.py"));
+      const auto relativeSidecar = QStringLiteral("src/resolve/resolve-sidecar/resolve_direct_sidecar.py");
+      const QStringList candidates{
+          QDir::current().filePath(relativeSidecar),
+          QDir(QCoreApplication::applicationDirPath()).filePath(
+              QStringLiteral("../../../../../%1").arg(relativeSidecar)),
+          QDir(QCoreApplication::applicationDirPath()).filePath(
+              QStringLiteral("../Resources/resolve-sidecar/resolve_direct_sidecar.py"))};
+      for (const auto& candidate : candidates) {
+        const auto cleanCandidate = QDir::cleanPath(candidate);
+        if (QFileInfo::exists(cleanCandidate)) {
+          sidecar = cleanCandidate;
+          break;
+        }
+      }
+      if (sidecar.isEmpty()) {
+        sidecar = QDir::current().filePath(relativeSidecar);
+      }
     }
     connected = resolveConnection_.connectToDirectSidecar(python, sidecar, &error);
   } else if (!bridgeUrl.isEmpty()) {
@@ -1659,27 +3603,90 @@ bool WorkbenchRuntime::connectResolve() {
     resolveConnected_ = false;
     resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
     emit resolveStateChanged();
-    emit operationFailed(resolveStatus_);
+    if (notifyFailure) emit operationFailed(resolveStatus_);
     return false;
   }
 
   if (!connected || !resolveAdapter_.attach(&error)) {
     resolveConnected_ = false;
+    resolveRebuildTransactionId_.clear();
+    resolveRebuildTransactionState_.clear();
+    emit timelineChanged();
     resolveStatus_ = error.isEmpty() ? QStringLiteral("Resolve Studio 连接失败")
                                     : QStringLiteral("Resolve Studio 连接失败：%1").arg(error);
     emit resolveStateChanged();
-    emit operationFailed(resolveStatus_);
+    if (notifyFailure) emit operationFailed(resolveStatus_);
     return false;
   }
   resolveConnected_ = true;
   resolveStatus_ = QStringLiteral("已连接 Resolve Studio");
   emit resolveStateChanged();
-  return refreshResolveTimeline();
+  const auto timelineReady = refreshResolveTimeline();
+  if (timelineReady) {
+    resolveContextPollTimer_.start();
+    resolveReconnectTimer_.stop();
+    refreshResolveRenderCapabilities();
+  } else {
+    resolveContextPollTimer_.stop();
+  }
+  return timelineReady;
+}
+
+bool WorkbenchRuntime::refreshResolveRenderCapabilities() {
+  if (!resolveConnected_) {
+    resolveRenderFormats_.clear();
+    resolveRenderCodecs_.clear();
+    resolveRenderResolutions_.clear();
+    emit resolveRenderCapabilitiesChanged();
+    return false;
+  }
+  QString error;
+  const auto capabilities = resolveAdapter_.renderCapabilities({}, {}, &error);
+  if (!capabilities) {
+    emit operationFailed(error.isEmpty() ? QStringLiteral("无法读取 Resolve 导出能力") : error);
+    return false;
+  }
+  resolveRenderFormats_.clear();
+  const auto appendFormat = [this, &capabilities](const QString& key) {
+    const auto it = capabilities->formats.constFind(key);
+    if (it == capabilities->formats.constEnd()) return;
+    resolveRenderFormats_.push_back(QVariantMap{{QStringLiteral("name"), it.key()},
+                                                {QStringLiteral("extension"), it.value().toString()},
+                                                {QStringLiteral("label"), QStringLiteral("%1（.%2）").arg(it.key(), it.value().toString())}});
+  };
+  appendFormat(QStringLiteral("MP4"));
+  appendFormat(QStringLiteral("QuickTime"));
+  for (auto it = capabilities->formats.constBegin(); it != capabilities->formats.constEnd(); ++it) {
+    if (it.key() == QStringLiteral("MP4") || it.key() == QStringLiteral("QuickTime")) continue;
+    appendFormat(it.key());
+  }
+  resolveRenderCodecs_.clear();
+  for (auto it = capabilities->codecs.constBegin(); it != capabilities->codecs.constEnd(); ++it)
+    resolveRenderCodecs_.push_back(QVariantMap{{QStringLiteral("name"), it.key()},
+                                               {QStringLiteral("value"), it.value().toString()},
+                                               {QStringLiteral("label"), it.key()}});
+  resolveRenderResolutions_.clear();
+  for (const auto& value : capabilities->resolutions) {
+    const auto object = value.toObject();
+    const auto width = object.value(QStringLiteral("Width")).toInt();
+    const auto height = object.value(QStringLiteral("Height")).toInt();
+    resolveRenderResolutions_.push_back(QVariantMap{{QStringLiteral("width"), width},
+                                                    {QStringLiteral("height"), height},
+                                                    {QStringLiteral("label"), QStringLiteral("%1 × %2").arg(width).arg(height)}});
+  }
+  emit resolveRenderCapabilitiesChanged();
+  return true;
 }
 
 bool WorkbenchRuntime::exportWithEdwardOptions(const QString& outputPath, int width, int height,
                                                int fps, int quality) {
   return exportTimelineWithOptions(outputPath, width, height, fps, quality);
+}
+
+void WorkbenchRuntime::clearExportDialogRequest() {
+  if (!exportDialogRequested_) return;
+  exportDialogRequested_ = false;
+  emit timelineChanged();
 }
 
 bool WorkbenchRuntime::openResolveDeliverPage() {
@@ -1697,12 +3704,104 @@ bool WorkbenchRuntime::openResolveDeliverPage() {
   return true;
 }
 
+bool WorkbenchRuntime::importResolveLayoutPreset(const QString& path, const QString& name) {
+  if (!resolveConnected_) {
+    resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
+    emit resolveStateChanged();
+    emit operationFailed(QStringLiteral("请先启动并连接 Resolve Studio"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.importLayoutPreset(path, name, &error)) {
+    emit operationFailed(QStringLiteral("Resolve 布局预设导入失败：%1").arg(error));
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("Resolve 布局预设已导入"));
+  return true;
+}
+
+bool WorkbenchRuntime::loadResolveLayoutPreset(const QString& name) {
+  if (!resolveConnected_) {
+    resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
+    emit resolveStateChanged();
+    emit operationFailed(QStringLiteral("请先启动并连接 Resolve Studio"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.loadLayoutPreset(name, &error)) {
+    emit operationFailed(QStringLiteral("Resolve 布局预设加载失败：%1").arg(error));
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("Resolve 布局预设已加载"));
+  return true;
+}
+
+bool WorkbenchRuntime::saveResolveLayoutPreset(const QString& name) {
+  if (!resolveConnected_) {
+    resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
+    emit resolveStateChanged();
+    emit operationFailed(QStringLiteral("请先启动并连接 Resolve Studio"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.saveLayoutPreset(name, &error)) {
+    emit operationFailed(QStringLiteral("Resolve 布局预设保存失败：%1").arg(error));
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("Resolve 布局预设已保存"));
+  return true;
+}
+
+bool WorkbenchRuntime::exportResolveLayoutPreset(const QString& name, const QString& path) {
+  if (!resolveConnected_) {
+    resolveStatus_ = QStringLiteral("请先启动并连接 Resolve Studio");
+    emit resolveStateChanged();
+    emit operationFailed(QStringLiteral("请先启动并连接 Resolve Studio"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.exportLayoutPreset(name, path, &error)) {
+    emit operationFailed(QStringLiteral("Resolve 布局预设导出失败：%1").arg(error));
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("Resolve 布局预设已导出"));
+  return true;
+}
+
+bool WorkbenchRuntime::ensureResolveSubtitleTrack() {
+  if (!resolveConnected_) {
+    emit operationFailed(QStringLiteral("请先启动并连接 Resolve Studio"));
+    return false;
+  }
+  QString error;
+  if (!resolveAdapter_.ensureSubtitleTrack(&error)) {
+    emit operationFailed(QStringLiteral("字幕轨道创建失败：%1").arg(error));
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("已确保 Edward 原生字幕轨道位于最上方"));
+  return true;
+}
+
 void WorkbenchRuntime::disconnectResolve() {
   resolveConnection_.disconnect();
+  resolveContextPollTimer_.stop();
+  resolveReconnectTimer_.stop();
   resolveConnected_ = false;
+  // 事务状态只在同一 Resolve 会话内有效；断开后必须丢弃本地句柄。
+  resolveRebuildTransactionId_.clear();
+  resolveRebuildTransactionState_.clear();
   resolveTimelineSnapshot_.reset();
+  resolveSelectionId_.clear();
+  resolveSelectionKind_ = QStringLiteral("none");
+  resolveSelectionName_.clear();
+  resolveContextSummary_ = QStringLiteral("尚未读取 Resolve 当前上下文");
+  resolveRenderFormats_.clear();
+  resolveRenderCodecs_.clear();
+  resolveRenderResolutions_.clear();
   resolveStatus_ = QStringLiteral("未连接 Resolve Studio");
+  emit timelineChanged();
   emit resolveStateChanged();
+  emit resolveRenderCapabilitiesChanged();
 }
 
 bool WorkbenchRuntime::refreshResolveTimeline() {
@@ -1714,13 +3813,103 @@ bool WorkbenchRuntime::refreshResolveTimeline() {
   QString error;
   const auto snapshot = resolveAdapter_.timelineSnapshot(&error);
   if (!snapshot) {
+    const auto transportFailure = error == QStringLiteral("bridge_not_connected") ||
+                                  error == QStringLiteral("bridge_response_timeout") ||
+                                  error == QStringLiteral("bridge_write_failed") ||
+                                  error == QStringLiteral("direct_sidecar_response_timeout") ||
+                                  error == QStringLiteral("direct_sidecar_write_failed");
+    if (transportFailure) {
+      resolveConnection_.disconnect();
+      resolveConnected_ = false;
+      resolveContextPollTimer_.stop();
+      resolveStatus_ = QStringLiteral("Resolve 连接已断开，正在重连");
+      emit resolveStateChanged();
+      resolveReconnectTimer_.start();
+      return false;
+    }
     resolveStatus_ = QStringLiteral("Resolve 时间线读取失败：%1").arg(error);
     emit resolveStateChanged();
     emit operationFailed(resolveStatus_);
     return false;
   }
   resolveTimelineSnapshot_ = snapshot;
+  // 将 Resolve 当前时间线登记为项目级机器可读清单，供 AI 和后续操作引用。
+  if (!activeProjectPath_.isEmpty()) {
+    QString itemsError;
+    const auto items = resolveAdapter_.timelineItems(&itemsError);
+    QJsonArray tracks;
+    for (const auto& track : snapshot->tracks) {
+      tracks.append(QJsonObject{{QStringLiteral("id"), track.id}, {QStringLiteral("name"), track.name},
+                                {QStringLiteral("index"), track.index}, {QStringLiteral("video"), track.video},
+                                {QStringLiteral("audio"), track.audio}, {QStringLiteral("subtitle"), track.subtitle},
+                                {QStringLiteral("locked"), track.locked}});
+    }
+    const QJsonObject registerObject{
+        {QStringLiteral("version"), 2},
+        {QStringLiteral("projectName"), snapshot->projectName},
+        {QStringLiteral("timelineName"), snapshot->timelineName},
+        {QStringLiteral("fpsNumerator"), snapshot->fpsNumerator},
+        {QStringLiteral("fpsDenominator"), snapshot->fpsDenominator},
+        {QStringLiteral("timelineStartFrame"), snapshot->timelineStartFrame},
+        {QStringLiteral("timelineEndFrame"), snapshot->timelineEndFrame},
+        {QStringLiteral("playheadFrame"), snapshot->playheadFrame},
+        {QStringLiteral("markInFrame"), snapshot->markInFrame},
+        {QStringLiteral("markOutFrame"), snapshot->markOutFrame},
+        {QStringLiteral("markers"), snapshot->markers},
+        {QStringLiteral("tracks"), tracks},
+        {QStringLiteral("items"), items}};
+    QSaveFile registerFile(activeProjectPath_ + QStringLiteral(".resolve-register.json"));
+    if (registerFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+      registerFile.write(QJsonDocument(registerObject).toJson(QJsonDocument::Indented));
+      registerFile.commit();
+    }
+  }
   resolveStatus_ = QStringLiteral("已连接 Resolve Studio：%1").arg(snapshot->timelineName);
+  QString currentItemError;
+  const auto currentItem = resolveAdapter_.currentItem(&currentItemError);
+  if (currentItem) {
+    resolveSelectionId_ = currentItem->timelineItemId;
+    resolveSelectionName_ = currentItem->name;
+    resolveSelectionKind_ = currentItem->trackType == QStringLiteral("audio")
+                               ? QStringLiteral("audio")
+                               : currentItem->trackType == QStringLiteral("subtitle")
+                                   ? QStringLiteral("subtitle")
+                                   : currentItem->fusionCompCount > 0
+                                       ? QStringLiteral("component")
+                                       : QStringLiteral("video");
+    const auto duration = currentItem->endFrame - currentItem->startFrame;
+    const auto source = currentItem->selectionSource == QStringLiteral("selected")
+                            ? QStringLiteral("用户选中")
+                            : QStringLiteral("播放头所在");
+    resolveContextSummary_ = QStringLiteral("当前片段：%1（%2）\n帧范围：%3–%4（%5 帧）\n播放头：%6\n轨道：%7 条")
+                                .arg(currentItem->name.isEmpty() ? QStringLiteral("未命名片段") : currentItem->name)
+                                .arg(source)
+                                .arg(currentItem->startFrame)
+                                .arg(currentItem->endFrame)
+                                .arg(duration)
+                                .arg(snapshot->playheadFrame)
+                                .arg(snapshot->tracks.size());
+    if (snapshot->markInFrame >= 0 && snapshot->markOutFrame >= snapshot->markInFrame) {
+      resolveContextSummary_ += QStringLiteral("\nI/O：%1–%2").arg(snapshot->markInFrame).arg(snapshot->markOutFrame);
+    }
+    if (!snapshot->markers.isEmpty()) {
+      resolveContextSummary_ += QStringLiteral("\n时间线标记：%1 个").arg(snapshot->markers.size());
+    }
+  } else {
+    resolveSelectionId_.clear();
+    resolveSelectionKind_ = QStringLiteral("none");
+    resolveSelectionName_.clear();
+    resolveContextSummary_ = QStringLiteral("未选中 Resolve 片段\n播放头：%1\n轨道：%2 条")
+                                .arg(snapshot->playheadFrame)
+                                .arg(snapshot->tracks.size());
+    if (snapshot->markInFrame >= 0 && snapshot->markOutFrame >= snapshot->markInFrame) {
+      resolveContextSummary_ += QStringLiteral("\nI/O：%1–%2").arg(snapshot->markInFrame).arg(snapshot->markOutFrame);
+    }
+    if (!snapshot->markers.isEmpty()) {
+      resolveContextSummary_ += QStringLiteral("\n时间线标记：%1 个").arg(snapshot->markers.size());
+    }
+    if (!currentItemError.isEmpty()) resolveContextSummary_ += QStringLiteral("\n（%1）").arg(currentItemError);
+  }
   emit resolveStateChanged();
   return true;
 }
@@ -1736,30 +3925,180 @@ bool WorkbenchRuntime::setSelectedComponentPropertyAtPlayhead(const QString& nod
     emit operationFailed(QStringLiteral("当前组件尚未添加到 Resolve 时间线"));
     return false;
   }
-  if (!value.isDouble()) {
-    emit operationFailed(QStringLiteral("当前 Resolve 关键帧接口只支持数值属性"));
-    return false;
-  }
   const auto before = demoOverlayIr_->toJson();
   const auto frame = resolveTimelineSnapshot_->playheadFrame;
+  const bool isPosition = (field == QStringLiteral("x") || field == QStringLiteral("y")) && value.isDouble();
+  const bool isVerifiedTextProperty = (field == QStringLiteral("text") || field == QStringLiteral("fontFamily")) &&
+                                      value.isString();
+  const bool isStaticRectangleStyle =
+      (field == QStringLiteral("borderColor") && value.isString()) ||
+      (field == QStringLiteral("borderWidth") && value.isDouble());
+  const bool isTransformProperty = (field == QStringLiteral("rotation") || field == QStringLiteral("scale")) &&
+                                   value.isDouble();
+  const bool isOpacity = field == QStringLiteral("opacity") && value.isDouble() &&
+                         value.toDouble() >= 0.0 && value.toDouble() <= 1.0;
+  if (!isPosition && !isVerifiedTextProperty && !isStaticRectangleStyle && !isTransformProperty && !isOpacity) {
+    emit operationFailed(QStringLiteral("当前独立 Fusion 组件仅验证位置 x/y 关键帧、文字和字体写入，以及矩形静态边框写入"));
+    return false;
+  }
   bool changed = false;
-  if (value.isDouble()) {
+  if (isPosition) {
     changed = demoOverlayIr_->setNodeTransformNumber(nodeId, field, value.toDouble()) &&
               demoOverlayIr_->setNodeKeyframeNumber(nodeId, field, frame, value.toDouble());
+    const auto updatedNode = findNode(demoOverlayIr_->toJson().value(QStringLiteral("root")).toObject(), nodeId);
+    const auto pairedField = field == QStringLiteral("x") ? QStringLiteral("y") : QStringLiteral("x");
+    changed = changed && updatedNode && updatedNode->value(QStringLiteral("transform")).toObject()
+                                              .value(pairedField).isDouble() &&
+              demoOverlayIr_->setNodeKeyframeNumber(
+                  nodeId, pairedField, frame,
+                  updatedNode->value(QStringLiteral("transform")).toObject()
+                      .value(pairedField).toDouble());
+  } else if (isTransformProperty) {
+    // 旋转/缩放已通过 Fusion Transform 输入验证；本地 IR 也必须保留
+    // 当前播放头关键帧，确保属性面板回读与 Resolve 写入保持一致。
+    changed = demoOverlayIr_->setNodeTransformNumber(nodeId, field, value.toDouble()) &&
+              demoOverlayIr_->setNodeKeyframeNumber(nodeId, field, frame, value.toDouble());
+  } else if (isOpacity) {
+    changed = demoOverlayIr_->setNodeProperty(nodeId, field, value) &&
+              demoOverlayIr_->setNodeKeyframeNumber(nodeId, field, frame, value.toDouble());
+  } else {
+    changed = demoOverlayIr_->setNodeProperty(nodeId, field, value);
   }
   if (!changed) {
+    demoOverlayIr_ = edward::core::ComponentIr::parse(before);
     emit operationFailed(QStringLiteral("组件属性无效"));
     return false;
   }
   QString error;
-  if (!resolveAdapter_.setComponentKeyframe(resolveAdapter_.lastInsertedComponentId(), nodeId, field,
-                                             frame, value.toDouble(), &error)) {
+  const auto capabilities = resolveAdapter_.capabilities(&error);
+  const auto converted = capabilities
+      ? edward::resolve::convertComponentToFusion(*demoOverlayIr_, *capabilities)
+      : edward::resolve::FusionConversionResult{};
+  const auto binding = std::find_if(converted.bindings.cbegin(), converted.bindings.cend(),
+                                    [&nodeId](const QJsonValue& raw) {
+    return raw.toObject().value(QStringLiteral("nodeId")).toString() == nodeId;
+  });
+  auto bindingObject = binding == converted.bindings.cend() ? QJsonObject{} : binding->toObject();
+  // 图片节点会先产生 MediaImage 绑定，文字节点会先产生 TextPlus 绑定，随后才是同 nodeId 的 Transform 绑定。
+  // 旋转/缩放必须选择 Transform，而不是把内容绑定误当成可写工具。
+  if (bindingObject.value(QStringLiteral("tool")).toString() == QStringLiteral("MediaImage") ||
+      (isTransformProperty && bindingObject.value(QStringLiteral("tool")).toString() != QStringLiteral("Transform"))) {
+    const auto transformBinding = std::find_if(converted.bindings.cbegin(), converted.bindings.cend(),
+                                               [&nodeId](const QJsonValue& raw) {
+      const auto object = raw.toObject();
+      return object.value(QStringLiteral("nodeId")).toString() == nodeId &&
+             object.value(QStringLiteral("tool")).toString() == QStringLiteral("Transform");
+    });
+    if (transformBinding != converted.bindings.cend()) bindingObject = transformBinding->toObject();
+  }
+  const auto tool = bindingObject.value(QStringLiteral("tool")).toString();
+  const auto toolName = bindingObject.value(QStringLiteral("toolName")).toString().isEmpty() &&
+                                tool == QStringLiteral("Transform")
+                            ? QStringLiteral("EdwardTransform")
+                            : bindingObject.value(QStringLiteral("toolName")).toString();
+  const auto values = bindingObject.value(QStringLiteral("values")).toObject();
+  const bool isWritableRectangleStyle = isStaticRectangleStyle &&
+                                        tool == QStringLiteral("RectangleOverlay") &&
+                                        values.value(QStringLiteral("borderColor")).isString() &&
+                                        values.value(QStringLiteral("borderWidth")).isDouble();
+  const bool isTransformBindingProperty = isTransformProperty && tool == QStringLiteral("Transform");
+  const auto timelineItemId = resolveComponentNodeTimelineIds_.value(
+      nodeId, resolveAdapter_.lastInsertedComponentId());
+  if (timelineItemId.isEmpty()) {
     demoOverlayIr_ = edward::core::ComponentIr::parse(before);
-    emit operationFailed(QStringLiteral("Resolve 关键帧写入失败：%1").arg(error));
+    emit operationFailed(QStringLiteral("Resolve 组件属性写入失败：找不到节点所属时间线片段"));
+    return false;
+  }
+  const bool written = converted.report.complete() &&
+      (isPosition
+           ? values.value(QStringLiteral("x")).isDouble() && values.value(QStringLiteral("y")).isDouble() &&
+                 (tool == QStringLiteral("TextPlus")
+                      ? resolveAdapter_.addNamedFusionTextPositionKeyframe(
+                            toolName, frame, values.value(QStringLiteral("x")).toDouble(),
+                            values.value(QStringLiteral("y")).toDouble(),
+                            timelineItemId, &error)
+                      : tool == QStringLiteral("RectangleOverlay")
+                            ? resolveAdapter_.addNamedFusionRectanglePositionKeyframe(
+                                  toolName, frame, values.value(QStringLiteral("x")).toDouble(),
+                                  values.value(QStringLiteral("y")).toDouble(),
+                                  timelineItemId, &error)
+                            : tool == QStringLiteral("Transform")
+                                  ? resolveAdapter_.addNamedFusionTransformPositionKeyframe(
+                                        toolName, frame, values.value(QStringLiteral("x")).toDouble(),
+                                        values.value(QStringLiteral("y")).toDouble(),
+                                        timelineItemId, &error)
+                                  : false)
+           : isOpacity
+                 ? resolveAdapter_.ensureFusionOpacityGraph(timelineItemId, &error) &&
+                   resolveAdapter_.addFusionKeyframe(QStringLiteral("EdwardFadeMerge"),
+                                                     QStringLiteral("Blend"), frame, value,
+                                                     timelineItemId, &error)
+           : isTransformBindingProperty
+                 ? resolveAdapter_.addFusionKeyframe(
+                       toolName, field == QStringLiteral("rotation") ? QStringLiteral("Angle")
+                                                                        : QStringLiteral("Size"),
+                       frame, value, timelineItemId, &error)
+           : tool == QStringLiteral("TextPlus") &&
+                 resolveAdapter_.setFusionProperty(toolName, field, value,
+                                                   timelineItemId, &error) ||
+                 (isWritableRectangleStyle &&
+                  resolveAdapter_.setFusionRectangleStyle(
+                      toolName, values.value(QStringLiteral("borderColor")).toString(),
+                      values.value(QStringLiteral("borderWidth")).toDouble(),
+                      timelineItemId, &error)));
+  if (!written) {
+    demoOverlayIr_ = edward::core::ComponentIr::parse(before);
+    emit operationFailed(QStringLiteral("Resolve 组件属性写入失败：%1").arg(
+        error.isEmpty() ? QStringLiteral("组件节点未映射到已验证 Fusion 工具") : error));
     return false;
   }
   refreshDemoOverlay();
   emit timelineChanged();
+  return true;
+}
+
+QVariantList WorkbenchRuntime::inspectSelectedResolveTool(const QString& toolName) {
+  QVariantList output;
+  if (!resolveConnected_) {
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio"));
+    return output;
+  }
+  QString error;
+  const auto inputs = resolveAdapter_.inspectFusionTool(toolName, {}, &error);
+  if (!error.isEmpty()) {
+    emit operationFailed(QStringLiteral("读取 Resolve 属性失败：%1").arg(error));
+    return output;
+  }
+  for (const auto& input : inputs) {
+    QVariantMap item;
+    item.insert(QStringLiteral("key"), input.key);
+    item.insert(QStringLiteral("id"), input.id);
+    item.insert(QStringLiteral("displayName"), input.displayName);
+    item.insert(QStringLiteral("type"), input.type);
+    item.insert(QStringLiteral("control"), input.control);
+    item.insert(QStringLiteral("value"), input.value.toVariant());
+    output.push_back(item);
+  }
+  return output;
+}
+
+bool WorkbenchRuntime::setSelectedResolveAttribute(const QString& toolName,
+                                                   const QString& inputName,
+                                                   const QJsonValue& value) {
+  if (!resolveConnected_) {
+    emit operationFailed(QStringLiteral("请先连接 Resolve Studio"));
+    return false;
+  }
+  QString error;
+  const bool propertyField = resolve::resolvePropertyBinding(inputName).has_value();
+  const bool accepted = propertyField
+      ? resolveAdapter_.setFusionProperty(toolName, inputName, value, {}, &error)
+      : resolveAdapter_.setFusionInput(toolName, inputName, value, {}, &error);
+  if (!accepted) {
+    emit operationFailed(QStringLiteral("Resolve 属性写入失败：%1").arg(error));
+    return false;
+  }
+  emit operationSucceeded(QStringLiteral("Resolve 属性已更新"));
   return true;
 }
 
@@ -2021,6 +4360,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   componentClipId_ = demoOverlayIr_ ? componentClipId : 0;
   aiConversation_ = std::move(conversation);
   pendingAiPrompt_.clear();
+  pendingAiConversationOnly_ = false;
   if (demoOverlayIr_) syncDemoOverlayProperties(project.value("component").toObject());
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
   refreshDemoOverlay();
