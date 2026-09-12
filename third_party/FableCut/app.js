@@ -1633,7 +1633,8 @@ function setResourceState(message, error = false) {
 }
 
 async function fetchResourceApi(path, options = {}) {
-  const response = await fetch(path, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
+  const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+  const response = await fetch(`${apiBase}${path}`, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...(options.headers || {}) } });
   let value = null;
   try { value = await response.json(); } catch { value = null; }
   if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "登录后查看资源" : (value?.error || `请求失败（${response.status}）`));
@@ -1733,7 +1734,15 @@ async function loadResourceBrowser(tab) {
     resourceBrowserState.categories = await fetchResourceApi(`/api/resources/categories?tabKey=${encodeURIComponent(tab)}`) || [];
     renderResourceCategories();
     await loadResourcePage(true);
-  } catch (error) { setResourceState(error.message || "资源分类加载失败", true); }
+  } catch (error) {
+    resourceBrowserState.categories = [];
+    renderResourceCategories();
+    const categoryNotice = document.createElement("div");
+    categoryNotice.className = "resource-category-notice";
+    categoryNotice.textContent = error.message || "资源分类加载失败";
+    els.resourceCategories?.appendChild(categoryNotice);
+    setResourceState(error.message || "资源分类加载失败", true);
+  }
 }
 
 els.resourceSort?.addEventListener("click", (event) => {
