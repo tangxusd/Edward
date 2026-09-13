@@ -292,6 +292,8 @@ class WorkbenchRuntime final : public QObject {
                                       const QString& email, const QString& password);
   Q_INVOKABLE bool signUpWithSupabase(const QString& projectUrl, const QString& anonKey,
                                       const QString& email, const QString& password);
+  Q_INVOKABLE bool sendSupabasePasswordReset(const QString& projectUrl, const QString& anonKey,
+                                             const QString& email);
   Q_INVOKABLE bool refreshSupabaseEntitlement(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE bool refreshSupabaseSession(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE void signOut();

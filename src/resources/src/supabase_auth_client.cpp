@@ -57,14 +57,23 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
     const bool success = reply->error() == QNetworkReply::NoError && !userId.isEmpty() &&
                          !username.isEmpty() && !accessToken.isEmpty();
     if (success && sessionStore) sessionStore->setSession({userId, username, accessToken, refreshToken});
+    const auto code = object.value(QStringLiteral("error")).toString();
     const auto message = success ? QStringLiteral("登录成功")
-                                 : (reply->error() == QNetworkReply::NoError
-                                        ? QStringLiteral("登录响应缺少会话字段")
-                                        : reply->errorString());
+                                 : (!code.isEmpty() ? (code == QStringLiteral("invalid_credentials") ? QStringLiteral("邮箱/账号名或密码错误") : QStringLiteral("登录失败：%1").arg(code))
+                                                    : (reply->error() == QNetworkReply::NoError ? QStringLiteral("登录响应缺少会话字段") : reply->errorString()));
     emit completed(success && !sessionStore.isNull(),
                    sessionStore ? message : QStringLiteral("登录会话已关闭"));
     reply->deleteLater();
   });
+  return true;
+}
+
+bool SupabaseAuthClient::sendPasswordReset(const SupabaseAuthConfig& config, const QString& email) {
+  if (email.trimmed().isEmpty() || !email.contains(QLatin1Char('@'))) { emit completed(false, QStringLiteral("请输入注册邮箱")); return false; }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/recover"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}}).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("重置密码邮件已发送，请检查邮箱") : QStringLiteral("密码找回失败，请稍后重试")); reply->deleteLater(); });
   return true;
 }
 

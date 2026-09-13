@@ -33,6 +33,7 @@ class SupabaseAuthClient final : public QObject {
                           const QString& password, AuthSessionStore* sessions);
   bool signUpWithPassword(const SupabaseAuthConfig& config, const QString& email,
                           const QString& password);
+  bool sendPasswordReset(const SupabaseAuthConfig& config, const QString& email);
   bool refreshSession(const SupabaseAuthConfig& config, AuthSessionStore* sessions);
   bool fetchEntitlement(const SupabaseAuthConfig& config, const AuthSession& session);
 

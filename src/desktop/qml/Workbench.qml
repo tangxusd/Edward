@@ -2628,11 +2628,12 @@ ApplicationWindow {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
             TextField { id: signInEmail; width: parent.width; placeholderText: "邮箱（登录可使用账号名）"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
             TextField { id: signInPassword; width: parent.width; placeholderText: "密码"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
-            Button { width: parent.width; text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text, signInPassword.text)) signInDialog.close() } }
+            Button { width: parent.width; text: "找回密码"; onClicked: workbenchRuntime.sendSupabasePasswordReset(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text) }
         }
         footer: RowLayout {
             width: parent.width; height: 48; spacing: 8; anchors.margins: 14
             Button { Layout.fillWidth: true; text: "取消"; onClicked: signInDialog.close() }
+            Button { Layout.fillWidth: true; text: "注册账号"; onClicked: { signInDialog.close(); signUpDialog.open() } }
             Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text, signInPassword.text)) { entitlementTimer.start(); signInDialog.close() } } }
         }
         Timer { id: entitlementTimer; interval: 1500; repeat: false; onTriggered: workbenchRuntime.refreshSupabaseEntitlement(window.supabaseProjectUrl, window.supabaseAnonKey) }
@@ -2643,6 +2644,17 @@ ApplicationWindow {
             running: workbenchRuntime.authenticated
             onTriggered: workbenchRuntime.refreshSupabaseSession(window.supabaseProjectUrl, window.supabaseAnonKey)
         }
+    }
+
+    Dialog {
+        id: signUpDialog; anchors.centerIn: Overlay.overlay; width: 360; height: 320; modal: true; title: ""; padding: 0
+        background: Rectangle { color: "#102326"; border.color: "#21d4c2"; border.width: 1; radius: 6 }
+        header: Rectangle { width: parent.width; height: 46; color: "#0b191b"; Text { anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: "注册 Edward"; color: "#21d4c2"; font.pixelSize: window.uiFontSize(14); font.bold: true } }
+        contentItem: Column { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
+            TextField { id: signUpEmail; width: parent.width; placeholderText: "注册邮箱" }
+            TextField { id: signUpPassword; width: parent.width; placeholderText: "密码（至少 8 位）"; echoMode: TextInput.Password }
+        }
+        footer: RowLayout { width: parent.width; height: 48; spacing: 8; anchors.margins: 14; Button { Layout.fillWidth: true; text: "取消"; onClicked: signUpDialog.close() } Button { Layout.fillWidth: true; text: "注册"; highlighted: true; onClicked: { if (workbenchRuntime.signUpWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signUpEmail.text, signUpPassword.text)) signUpDialog.close() } } }
     }
 
     Dialog {

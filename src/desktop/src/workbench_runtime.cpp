@@ -2942,6 +2942,12 @@ bool WorkbenchRuntime::signUpWithSupabase(const QString& projectUrl, const QStri
   return true;
 }
 
+bool WorkbenchRuntime::sendSupabasePasswordReset(const QString& projectUrl, const QString& anonKey, const QString& email) {
+  if (signInBusy_) return false;
+  signInBusy_ = true;
+  return authClient_.sendPasswordReset({projectUrl, anonKey}, email);
+}
+
 bool WorkbenchRuntime::refreshSupabaseEntitlement(const QString& projectUrl, const QString& anonKey) {
   return authenticated() && authClient_.fetchEntitlement({projectUrl, anonKey}, sessions_.session());
 }
