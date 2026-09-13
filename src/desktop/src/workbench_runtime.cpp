@@ -3170,7 +3170,12 @@ bool WorkbenchRuntime::exportInstalledPlugin(const QString& requestId, const QSt
 }
 
 bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
-  return exportTimelineWithOptions(outputPath, 1920, 1080, 25, 0);
+  return exportTimelineWithOptions(outputPath, 1920, 1080, 30, 0);
+}
+
+void WorkbenchRuntime::setPendingFablecutExportPath(const QString& path) {
+  pendingFablecutExportPath_ = path.trimmed();
+  emit timelineChanged();
 }
 
 bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int width, int height,
@@ -3183,7 +3188,7 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
     emit operationFailed(QStringLiteral("请选择导出路径"));
     return false;
   }
-  if (width <= 0 || height <= 0 || fps <= 0 || quality < 0 || quality > 2) {
+  if (width <= 0 || height <= 0 || fps <= 0 || fps > 60 || quality < 0 || quality > 2) {
     emit operationFailed(QStringLiteral("导出参数无效"));
     return false;
   }
@@ -3194,39 +3199,8 @@ bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int 
     emit operationFailed(QStringLiteral("导出路径必须是现有目录中的视频文件"));
     return false;
   }
-  if (resolveConnected_) {
-    edward::resolve::ResolveRenderOptions options;
-    options.outputPath = outputPath;
-    options.width = width;
-    options.height = height;
-    options.fps = fps;
-    options.codec = QStringLiteral("H264");
-    options.quality = quality;
-    if (resolveTimelineSnapshot_ && resolveTimelineSnapshot_->markInFrame >= 0 &&
-        resolveTimelineSnapshot_->markOutFrame >= resolveTimelineSnapshot_->markInFrame) {
-      options.startFrame = resolveTimelineSnapshot_->markInFrame;
-      options.endFrame = resolveTimelineSnapshot_->markOutFrame;
-    }
-    QString error;
-    QString jobId;
-    if (!resolveAdapter_.queueAndStartRender(options, &jobId, &error)) {
-      recordResolveCapabilityEvent(QStringLiteral("resolve.render.start"), false,
-                                   QStringLiteral("render_start_failed"));
-      recordResolveError(QStringLiteral("render.start"), QStringLiteral("render_start_failed"));
-      emit operationFailed(error.isEmpty() ? QStringLiteral("无法启动 Resolve 导出") : error);
-      return false;
-    }
-    resolveRenderJobId_ = jobId;
-    resolveRenderOutputPath_ = outputPath;
-    timelineExportBusy_ = true;
-    timelineExportProgress_ = 0;
-    recordResolveCapabilityEvent(QStringLiteral("resolve.render.start"), true);
-    resolveRenderPollTimer_.start();
-    emit timelineChanged();
-    return true;
-  }
   if (path.extension() != ".mp4") {
-    emit operationFailed(QStringLiteral("未连接 Resolve 时仅支持导出 MP4"));
+    emit operationFailed(QStringLiteral("当前仅支持导出 MP4"));
     return false;
   }
   auto snapshot = timeline_.snapshot();

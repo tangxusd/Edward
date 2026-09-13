@@ -20,6 +20,12 @@ ApplicationWindow {
     function uiFontSize(baseSize) {
         return baseSize + (uiScale < 1.0 ? 1 : 0)
     }
+    function localPathFromDialogUrl(value) {
+        if (value === undefined || value === null) return ""
+        var raw = value.toString()
+        if (raw.indexOf("file://") === 0) raw = raw.slice(7)
+        try { return decodeURIComponent(raw) } catch (error) { return raw }
+    }
     function handleNativeTitlebarAction(action) {
         if (action === "login") return workbenchRuntime.authenticated ? workbenchRuntime.signOut() : signInDialog.open()
         if (action === "layout") return fablecutView.runJavaScript("restoreDefaultLayout()")
@@ -2419,7 +2425,8 @@ ApplicationWindow {
         width: 620
         modal: true
         title: "导出"
-        closePolicy: Popup.CloseOnEscape
+        closePolicy: Popup.NoAutoClose
+        onOpened: fablecutView.runJavaScript("if (typeof openExportSetup === 'function') openExportSetup();")
 
         contentItem: ColumnLayout {
             spacing: 14
@@ -2452,11 +2459,10 @@ ApplicationWindow {
                 RowLayout {
                     ComboBox {
                         id: exportResolution
-                        model: workbenchRuntime.resolveRenderResolutions.length > 0
-                               ? workbenchRuntime.resolveRenderResolutions
-                               : [{label: "1080p · 1920 × 1080", width: 1920, height: 1080},
-                                  {label: "720p · 1280 × 720", width: 1280, height: 720},
-                                  {label: "540p · 960 × 540", width: 960, height: 540}]
+                        model: [{label: "4K · 3840 × 2160", width: 3840, height: 2160},
+                                {label: "1080p · 1920 × 1080", width: 1920, height: 1080},
+                                {label: "720p · 1280 × 720", width: 1280, height: 720},
+                                {label: "540p · 960 × 540", width: 960, height: 540}]
                         textRole: "label"
                         currentIndex: 0
                     }
@@ -2464,7 +2470,7 @@ ApplicationWindow {
                 }
 
                 Label { text: "帧率"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(13) }
-                ComboBox { id: exportFps; model: ["25 fps", "30 fps"]; currentIndex: 0 }
+                ComboBox { id: exportFps; model: ["24 fps", "25 fps", "30 fps", "50 fps", "60 fps"]; currentIndex: 2 }
 
                 Label { text: "格式"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(13) }
                 ComboBox {
@@ -2532,8 +2538,10 @@ ApplicationWindow {
                 onClicked: {
                     if (workbenchRuntime.timelineExportBusy)
                         workbenchRuntime.cancelTimelineExport()
-                    else
+                    else {
+                        fablecutView.runJavaScript("if (typeof finishExport === 'function') finishExport(false);")
                         timelineExportPanel.close()
+                    }
                 }
             }
             Button {
@@ -2548,11 +2556,18 @@ ApplicationWindow {
                     var suffix = "." + extension
                     if (!fileName.toLowerCase().endsWith(suffix.toLowerCase()))
                         fileName += suffix
+                    var outputPath = window.exportOutputDirectory + "/" + fileName
                     var resolutionItem = exportResolution.currentValue
                     var width = resolutionItem && resolutionItem.width ? resolutionItem.width : 1920
                     var height = resolutionItem && resolutionItem.height ? resolutionItem.height : 1080
-                    var frameRates = [25, 30]
-                    if (workbenchRuntime.exportTimelineWithOptions(window.exportOutputDirectory + "/" + fileName,
+                    var frameRates = [24, 25, 30, 50, 60]
+                    if (workbenchRuntime.clips.length === 0) {
+                        workbenchRuntime.setPendingFablecutExportPath(outputPath)
+                        fablecutView.runJavaScript("window.fablecutQtOutputSpec = {width:" + width + ", height:" + height + ", fps:" + frameRates[exportFps.currentIndex] + ", crop:'none', format:'mp4'}; startChosenExport()")
+                        timelineExportPanel.close()
+                        return
+                    }
+                    if (workbenchRuntime.exportTimelineWithOptions(outputPath,
                                                                    width,
                                                                    height,
                                                                    frameRates[exportFps.currentIndex],
@@ -2567,7 +2582,10 @@ ApplicationWindow {
     FolderDialog {
         id: exportDirectoryDialog
         title: "选择视频导出位置"
-        onAccepted: window.exportOutputDirectory = selectedFolder.toLocalFile()
+        onAccepted: {
+            var folderPath = window.localPathFromDialogUrl(selectedFolder)
+            if (folderPath !== "") window.exportOutputDirectory = folderPath
+        }
     }
 
     FolderDialog {

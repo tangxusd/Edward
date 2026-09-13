@@ -30,3 +30,17 @@
 - 2026-09-13 支付宝正扫测试准备：根据商户后台截图，支付宝“线下支付宝支付正扫”显示开通；Qt 端新增支付宝正扫 0.01 元入口，后端 `channel=alipay` 映射 `A_NATIVE`。尝试使用本机缓存会话调用生产函数返回 HTTP 401（会话已失效），未绕过鉴权发起订单。
 - 2026-09-13 资源组件 target：`resources.target` 新增非空稳定调用目标，默认 `resolve.fusion` 并建立索引；资源目录/详情接口返回 target；发布管道和本地 `manifest.json` 透传并校验 target。迁移已推送，`resource-catalog` 与 `resource-detail` 已重新部署。
 - 验证：资源发布器 Node 测试 3 项通过；`cmake --build build --target edward_app -j2` 通过。
+- 2026-09-13 导出修复：Qt 导出面板改为 Edward standalone 导出合同，固定提供 4K（3840×2160）及 24/25/30/50/60 fps；选择文件夹后安全读取 `selectedFolder` 并将目录与文件名传入导出调用；移除导出函数对旧外部渲染连接的分支，导出按钮在路径和文件名有效时可用。
+- 验证：`cmake --build build --target test_visual_routes test_workbench_plugins edward_app -j2` 成功；应用资源已重新编译。`desktop.workbench_plugins` 当前受本机已有认证状态影响在测试初始化断言处退出，未进入导出断言；该失败与本次导出改动无关。
+- 2026-09-13 导出路径回读修复：确认 Qt QML `url` 值不保证暴露 `QUrl::toLocalFile()`，导致 `exportOutputDirectory` 一直为空。新增兼容的 `localPathFromDialogUrl()`，从 `FolderDialog.selectedFolder` 解码 `file://` URL 后回写目录状态，导出按钮可据此启用。
+- 验证：`cmake --build build --target test_visual_routes edward_app -j2` 成功，`jq empty .edward/acceptance/current.json` 与 `git diff --check` 通过。
+- 2026-09-13 导出现场诊断：路径回读已正常（示例 `/Users/tangxu/Downloads/`），但点击导出时 native `WorkbenchRuntime::timeline_.snapshot()` 为空；当前可见片段仅存在于嵌入式 FableCut WebEngine 项目状态，尚未同步到 Edward 项目文件。因此导出被正确阻断并提示“时间线没有可导出的视频片段”，不能用伪造片段或静默丢弃组件来掩盖该状态。
+- 2026-09-13 FableCut 直出修复：当 Edward 原生时间线为空时，导出按钮改为调用 FableCut 自身 `startChosenExport()`，Qt 通过 `QWebEngineProfile::downloadRequested` 接管导出文件并写入用户选择的完整路径；不做 Component IR 转换，不丢弃 FableCut 组件。
+- 验证：`cmake --build build --target test_visual_routes edward_app -j2` 成功，QML 静态路由检查包含 FableCut 直出分支。
+- 2026-09-13 FableCut 组件导出拦截修复：移除 `startChosenExport()` 对不存在的 `fablecutDirectComponents.captureExportFrame` 的旧阻断；FableCut 自身导出器现在可直接渲染包含组件的项目。已重新构建 Qt 应用。
+- 2026-09-13 导出引擎竞态修复：FableCut 连接项目成功后原先异步探测 ffmpeg，用户立即点击导出时会误判“无可用引擎”。现在连接初始化等待 ffmpeg 探测，导出点击也会在短暂竞态时主动回读 `/api/export/ffmpeg` 后继续 Fast 导出。
+- 验证：`node --check third_party/FableCut/app.js` 与 `cmake --build build --target edward_app -j2` 通过。
+- 2026-09-13 导出引擎生命周期：Qt 导出弹窗打开时调用 FableCut `openExportSetup()` 初始化导出能力；取消按钮主动调用 `finishExport(false)` 终止导出；禁止通过 Escape 绕过取消清理。
+- 验证：`cmake --build build --target edward_app -j2`、`node --check third_party/FableCut/app.js` 与 `git diff --check` 通过。
+- 2026-09-13 统一浏览器合成导出第一阶段：新增 `export-compositor.js` 输出规格和不可变项目快照；FableCut 组件运行时新增逐帧等待与完整合成捕获，将 Canvas 与 Card 6 等 DOM 层合并；Qt 传递显式宽高/FPS 并关闭隐式裁切。
+- 验证：`node --test third_party/FableCut/test/export-compositor.test.js`、`node --check third_party/FableCut/app.js`、`cmake --build build --target test_visual_routes edward_app -j2`、`git diff --check` 通过。尚未完成真实 4K DOM 捕获端到端验收。

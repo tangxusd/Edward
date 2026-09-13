@@ -644,8 +644,12 @@ async function connectServer() {
     state.connected = true;
     renderConnectionStatus(true);
     listenSSE();
-    fetch("/api/export/ffmpeg").then((r) => r.json())
-      .then((j) => { state.ffmpeg = !!j.available; }).catch(() => { });
+    try {
+      const ffmpeg = await fetch("/api/export/ffmpeg").then((r) => r.json());
+      state.ffmpeg = !!ffmpeg.available;
+    } catch {
+      state.ffmpeg = false;
+    }
     fetchEncodeProfiles();
     detectWebCodecs();
   } catch {
@@ -6521,16 +6525,25 @@ async function openExportSetup() {
     els.exportSetup.classList.remove("hidden");
   });
 }
-function startChosenExport() {
+async function startChosenExport() {
   persistExportWcOpts();
-  const directComponentClips = project.clips.filter((c) => c.kind === "component");
-  if (directComponentClips.length && !window.fablecutDirectComponents?.captureExportFrame) {
-    alert("当前项目包含直接浏览器组件，但导出捕获通道尚未就绪。为避免导出缺少组件图层，已阻止导出。");
-    return;
-  }
   const useFast = els.engineFast.checked && !els.engineFast.disabled;
   const useSecond = els.engineRealtime.checked && !els.engineRealtime.disabled;
   if (!useFast && !useSecond) {
+    if (state.connected && !state.ffmpeg) {
+      try {
+        const ffmpeg = await fetch("/api/export/ffmpeg").then((r) => r.json());
+        state.ffmpeg = !!ffmpeg.available;
+      } catch { state.ffmpeg = false; }
+      if (state.ffmpeg) {
+        els.engineFast.disabled = false;
+        els.engineFast.checked = true;
+        els.engineRealtime.checked = false;
+        els.exportSetup.classList.add("hidden");
+        fastExport();
+        return;
+      }
+    }
     const ef = getExportFrame();
     if (ef && !(state.connected && state.ffmpeg)) {
       alert("Export frame cropping needs Fast export (server + ffmpeg). Clear the export frame, or install ffmpeg and try again.");
@@ -6548,7 +6561,11 @@ function startChosenExport() {
 /* ── Fast export ── */
 let renderCancelled = false;
 let exportCropCanvas = null;
-function previewToExportBlob(quality = 0.95) {
+async function previewToExportBlob(quality = 0.95, outputSpec = null) {
+  if (outputSpec && window.fablecutDirectComponents?.captureCompositeFrame) {
+    const composite = await window.fablecutDirectComponents.captureCompositeFrame(outputSpec);
+    return new Promise((resolve) => composite.toBlob(resolve, "image/jpeg", quality));
+  }
   const ef = getExportFrame();
   if (!ef) return new Promise((res) => els.preview.toBlob(res, "image/jpeg", quality));
   if (!exportCropCanvas) exportCropCanvas = document.createElement("canvas");
@@ -6844,7 +6861,11 @@ async function fastExport() {
   els.exportProgress.style.width = "0%";
   els.exportNote.textContent = "Rendering frames → ffmpeg. You can switch tabs; export continues.";
   restoreExportVideoState();
-  const fps = projectFps(), dur = Math.max(1 / fps, projDur());
+  const outputSpec = window.fablecutQtOutputSpec || { width: els.preview.width, height: els.preview.height, fps: projectFps(), crop: "none", format: "mp4" };
+  const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
+  const previousCanvasSize = { width: els.preview.width, height: els.preview.height };
+  els.preview.width = Number(outputSpec.width) || previousCanvasSize.width;
+  els.preview.height = Number(outputSpec.height) || previousCanvasSize.height;
   const frames = Math.max(1, Math.round(dur * fps));
   let sessId = null;
   try {
@@ -6878,7 +6899,8 @@ async function fastExport() {
       await seekVideosTo(t);
       await prepareFrameAssets(t);       // exact SVG frames + AI masks
       drawFrame(t);
-      const blob = await previewToExportBlob(jpegQ);
+      await window.fablecutDirectComponents?.prepareFrame?.(visibleClipsAt(t), t, outputSpec);
+      const blob = await previewToExportBlob(jpegQ, outputSpec);
       if (!blob) throw new Error("frame encode failed");
       const r = await fetch("/api/export/frame?id=" + sessId, { method: "POST", body: blob });
       if (!r.ok) throw new Error((await r.json()).error || "frame upload failed");
@@ -6897,6 +6919,10 @@ async function fastExport() {
     if (sessId) fetch("/api/export/end?id=" + sessId + "&discard=1", { method: "POST" }).catch(() => { });
     if (String(e.message) !== "cancelled") alert("Export failed: " + e.message);
   } finally {
+    els.preview.width = previousCanvasSize.width;
+    els.preview.height = previousCanvasSize.height;
+    updateMonitorRes();
+    updateExportFrameOverlay();
     restoreExportVideoState();
     state.exporting = false; state.rendering = false;
     els.exportOverlay.classList.add("hidden");

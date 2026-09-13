@@ -13,6 +13,8 @@
 #include <QStandardPaths>
 #include <QTcpSocket>
 #include <QtWebEngineQuick>
+#include <QtWebEngineCore/QWebEngineProfile>
+#include <QtWebEngineCore/QWebEngineDownloadRequest>
 
 #ifdef Q_OS_MACOS
 void installEdwardTitlebar(QWindow *window, bool localServiceStarted);
@@ -62,6 +64,17 @@ int main(int argc, char** argv) {
   }
   QQmlApplicationEngine engine;
   edward::desktop::WorkbenchRuntime runtime;
+  QObject::connect(QWebEngineProfile::defaultProfile(), &QWebEngineProfile::downloadRequested,
+                   &app, [&runtime](QWebEngineDownloadRequest* download) {
+    const auto target = runtime.pendingFablecutExportPath();
+    if (target.isEmpty()) return;
+    const QFileInfo targetInfo(target);
+    if (!targetInfo.absoluteDir().exists()) return;
+    download->setDownloadDirectory(targetInfo.absolutePath());
+    download->setDownloadFileName(targetInfo.fileName());
+    download->accept();
+    runtime.setPendingFablecutExportPath({});
+  });
   engine.addImageProvider(QStringLiteral("edward"), new EdwardFrameProvider(runtime));
   engine.rootContext()->setContextProperty(QStringLiteral("workbenchRuntime"), &runtime);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Workbench.qml")));

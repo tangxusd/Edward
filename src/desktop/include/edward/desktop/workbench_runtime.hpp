@@ -78,6 +78,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool pluginExportBusy READ pluginExportBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool timelineExportBusy READ timelineExportBusy NOTIFY timelineChanged)
   Q_PROPERTY(int timelineExportProgress READ timelineExportProgress NOTIFY timelineChanged)
+  Q_PROPERTY(QString pendingFablecutExportPath READ pendingFablecutExportPath WRITE setPendingFablecutExportPath NOTIFY timelineChanged)
   Q_PROPERTY(bool exportDialogRequested READ exportDialogRequested NOTIFY timelineChanged)
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
@@ -173,6 +174,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] bool pluginExportBusy() const { return pluginExportBusy_; }
   [[nodiscard]] bool timelineExportBusy() const { return timelineExportBusy_; }
   [[nodiscard]] int timelineExportProgress() const { return timelineExportProgress_; }
+  [[nodiscard]] QString pendingFablecutExportPath() const { return pendingFablecutExportPath_; }
   [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
   [[nodiscard]] QString subscriptionStatus() const { return subscriptionStatus_; }
@@ -320,6 +322,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE bool exportTimelineWithOptions(const QString& outputPath, int width, int height,
                                              int fps, int quality);
+  Q_INVOKABLE void setPendingFablecutExportPath(const QString& path);
   Q_INVOKABLE void clearExportDialogRequest();
   Q_INVOKABLE void cancelTimelineExport();
   Q_INVOKABLE void clearComponentOverlay();
@@ -435,6 +438,7 @@ class WorkbenchRuntime final : public QObject {
   QString resolveRenderOutputPath_;
   bool timelineExportBusy_ = false;
   int timelineExportProgress_ = 0;
+  QString pendingFablecutExportPath_;
   std::shared_ptr<std::atomic_bool> timelineExportCancel_;
   edward::resources::AuthSessionStore sessions_;
   edward::resources::SupabaseAuthClient authClient_;
