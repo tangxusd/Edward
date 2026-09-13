@@ -36,8 +36,7 @@ async function captureCompositeFrame(outputSpec) {
   inlineStyles(source, clone);
   clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
   try {
     const image = new Image();
     await new Promise((resolve, reject) => {
@@ -49,7 +48,7 @@ async function captureCompositeFrame(outputSpec) {
     canvas.width = outputSpec.width; canvas.height = outputSpec.height;
     canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
     return canvas;
-  } finally { URL.revokeObjectURL(url); }
+  } finally { /* data URL has no object URL to revoke */ }
 }
 
 async function loadManifest(id = "demo") {

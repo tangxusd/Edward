@@ -47,3 +47,5 @@
 - 2026-09-13 DOM 捕获异常修复：修正组件合成克隆节点在移除预览装饰后进行样式递归时的空目标访问，避免 `Cannot read properties of undefined (reading 'style')` 中断导出。
 - 验证：`node --check third_party/FableCut/component-runtime.js`、`node --test third_party/FableCut/test/export-compositor.test.js`、`cmake --build build --target edward_app -j2`、`git diff --check` 通过。
 - 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
+- 2026-09-13 WebEngine 捕获兼容修复：确认 Qt WebEngine 对 `blob:` SVG 外链载荷拒绝加载，改用内联 `data:image/svg+xml` 载荷，避免对象 URL 安全策略导致完整合成帧无法创建。
+- 验证：`node --check third_party/FableCut/component-runtime.js`、`node --test third_party/FableCut/test/export-compositor.test.js`、`cmake --build build --target edward_app -j2`、`git diff --check` 通过。
