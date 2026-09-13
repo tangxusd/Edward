@@ -81,6 +81,11 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool exportDialogRequested READ exportDialogRequested NOTIFY timelineChanged)
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
+  Q_PROPERTY(QString subscriptionStatus READ subscriptionStatus NOTIFY timelineChanged)
+  Q_PROPERTY(QString subscriptionExpiresAt READ subscriptionExpiresAt NOTIFY timelineChanged)
+  Q_PROPERTY(qint64 subscriptionCredits READ subscriptionCredits NOTIFY timelineChanged)
+  Q_PROPERTY(QString paymentQrCode READ paymentQrCode NOTIFY timelineChanged)
+  Q_PROPERTY(bool paymentBusy READ paymentBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool componentUploadBusy READ componentUploadBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool aiComponentDraftAvailable READ aiComponentDraftAvailable NOTIFY timelineChanged)
@@ -173,6 +178,8 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString subscriptionStatus() const { return subscriptionStatus_; }
   [[nodiscard]] QString subscriptionExpiresAt() const { return subscriptionExpiresAt_; }
   [[nodiscard]] qint64 subscriptionCredits() const { return subscriptionCredits_; }
+  [[nodiscard]] QString paymentQrCode() const { return paymentQrCode_; }
+  [[nodiscard]] bool paymentBusy() const { return paymentBusy_; }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
   [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
   [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
@@ -296,6 +303,8 @@ class WorkbenchRuntime final : public QObject {
                                              const QString& email);
   Q_INVOKABLE bool refreshSupabaseEntitlement(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE bool refreshSupabaseSession(const QString& projectUrl, const QString& anonKey);
+  Q_INVOKABLE bool createNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc);
+  Q_INVOKABLE bool createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc);
   Q_INVOKABLE void signOut();
   Q_INVOKABLE bool uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
                                           const QString& displayName);
@@ -442,6 +451,8 @@ class WorkbenchRuntime final : public QObject {
   QString subscriptionStatus_;
   QString subscriptionExpiresAt_;
   qint64 subscriptionCredits_ = 0;
+  QString paymentQrCode_;
+  bool paymentBusy_ = false;
   QString aiConversation_;
   QString aiModelEndpoint_;
   QString aiProviderName_;

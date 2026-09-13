@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QUuid>
 
 namespace edward::resources {
 
@@ -71,9 +72,15 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
 bool SupabaseAuthClient::sendPasswordReset(const SupabaseAuthConfig& config, const QString& email) {
   if (email.trimmed().isEmpty() || !email.contains(QLatin1Char('@'))) { emit completed(false, QStringLiteral("请输入注册邮箱")); return false; }
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/recover"));
+  QUrlQuery redirectQuery; redirectQuery.addQueryItem(QStringLiteral("redirect_to"), QStringLiteral("https://auth-recovery.vercel.app/")); endpoint.setQuery(redirectQuery);
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
-  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}, {"redirect_to", "https://naybqwiqgviuzjtemerc.supabase.co/functions/v1/auth-recovery"}}).toJson(QJsonDocument::Compact));
-  connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("重置密码邮件已发送，请检查邮箱") : QStringLiteral("密码找回失败，请稍后重试")); reply->deleteLater(); });
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}, {"redirect_to", "https://auth-recovery.vercel.app/"}, {"options", QJsonObject{{"redirectTo", "https://auth-recovery.vercel.app/"}}}}).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const bool ok = reply->error() == QNetworkReply::NoError && status >= 200 && status < 300;
+    emit completed(ok, ok ? QStringLiteral("重置密码邮件已发送，请检查邮箱") : (status == 429 ? QStringLiteral("邮件发送过于频繁，请稍后重试") : QStringLiteral("密码找回失败，请检查邮箱配置")));
+    reply->deleteLater();
+  });
   return true;
 }
 
@@ -150,6 +157,33 @@ bool SupabaseAuthClient::fetchEntitlement(const SupabaseAuthConfig& config, cons
     if (!subscriptions.isEmpty()) { const auto current = subscriptions.first().toObject(); status = current.value("status").toString(); expires = current.value("current_period_end").toString(); }
     qint64 credits = 0; for (const auto& value : object.value("credits").toArray()) credits += value.toObject().value("amount").toVariant().toLongLong();
     emit entitlementCompleted(reply->error() == QNetworkReply::NoError, status, expires, credits); reply->deleteLater();
+  });
+  return true;
+}
+
+bool SupabaseAuthClient::createNativePayment(const SupabaseAuthConfig& config, const AuthSession& session,
+                                             double amount, const QString& goodsDesc,
+                                             const QString& channel) {
+  if (session.accessToken.isEmpty() || amount < 0.01) { emit paymentCompleted(false, {}, {}, QStringLiteral("支付参数无效")); return false; }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/huifu-native-create"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("apikey", config.anonKey.toUtf8()); request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + session.accessToken).toUtf8());
+  const auto body = QJsonObject{{"amount", amount}, {"goodsDesc", goodsDesc}, {"channel", channel}, {"idempotencyKey", QUuid::createUuid().toString(QUuid::WithoutBraces)}};
+  auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object();
+    const bool ok = reply->error() == QNetworkReply::NoError && !object.value("qrCode").toString().isEmpty();
+    const auto detailObject = object.value("detail").toObject();
+    const auto upstreamStatus = object.value("upstreamStatus").toInt();
+    const auto upstreamBody = object.value("upstreamBody").toString();
+    const auto detail = detailObject.value("resp_desc").toString().isEmpty() ? object.value("detail").toString() : detailObject.value("resp_desc").toString();
+    const auto code = detailObject.value("resp_code").toString();
+    auto failure = detail.isEmpty() ? object.value("error").toString(QStringLiteral("支付下单失败")) : QStringLiteral("支付下单失败：%1%2").arg(detail, code.isEmpty() ? QString() : QStringLiteral("（%1）").arg(code));
+    if (failure == QStringLiteral("payment_config_error")) failure = QStringLiteral("支付配置错误，请检查汇付密钥");
+    if (failure == QStringLiteral("payment_provider_error")) failure = QStringLiteral("汇付服务暂不可用，请稍后重试");
+    if (upstreamStatus > 0) failure = QStringLiteral("汇付接口 HTTP %1：%2").arg(upstreamStatus).arg(upstreamBody.isEmpty() ? failure : upstreamBody);
+    emit paymentCompleted(ok, object.value("orderId").toString(), object.value("qrCode").toString(), ok ? QStringLiteral("请扫码完成支付") : failure);
+    reply->deleteLater();
   });
   return true;
 }

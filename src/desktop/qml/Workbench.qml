@@ -432,6 +432,24 @@ ApplicationWindow {
                         RowLayout {
                             anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6; spacing: 6
                             Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(11.5); font.bold: true; Layout.alignment: Qt.AlignVCenter; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Button {
+                                objectName: "headerPaymentButton"
+                                visible: workbenchRuntime.authenticated
+                                enabled: !workbenchRuntime.paymentBusy
+                                Layout.preferredWidth: 112
+                                Layout.preferredHeight: 24
+                                text: workbenchRuntime.paymentBusy ? "支付中…" : "微信支付 0.01 元"
+                                onClicked: workbenchRuntime.createNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付验证")
+                            }
+                            Button {
+                                objectName: "headerAlipayPaymentButton"
+                                visible: workbenchRuntime.authenticated
+                                enabled: !workbenchRuntime.paymentBusy
+                                Layout.preferredWidth: 112
+                                Layout.preferredHeight: 24
+                                text: workbenchRuntime.paymentBusy ? "支付中…" : "支付宝正扫 0.01 元"
+                                onClicked: workbenchRuntime.createAlipayNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付宝正扫验证")
+                            }
                         }
                     }
                     Row {
@@ -659,6 +677,24 @@ ApplicationWindow {
                         color: workbenchRuntime.resolveConnected ? DesignTokens.accent : DesignTokens.textSecondary
                         font.pixelSize: window.uiFontSize(11)
                         horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                    }
+                    Button {
+                        objectName: "subscriptionPaymentButton"
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: window.sidebarControlWidth
+                        visible: workbenchRuntime.authenticated
+                        enabled: !workbenchRuntime.paymentBusy
+                        text: workbenchRuntime.paymentBusy ? "支付下单中…" : "微信支付 0.01 元"
+                        onClicked: workbenchRuntime.createNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付验证")
+                    }
+                    Label {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: window.sidebarControlWidth
+                        visible: workbenchRuntime.paymentQrCode !== ""
+                        text: "微信扫码链接：\n" + workbenchRuntime.paymentQrCode
+                        color: DesignTokens.textSecondary
+                        font.pixelSize: window.uiFontSize(8)
                         wrapMode: Text.Wrap
                     }
                     Label {
@@ -2613,6 +2649,8 @@ ApplicationWindow {
     Dialog {
         id: signInDialog
         anchors.centerIn: Overlay.overlay
+        z: 2000
+        property bool resetRequested: false
         width: 360
         height: 360
         modal: true
@@ -2628,11 +2666,11 @@ ApplicationWindow {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
             TextField { id: signInEmail; width: parent.width; placeholderText: "邮箱（登录可使用账号名）"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
             TextField { id: signInPassword; width: parent.width; placeholderText: "密码"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
-            Button { width: parent.width; text: "找回密码"; onClicked: workbenchRuntime.sendSupabasePasswordReset(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text) }
+            Button { width: parent.width; text: signInDialog.resetRequested ? "重置邮件已发送" : "找回密码"; onClicked: { if (workbenchRuntime.sendSupabasePasswordReset(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text)) signInDialog.resetRequested = true } }
         }
         footer: RowLayout {
             width: parent.width; height: 48; spacing: 8; anchors.margins: 14
-            Button { Layout.fillWidth: true; text: "取消"; onClicked: signInDialog.close() }
+            Button { Layout.fillWidth: true; text: "取消"; onClicked: { signInDialog.resetRequested = false; signInDialog.close() } }
             Button { Layout.fillWidth: true; text: "注册账号"; onClicked: { signInDialog.close(); signUpDialog.open() } }
             Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text, signInPassword.text)) { entitlementTimer.start(); signInDialog.close() } } }
         }
@@ -2647,7 +2685,7 @@ ApplicationWindow {
     }
 
     Dialog {
-        id: signUpDialog; anchors.centerIn: Overlay.overlay; width: 360; height: 320; modal: true; title: ""; padding: 0
+        id: signUpDialog; anchors.centerIn: Overlay.overlay; z: 2000; width: 360; height: 320; modal: true; title: ""; padding: 0
         background: Rectangle { color: "#102326"; border.color: "#21d4c2"; border.width: 1; radius: 6 }
         header: Rectangle { width: parent.width; height: 46; color: "#0b191b"; Text { anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: "注册 Edward"; color: "#21d4c2"; font.pixelSize: window.uiFontSize(14); font.bold: true } }
         contentItem: Column { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
@@ -3089,6 +3127,58 @@ ApplicationWindow {
         url: "about:blank"
         settings.javascriptEnabled: true
         settings.localStorageEnabled: true
+    }
+    // WebEngineView 作为嵌入式编辑器铺满窗口，支付临时入口必须位于其上层。
+    Button {
+        id: embeddedPaymentButton
+        objectName: "embeddedPaymentButton"
+        x: Math.max(290, window.width * 0.14)
+        y: 34
+        z: 1001
+        width: 132
+        height: 26
+        text: workbenchRuntime.paymentBusy ? "支付中…" : (workbenchRuntime.authenticated ? "微信支付 0.01 元" : "登录后微信支付")
+        enabled: !workbenchRuntime.paymentBusy
+        onClicked: {
+            if (workbenchRuntime.authenticated)
+                workbenchRuntime.createNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付验证")
+            else
+                signInDialog.open()
+        }
+    }
+    Button {
+        id: embeddedAlipayPaymentButton
+        objectName: "embeddedAlipayPaymentButton"
+        x: Math.max(430, window.width * 0.14)
+        y: 34
+        z: 1001
+        width: 132
+        height: 26
+        text: workbenchRuntime.paymentBusy ? "支付中…" : (workbenchRuntime.authenticated ? "支付宝正扫 0.01 元" : "登录后支付宝正扫")
+        enabled: !workbenchRuntime.paymentBusy
+        onClicked: {
+            if (workbenchRuntime.authenticated)
+                workbenchRuntime.createAlipayNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付宝正扫验证")
+            else
+                signInDialog.open()
+        }
+    }
+    Dialog {
+        id: paymentQrDialog
+        anchors.centerIn: Overlay.overlay
+        z: 2100
+        modal: true
+        title: "扫码支付"
+        visible: workbenchRuntime.paymentQrCode !== ""
+        width: 360
+        standardButtons: Dialog.Close
+        contentItem: Column {
+            spacing: 12
+            padding: 20
+            Text { text: "请使用微信扫描以下支付链接"; color: DesignTokens.textPrimary; wrapMode: Text.Wrap }
+            Text { text: workbenchRuntime.paymentQrCode; color: DesignTokens.accent; wrapMode: Text.Wrap }
+            Text { text: "二维码由汇付返回。若未显示，请检查汇付商户配置。"; color: DesignTokens.textSecondary; wrapMode: Text.Wrap }
+        }
     }
     Timer {
         interval: 500

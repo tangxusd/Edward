@@ -36,10 +36,14 @@ class SupabaseAuthClient final : public QObject {
   bool sendPasswordReset(const SupabaseAuthConfig& config, const QString& email);
   bool refreshSession(const SupabaseAuthConfig& config, AuthSessionStore* sessions);
   bool fetchEntitlement(const SupabaseAuthConfig& config, const AuthSession& session);
+  bool createNativePayment(const SupabaseAuthConfig& config, const AuthSession& session,
+                           double amount, const QString& goodsDesc,
+                           const QString& channel = QStringLiteral("wechat"));
 
  signals:
   void completed(bool success, QString message);
   void entitlementCompleted(bool success, QString status, QString expiresAt, qint64 credits);
+  void paymentCompleted(bool success, QString orderId, QString qrCode, QString message);
   void sessionRefreshed(bool success, QString message);
 
  private:

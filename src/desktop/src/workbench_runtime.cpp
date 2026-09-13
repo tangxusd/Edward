@@ -530,6 +530,13 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
             if (success) { subscriptionStatus_ = status; subscriptionExpiresAt_ = expiresAt; subscriptionCredits_ = credits; }
             emit timelineChanged();
           });
+  connect(&authClient_, &edward::resources::SupabaseAuthClient::paymentCompleted, this,
+          [this](bool success, const QString&, const QString& qrCode, const QString& message) {
+            paymentBusy_ = false;
+            if (success) paymentQrCode_ = qrCode;
+            success ? emit operationSucceeded(message) : emit operationFailed(message);
+            emit timelineChanged();
+          });
   connect(&componentUploadClient_, &edward::resources::ComponentUploadClient::completed, this,
           [this](bool success, const QString& message, const QJsonObject& response) {
             componentUploadBusy_ = false;
@@ -2954,6 +2961,18 @@ bool WorkbenchRuntime::refreshSupabaseEntitlement(const QString& projectUrl, con
 
 bool WorkbenchRuntime::refreshSupabaseSession(const QString& projectUrl, const QString& anonKey) {
   return authenticated() && authClient_.refreshSession({projectUrl, anonKey}, &sessions_);
+}
+
+bool WorkbenchRuntime::createNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc) {
+  if (!authenticated() || paymentBusy_) return false;
+  paymentBusy_ = true; paymentQrCode_.clear(); emit timelineChanged();
+  return authClient_.createNativePayment({projectUrl, anonKey}, sessions_.session(), amount, goodsDesc, QStringLiteral("wechat"));
+}
+
+bool WorkbenchRuntime::createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc) {
+  if (!authenticated() || paymentBusy_) return false;
+  paymentBusy_ = true; paymentQrCode_.clear(); emit timelineChanged();
+  return authClient_.createNativePayment({projectUrl, anonKey}, sessions_.session(), amount, goodsDesc, QStringLiteral("alipay"));
 }
 
 void WorkbenchRuntime::signOut() {
