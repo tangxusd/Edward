@@ -71,8 +71,9 @@ int main(int argc, char** argv) {
     // 扩展客户区到系统标题栏：原生窗口按钮仍由系统绘制，QML 控件可在标题栏内水平对齐。
     // 不设置固定几何、置顶或尺寸限制，保留窗口常规移动/缩放能力。
     window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint | Qt::NoTitleBarBackgroundHint);
-    // QML sets Maximized before the first frame is shown, avoiding a visible
-    // normal-window flash during startup.
+    // 在首次 show 前设置窗口状态；仅依赖 QML visibility 会先创建普通窗口，
+    // macOS 随后再最大化，产生可见闪烁。
+    window->setVisibility(QWindow::Maximized);
     window->show();
 #ifdef Q_OS_MACOS
     bool localServiceStarted = fablecutServer.state() == QProcess::Running;

@@ -140,3 +140,4 @@
 - 计费单测：新增 `supabase/tests/billing-functions.test.ts`，验证折扣先计算、抵扣上限及异常金额归零；`deno test` 2/2 通过，并验证订阅下单函数类型检查通过。
 - 2026-09-13：接入汇付微信 `T_NATIVE` 生产下单边界。新增 Supabase Edge Functions `huifu-native-create`（鉴权、幂等、金额/过期时间校验、默认账户 `F49973920`、二维码返回）与 `huifu-native-notify`（异步状态落库），本地服务新增 `/api/payment/native` 代理；新增订单供应商字段迁移。已部署函数、设置生产密钥、迁移远端数据库，并通过 Deno 类型检查、Node 语法检查及匿名 401 烟雾测试。真实支付未由自动化会话发起：需要已登录用户 Bearer Token，避免误扣款。
 - 2026-09-13：登录界面改为使用应用内置 Supabase 项目 URL 与 publishable/anon key，移除要求终端用户填写基础设施配置的两个输入框；仅保留邮箱/账号名、密码和注册入口。重新构建 `edward_app` 并启动 Qt 应用。
+- 2026-09-13：修复注册按钮无可见反馈：登录/注册失败或成功均显示 Qt Toast；窗口在 `show()` 前设置 `QWindow::Maximized`，避免普通窗口先显示后最大化的闪烁。`edward_app` 构建通过。

@@ -3000,9 +3000,15 @@ ApplicationWindow {
         target: workbenchRuntime
         function onOperationFailed(message) {
             workbenchRuntime.appendAiConversationError(message)
+            failureToast.text = message
+            failureToast.open()
+            failureTimer.restart()
         }
         function onOperationSucceeded(message) {
             workbenchRuntime.appendAiConversationError(message)
+            successToast.text = message
+            successToast.open()
+            successTimer.restart()
         }
     }
 
