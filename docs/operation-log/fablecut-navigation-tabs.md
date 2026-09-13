@@ -138,3 +138,4 @@
 - 接口烟测补充：`auth-register` 空请求返回 `invalid_registration`，`auth-login` 空请求返回统一的 `invalid_credentials`，未暴露账号是否存在。
 - Deno 验证：通过 Homebrew 安装 Deno 2.9.6；10 个 Edge Function 入口全部通过 `deno check`。修复 `resource-catalog` 动态追加 `preview_url` 的类型错误并重新部署；仓库暂无可执行的 Edge Function `.test.ts` 文件。
 - 计费单测：新增 `supabase/tests/billing-functions.test.ts`，验证折扣先计算、抵扣上限及异常金额归零；`deno test` 2/2 通过，并验证订阅下单函数类型检查通过。
+- 2026-09-13：接入汇付微信 `T_NATIVE` 生产下单边界。新增 Supabase Edge Functions `huifu-native-create`（鉴权、幂等、金额/过期时间校验、默认账户 `F49973920`、二维码返回）与 `huifu-native-notify`（异步状态落库），本地服务新增 `/api/payment/native` 代理；新增订单供应商字段迁移。已部署函数、设置生产密钥、迁移远端数据库，并通过 Deno 类型检查、Node 语法检查及匿名 401 烟雾测试。真实支付未由自动化会话发起：需要已登录用户 Bearer Token，避免误扣款。

@@ -483,6 +483,14 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
     return;
   }
+  if (p === "/api/payment/native" && req.method === "POST") {
+    try {
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const result = await supabaseProxy("/functions/v1/huifu-native-create", req, body);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
 
   /* API: media library listing */
   if (p === "/api/media" && req.method === "GET") {
