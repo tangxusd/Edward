@@ -46,6 +46,15 @@
 - 验证：`node --test third_party/FableCut/test/export-compositor.test.js`、`node --check third_party/FableCut/app.js`、`cmake --build build --target test_visual_routes edward_app -j2`、`git diff --check` 通过。尚未完成真实 4K DOM 捕获端到端验收。
 - 2026-09-13 DOM 捕获异常修复：修正组件合成克隆节点在移除预览装饰后进行样式递归时的空目标访问，避免 `Cannot read properties of undefined (reading 'style')` 中断导出。
 - 验证：`node --check third_party/FableCut/component-runtime.js`、`node --test third_party/FableCut/test/export-compositor.test.js`、`cmake --build build --target edward_app -j2`、`git diff --check` 通过。
+- 2026-09-14 导出默认值与路径持久化：导出弹窗打开时读取 FableCut 时间线的 `project.width`、`project.height`、`project.fps`，匹配或新增对应分辨率选项并设为默认；选择的导出目录写入 Edward 的 `preview-storage.ini`，下次打开直接回填，目录不存在时不启用旧路径。
+- 时间线 FPS 若不在预置列表中，会动态加入实际 FPS，并由导出合同使用该数值，不静默回退为 30 fps。
+- 2026-09-14 捕获顺序修正：先对完整监视器克隆执行样式物化，再替换 Canvas 为当前帧 PNG，避免替换节点后样式递归错位。未宣称真实 WebEngine 合成捕获已通过；当前仍需实机确认 `composite capture image load failed` 是否消失。
+- 2026-09-14 WebEngine data URL 兼容：合成 SVG 改用 UTF-8 Base64 data URL，并在图片加载后校验非零自然尺寸；若仍失败会明确报告捕获阶段错误。
+- 2026-09-14 合成栅格化回退：优先使用 `createImageBitmap(Blob)` 直接栅格化 SVG，失败后回退到 Base64 data URL 的 `Image` 解码；两条路径均复用同一输出 Canvas。
+- 2026-09-14 分层合成捕获：不再把 Canvas PNG 嵌入 foreignObject；先将原生 Canvas 画面绘制到输出 Canvas，再仅将 `userComponentOverlay` 的 DOM 组件层栅格化叠加，降低 Qt WebEngine 图片解码失败风险并保持组件与主画面同帧。
+- 2026-09-14 组件时间线同步：组件层新增代际校验，旧 playhead 的异步挂载/更新不会覆盖新时间点；无组件区间立即隐藏旧层；导出每帧只更新一次。Card 6 的 CSS 动画改为由组件局部时间驱动，避免加速导出时按墙钟时间失真。
+- 2026-09-14 组件时间线回归：核对当前项目中组件片段为 00:04.108–00:07.460（标题 H）和 00:08.029–00:08.989（标题 W）；运行时按片段 ID/组件 ID 隔离实例，并在异步挂载期间同步隐藏非活动层，避免空白区间残留。
+- 2026-09-14 时间线画幅显示修正：确认 `404×720` 来源是项目文件遗留的 `exportFrame` 裁切对象，而非顶部时间线分辨率；已移除当前示例项目的遗留裁切，使默认输出恢复完整 `1280×720` 时间线画幅。
 - 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
 - 2026-09-13 WebEngine 捕获兼容修复：确认 Qt WebEngine 对 `blob:` SVG 外链载荷拒绝加载，改用内联 `data:image/svg+xml` 载荷，避免对象 URL 安全策略导致完整合成帧无法创建。
 - 验证：`node --check third_party/FableCut/component-runtime.js`、`node --test third_party/FableCut/test/export-compositor.test.js`、`cmake --build build --target edward_app -j2`、`git diff --check` 通过。

@@ -10,8 +10,16 @@ ApplicationWindow {
     visibility: Window.Maximized
     property var importedMediaClips: workbenchRuntime.clips.filter(function(clip) { return clip.kind === "media"; })
     property string recoveryProjectPath: ""
-    property string exportOutputDirectory: ""
+    property string exportOutputDirectory: workbenchRuntime.savedExportOutputDirectory
     property string exportFileName: "未命名项目.mp4"
+    property var exportResolutionOptions: [
+        {label: "4K · 3840 × 2160", width: 3840, height: 2160},
+        {label: "1080p · 1920 × 1080", width: 1920, height: 1080},
+        {label: "720p · 1280 × 720", width: 1280, height: 720},
+        {label: "540p · 960 × 540", width: 960, height: 540}
+    ]
+    property var exportFpsOptions: ["24 fps", "25 fps", "30 fps", "50 fps", "60 fps"]
+    property var exportFpsValues: [24, 25, 30, 50, 60]
     property bool fablecutEmbedded: true
     // Supabase 项目配置随应用发布；publishable/anon key 不是服务端密钥。
     readonly property string supabaseProjectUrl: "https://naybqwiqgviuzjtemerc.supabase.co"
@@ -25,6 +33,43 @@ ApplicationWindow {
         var raw = value.toString()
         if (raw.indexOf("file://") === 0) raw = raw.slice(7)
         try { return decodeURIComponent(raw) } catch (error) { return raw }
+    }
+    function applyTimelineExportDefaults(result) {
+        try {
+            if (result === undefined || result === null || result === "") return
+            var spec = JSON.parse(result)
+            var width = Number(spec.width)
+            var height = Number(spec.height)
+            var fps = Number(spec.fps)
+            if (!(width > 0 && height > 0)) return
+            var options = exportResolutionOptions.slice(0)
+            var resolutionIndex = -1
+            for (var i = 0; i < options.length; ++i) {
+                if (Number(options[i].width) === width && Number(options[i].height) === height) {
+                    resolutionIndex = i
+                    break
+                }
+            }
+            if (resolutionIndex < 0) {
+                options.unshift({label: "时间线 · " + width + " × " + height, width: width, height: height})
+                resolutionIndex = 0
+                exportResolutionOptions = options
+            }
+            exportResolution.currentIndex = resolutionIndex
+            var fpsOptions = exportFpsValues.slice(0)
+            var fpsIndex = fpsOptions.indexOf(fps)
+            if (fpsIndex < 0 && fps > 0) {
+                fpsOptions.unshift(fps)
+                var fpsLabels = exportFpsOptions.slice(0)
+                fpsLabels.unshift(fps + " fps")
+                exportFpsValues = fpsOptions
+                exportFpsOptions = fpsLabels
+                fpsIndex = 0
+            }
+            if (fpsIndex >= 0) exportFps.currentIndex = fpsIndex
+        } catch (error) {
+            // 页面尚未完成初始化时保留界面默认值。
+        }
     }
     function handleNativeTitlebarAction(action) {
         if (action === "login") return workbenchRuntime.authenticated ? workbenchRuntime.signOut() : signInDialog.open()
@@ -2426,7 +2471,12 @@ ApplicationWindow {
         modal: true
         title: "导出"
         closePolicy: Popup.NoAutoClose
-        onOpened: fablecutView.runJavaScript("if (typeof openExportSetup === 'function') openExportSetup();")
+        onOpened: fablecutView.runJavaScript(
+            "typeof project !== 'undefined' ? JSON.stringify({width: project.width, height: project.height, fps: project.fps}) : ''",
+            function(result) {
+                window.applyTimelineExportDefaults(result)
+                fablecutView.runJavaScript("if (typeof openExportSetup === 'function') openExportSetup();")
+            })
 
         contentItem: ColumnLayout {
             spacing: 14
@@ -2459,10 +2509,7 @@ ApplicationWindow {
                 RowLayout {
                     ComboBox {
                         id: exportResolution
-                        model: [{label: "4K · 3840 × 2160", width: 3840, height: 2160},
-                                {label: "1080p · 1920 × 1080", width: 1920, height: 1080},
-                                {label: "720p · 1280 × 720", width: 1280, height: 720},
-                                {label: "540p · 960 × 540", width: 960, height: 540}]
+                        model: window.exportResolutionOptions
                         textRole: "label"
                         currentIndex: 0
                     }
@@ -2470,7 +2517,7 @@ ApplicationWindow {
                 }
 
                 Label { text: "帧率"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(13) }
-                ComboBox { id: exportFps; model: ["24 fps", "25 fps", "30 fps", "50 fps", "60 fps"]; currentIndex: 2 }
+                ComboBox { id: exportFps; model: window.exportFpsOptions; currentIndex: 2 }
 
                 Label { text: "格式"; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(13) }
                 ComboBox {
@@ -2560,7 +2607,7 @@ ApplicationWindow {
                     var resolutionItem = exportResolution.currentValue
                     var width = resolutionItem && resolutionItem.width ? resolutionItem.width : 1920
                     var height = resolutionItem && resolutionItem.height ? resolutionItem.height : 1080
-                    var frameRates = [24, 25, 30, 50, 60]
+                    var frameRates = window.exportFpsValues
                     if (workbenchRuntime.clips.length === 0) {
                         workbenchRuntime.setPendingFablecutExportPath(outputPath)
                         fablecutView.runJavaScript("window.fablecutQtOutputSpec = {width:" + width + ", height:" + height + ", fps:" + frameRates[exportFps.currentIndex] + ", crop:'none', format:'mp4'}; startChosenExport()")
@@ -2584,7 +2631,10 @@ ApplicationWindow {
         title: "选择视频导出位置"
         onAccepted: {
             var folderPath = window.localPathFromDialogUrl(selectedFolder)
-            if (folderPath !== "") window.exportOutputDirectory = folderPath
+            if (folderPath !== "") {
+                window.exportOutputDirectory = folderPath
+                workbenchRuntime.setSavedExportOutputDirectory(folderPath)
+            }
         }
     }
 

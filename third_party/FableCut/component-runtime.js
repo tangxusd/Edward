@@ -1,6 +1,7 @@
 /* Direct browser component runtime. User modules render real DOM/SVG; no IR. */
 const overlay = document.getElementById("userComponentOverlay");
 const mounted = new Map();
+let syncGeneration = 0;
 
 function inlineStyles(source, target) {
   if (!source || !target || !target.style) return;
@@ -10,43 +11,50 @@ function inlineStyles(source, target) {
 }
 
 async function prepareFrame(clips, time, viewport) {
-  await syncDirectComponents(clips, time);
-  for (const clip of clips || []) {
-    if (clip.kind !== "component") continue;
-    const entry = mounted.get(clip.id);
-    if (!entry) throw new Error(`component ${clip.id} is not mounted`);
-    await entry.instance.update?.(clip.props || {}, time - clip.start, viewport);
-  }
+  await syncDirectComponents(clips, time, viewport);
   await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 async function captureCompositeFrame(outputSpec) {
-  const source = document.getElementById("monitorZoomInner");
+  const source = document.getElementById("userComponentOverlay");
   const preview = document.getElementById("preview");
   if (!source || !preview) throw new Error("compositor surface is unavailable");
   const clone = source.cloneNode(true);
-  const cloneCanvas = clone.querySelector("canvas");
-  if (cloneCanvas) {
-    const image = document.createElement("img");
-    image.src = preview.toDataURL("image/png");
-    image.width = preview.width; image.height = preview.height;
-    image.style.cssText = getComputedStyle(preview).cssText || "display:block";
-    cloneCanvas.replaceWith(image);
-  }
   inlineStyles(source, clone);
   clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
-  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  const encoded = new TextEncoder().encode(svg);
+  let binary = "";
+  for (const byte of encoded) binary += String.fromCharCode(byte);
+  const url = "data:image/svg+xml;base64," + btoa(binary);
+  const canvas = document.createElement("canvas");
+  canvas.width = outputSpec.width; canvas.height = outputSpec.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("composite capture canvas unavailable");
+  context.drawImage(preview, 0, 0, canvas.width, canvas.height);
+  if (!clone.children.length) return canvas;
   try {
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bitmap = await createImageBitmap(new Blob([svg], {type: "image/svg+xml"}));
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        return canvas;
+      } catch (_) {
+        // Fall through to the Image decoder for WebEngine versions that do not
+        // support SVG Blob decoding through createImageBitmap.
+      }
+    }
     const image = new Image();
+    image.decoding = "sync";
     await new Promise((resolve, reject) => {
       image.onload = resolve;
       image.onerror = () => reject(new Error("composite capture image load failed"));
       image.src = url;
     });
-    const canvas = document.createElement("canvas");
-    canvas.width = outputSpec.width; canvas.height = outputSpec.height;
-    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    if (!(image.naturalWidth > 0 && image.naturalHeight > 0))
+      throw new Error("composite capture image has zero dimensions");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
     return canvas;
   } finally { /* data URL has no object URL to revoke */ }
 }
@@ -75,17 +83,37 @@ async function mountDirectComponent(id, props = {}) {
   const instance = await mod.mount({ host, props, time: 0 });
   return { manifest, host, instance };
 }
-async function syncDirectComponents(clips, time) {
+async function syncDirectComponents(clips, time, viewport) {
   if (!overlay) return;
+  const generation = ++syncGeneration;
+  const activeClips = (clips || []).filter((clip) => clip.kind === "component");
+  const activeIds = new Set(activeClips.map((clip) => clip.id));
+  // Hide stale layers synchronously. The async mount/update path must never
+  // leave a component from the previous playhead visible in an empty interval.
+  for (const [id, entry] of mounted) entry.host.style.display = activeIds.has(id) ? "flex" : "none";
   const active = new Set();
-  for (const clip of clips || []) {
-    if (clip.kind !== "component") continue;
+  for (const clip of activeClips) {
+    if (generation !== syncGeneration) return;
     active.add(clip.id);
     let entry = mounted.get(clip.id);
+    if (entry && entry.componentId !== (clip.componentId || "demo")) {
+      entry.instance.destroy?.(); entry.host.remove(); mounted.delete(clip.id); entry = null;
+    }
     if (!entry) { entry = await mountDirectComponent(clip.componentId || "demo", clip.props || {}); if (entry) mounted.set(clip.id, entry); }
-    if (entry) { entry.host.style.display = "flex"; entry.instance.update?.(clip.props || {}, time - clip.start); }
+    if (generation !== syncGeneration) {
+      if (entry && !mounted.has(clip.id)) entry.instance.destroy?.();
+      return;
+    }
+    if (entry) {
+      entry.componentId = clip.componentId || "demo";
+      entry.host.style.display = "flex";
+      await entry.instance.update?.(clip.props || {}, time - clip.start, viewport);
+    }
   }
-  for (const [id, entry] of mounted) { if (!active.has(id)) { entry.instance.destroy?.(); entry.host.remove(); mounted.delete(id); } }
+  if (generation !== syncGeneration) return;
+  for (const [id, entry] of mounted) {
+    if (!active.has(id)) { entry.instance.destroy?.(); entry.host.remove(); mounted.delete(id); }
+  }
 }
 function updateDirectComponent(clip, time = 0) {
   const entry = mounted.get(clip?.id);

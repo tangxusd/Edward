@@ -5,6 +5,13 @@ export function mount({ host, props, time }) {
   host.appendChild(node);
   function update(next = props, t = time || 0) {
    node.style.transform = `translateX(${Number(next.x) || 0}px)`;
+    // Drive the CSS motion from the timeline clock, not wall time. This keeps
+    // preview and accelerated frame-by-frame export visually identical.
+    const holo = node.querySelector(".card-6__holo");
+    if (holo) {
+      holo.style.animationPlayState = "paused";
+      holo.style.animationDelay = `${-Math.max(0, Number(t) || 0)}s`;
+    }
     node.style.opacity = String(next.opacity == null ? 1 : next.opacity);
     const color = /^#[0-9a-f]{6}$/i.test(String(next.color || "")) ? String(next.color) : "#007bff";
    node.querySelectorAll(".card-6__layer").forEach((layer) => {

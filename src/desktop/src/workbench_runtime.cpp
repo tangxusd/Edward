@@ -3178,6 +3178,25 @@ void WorkbenchRuntime::setPendingFablecutExportPath(const QString& path) {
   emit timelineChanged();
 }
 
+QString WorkbenchRuntime::savedExportOutputDirectory() const {
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  const auto path = settings.value(QStringLiteral("export/outputDirectory")).toString().trimmed();
+  if (path.isEmpty()) return {};
+  const QDir directory(path);
+  return directory.exists() ? directory.absolutePath() : QString{};
+}
+
+void WorkbenchRuntime::setSavedExportOutputDirectory(const QString& path) {
+  const auto trimmed = path.trimmed();
+  if (trimmed.isEmpty()) return;
+  const QDir directory(trimmed);
+  if (!directory.exists()) return;
+  QSettings settings(previewSettingsPath(), QSettings::IniFormat);
+  settings.setValue(QStringLiteral("export/outputDirectory"), directory.absolutePath());
+  settings.sync();
+  emit timelineChanged();
+}
+
 bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int width, int height,
                                                  int fps, int quality) {
   if (timelineExportBusy_) {
