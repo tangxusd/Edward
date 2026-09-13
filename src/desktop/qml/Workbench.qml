@@ -13,6 +13,9 @@ ApplicationWindow {
     property string exportOutputDirectory: ""
     property string exportFileName: "未命名项目.mp4"
     property bool fablecutEmbedded: true
+    // Supabase 项目配置随应用发布；publishable/anon key 不是服务端密钥。
+    readonly property string supabaseProjectUrl: "https://naybqwiqgviuzjtemerc.supabase.co"
+    readonly property string supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5heWJxd2lxZ3ZpdXpqdGVtZXJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NTE3NTQsImV4cCI6MjEwMjQyNzc1NH0.MVnAoziZGfFzw9HelNYM6auqmfQE884D8kMTDAScf_Y"
     property real uiScale: width / 388.0
     function uiFontSize(baseSize) {
         return baseSize + (uiScale < 1.0 ? 1 : 0)
@@ -2623,24 +2626,22 @@ ApplicationWindow {
         }
         contentItem: Column {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
-            TextField { id: supabaseProjectUrl; width: parent.width; placeholderText: "Supabase 项目 URL"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
-            TextField { id: supabaseAnonKey; width: parent.width; placeholderText: "Supabase anon key"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
             TextField { id: signInEmail; width: parent.width; placeholderText: "邮箱或账号名"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
             TextField { id: signInPassword; width: parent.width; placeholderText: "密码"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
-            Button { width: parent.width; text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) signInDialog.close() } }
+            Button { width: parent.width; text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text, signInPassword.text)) signInDialog.close() } }
         }
         footer: RowLayout {
             width: parent.width; height: 48; spacing: 8; anchors.margins: 14
             Button { Layout.fillWidth: true; text: "取消"; onClicked: signInDialog.close() }
-            Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(supabaseProjectUrl.text, supabaseAnonKey.text, signInEmail.text, signInPassword.text)) { entitlementTimer.start(); signInDialog.close() } } }
+            Button { Layout.fillWidth: true; text: "登录"; highlighted: true; onClicked: { if (workbenchRuntime.signInWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text, signInPassword.text)) { entitlementTimer.start(); signInDialog.close() } } }
         }
-        Timer { id: entitlementTimer; interval: 1500; repeat: false; onTriggered: workbenchRuntime.refreshSupabaseEntitlement(supabaseProjectUrl.text, supabaseAnonKey.text) }
+        Timer { id: entitlementTimer; interval: 1500; repeat: false; onTriggered: workbenchRuntime.refreshSupabaseEntitlement(window.supabaseProjectUrl, window.supabaseAnonKey) }
         Timer {
             id: sessionRefreshTimer
             interval: 10 * 60 * 1000
             repeat: true
             running: workbenchRuntime.authenticated
-            onTriggered: workbenchRuntime.refreshSupabaseSession(supabaseProjectUrl.text, supabaseAnonKey.text)
+            onTriggered: workbenchRuntime.refreshSupabaseSession(window.supabaseProjectUrl, window.supabaseAnonKey)
         }
     }
 
