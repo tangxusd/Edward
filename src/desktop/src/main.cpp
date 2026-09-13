@@ -73,8 +73,8 @@ int main(int argc, char** argv) {
     window->setFlags(Qt::Window | Qt::ExpandedClientAreaHint | Qt::NoTitleBarBackgroundHint);
     // 在首次 show 前设置窗口状态；仅依赖 QML visibility 会先创建普通窗口，
     // macOS 随后再最大化，产生可见闪烁。
-    window->setVisibility(QWindow::Maximized);
-    window->show();
+    window->setWindowState(Qt::WindowMaximized);
+    window->showMaximized();
 #ifdef Q_OS_MACOS
     bool localServiceStarted = fablecutServer.state() == QProcess::Running;
     if (!localServiceStarted) {
