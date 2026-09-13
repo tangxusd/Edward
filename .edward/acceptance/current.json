@@ -6,6 +6,7 @@
     {"id": "channel-mapping", "description": "微信 T_NATIVE、支付宝 A_NATIVE 字段映射经过验证", "status": "passed"},
     {"id": "diagnostics", "description": "HTTP 状态、原始响应、业务码和验签错误可区分", "status": "pending"},
     {"id": "subscription", "description": "连续订阅授权、续订、通知幂等和退订规则通过测试", "status": "in_progress"},
-    {"id": "security", "description": "密钥仅在 Supabase Secrets，RLS 和日志脱敏检查通过", "status": "pending"}
+    {"id": "security", "description": "密钥仅在 Supabase Secrets，RLS 和日志脱敏检查通过", "status": "pending"},
+    {"id": "resource-target", "description": "资源库组件具有可校验、可查询、可返回的稳定 target 属性", "status": "passed"}
   ]
 }
