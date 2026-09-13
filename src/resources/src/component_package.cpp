@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 
 #include <fstream>
 #include <QRegularExpression>
@@ -45,8 +46,13 @@ std::optional<ComponentPackage> ComponentPackage::load(const std::filesystem::pa
                            manifestJson.object().value("displayName").toString(), *component,
                            manifestJson.object().value("pluginId").toString(),
                            manifestJson.object().value("pluginVersion").toString(),
-                           manifestJson.object().value("thumbnail").toString(), {}};
-  package.category = manifestJson.object().value("category").toString(QStringLiteral("my"));
+                           manifestJson.object().value("thumbnail").toString(), {},
+                           manifestJson.object().value("category").toString(QStringLiteral("my")),
+                           manifestJson.object().value("fusionComp").toString(),
+                           manifestJson.object().value("fusionUrl").toString(),
+                           manifestJson.object().value("fusionSha256").toString(),
+                           manifestJson.object().value("fusionResolveVersion").toString(),
+                           manifestJson.object().value("target").toString(QStringLiteral("resolve.fusion"))};
   for (const auto& asset : manifestJson.object().value("assets").toArray()) package.assets.push_back(asset.toString());
   if (!package.validate(error)) return std::nullopt;
   return package;
@@ -54,6 +60,7 @@ std::optional<ComponentPackage> ComponentPackage::load(const std::filesystem::pa
 
 bool ComponentPackage::validate(QString* error) const {
   if (!validResourceId(resourceId) || displayName.isEmpty()) { setError(error, "resource id or display name is invalid"); return false; }
+  if (!QRegularExpression(QStringLiteral("^[a-z][a-z0-9._:-]{1,127}$")).match(target).hasMatch()) { setError(error, "target is invalid"); return false; }
   if (!component.validate(error)) return false;
   const auto dependency = component.pluginDependency();
   if (dependency) {
@@ -66,6 +73,28 @@ bool ComponentPackage::validate(QString* error) const {
     return false;
   }
   if (!thumbnail.isEmpty() && !relativePath(thumbnail)) { setError(error, "thumbnail must be relative"); return false; }
+  if (!fusionComp.isEmpty()) {
+    if (!relativePath(fusionComp) || !fusionComp.endsWith(QStringLiteral(".comp"), Qt::CaseInsensitive)) {
+      setError(error, "fusionComp must be a relative .comp path");
+      return false;
+    }
+    const auto fusionUrlValue = QUrl(this->fusionUrl);
+    if (!fusionUrlValue.isValid() || fusionUrlValue.scheme().compare(QStringLiteral("https"), Qt::CaseInsensitive) != 0 || fusionUrlValue.host().isEmpty()) {
+      setError(error, "fusionUrl must be an HTTPS URL");
+      return false;
+    }
+    if (!QRegularExpression(QStringLiteral("^[0-9a-f]{64}$")).match(fusionSha256).hasMatch()) {
+      setError(error, "fusionSha256 must be 64 lowercase hexadecimal characters");
+      return false;
+    }
+    if (fusionResolveVersion.isEmpty()) {
+      setError(error, "fusionResolveVersion is required for a Fusion artifact");
+      return false;
+    }
+  } else if (!fusionUrl.isEmpty() || !fusionSha256.isEmpty() || !fusionResolveVersion.isEmpty()) {
+    setError(error, "Fusion artifact metadata requires fusionComp");
+    return false;
+  }
   std::vector<QString> uniqueAssets;
   for (const auto& asset : assets) {
     if (!relativePath(asset) || uniqueAssets.end() != std::find(uniqueAssets.begin(), uniqueAssets.end(), asset)) {
@@ -93,6 +122,10 @@ bool ComponentPackage::saveLocal(const std::filesystem::path& directory, QString
   manifest.write(QJsonDocument(QJsonObject{{"resourceId", resourceId}, {"displayName", displayName},
                                             {"pluginId", pluginId}, {"pluginVersion", pluginVersion},
                                             {"thumbnail", thumbnail}, {"category", category},
+                                            {"fusionComp", fusionComp}, {"fusionSha256", fusionSha256},
+                                            {"fusionUrl", fusionUrl},
+                                            {"fusionResolveVersion", fusionResolveVersion},
+                                            {"target", target},
                                             {"assets", assetsJson}}).toJson(QJsonDocument::Indented));
   componentFile.write(QJsonDocument(component.toJson()).toJson(QJsonDocument::Indented));
   return true;

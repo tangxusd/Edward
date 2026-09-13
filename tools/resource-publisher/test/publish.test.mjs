@@ -15,3 +15,9 @@ test("hashes package bytes deterministically", async () => {
   await fs.writeFile(file, "resource");
   assert.equal(await sha256File(file), "5de95319f17467ed6dc58e4e0b16c1193a13b35d60dc48bcf06bf6b7beebbe6c");
 });
+
+test("validates optional component target", () => {
+  const base = { component_id: "demo.component", tab_key: "text", category_id: "00000000-0000-0000-0000-000000000000", name: "Demo", version: "1.0.0" };
+  assert.deepEqual(validateManifest({ ...base, target: "Resolve.Fusion" }).at(-1), "target is invalid");
+  assert.equal(validateManifest({ ...base, target: "resolve.fusion" }).length, 0);
+});

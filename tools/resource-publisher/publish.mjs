@@ -5,6 +5,7 @@ import path from "node:path";
 const TABS = new Set(["media", "text", "audio", "cards", "chart", "background", "annotation", "number"]);
 const ID_RE = /^[a-z0-9][a-z0-9._-]{2,127}$/;
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
+const TARGET_RE = /^[a-z][a-z0-9._:-]{1,127}$/;
 
 export function validateManifest(manifest) {
   const errors = [];
@@ -14,6 +15,7 @@ export function validateManifest(manifest) {
   if (!String(manifest.category_id || "").match(/^[0-9a-f-]{36}$/i)) errors.push("category_id must be a UUID");
   if (!String(manifest.name || "").trim()) errors.push("name is required");
   if (!VERSION_RE.test(String(manifest.version || ""))) errors.push("version is invalid");
+  if (manifest.target !== undefined && !TARGET_RE.test(String(manifest.target))) errors.push("target is invalid");
   return errors;
 }
 
@@ -51,7 +53,7 @@ export async function publish({ manifestPath, packagePath, previewPath }) {
     previewObject = `${prefix}/${path.basename(previewPath)}`;
     await upload(previewBytes, previewObject, "application/octet-stream");
   }
-  const [resource] = await request(`${url}/rest/v1/resources?on_conflict=component_id`, key, { method: "POST", headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ component_id: manifest.component_id, tab_key: manifest.tab_key, category_id: manifest.category_id, name: manifest.name, summary: manifest.summary || "", detail_markdown: manifest.detail_markdown || "", status: "published", visibility: "public", published_at: new Date().toISOString() }) });
+  const [resource] = await request(`${url}/rest/v1/resources?on_conflict=component_id`, key, { method: "POST", headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ component_id: manifest.component_id, target: manifest.target || "resolve.fusion", tab_key: manifest.tab_key, category_id: manifest.category_id, name: manifest.name, summary: manifest.summary || "", detail_markdown: manifest.detail_markdown || "", status: "published", visibility: "public", published_at: new Date().toISOString() }) });
   await request(`${url}/rest/v1/resource_versions`, key, { method: "POST", headers: { "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ resource_id: resource.id, version: manifest.version, content_hash: contentHash, manifest_path: `${prefix}/manifest.json`, package_path: `${prefix}/package.zip`, preview_image_path: previewObject, file_size: packageBytes.byteLength, mime_type: "application/zip", published_at: new Date().toISOString(), compatibility: manifest.compatibility || {} }) });
   return { component_id: manifest.component_id, version: manifest.version, content_hash: contentHash };
 }

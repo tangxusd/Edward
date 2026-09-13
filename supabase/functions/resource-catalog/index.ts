@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   const sort = url.searchParams.get("sort") === "popular" ? "popular" : url.searchParams.get("sort") === "favorites" ? "favorites" : "latest";
   const limit = Math.min(40, Math.max(1, Number(url.searchParams.get("limit") || 24)));
   const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
-  let query = client.from("resources").select("id,component_id,tab_key,category_id,name,summary,favorite_count,view_count,created_at,published_at").eq("tab_key", tabKey).eq("status", "published").in("visibility", ["public", "unlisted"]);
+  let query = client.from("resources").select("id,component_id,target,tab_key,category_id,name,summary,favorite_count,view_count,created_at,published_at").eq("tab_key", tabKey).eq("status", "published").in("visibility", ["public", "unlisted"]);
   if (categoryId) query = query.eq("category_id", categoryId);
   if (sort === "popular" || sort === "favorites") query = query.order("favorite_count", { ascending: false }).order("id", { ascending: false });
   else query = query.order("published_at", { ascending: false, nullsFirst: false }).order("id", { ascending: false });
