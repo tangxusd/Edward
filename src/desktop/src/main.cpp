@@ -85,6 +85,6 @@ int main(int argc, char** argv) {
     installEdwardTitlebar(window, localServiceStarted);
 #endif
   }
-  QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(); });
+  QTimer::singleShot(0, &runtime, [&runtime] { runtime.connectResolve(false); });
   return app.exec();
 }

@@ -72,7 +72,7 @@ bool SupabaseAuthClient::sendPasswordReset(const SupabaseAuthConfig& config, con
   if (email.trimmed().isEmpty() || !email.contains(QLatin1Char('@'))) { emit completed(false, QStringLiteral("请输入注册邮箱")); return false; }
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/recover"));
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
-  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}, {"redirect_to", "http://127.0.0.1:7777/auth/recovery"}}).toJson(QJsonDocument::Compact));
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}, {"redirect_to", "https://naybqwiqgviuzjtemerc.supabase.co/functions/v1/auth-recovery"}}).toJson(QJsonDocument::Compact));
   connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("重置密码邮件已发送，请检查邮箱") : QStringLiteral("密码找回失败，请稍后重试")); reply->deleteLater(); });
   return true;
 }
