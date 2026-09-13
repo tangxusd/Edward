@@ -6917,7 +6917,7 @@ async function fastExport() {
     a.click();
   } catch (e) {
     if (sessId) fetch("/api/export/end?id=" + sessId + "&discard=1", { method: "POST" }).catch(() => { });
-    if (String(e.message) !== "cancelled") alert("Export failed: " + e.message);
+    if (String(e?.message || e) !== "cancelled") alert("Export failed: " + (e?.message || "导出阶段失败，未返回错误详情"));
   } finally {
     els.preview.width = previousCanvasSize.width;
     els.preview.height = previousCanvasSize.height;

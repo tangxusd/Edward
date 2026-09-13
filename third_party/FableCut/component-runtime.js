@@ -40,7 +40,11 @@ async function captureCompositeFrame(outputSpec) {
   const url = URL.createObjectURL(blob);
   try {
     const image = new Image();
-    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = url; });
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("composite capture image load failed"));
+      image.src = url;
+    });
     const canvas = document.createElement("canvas");
     canvas.width = outputSpec.width; canvas.height = outputSpec.height;
     canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);

@@ -46,3 +46,4 @@
 - 验证：`node --test third_party/FableCut/test/export-compositor.test.js`、`node --check third_party/FableCut/app.js`、`cmake --build build --target test_visual_routes edward_app -j2`、`git diff --check` 通过。尚未完成真实 4K DOM 捕获端到端验收。
 - 2026-09-13 DOM 捕获异常修复：修正组件合成克隆节点在移除预览装饰后进行样式递归时的空目标访问，避免 `Cannot read properties of undefined (reading 'style')` 中断导出。
 - 验证：`node --check third_party/FableCut/component-runtime.js`、`node --test third_party/FableCut/test/export-compositor.test.js`、`cmake --build build --target edward_app -j2`、`git diff --check` 通过。
+- 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
