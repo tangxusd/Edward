@@ -23,7 +23,8 @@ Deno.serve(async (req) => {
       huifu_id: Deno.env.get("HUIFU_MERCHANT_ID"),
       out_cust_id: auth.user.id,
       return_url: Deno.env.get("HUIFU_RECURRING_RETURN_URL"),
-      extend_infos: typeof body.extendInfos === "object" && body.extendInfos ? body.extendInfos : {},
+      // 客户端不得注入汇付扩展字段；待商户产品确认后由服务端白名单生成。
+      extend_infos: {},
     });
     const token = String(providerResult.token_no || providerResult.card_bind_id || providerResult.bind_id || "");
     if (!token) return Response.json({ error: "provider_binding_missing", detail: providerResult }, { status: 502, headers: cors });
