@@ -3,6 +3,7 @@ const overlay = document.getElementById("userComponentOverlay");
 const mounted = new Map();
 
 function inlineStyles(source, target) {
+  if (!source || !target || !target.style) return;
   const computed = getComputedStyle(source);
   for (const name of computed) target.style.setProperty(name, computed.getPropertyValue(name));
   for (let i = 0; i < source.children.length; i++) inlineStyles(source.children[i], target.children[i]);
@@ -32,8 +33,8 @@ async function captureCompositeFrame(outputSpec) {
     image.style.cssText = getComputedStyle(preview).cssText || "display:block";
     cloneCanvas.replaceWith(image);
   }
-  clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
   inlineStyles(source, clone);
+  clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
