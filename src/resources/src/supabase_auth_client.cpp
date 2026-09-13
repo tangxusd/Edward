@@ -92,7 +92,9 @@ bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, co
     if (!code.isEmpty()) {
       const QHash<QString, QString> messages{{QStringLiteral("invalid_registration"), QStringLiteral("请使用有效邮箱，密码至少 8 位，用户名 3～32 个字符")},
                                              {QStringLiteral("rate_limited"), QStringLiteral("注册请求过于频繁，请稍后再试")},
-                                             {QStringLiteral("registration_unavailable"), QStringLiteral("注册失败，该邮箱或账号名可能已存在")}};
+                                             {QStringLiteral("registration_unavailable"), QStringLiteral("注册失败，请稍后重试")},
+                                             {QStringLiteral("email_already_registered"), QStringLiteral("该邮箱已完成注册，请直接登录")},
+                                             {QStringLiteral("email_confirmation_required"), QStringLiteral("当前未启用邮箱确认，注册未完成，请在 Supabase Auth 中启用邮箱确认")}};
       message = messages.value(code, QStringLiteral("注册失败：%1").arg(code));
     }
     emit completed(ok, message);

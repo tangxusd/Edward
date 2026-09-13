@@ -10,9 +10,21 @@ Deno.serve(async (req) => {
     if (!email.includes("@") || password.length < 8 || !usernameRe.test(username)) return Response.json({ error: "invalid_registration" }, { status: 400, headers: cors });
     const risk = await rateCheck(`${req.headers.get("x-forwarded-for") || "unknown"}:${email}`, "register", 5); if (!risk.allowed) return Response.json({ error: "rate_limited" }, { status: 429, headers: cors });
     const admin = adminClient(); const normalized = username.toLocaleLowerCase();
+    const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const existingUser = users.users.find(u => (u.email || "").toLowerCase() === email);
+    if (existingUser && !existingUser.email_confirmed_at) {
+      const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+      await anon.auth.resend({ type: "signup", email, options: { emailRedirectTo: "https://naybqwiqgviuzjtemerc.supabase.co/functions/v1/auth-recovery" } });
+      return Response.json({ emailVerificationRequired: true, resent: true }, { status: 200, headers: cors });
+    }
+    if (existingUser) return Response.json({ error: "email_already_registered" }, { status: 409, headers: cors });
     const { data: existing } = await admin.from("profiles").select("user_id").eq("username_normalized", normalized).maybeSingle(); if (existing) return Response.json({ error: "registration_unavailable" }, { status: 409, headers: cors });
     const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!); const { data, error } = await anon.auth.signUp({ email, password, options: { emailRedirectTo: "https://naybqwiqgviuzjtemerc.supabase.co/functions/v1/auth-recovery" } });
     if (error || !data.user) return Response.json({ error: "registration_unavailable" }, { status: 400, headers: cors });
+    if (data.session) {
+      await admin.auth.admin.deleteUser(data.user.id);
+      return Response.json({ error: "email_confirmation_required" }, { status: 503, headers: cors });
+    }
     const code = `${data.user.id.replaceAll("-", "").slice(0, 10)}${crypto.randomUUID().replaceAll("-", "").slice(0, 6)}`;
     const { error: profileError } = await admin.from("profiles").insert({ user_id: data.user.id, username_normalized: normalized, username_display: username, referral_code: code });
     if (profileError) { await admin.auth.admin.deleteUser(data.user.id); return Response.json({ error: "registration_unavailable" }, { status: 409, headers: cors }); }
