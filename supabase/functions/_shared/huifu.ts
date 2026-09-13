@@ -16,6 +16,13 @@ async function sign(params: Record<string, unknown>) {
   const key = await crypto.subtle.importKey("pkcs8", encodePrivateKey(Deno.env.get("HUIFU_RSA_PRIVATE_KEY")!), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
   return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(canonical(params))))));
 }
+export async function verifyResponse(params: Record<string, unknown>) {
+  const raw = String(params.sign || "");
+  if (!raw || !Deno.env.get("HUIFU_PUBLIC_KEY")) return false;
+  const b64 = Deno.env.get("HUIFU_PUBLIC_KEY")!.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const key = await crypto.subtle.importKey("spki", Uint8Array.from(atob(b64), c => c.charCodeAt(0)), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+  return crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, Uint8Array.from(atob(raw), c => c.charCodeAt(0)), new TextEncoder().encode(canonical(params)));
+}
 export async function huifuPost(path: string, payload: Record<string, unknown>) {
   const request = { ...payload, sys_id: Deno.env.get("HUIFU_SYS_ID"), product_id: Deno.env.get("HUIFU_PRODUCT_ID") };
   const response = await fetch(`${apiUrl}/${path.replace(/^\//, "")}`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ ...request, sign: await sign(request) }) });

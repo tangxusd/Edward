@@ -1,8 +1,9 @@
-import { adminClient } from "../_shared/huifu.ts";
+import { adminClient, verifyResponse } from "../_shared/huifu.ts";
 Deno.serve(async req => {
   if (req.method !== "POST") return new Response("method_not_allowed", { status: 405 });
   try {
     const body = await req.json();
+    if (!await verifyResponse(body)) return Response.json({ resp_code: "FAIL" }, { status: 401 });
     const status = String(body.trans_stat || "");
     const requestId = String(body.req_seq_id || "");
     if (!requestId || !["S", "F", "P"].includes(status)) return Response.json({ resp_code: "FAIL" }, { status: 400 });
