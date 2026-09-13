@@ -74,7 +74,21 @@ bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, co
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/auth-register"));
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
   auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email}, {"password", password}, {"username", email.section('@', 0, 0)}}).toJson(QJsonDocument::Compact));
-  connect(reply, &QNetworkReply::finished, this, [this, reply] { const bool ok = reply->error() == QNetworkReply::NoError; emit completed(ok, ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString()); reply->deleteLater(); });
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto raw = reply->readAll();
+    const auto object = QJsonDocument::fromJson(raw).object();
+    const auto code = object.value(QStringLiteral("error")).toString();
+    const bool ok = reply->error() == QNetworkReply::NoError && code.isEmpty();
+    QString message = ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString();
+    if (!code.isEmpty()) {
+      const QHash<QString, QString> messages{{QStringLiteral("invalid_registration"), QStringLiteral("请使用有效邮箱，密码至少 8 位，用户名 3～32 个字符")},
+                                             {QStringLiteral("rate_limited"), QStringLiteral("注册请求过于频繁，请稍后再试")},
+                                             {QStringLiteral("registration_unavailable"), QStringLiteral("注册失败，该邮箱或账号名可能已存在")}};
+      message = messages.value(code, QStringLiteral("注册失败：%1").arg(code));
+    }
+    emit completed(ok, message);
+    reply->deleteLater();
+  });
   return true;
 }
 

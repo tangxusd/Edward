@@ -2626,7 +2626,7 @@ ApplicationWindow {
         }
         contentItem: Column {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 58; anchors.margins: 18; spacing: 9
-            TextField { id: signInEmail; width: parent.width; placeholderText: "邮箱或账号名"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
+            TextField { id: signInEmail; width: parent.width; placeholderText: "邮箱（登录可使用账号名）"; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
             TextField { id: signInPassword; width: parent.width; placeholderText: "密码"; echoMode: TextInput.Password; color: DesignTokens.textPrimary; placeholderTextColor: DesignTokens.textTertiary }
             Button { width: parent.width; text: "注册账号"; onClicked: { if (workbenchRuntime.signUpWithSupabase(window.supabaseProjectUrl, window.supabaseAnonKey, signInEmail.text, signInPassword.text)) signInDialog.close() } }
         }
