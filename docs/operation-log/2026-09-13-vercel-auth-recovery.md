@@ -73,6 +73,8 @@
 - 2026-09-14 支付联调套餐：远程数据库新增并启用 `edward_test_monthly_001`、`edward_test_quarterly_001`、`edward_test_yearly_001`，均为 0.01 元；新增 `billing_interval_count` 使季付按 3 个月计算。目录接口回读 3 个套餐，金额和周期字段正确。
 - 2026-09-14 Edward 客户端支付宝接入：支付宝入口改为调用 `alipay-create-order` 并传递 `edward_test_monthly_001`，二维码提示改为支付宝文案；微信汇付入口保持原路径。
 - 验证：`cmake --build build --target edward_app -j2` 通过。
+- 2026-09-14 支付宝二维码显示：收款链接在支付弹窗中生成图形二维码，同时保留可鼠标选择复制的原始链接；二维码图像请求使用 URL 编码后的短时支付宝收款链接。
+- 验证：`cmake --build build --target edward_app -j2`、`git diff --check` 通过。
 - 2026-09-14 时间线画幅显示修正：确认 `404×720` 来源是项目文件遗留的 `exportFrame` 裁切对象，而非顶部时间线分辨率；已移除当前示例项目的遗留裁切，使默认输出恢复完整 `1280×720` 时间线画幅。
 - 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
 - 2026-09-13 WebEngine 捕获兼容修复：确认 Qt WebEngine 对 `blob:` SVG 外链载荷拒绝加载，改用内联 `data:image/svg+xml` 载荷，避免对象 URL 安全策略导致完整合成帧无法创建。
