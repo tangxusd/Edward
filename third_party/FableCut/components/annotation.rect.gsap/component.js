@@ -6,12 +6,12 @@ export function mount({ host, props, time, viewport }) {
   node.appendChild(rect);
   host.appendChild(node);
   const state = { progress: 0 };
-  const timeline = window.gsap.timeline({ paused: true }).to(state, { progress: 1, duration: 0.5, ease: "power3.out" });
+  const timeline = window.gsap.timeline({ paused: true }).to(state, { progress: 1, duration: 1, ease: "power3.out" });
   const render = (next, at, size) => {
     const w = size?.width || 1280; const h = size?.height || 720; const sx = (size?.cssWidth || w) / w; const sy = (size?.cssHeight || h) / h;
     const scale = Math.max(0.05, Number(next.scale ?? 1));
     const bw = w * Number(next.width ?? 0.56) * scale; const bh = h * Number(next.height ?? 0.28) * scale;
-    timeline.seek(Math.max(0, Number(next.progress == null ? at : next.progress * 0.5)));
+    timeline.seek(Math.max(0, Number(next.progress == null ? at : next.progress)));
     const p = clamp(state.progress, 0, 1); const radius = Number(next.radius ?? 5) * scale;
     const perimeter = 2 * (bw + bh);
     Object.assign(node.style, { position: "absolute", left: `${(w / 2 + Number(next.x ?? 0) - bw / 2) * sx}px`, top: `${(h / 2 + Number(next.y ?? 0) - bh / 2) * sy}px`, width: `${bw * sx}px`, height: `${bh * sy}px`, overflow: "visible", pointerEvents: "none", opacity: Number(next.opacity ?? 1), transform: `rotate(${Number(next.rotation ?? 0)}deg)`, transformOrigin: "center" });

@@ -4,7 +4,7 @@ function values(props, time, viewport) {
   const width = viewport?.width || 1280;
   const height = viewport?.height || 720;
   const duration = Math.max(0.1, Number(props.duration ?? 3));
-  const u = clamp(time / 0.5, 0, 1);
+  const u = clamp(time / 1, 0, 1);
   const progress = props.progress == null ? 1 - Math.pow(1 - u, 3) : clamp(Number(props.progress), 0, 1);
   const scale = Math.max(0.05, Number(props.scale ?? 1));
   return { width, height, cssWidth: viewport?.cssWidth || width, cssHeight: viewport?.cssHeight || height, progress, x: Number(props.x ?? 0), y: Number(props.y ?? 0), boxWidth: width * Number(props.width ?? 0.56) * scale, boxHeight: height * Number(props.height ?? 0.28) * scale, borderWidth: Number(props.borderWidth ?? 2), radius: Number(props.radius ?? 5) * scale, color: props.color || "#1683ff" };

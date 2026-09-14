@@ -8,7 +8,7 @@ export function mount({ host, props, time, viewport }) {
     const w = size?.width || 1280; const h = size?.height || 720; const sx = (size?.cssWidth || w) / w; const sy = (size?.cssHeight || h) / h;
     const scale = Math.max(0.05, Number(next.scale ?? 1));
     const bw = w * Number(next.width ?? 0.56) * scale; const bh = h * Number(next.height ?? 0.28) * scale;
-    const u = clamp(at / 0.5, 0, 1);
+    const u = clamp(at / 1, 0, 1);
     const p = clamp(next.progress == null ? 1 - Math.pow(1 - u, 3) : Number(next.progress), 0, 1);
     const radius = Number(next.radius ?? 5) * scale;
     const perimeter = 2 * (bw + bh);

@@ -7,7 +7,7 @@ export function mount({ host, props, time, viewport }) {
     const w = size?.width || 1280; const h = size?.height || 720; const sx = (size?.cssWidth || w) / w; const sy = (size?.cssHeight || h) / h;
     const scale = Math.max(0.05, Number(next.scale ?? 1));
     const rw = w * Number(next.width ?? 0.56) * scale; const rh = h * Number(next.height ?? 0.28) * scale;
-    const u = clamp(at / 0.5, 0, 1);
+    const u = clamp(at / 1, 0, 1);
     const p = clamp(next.progress == null ? 1 - Math.pow(1 - u, 3) : Number(next.progress), 0, 1);
     const radius = Number(next.radius ?? 5) * scale; const perimeter = 2 * (rw + rh);
     Object.assign(svg.style, { position: "absolute", left: `${(w / 2 + Number(next.x ?? 0) - rw / 2) * sx}px`, top: `${(h / 2 + Number(next.y ?? 0) - rh / 2) * sy}px`, width: `${rw * sx}px`, height: `${rh * sy}px`, overflow: "visible", pointerEvents: "none", opacity: Number(next.opacity ?? 1), transform: `rotate(${Number(next.rotation ?? 0)}deg)`, transformOrigin: "center" });

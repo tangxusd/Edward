@@ -97,6 +97,16 @@ async function syncDirectComponents(clips, time, viewport, mode = "preview") {
   const activeClips = (clips || []).filter((clip) => clip.kind === "component");
   const activeIds = new Set(activeClips.map((clip) => clip.id));
   desiredComponentIds = activeIds;
+  // Remove stale mounted hosts before awaiting any new module. This makes a
+  // playhead change atomic from the user's point of view and prevents a prior
+  // component from being shown under a newly active clip.
+  for (const [id, entry] of mounted) {
+    if (!activeIds.has(id)) {
+      entry.instance.destroy?.();
+      entry.host.remove();
+      mounted.delete(id);
+    }
+  }
   // Hide stale layers synchronously. The async mount/update path must never
   // leave a component from the previous playhead visible in an empty interval.
   for (const [id, entry] of mounted) entry.host.style.display = activeIds.has(id) ? "flex" : "none";

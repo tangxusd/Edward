@@ -1915,6 +1915,22 @@ function redo() {
 function defaultTrackFor(kind) {
   return kind === "audio" ? "A1" : kind === "svg" ? "V3" : "V1";
 }
+function canPlaceClip(track, start, duration, ignoreId = null) {
+  const end = start + duration;
+  return !project.clips.some((clip) => clip.track === track && clip.id !== ignoreId && start < clipEnd(clip) - 1e-4 && end > clip.start + 1e-4);
+}
+function hasTrackOverlap() {
+  const byTrack = new Map();
+  for (const clip of project.clips) {
+    const list = byTrack.get(clip.track) || [];
+    list.push(clip); byTrack.set(clip.track, list);
+  }
+  for (const list of byTrack.values()) {
+    list.sort((a, b) => a.start - b.start);
+    for (let i = 1; i < list.length; i++) if (list[i].start < clipEnd(list[i - 1]) - 1e-4) return true;
+  }
+  return false;
+}
 function linkedClip(c) {
   return c?.linkedId ? getClip(c.linkedId) : null;
 }
@@ -2072,6 +2088,7 @@ function addClipFromMedia(m, trackId, at) {
   if (!tr || (kind === "audio") !== (tr.kind === "audio")) trackId = defaultTrackFor(kind);
   const start = Math.max(0, at ?? state.time);
   const duration = m.duration || 5;
+  if (!canPlaceClip(trackId, start, duration)) { toast("该轨道时间段已有片段，不能重叠"); return null; }
   const name = m.name.replace(/\.[^.]+$/, "");
   const c = {
     id: "c_" + uid(), mediaId: m.id, kind, track: trackId,
@@ -2392,7 +2409,9 @@ async function addNativeComponent(componentId, dropTrack = "V2", dropTime = stat
   }
   pushUndo();
   const props = nativeAnnotationDefaults(manifest);
-  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track: dropTrack || "V2", start: dropTime, in: 0, duration: Number(props.duration || 3), name: manifest.name || componentId, props };
+  const track = dropTrack || "V2", start = Math.max(0, dropTime), duration = Number(props.duration || 3);
+  if (!canPlaceClip(track, start, duration)) { toast("该轨道时间段已有片段，不能重叠"); return; }
+  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track, start, in: 0, duration, name: manifest.name || componentId, props };
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
@@ -3319,6 +3338,10 @@ function startClipGesture(e, c, mode, collapseOnClick) {
     window.removeEventListener("pointerup", onUp);
     state.gesture = false;
     if (moved) {
+      if (hasTrackOverlap()) {
+        project.clips = JSON.parse(snapshot);
+        toast("轨道片段不能重叠，已恢复原位置");
+      }
       runtime.undo.push(snapshot);
       if (runtime.undo.length > 100) runtime.undo.shift();
       runtime.redo.length = 0;
