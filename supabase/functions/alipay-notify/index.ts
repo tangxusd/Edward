@@ -17,6 +17,7 @@ Deno.serve(async req => {
     const admin = adminClient();
     const { data: order } = await admin.from("orders").select("id,paid_amount,status").eq("provider_request_id", outTradeNo).maybeSingle();
     if (!order) return new Response("fail", { status: 404 });
+    await admin.from("payment_audit_events").insert({ order_id: order.id, provider: "alipay", phase: "notify", provider_code: body.code || null, provider_status: status, payload: body });
     const paidCents = Math.round(Number(body.total_amount || 0) * 100);
     if (!Number.isFinite(paidCents) || paidCents !== Number(order.paid_amount)) return new Response("fail", { status: 400 });
     if (order.status !== "paid") {

@@ -27,11 +27,13 @@ Deno.serve(async req => {
     const { data: order, error } = await admin.from("orders").insert({ user_id: user.id, plan_id: plan.id, idempotency_key: idempotencyKey, currency: "CNY", original_amount: amount, discount_amount: 0, credit_amount: 0, paid_amount: amount, rule_version: 1, status: "pending", provider: "alipay", provider_request_id: outTradeNo }).select("id,status,paid_amount").single();
     if (error) return Response.json({ error: "order_unavailable" }, { status: 409, headers: cors });
     const params = await buildAlipayGatewayRequest("alipay.trade.precreate", { out_trade_no: outTradeNo, total_amount: (amount / 100).toFixed(2), subject: String(plan.name).slice(0, 256), product_code: "FACE_TO_FACE_PAYMENT" }, { appId, privateKeyPem: privateKey, notifyUrl });
+    await admin.from("payment_audit_events").insert({ order_id: order.id, provider: "alipay", phase: "create_request", payload: { method: "alipay.trade.precreate", out_trade_no: outTradeNo, app_id: appId, biz_content: params.biz_content, notify_url: notifyUrl } });
     const upstream = await fetch(gateway(), { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8", Accept: "application/json" }, body: new URLSearchParams(params) });
     const raw = await upstream.text();
     let response: Record<string, unknown> = {};
     try { response = JSON.parse(raw); } catch { /* 诊断信息通过原文返回 */ }
     const result = (response.alipay_trade_precreate_response || {}) as Record<string, unknown>;
+    await admin.from("payment_audit_events").insert({ order_id: order.id, provider: "alipay", phase: "create_response", http_status: upstream.status, provider_code: String(result.code || ""), provider_status: String(result.msg || ""), payload: response });
     if (!upstream.ok || String(result.code || "") !== "10000" || !result.qr_code) {
       await admin.from("orders").update({ status: "failed", provider_response: { httpStatus: upstream.status, response: response || raw.slice(0, 1000) } }).eq("id", order.id);
       return Response.json({ error: "payment_create_failed", upstreamStatus: upstream.status, providerCode: result.code || null, providerMessage: result.sub_msg || result.msg || null }, { status: 502, headers: cors });

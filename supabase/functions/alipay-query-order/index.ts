@@ -12,6 +12,7 @@ Deno.serve(async req => {
     const { data, error } = await adminClient().from("orders").select("id,status,provider,paid_amount").eq("id", orderId).eq("user_id", user.id).maybeSingle();
     if (error) return Response.json({ error: "order_query_failed" }, { status: 502, headers: cors });
     if (!data) return Response.json({ error: "order_not_found" }, { status: 404, headers: cors });
+    await adminClient().from("payment_audit_events").insert({ order_id: data.id, provider: "alipay", phase: "query", provider_status: data.status, payload: { status: data.status, provider: data.provider, paid_amount: data.paid_amount } });
     return Response.json(data, { headers: cors });
   } catch { return Response.json({ error: "invalid_request" }, { status: 400, headers: cors }); }
 });
