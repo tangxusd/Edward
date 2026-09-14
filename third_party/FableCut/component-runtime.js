@@ -2,6 +2,7 @@
 const overlay = document.getElementById("userComponentOverlay");
 const mounted = new Map();
 const mounting = new Map();
+let desiredComponentIds = new Set();
 let syncGeneration = 0;
 
 function inlineStyles(source, target) {
@@ -89,6 +90,7 @@ async function syncDirectComponents(clips, time, viewport) {
   const generation = ++syncGeneration;
   const activeClips = (clips || []).filter((clip) => clip.kind === "component");
   const activeIds = new Set(activeClips.map((clip) => clip.id));
+  desiredComponentIds = activeIds;
   // Hide stale layers synchronously. The async mount/update path must never
   // leave a component from the previous playhead visible in an empty interval.
   for (const [id, entry] of mounted) entry.host.style.display = activeIds.has(id) ? "flex" : "none";
@@ -109,10 +111,10 @@ async function syncDirectComponents(clips, time, viewport) {
       try { entry = await pending; } finally {
         if (mounting.get(clip.id) === pending) mounting.delete(clip.id);
       }
-      if (entry && generation === syncGeneration) mounted.set(clip.id, entry);
+      if (entry && desiredComponentIds.has(clip.id)) mounted.set(clip.id, entry);
       else if (entry) entry.instance.destroy?.();
     }
-    if (generation !== syncGeneration) {
+    if (generation !== syncGeneration && !desiredComponentIds.has(clip.id)) {
       if (entry && !mounted.has(clip.id)) entry.instance.destroy?.();
       return;
     }
