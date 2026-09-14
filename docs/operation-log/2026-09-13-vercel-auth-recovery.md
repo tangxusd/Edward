@@ -64,6 +64,8 @@
 - 2026-09-14 支付宝签名基础设施：新增确定性的 RSA2 签名文本构造、私钥签名和公钥验签工具；明确不绑定未确认的支付宝产品 API 路径。
 - 验证：`deno test --allow-env supabase/tests/alipay-signing.test.ts`（2/2）和 `git diff --check` 通过。
 - 2026-09-14 支付宝生产网关确认：采用 `https://openapi.alipay.com/gateway.do`，新增统一网关协议参数构造（app_id/method/format/charset/sign_type/timestamp/version/biz_content/notify_url）和 RSA2 签名覆盖；具体业务 method 仍待商户产品权限确认。
+- 2026-09-14 支付宝正扫服务端骨架：新增 `alipay-create-order`（`alipay.trade.precreate`）和 `alipay-notify`，实现套餐金额校验、订单幂等、二维码回传、异步通知 RSA2 验签、商户/金额/状态校验和 HTTP 状态诊断。当前仅完成订单状态落库，订阅权益事务仍待接入后再部署生产。
+- 验证：两个 Edge Function `deno check` 通过，RSA2 测试 3/3 通过；未执行生产下单。
 - 2026-09-14 时间线画幅显示修正：确认 `404×720` 来源是项目文件遗留的 `exportFrame` 裁切对象，而非顶部时间线分辨率；已移除当前示例项目的遗留裁切，使默认输出恢复完整 `1280×720` 时间线画幅。
 - 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
 - 2026-09-13 WebEngine 捕获兼容修复：确认 Qt WebEngine 对 `blob:` SVG 外链载荷拒绝加载，改用内联 `data:image/svg+xml` 载荷，避免对象 URL 安全策略导致完整合成帧无法创建。
