@@ -3244,7 +3244,14 @@ ApplicationWindow {
             spacing: 12
             padding: 20
             Text { text: "请使用支付宝扫描以下二维码"; color: DesignTokens.textPrimary; wrapMode: Text.Wrap }
-            Text { text: workbenchRuntime.paymentQrCode; color: DesignTokens.accent; wrapMode: Text.Wrap }
+            Image {
+                width: 240; height: 240; anchors.horizontalCenter: parent.horizontalCenter
+                fillMode: Image.PreserveAspectFit
+                source: workbenchRuntime.paymentQrCode === "" ? "" : "https://quickchart.io/qr?size=240&margin=2&text=" + encodeURIComponent(workbenchRuntime.paymentQrCode)
+                asynchronous: true
+                cache: false
+            }
+            TextEdit { text: workbenchRuntime.paymentQrCode; readOnly: true; selectByMouse: true; color: DesignTokens.accent; wrapMode: TextEdit.Wrap; width: parent.width }
             Text { text: "二维码由支付宝返回。支付成功后将自动开通对应套餐。"; color: DesignTokens.textSecondary; wrapMode: Text.Wrap }
         }
     }
