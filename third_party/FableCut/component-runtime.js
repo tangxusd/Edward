@@ -106,6 +106,7 @@ async function syncDirectComponents(clips, time, viewport) {
     }
     if (entry) {
       entry.componentId = clip.componentId || "demo";
+      entry.host.dataset.clipId = clip.id;
       entry.host.style.display = "flex";
       await entry.instance.update?.(clip.props || {}, time - clip.start, viewport);
     }

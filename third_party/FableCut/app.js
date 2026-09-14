@@ -5474,9 +5474,17 @@ function drawFrame(t = state.time) {
   ctx2d.setTransform(1, 0, 0, 1, 0, 0);
   ctx2d.filter = "none"; ctx2d.globalAlpha = 1;
   ctx2d.fillStyle = project.background || "#000"; ctx2d.fillRect(0, 0, W, H);
+  // Render and reconcile from one immutable visible-clip snapshot. Hide DOM
+  // component hosts synchronously before any async mount/update work so a
+  // blank interval can never display the previous component for a frame.
+  const visible = visibleClipsAt(t);
+  const activeComponentIds = new Set(visible.filter((c) => c.kind === "component").map((c) => c.id));
+  document.querySelectorAll("#userComponentOverlay > [data-user-component]").forEach((host) => {
+    host.style.display = activeComponentIds.has(host.dataset.clipId) ? "flex" : "none";
+  });
   // render video tracks bottom-up (V1 under V2)
-  for (const c of visibleClipsAt(t)) drawClip(c, W, H, t);
-  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(visibleClipsAt(t), t);
+  for (const c of visible) drawClip(c, W, H, t);
+  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(visible, t);
   directSync?.catch?.(() => {});
   // on-canvas selection handles (never during export or playback)
   if (!state.exporting && !state.playing) drawSelectionOverlay(W, H, t);
