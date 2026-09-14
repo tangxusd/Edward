@@ -13,9 +13,9 @@
     ,{"id": "desktop-export-button", "description": "导出按钮在路径和文件名有效时启用，并按时间线来源调用 Edward 或 FableCut 原生导出", "status": "passed"}
     ,{"id": "browser-composite-export", "description": "FableCut 组件层与 Canvas 在同一导出帧中合成，显式输出尺寸/FPS且禁用隐式裁切", "status": "in_progress"}
     ,{"id": "alipay-manual-purchase-design", "description": "支付宝单次购买/手动续费方案、服务端验签通知、幂等权益发放和无独立服务器边界已形成可执行设计", "status": "passed"}
-    ,{"id": "native-annotation-ease", "description": "四种原生标注组件默认 3 秒时长，0.5 秒内按单方向三次方缓出完成闭合，其余时间保持闭合", "status": "passed"}
+    ,{"id": "native-annotation-ease", "description": "四种原生标注组件默认 3 秒时长，1 秒内按单方向三次方缓出完成闭合，其余时间保持闭合", "status": "passed"}
     ,{"id": "native-annotation-center", "description": "四种组件以画布中心为零点的像素 x/y 定位，缩放后包围盒中心仍保持一致", "status": "passed"}
-    ,{"id": "native-annotation-drag-scale", "description": "组件拖拽使用归一化坐标、缩放使用组件尺寸与 scale，变更后立即重绘 DOM 组件层", "status": "passed"}
+    ,{"id": "native-annotation-drag-scale", "description": "组件拖拽使用中心零点像素坐标、缩放使用组件尺寸与 scale，变更后立即重绘 DOM 组件层", "status": "passed"}
     ,{"id": "native-annotation-export-contract", "description": "导出逐帧通过 prepareFrame 使用同一原生组件入口并传入 export 模式和输出视口", "status": "passed"}
     ,{"id": "native-annotation-drag-drop", "description": "标注组件可从资源库拖入时间线或直接拖入预览画布，并按落点写入中心零点像素坐标", "status": "passed"}
   ]
