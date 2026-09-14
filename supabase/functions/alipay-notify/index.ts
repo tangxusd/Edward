@@ -19,7 +19,12 @@ Deno.serve(async req => {
     if (!order) return new Response("fail", { status: 404 });
     const paidCents = Math.round(Number(body.total_amount || 0) * 100);
     if (!Number.isFinite(paidCents) || paidCents !== Number(order.paid_amount)) return new Response("fail", { status: 400 });
-    if (order.status !== "paid") await admin.from("orders").update({ status: "paid", provider_order_id: body.trade_no || null, provider_response: body, updated_at: new Date().toISOString() }).eq("id", order.id).eq("status", "pending");
+    if (order.status !== "paid") {
+      const { error: updateError } = await admin.from("orders").update({ status: "paid", provider_order_id: body.trade_no || null, provider_response: body, updated_at: new Date().toISOString() }).eq("id", order.id).eq("status", "pending");
+      if (updateError) return new Response("fail", { status: 503 });
+    }
+    const { error: entitlementError } = await admin.rpc("apply_paid_order", { p_order_id: order.id });
+    if (entitlementError) return new Response("fail", { status: 503 });
     return new Response("success");
   } catch (error) {
     console.error("alipay-notify failed", String(error));
