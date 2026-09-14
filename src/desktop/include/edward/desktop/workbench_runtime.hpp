@@ -308,7 +308,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool refreshSupabaseEntitlement(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE bool refreshSupabaseSession(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE bool createNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc);
-  Q_INVOKABLE bool createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc);
+  Q_INVOKABLE bool createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, const QString& planKey);
   Q_INVOKABLE void signOut();
   Q_INVOKABLE bool uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
                                           const QString& displayName);

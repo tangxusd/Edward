@@ -2969,10 +2969,10 @@ bool WorkbenchRuntime::createNativePayment(const QString& projectUrl, const QStr
   return authClient_.createNativePayment({projectUrl, anonKey}, sessions_.session(), amount, goodsDesc, QStringLiteral("wechat"));
 }
 
-bool WorkbenchRuntime::createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc) {
+bool WorkbenchRuntime::createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, const QString& planKey) {
   if (!authenticated() || paymentBusy_) return false;
   paymentBusy_ = true; paymentQrCode_.clear(); emit timelineChanged();
-  return authClient_.createNativePayment({projectUrl, anonKey}, sessions_.session(), amount, goodsDesc, QStringLiteral("alipay"));
+  return authClient_.createAlipayPayment({projectUrl, anonKey}, sessions_.session(), planKey);
 }
 
 void WorkbenchRuntime::signOut() {

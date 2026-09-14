@@ -188,4 +188,21 @@ bool SupabaseAuthClient::createNativePayment(const SupabaseAuthConfig& config, c
   return true;
 }
 
+bool SupabaseAuthClient::createAlipayPayment(const SupabaseAuthConfig& config, const AuthSession& session, const QString& planKey) {
+  if (session.accessToken.isEmpty() || planKey.isEmpty()) { emit paymentCompleted(false, {}, {}, QStringLiteral("支付参数无效")); return false; }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/alipay-create-order"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("apikey", config.anonKey.toUtf8()); request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + session.accessToken).toUtf8());
+  const auto body = QJsonObject{{"planKey", planKey}, {"idempotencyKey", QUuid::createUuid().toString(QUuid::WithoutBraces)}};
+  auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object(); const auto qr = object.value("qrCode").toString();
+    const bool ok = reply->error() == QNetworkReply::NoError && !qr.isEmpty();
+    const auto detail = object.value("providerMessage").toString();
+    emit paymentCompleted(ok, object.value("orderId").toString(), qr, ok ? QStringLiteral("请使用支付宝扫描二维码") : (detail.isEmpty() ? object.value("error").toString(QStringLiteral("支付宝下单失败")) : QStringLiteral("支付宝下单失败：%1").arg(detail)));
+    reply->deleteLater();
+  });
+  return true;
+}
+
 }  // namespace edward::resources

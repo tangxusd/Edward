@@ -498,8 +498,8 @@ ApplicationWindow {
                                 enabled: !workbenchRuntime.paymentBusy
                                 Layout.preferredWidth: 112
                                 Layout.preferredHeight: 24
-                                text: workbenchRuntime.paymentBusy ? "支付中…" : "支付宝正扫 0.01 元"
-                                onClicked: workbenchRuntime.createAlipayNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付宝正扫验证")
+                                text: workbenchRuntime.paymentBusy ? "支付中…" : "支付宝月付 0.01 元"
+                                onClicked: workbenchRuntime.createAlipayNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, "edward_test_monthly_001")
                             }
                         }
                     }
@@ -3226,7 +3226,7 @@ ApplicationWindow {
         enabled: !workbenchRuntime.paymentBusy
         onClicked: {
             if (workbenchRuntime.authenticated)
-                workbenchRuntime.createAlipayNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付宝正扫验证")
+                workbenchRuntime.createAlipayNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, "edward_test_monthly_001")
             else
                 signInDialog.open()
         }
@@ -3243,9 +3243,9 @@ ApplicationWindow {
         contentItem: Column {
             spacing: 12
             padding: 20
-            Text { text: "请使用微信扫描以下支付链接"; color: DesignTokens.textPrimary; wrapMode: Text.Wrap }
+            Text { text: "请使用支付宝扫描以下二维码"; color: DesignTokens.textPrimary; wrapMode: Text.Wrap }
             Text { text: workbenchRuntime.paymentQrCode; color: DesignTokens.accent; wrapMode: Text.Wrap }
-            Text { text: "二维码由汇付返回。若未显示，请检查汇付商户配置。"; color: DesignTokens.textSecondary; wrapMode: Text.Wrap }
+            Text { text: "二维码由支付宝返回。支付成功后将自动开通对应套餐。"; color: DesignTokens.textSecondary; wrapMode: Text.Wrap }
         }
     }
     Timer {

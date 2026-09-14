@@ -39,6 +39,7 @@ class SupabaseAuthClient final : public QObject {
   bool createNativePayment(const SupabaseAuthConfig& config, const AuthSession& session,
                            double amount, const QString& goodsDesc,
                            const QString& channel = QStringLiteral("wechat"));
+  bool createAlipayPayment(const SupabaseAuthConfig& config, const AuthSession& session, const QString& planKey);
 
  signals:
   void completed(bool success, QString message);
