@@ -201,9 +201,25 @@ bool SupabaseAuthClient::createAlipayPayment(const SupabaseAuthConfig& config, c
     const auto object = QJsonDocument::fromJson(reply->readAll()).object(); const auto qr = object.value("qrCode").toString();
     const bool ok = reply->error() == QNetworkReply::NoError && !qr.isEmpty();
     const auto detail = object.value("providerMessage").toString();
-    emit paymentCompleted(ok, object.value("orderId").toString(), qr, ok ? QStringLiteral("请使用支付宝扫描二维码") : (detail.isEmpty() ? object.value("error").toString(QStringLiteral("支付宝下单失败")) : QStringLiteral("支付宝下单失败：%1").arg(detail)));
+    const auto providerCode = object.value("providerCode").toString();
+    const auto httpStatus = object.value("upstreamStatus").toInt();
+    QString failure = detail.isEmpty() ? object.value("error").toString(QStringLiteral("支付宝下单失败")) : QStringLiteral("支付宝下单失败：%1").arg(detail);
+    if (!providerCode.isEmpty()) failure += QStringLiteral("（业务码 %1）").arg(providerCode);
+    if (httpStatus > 0) failure += QStringLiteral(" [HTTP %1]").arg(httpStatus);
+    if (reply->error() != QNetworkReply::NoError) failure += QStringLiteral(" [%1]").arg(reply->errorString());
+    emit paymentCompleted(ok, object.value("orderId").toString(), qr, ok ? QStringLiteral("请使用支付宝扫描二维码") : failure);
     reply->deleteLater();
   });
+  return true;
+}
+
+bool SupabaseAuthClient::queryAlipayOrder(const SupabaseAuthConfig& config, const AuthSession& session, const QString& orderId) {
+  if (session.accessToken.isEmpty() || orderId.isEmpty()) return false;
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/alipay-query-order"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setTransferTimeout(15000);
+  request.setRawHeader("apikey", config.anonKey.toUtf8()); request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + session.accessToken).toUtf8());
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"orderId", orderId}}).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply, orderId] { const auto object = QJsonDocument::fromJson(reply->readAll()).object(); emit paymentStatus(orderId, object.value("status").toString()); reply->deleteLater(); });
   return true;
 }
 

@@ -3238,6 +3238,7 @@ ApplicationWindow {
         modal: true
         title: "扫码支付"
         visible: workbenchRuntime.paymentQrCode !== ""
+        onVisibleChanged: if (visible) alipayStatusTimer.start(); else alipayStatusTimer.stop()
         width: 360
         standardButtons: Dialog.Close
         contentItem: Column {
@@ -3255,6 +3256,7 @@ ApplicationWindow {
             Text { text: "二维码由支付宝返回。支付成功后将自动开通对应套餐。"; color: DesignTokens.textSecondary; wrapMode: Text.Wrap }
         }
     }
+    Timer { id: alipayStatusTimer; interval: 2000; repeat: true; onTriggered: if (workbenchRuntime.paymentOrderId !== "") workbenchRuntime.queryAlipayOrder(window.supabaseProjectUrl, window.supabaseAnonKey, workbenchRuntime.paymentOrderId) }
     Timer {
         interval: 500
         running: true

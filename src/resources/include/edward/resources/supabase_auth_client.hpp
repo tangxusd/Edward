@@ -40,11 +40,13 @@ class SupabaseAuthClient final : public QObject {
                            double amount, const QString& goodsDesc,
                            const QString& channel = QStringLiteral("wechat"));
   bool createAlipayPayment(const SupabaseAuthConfig& config, const AuthSession& session, const QString& planKey);
+  bool queryAlipayOrder(const SupabaseAuthConfig& config, const AuthSession& session, const QString& orderId);
 
  signals:
   void completed(bool success, QString message);
   void entitlementCompleted(bool success, QString status, QString expiresAt, qint64 credits);
   void paymentCompleted(bool success, QString orderId, QString qrCode, QString message);
+  void paymentStatus(QString orderId, QString status);
   void sessionRefreshed(bool success, QString message);
 
  private:

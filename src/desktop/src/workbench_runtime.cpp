@@ -531,12 +531,14 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
             emit timelineChanged();
           });
   connect(&authClient_, &edward::resources::SupabaseAuthClient::paymentCompleted, this,
-          [this](bool success, const QString&, const QString& qrCode, const QString& message) {
+          [this](bool success, const QString& orderId, const QString& qrCode, const QString& message) {
             paymentBusy_ = false;
-            if (success) paymentQrCode_ = qrCode;
+            if (success) { paymentQrCode_ = qrCode; paymentOrderId_ = orderId; }
             success ? emit operationSucceeded(message) : emit operationFailed(message);
             emit timelineChanged();
           });
+  connect(&authClient_, &edward::resources::SupabaseAuthClient::paymentStatus, this,
+          [this](const QString&, const QString& status) { if (status == QStringLiteral("paid")) { paymentBusy_ = false; paymentQrCode_.clear(); emit operationSucceeded(QStringLiteral("支付宝支付成功，订阅权限已开通")); emit timelineChanged(); } });
   connect(&componentUploadClient_, &edward::resources::ComponentUploadClient::completed, this,
           [this](bool success, const QString& message, const QJsonObject& response) {
             componentUploadBusy_ = false;
@@ -2973,6 +2975,10 @@ bool WorkbenchRuntime::createAlipayNativePayment(const QString& projectUrl, cons
   if (!authenticated() || paymentBusy_) return false;
   paymentBusy_ = true; paymentQrCode_.clear(); emit timelineChanged();
   return authClient_.createAlipayPayment({projectUrl, anonKey}, sessions_.session(), planKey);
+}
+
+bool WorkbenchRuntime::queryAlipayOrder(const QString& projectUrl, const QString& anonKey, const QString& orderId) {
+  return authenticated() && authClient_.queryAlipayOrder({projectUrl, anonKey}, sessions_.session(), orderId);
 }
 
 void WorkbenchRuntime::signOut() {

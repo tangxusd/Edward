@@ -88,6 +88,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(qint64 subscriptionCredits READ subscriptionCredits NOTIFY timelineChanged)
   Q_PROPERTY(QString paymentQrCode READ paymentQrCode NOTIFY timelineChanged)
   Q_PROPERTY(bool paymentBusy READ paymentBusy NOTIFY timelineChanged)
+  Q_PROPERTY(QString paymentOrderId READ paymentOrderId NOTIFY timelineChanged)
   Q_PROPERTY(bool signInBusy READ signInBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool componentUploadBusy READ componentUploadBusy NOTIFY timelineChanged)
   Q_PROPERTY(bool aiComponentDraftAvailable READ aiComponentDraftAvailable NOTIFY timelineChanged)
@@ -184,6 +185,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] qint64 subscriptionCredits() const { return subscriptionCredits_; }
   [[nodiscard]] QString paymentQrCode() const { return paymentQrCode_; }
   [[nodiscard]] bool paymentBusy() const { return paymentBusy_; }
+  [[nodiscard]] QString paymentOrderId() const { return paymentOrderId_; }
   [[nodiscard]] bool signInBusy() const { return signInBusy_; }
   [[nodiscard]] bool componentUploadBusy() const { return componentUploadBusy_; }
   [[nodiscard]] bool aiComponentDraftAvailable() const { return aiComponentDraft_.has_value(); }
@@ -309,6 +311,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool refreshSupabaseSession(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE bool createNativePayment(const QString& projectUrl, const QString& anonKey, double amount, const QString& goodsDesc);
   Q_INVOKABLE bool createAlipayNativePayment(const QString& projectUrl, const QString& anonKey, const QString& planKey);
+  Q_INVOKABLE bool queryAlipayOrder(const QString& projectUrl, const QString& anonKey, const QString& orderId);
   Q_INVOKABLE void signOut();
   Q_INVOKABLE bool uploadCurrentComponent(const QString& endpoint, const QString& resourceId,
                                           const QString& displayName);
@@ -459,6 +462,7 @@ class WorkbenchRuntime final : public QObject {
   QString subscriptionExpiresAt_;
   qint64 subscriptionCredits_ = 0;
   QString paymentQrCode_;
+  QString paymentOrderId_;
   bool paymentBusy_ = false;
   QString aiConversation_;
   QString aiModelEndpoint_;
