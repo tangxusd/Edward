@@ -2221,12 +2221,16 @@ body.track-size-s .clip .clip-kf-n {
 
 .playhead-cap {
   position: absolute;
-  top: 0;
+  /* tracks-content starts immediately below the 26px ruler; lift the cap
+     into that ruler so the marker straddles the boundary while the line
+     continues through the track rows. */
+  top: -14px;
   left: -6px;
   width: 13px;
   height: 14px;
   background: #ff4d6a;
   clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%);
+  z-index: 6;
 }
 
 /* ── Overlays / dialogs ── */
