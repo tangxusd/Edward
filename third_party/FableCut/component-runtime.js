@@ -4,6 +4,7 @@ const mounted = new Map();
 const mounting = new Map();
 let desiredComponentIds = new Set();
 let syncGeneration = 0;
+const ALLOWED_RUNTIMES = new Set(["react", "gsap", "html-css", "svg"]);
 
 function inlineStyles(source, target) {
   if (!source || !target || !target.style) return;
@@ -67,9 +68,12 @@ async function loadManifest(id = "demo") {
   return r.json();
 }
 
-async function mountDirectComponent(id, props = {}) {
+async function mountDirectComponent(id, props = {}, time = 0, mode = "preview", viewport = null) {
   if (!overlay) return null;
   const manifest = await loadManifest(id);
+  if (!ALLOWED_RUNTIMES.has(manifest.runtime || "html-css")) throw new Error("unsupported native component runtime");
+  const entryPath = String(manifest.entry || "").replace(/^\.\//, "");
+  if (!entryPath || entryPath.includes("..") || entryPath.startsWith("/")) throw new Error("invalid component entry");
   if (manifest.style) {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -80,9 +84,9 @@ async function mountDirectComponent(id, props = {}) {
   host.dataset.userComponent = id;
   host.style.zIndex = "10";
   overlay.appendChild(host);
-  const mod = await import(`/components/${encodeURIComponent(id)}/${manifest.entry.replace(/^\.\//, "")}`);
+  const mod = await import(`/components/${encodeURIComponent(id)}/${entryPath}`);
   if (typeof mod.mount !== "function") throw new Error("user component must export mount({host, props, time})");
-  const instance = await mod.mount({ host, props, time: 0 });
+  const instance = await mod.mount({ host, props, time, mode, viewport });
   return { manifest, host, instance };
 }
 async function syncDirectComponents(clips, time, viewport) {
@@ -105,7 +109,7 @@ async function syncDirectComponents(clips, time, viewport) {
     if (!entry) {
       let pending = mounting.get(clip.id);
       if (!pending) {
-        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {});
+        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {}, time - clip.start, "preview", viewport);
         mounting.set(clip.id, pending);
       }
       try { entry = await pending; } finally {
@@ -122,7 +126,7 @@ async function syncDirectComponents(clips, time, viewport) {
       entry.componentId = clip.componentId || "demo";
       entry.host.dataset.clipId = clip.id;
       entry.host.style.display = "flex";
-      await entry.instance.update?.(clip.props || {}, time - clip.start, viewport);
+      await entry.instance.update?.(clip.props || {}, time - clip.start, viewport, "preview");
     }
   }
   if (generation !== syncGeneration) return;
@@ -130,9 +134,9 @@ async function syncDirectComponents(clips, time, viewport) {
     if (!active.has(id)) { entry.instance.destroy?.(); entry.host.remove(); mounted.delete(id); }
   }
 }
-function updateDirectComponent(clip, time = 0) {
+function updateDirectComponent(clip, time = 0, mode = "preview", viewport = null) {
   const entry = mounted.get(clip?.id);
-  if (entry) entry.instance.update?.(clip.props || {}, time - (clip.start || 0));
+  if (entry) entry.instance.update?.(clip.props || {}, time - (clip.start || 0), viewport, mode);
 }
 
 window.fablecutDirectComponents = { mountDirectComponent, syncDirectComponents, updateDirectComponent, prepareFrame, captureCompositeFrame };

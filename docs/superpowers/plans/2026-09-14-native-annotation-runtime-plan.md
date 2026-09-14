@@ -34,7 +34,7 @@
 **Interfaces:**
 - Produces `window.React`, `window.ReactDOM` and `window.gsap` from local files only.
 - Produces `loadManifest(id)` returning a manifest with `entry`, `runtime` and `props`.
-- Requires each component module to export `mount({host, props, time, mode})` and return `{update, destroy}`.
+- Requires each component module to export `mount({host, props, time, mode, viewport})` and return `{update, destroy}`.
 
 - [ ] **Step 1: Write the failing dependency and manifest tests**
 
@@ -78,15 +78,15 @@ git commit -m "feat: add local native component runtime contract"
 ### Task 2: Add the four native rectangle resources
 
 **Files:**
-- Create: `third_party/FableCut/components/annotation/rect-react/manifest.json`
-- Create: `third_party/FableCut/components/annotation/rect-react/component.js`
-- Create: `third_party/FableCut/components/annotation/rect-gsap/manifest.json`
-- Create: `third_party/FableCut/components/annotation/rect-gsap/component.js`
-- Create: `third_party/FableCut/components/annotation/rect-html-css/manifest.json`
-- Create: `third_party/FableCut/components/annotation/rect-html-css/component.js`
-- Create: `third_party/FableCut/components/annotation/rect-html-css/component.css`
-- Create: `third_party/FableCut/components/annotation/rect-svg/manifest.json`
-- Create: `third_party/FableCut/components/annotation/rect-svg/component.js`
+- Create: `third_party/FableCut/components/annotation.rect.react/manifest.json`
+- Create: `third_party/FableCut/components/annotation.rect.react/component.js`
+- Create: `third_party/FableCut/components/annotation.rect.gsap/manifest.json`
+- Create: `third_party/FableCut/components/annotation.rect.gsap/component.js`
+- Create: `third_party/FableCut/components/annotation.rect.html-css/manifest.json`
+- Create: `third_party/FableCut/components/annotation.rect.html-css/component.js`
+- Create: `third_party/FableCut/components/annotation.rect.html-css/component.css`
+- Create: `third_party/FableCut/components/annotation.rect.svg/manifest.json`
+- Create: `third_party/FableCut/components/annotation.rect.svg/component.js`
 - Test: `third_party/FableCut/test/native-annotation-resources.test.js`
 
 **Interfaces:**
@@ -131,7 +131,7 @@ Expected: PASS for all four resource manifests and source-level contracts.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add third_party/FableCut/components/annotation third_party/FableCut/test/native-annotation-resources.test.js
+git add third_party/FableCut/components/annotation.rect.* third_party/FableCut/test/native-annotation-resources.test.js
 git commit -m "feat: add native annotation rectangle resources"
 ```
 

@@ -1,0 +1,20 @@
+{
+  "react": {
+    "package": "react",
+    "version": "18.3.1",
+    "path": "vendor/react/react.production.min.js",
+    "sha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd"
+  },
+  "react-dom": {
+    "package": "react-dom",
+    "version": "18.3.1",
+    "path": "vendor/react/react-dom.production.min.js",
+    "sha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d"
+  },
+  "gsap": {
+    "package": "gsap",
+    "version": "3.12.5",
+    "path": "vendor/gsap/gsap.min.js",
+    "sha256": "28033e449a31ebcc396e5be8b13b63152bf03094288fb5867034321927bce087"
+  }
+}

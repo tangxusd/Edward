@@ -1579,7 +1579,49 @@ function toggleSfxPreview(f, btn) {
 }
 const BIN_TAB_LIBRARY = { import: "project", media: "project", text: "elements", audio: "sfx", cards: "elements", chart: "svg", background: "elements", annotation: "svg", number: "elements" };
 function libraryForBinTab(tab) { return BIN_TAB_LIBRARY[tab] || "project"; }
+runtime.nativeAnnotationResources = runtime.nativeAnnotationResources || { loaded: false, items: [], loading: null };
+// directComponentClips remains the conceptual name for the direct native clip set；存在不完整组件时应阻止导出。
+async function loadNativeAnnotationResources() {
+  const cache = runtime.nativeAnnotationResources;
+  if (cache.loaded) return cache.items;
+  if (cache.loading) return cache.loading;
+  cache.loading = fetch("/api/components").then((response) => {
+    if (!response.ok) throw new Error(`组件资源加载失败（${response.status}）`);
+    return response.json();
+  }).then((items) => {
+    cache.items = (Array.isArray(items) ? items : []).filter((item) => item.category === "annotation");
+    cache.loaded = true;
+    return cache.items;
+  }).finally(() => { cache.loading = null; });
+  return cache.loading;
+}
+function nativeAnnotationDefaults(manifest) {
+  return Object.fromEntries(Object.entries(manifest?.props || {}).map(([key, spec]) => [key, spec.default]));
+}
+function renderNativeAnnotationLibrary() {
+  const cache = runtime.nativeAnnotationResources;
+  els.libList.innerHTML = "";
+  if (!cache.items.length) {
+    els.libList.innerHTML = `<div class="bin-empty"><div class="bin-empty-icon">□</div><p>暂无本地标注组件</p><p class="hint">管理员组件资源未找到。</p></div>`;
+    return;
+  }
+  for (const item of cache.items) {
+    const element = document.createElement("div");
+    element.className = "bin-item lib-item native-component-item";
+    element.innerHTML = `<div class="bin-thumb svg">□</div><div class="bin-meta"><div class="bin-name"></div><div class="bin-sub"></div></div><button class="btn tiny accent lib-add" title="添加到播放头">＋</button>`;
+    element.querySelector(".bin-name").textContent = item.name || item.id;
+    element.querySelector(".bin-sub").textContent = String(item.runtime || "native").toUpperCase();
+    element.addEventListener("dblclick", () => addNativeComponent(item.id));
+    element.querySelector(".lib-add").addEventListener("click", () => addNativeComponent(item.id));
+    els.libList.appendChild(element);
+  }
+}
+async function renderNativeAnnotationLibraryAsync() {
+  try { await loadNativeAnnotationResources(); renderNativeAnnotationLibrary(); }
+  catch (error) { els.libList.innerHTML = `<div class="bin-empty"><div class="bin-empty-icon">!</div><p>${escapeHtml(error.message || "组件资源加载失败")}</p></div>`; }
+}
 function renderLibrary() {
+  if (state.binTab === "annotation") { renderNativeAnnotationLibrary(); return; }
   const dir = libraryForBinTab(state.binTab);
   if (dir === "project") return;
   const files = (runtime.library[dir] || []).filter((f) => !String(f.name || "").startsWith("."));
@@ -1836,9 +1878,10 @@ function setBinTab(tab) {
   if (els.binImportTools) els.binImportTools.hidden = tab !== "import";
   const isImport = tab === "import";
   els.binList.classList.toggle("hidden", !isImport);
-  els.libList.classList.toggle("hidden", true);
+  els.libList.classList.toggle("hidden", tab !== "annotation");
   els.resourceBrowser?.classList.toggle("hidden", isImport);
   if (isImport) renderBin();
+  else if (tab === "annotation") { els.resourceBrowser?.classList.add("hidden"); els.libList.classList.remove("hidden"); renderNativeAnnotationLibraryAsync(); }
   else if (RESOURCE_PAGE_SIZE && els.resourceBrowser) loadResourceBrowser(tab);
 }
 
@@ -2331,6 +2374,18 @@ function addComponent() {
     start: state.time, in: 0, duration: 5, name: "Card 6 component",
     props: { title: "6", color: "#007bff", x: 0, y: 0, scale: 1, opacity: 1 },
   };
+  project.clips.push(c);
+  selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
+}
+async function addNativeComponent(componentId) {
+  let manifest = runtime.nativeAnnotationResources.items.find((item) => item.id === componentId);
+  if (!manifest) {
+    try { manifest = await (await fetch(`/api/components/${encodeURIComponent(componentId)}`)).json(); }
+    catch { toast("组件资源加载失败"); return; }
+  }
+  pushUndo();
+  const props = nativeAnnotationDefaults(manifest);
+  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track: "V2", start: state.time, in: 0, duration: Number(props.duration || 2), name: manifest.name || componentId, props };
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
@@ -3689,7 +3744,24 @@ function renderInspector(lite) {
   const sel = (label, k, opts, cur) => row(label,
     `<select data-k="${k}">${opts.map((o) => `<option value="${o}" ${String(o) === String(cur) ? "selected" : ""}>${o}</option>`).join("")}</select>`, k);
   const check = (label, k, on) => row(label, `<input type="checkbox" data-k="${k}" ${on ? "checked" : ""}>`, k);
-  if (c.kind === "component") {
+  const nativeManifest = c.kind === "component" && String(c.componentId || "").startsWith("annotation.rect.")
+    ? runtime.nativeAnnotationResources.items.find((item) => item.id === c.componentId) : null;
+  if (c.kind === "component" && String(c.componentId || "").startsWith("annotation.rect.") && !nativeManifest && !runtime.nativeAnnotationResources.inspectorLoading) {
+    runtime.nativeAnnotationResources.inspectorLoading = true;
+    loadNativeAnnotationResources().then(() => renderInspector()).catch(() => {}).finally(() => { runtime.nativeAnnotationResources.inspectorLoading = false; });
+  }
+  if (nativeManifest) {
+    const nativeRows = Object.entries(nativeManifest.props || {}).map(([key, spec]) => {
+      const value = p[key] == null ? spec.default : p[key];
+      if (spec.type === "color") return row(key, `<input type="color" data-k="${key}" value="${value || "#1683ff"}">`);
+      const min = spec.min == null ? "" : ` min="${spec.min}"`;
+      const max = spec.max == null ? "" : ` max="${spec.max}"`;
+      const step = spec.step == null ? "" : ` step="${spec.step}"`;
+      const display = value == null ? "自动" : String(value);
+      return row(key, `<input type="number" data-k="${key}" value="${value == null ? "" : value}"${min}${max}${step} placeholder="自动"><span class="val" data-val="${key}">${display}</span>`);
+    }).join("");
+    html += `<div class="insp-section"><h3>${escapeHtml(nativeManifest.name || "原生组件")}</h3>${nativeRows}</div>`;
+  } else if (c.kind === "component") {
     html += `<div class="insp-section"><h3>Component</h3>` +
       row("Title", `<input type="text" data-k="title" value="${String(p.title || "").replace(/"/g, "&quot;")}">`) +
       row("Color", `<input type="color" data-k="color" value="${p.color || "#007bff"}">`) +
@@ -3930,7 +4002,7 @@ function renderInspector(lite) {
     const k = input.dataset.k;
     input.addEventListener("input", () => {
       let v = input.type === "checkbox" ? input.checked
-        : input.type === "range" || input.type === "number" ? parseFloat(input.value)
+        : input.type === "range" || input.type === "number" ? (input.value === "" ? null : parseFloat(input.value))
           : input.value;
       if (k === "weight") v = +v || 0;
       if (k === "font") ensureFont(String(v));
@@ -5484,7 +5556,7 @@ function drawFrame(t = state.time) {
   });
   // render video tracks bottom-up (V1 under V2)
   for (const c of visible) drawClip(c, W, H, t);
-  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(visible, t);
+  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(visible, t, { width: W, height: H });
   directSync?.catch?.(() => {});
   // on-canvas selection handles (never during export or playback)
   if (!state.exporting && !state.playing) drawSelectionOverlay(W, H, t);
