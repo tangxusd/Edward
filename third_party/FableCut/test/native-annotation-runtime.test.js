@@ -34,3 +34,26 @@ test("four native annotation resources are manifest-driven", () => {
   assert.match(app, /loadNativeAnnotationResources/);
   assert.match(app, /addNativeComponent/);
 });
+
+test("native rectangles share the 0.5 second cubic ease and three second hold", () => {
+  const ids = ["annotation.rect.react", "annotation.rect.gsap", "annotation.rect.html-css", "annotation.rect.svg"];
+  for (const id of ids) {
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, "components", id, "manifest.json"), "utf8"));
+    assert.equal(manifest.props.duration.default, 3);
+    const source = fs.readFileSync(path.join(root, "components", id, "component.js"), "utf8");
+    assert.match(source, /0\.5/);
+    assert.match(source, /cubic-bezier|ease|progress/);
+  }
+});
+
+test("native component editing uses normalized centered geometry", () => {
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /annotation\.rect\./);
+  assert.match(app, /isNativeAnnotation/);
+  assert.match(app, /Number\(p\.width/);
+  assert.match(app, /Number\(p\.height/);
+  assert.match(app, /W \* clamp\(Number\(p\.x \?\? 0\.5\)/);
+  assert.match(app, /H \* clamp\(Number\(p\.y \?\? 0\.5\)/);
+  assert.match(app, /canvasDrag\.native/);
+  assert.match(app, /drawFrame\(state\.time\)/);
+});

@@ -1912,6 +1912,7 @@ function defaultTrackFor(kind) {
 function linkedClip(c) {
   return c?.linkedId ? getClip(c.linkedId) : null;
 }
+function isNativeAnnotation(c) { return c?.kind === "component" && String(c.componentId || "").startsWith("annotation.rect."); }
 /* Expand a clip list so each AV-linked partner is included once.
    Supports N-way `linkGroup` (video + per-channel stems) and legacy pairwise `linkedId`. */
 function withLinked(clips) {
@@ -5566,7 +5567,9 @@ function drawFrame(t = state.time) {
    Drag a clip to move it, corner handles to resize (scale), the top
    handle to rotate. Maps gestures straight onto props.x/y/scale/rotation. */
 function clipBounds(c, p, W, H) {
-  const cx = W / 2 + (+p.x || 0), cy = H / 2 + (+p.y || 0);
+  const native = isNativeAnnotation(c);
+  const cx = native ? W * clamp(Number(p.x ?? 0.5), 0, 1) : W / 2 + (+p.x || 0);
+  const cy = native ? H * clamp(Number(p.y ?? 0.5), 0, 1) : H / 2 + (+p.y || 0);
   const rot = (p.rotation || 0) * Math.PI / 180, sc = +p.scale || 1;
   let hw, hh;
   if (c.kind === "text") {
@@ -5576,6 +5579,9 @@ function clipBounds(c, p, W, H) {
       const half = measureTextHalfSize(p);
       hw = half.hw; hh = half.hh;
     }
+  } else if (native) {
+    hw = W * Number(p.width ?? 0.56) * sc / 2;
+    hh = H * Number(p.height ?? 0.28) * sc / 2;
   } else {                       // media/svg: canvas-sized base box, scaled
     hw = (W / 2) * sc; hh = (H / 2) * sc;
   }
@@ -5673,14 +5679,14 @@ els.preview.addEventListener("pointerdown", (e) => {
         canvasDrag = { mode: "scale", id: cur.id, startScale: +cur.props.scale || 1, startDist: Math.hypot(lp.x, lp.y) || 1 };
       }
     } else if (Math.abs(lp.x) <= b.hw && Math.abs(lp.y) <= b.hh) {
-      canvasDrag = { mode: "move", id: cur.id, startX: +cur.props.x || 0, startY: +cur.props.y || 0, startPt: pt };
+    canvasDrag = { mode: "move", id: cur.id, native: isNativeAnnotation(cur), startX: Number(cur.props.x ?? (isNativeAnnotation(cur) ? 0.5 : 0)), startY: Number(cur.props.y ?? (isNativeAnnotation(cur) ? 0.5 : 0)), startPt: pt };
     }
   }
   if (!canvasDrag) {
     const hit = pickClipAt(pt, W, H);
     if (!hit) return;
     if (hit.id !== state.selId) { selectClip(hit.id); renderInspector(); }
-    canvasDrag = { mode: "move", id: hit.id, startX: +hit.props.x || 0, startY: +hit.props.y || 0, startPt: pt };
+    canvasDrag = { mode: "move", id: hit.id, native: isNativeAnnotation(hit), startX: Number(hit.props.x ?? (isNativeAnnotation(hit) ? 0.5 : 0)), startY: Number(hit.props.y ?? (isNativeAnnotation(hit) ? 0.5 : 0)), startPt: pt };
   }
   canvasDidMove = false;
   if (canvasDrag.mode === "move") els.preview.style.cursor = "move";
@@ -5724,8 +5730,13 @@ els.preview.addEventListener("pointermove", (e) => {
   const W = els.preview.width, H = els.preview.height, pt = canvasPt(e);
   if (!canvasDidMove) { pushUndo(); canvasDidMove = true; } // one undo per drag, only if it actually moves
   if (canvasDrag.mode === "move") {
-    c.props.x = Math.round(canvasDrag.startX + (pt.x - canvasDrag.startPt.x));
-    c.props.y = Math.round(canvasDrag.startY + (pt.y - canvasDrag.startPt.y));
+    if (canvasDrag.native) {
+      c.props.x = clamp(+(canvasDrag.startX + (pt.x - canvasDrag.startPt.x) / W).toFixed(6), 0, 1);
+      c.props.y = clamp(+(canvasDrag.startY + (pt.y - canvasDrag.startPt.y) / H).toFixed(6), 0, 1);
+    } else {
+      c.props.x = Math.round(canvasDrag.startX + (pt.x - canvasDrag.startPt.x));
+      c.props.y = Math.round(canvasDrag.startY + (pt.y - canvasDrag.startPt.y));
+    }
   } else if (canvasDrag.mode === "box") {
     const aspect = canvasDrag.aspect || 1;
     const lockAR = e.shiftKey;
@@ -5778,11 +5789,15 @@ els.preview.addEventListener("pointermove", (e) => {
     const b = clipBounds(c, evalProps(c, state.time), W, H), lp = toLocal(pt, b);
     c.props.scale = clamp(+(canvasDrag.startScale * (Math.hypot(lp.x, lp.y) / canvasDrag.startDist)).toFixed(3), 0.05, 12);
   } else {
-    const cx = W / 2 + (+c.props.x || 0), cy = H / 2 + (+c.props.y || 0);
+    const cx = isNativeAnnotation(c) ? W * clamp(Number(c.props.x ?? 0.5), 0, 1) : W / 2 + (+c.props.x || 0);
+    const cy = isNativeAnnotation(c) ? H * clamp(Number(c.props.y ?? 0.5), 0, 1) : H / 2 + (+c.props.y || 0);
     let deg = canvasDrag.startRot + (Math.atan2(pt.y - cy, pt.x - cx) - canvasDrag.startAng) * 180 / Math.PI;
     if (e.shiftKey) deg = Math.round(deg / 15) * 15;
     c.props.rotation = Math.round(deg);
   }
+  // Native component hosts live above the canvas; redraw immediately so a
+  // drag/scale never leaves the DOM layer at its previous geometry.
+  drawFrame(state.time);
 });
 function endCanvasDrag(e) {
   if (!canvasDrag) return;

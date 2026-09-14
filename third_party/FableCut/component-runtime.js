@@ -14,7 +14,7 @@ function inlineStyles(source, target) {
 }
 
 async function prepareFrame(clips, time, viewport) {
-  await syncDirectComponents(clips, time, viewport);
+  await syncDirectComponents(clips, time, viewport, "export");
   await new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
@@ -89,7 +89,7 @@ async function mountDirectComponent(id, props = {}, time = 0, mode = "preview", 
   const instance = await mod.mount({ host, props, time, mode, viewport });
   return { manifest, host, instance };
 }
-async function syncDirectComponents(clips, time, viewport) {
+async function syncDirectComponents(clips, time, viewport, mode = "preview") {
   if (!overlay) return;
   const generation = ++syncGeneration;
   const activeClips = (clips || []).filter((clip) => clip.kind === "component");
@@ -109,7 +109,7 @@ async function syncDirectComponents(clips, time, viewport) {
     if (!entry) {
       let pending = mounting.get(clip.id);
       if (!pending) {
-        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {}, time - clip.start, "preview", viewport);
+        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {}, time - clip.start, mode, viewport);
         mounting.set(clip.id, pending);
       }
       try { entry = await pending; } finally {
@@ -126,7 +126,7 @@ async function syncDirectComponents(clips, time, viewport) {
       entry.componentId = clip.componentId || "demo";
       entry.host.dataset.clipId = clip.id;
       entry.host.style.display = "flex";
-      await entry.instance.update?.(clip.props || {}, time - clip.start, viewport, "preview");
+      await entry.instance.update?.(clip.props || {}, time - clip.start, viewport, mode);
     }
   }
   if (generation !== syncGeneration) return;
