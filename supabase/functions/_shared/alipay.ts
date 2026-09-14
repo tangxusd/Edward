@@ -16,10 +16,10 @@ function valueText(value: unknown): string {
   return String(value);
 }
 
-/** 支付宝合同：按 ASCII 键排序，排除 sign/sign_type，空值不参与签名。 */
+/** 支付宝网关合同：按 ASCII 键排序，排除 sign，空值不参与签名；sign_type 参与验签。 */
 export function buildAlipaySignContent(params: Record<string, unknown>): string {
   return Object.keys(params)
-    .filter(key => key !== "sign" && key !== "sign_type" && valueText(params[key]) !== "")
+    .filter(key => key !== "sign" && valueText(params[key]) !== "")
     .sort()
     .map(key => `${key}=${valueText(params[key])}`)
     .join("&");

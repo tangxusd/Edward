@@ -1,10 +1,10 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { alipaySign, alipayVerify, buildAlipayGatewayRequest, buildAlipaySignContent } from "../functions/_shared/alipay.ts";
 
-Deno.test("支付宝签名文本按键排序并排除 sign/sign_type/空值", () => {
+Deno.test("支付宝签名文本按键排序并排除 sign/空值", () => {
   assertEquals(
     buildAlipaySignContent({ z: "last", app_id: "app", sign: "ignored", sign_type: "RSA2", empty: "", subject: "测试" }),
-    "app_id=app&subject=测试&z=last",
+    "app_id=app&sign_type=RSA2&subject=测试&z=last",
   );
 });
 
