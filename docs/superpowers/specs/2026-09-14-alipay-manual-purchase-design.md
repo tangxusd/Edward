@@ -35,7 +35,7 @@
 
 ## Supabase 配置
 
-仅在 Supabase Secrets 保存：`ALIPAY_APP_ID`、`ALIPAY_PRIVATE_KEY`、`ALIPAY_PUBLIC_KEY`、`ALIPAY_NOTIFY_URL`、`ALIPAY_GATEWAY`。Vercel 只部署公开收银台/结果页面时，不放任何私钥。
+仅在 Supabase Secrets 保存：`ALIPAY_APP_ID`、`ALIPAY_PRIVATE_KEY`、`ALIPAY_PUBLIC_KEY`、`ALIPAY_NOTIFY_URL`、`ALIPAY_GATEWAY`。生产网关固定为 `https://openapi.alipay.com/gateway.do`，但具体 `method` 和 `biz_content` 必须按已开通产品确认。Vercel 只部署公开收银台/结果页面时，不放任何私钥。
 
 ## 无独立服务器可行性
 

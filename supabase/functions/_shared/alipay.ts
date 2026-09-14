@@ -52,3 +52,26 @@ export async function alipayVerify(params: Record<string, unknown>, signature: s
     new TextEncoder().encode(buildAlipaySignContent(params)),
   );
 }
+
+export const ALIPAY_GATEWAY = "https://openapi.alipay.com/gateway.do";
+
+/** 构造网关请求参数；具体 method/biz_content 由已确认的支付宝产品适配器提供。 */
+export async function buildAlipayGatewayRequest(
+  method: string,
+  bizContent: Record<string, unknown>,
+  options: { appId: string; privateKeyPem: string; notifyUrl?: string; timestamp?: string },
+): Promise<Record<string, string>> {
+  if (!method || !options.appId || !options.privateKeyPem) throw new Error("alipay_config_missing");
+  const params: Record<string, unknown> = {
+    app_id: options.appId,
+    method,
+    format: "JSON",
+    charset: "utf-8",
+    sign_type: "RSA2",
+    timestamp: options.timestamp || new Date().toISOString().replace("T", " ").replace(/\.\d{3}Z$/, ""),
+    version: "1.0",
+    biz_content: JSON.stringify(bizContent),
+  };
+  if (options.notifyUrl) params.notify_url = options.notifyUrl;
+  return { ...Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])), sign: await alipaySign(params, options.privateKeyPem) };
+}

@@ -63,6 +63,7 @@
 - 2026-09-14 播放头层级修正：播放头五边形原先位于 `tracks-content` 的 `top:0`，因此完全落在标尺下方；将 cap 上移 14px 并提高层级，使五边形覆盖标尺底部、竖线从标尺下方延伸。
 - 2026-09-14 支付宝签名基础设施：新增确定性的 RSA2 签名文本构造、私钥签名和公钥验签工具；明确不绑定未确认的支付宝产品 API 路径。
 - 验证：`deno test --allow-env supabase/tests/alipay-signing.test.ts`（2/2）和 `git diff --check` 通过。
+- 2026-09-14 支付宝生产网关确认：采用 `https://openapi.alipay.com/gateway.do`，新增统一网关协议参数构造（app_id/method/format/charset/sign_type/timestamp/version/biz_content/notify_url）和 RSA2 签名覆盖；具体业务 method 仍待商户产品权限确认。
 - 2026-09-14 时间线画幅显示修正：确认 `404×720` 来源是项目文件遗留的 `exportFrame` 裁切对象，而非顶部时间线分辨率；已移除当前示例项目的遗留裁切，使默认输出恢复完整 `1280×720` 时间线画幅。
 - 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
 - 2026-09-13 WebEngine 捕获兼容修复：确认 Qt WebEngine 对 `blob:` SVG 外链载荷拒绝加载，改用内联 `data:image/svg+xml` 载荷，避免对象 URL 安全策略导致完整合成帧无法创建。
