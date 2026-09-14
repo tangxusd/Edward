@@ -1608,10 +1608,16 @@ function renderNativeAnnotationLibrary() {
   for (const item of cache.items) {
     const element = document.createElement("div");
     element.className = "bin-item lib-item native-component-item";
+    element.draggable = true;
+    element.dataset.componentId = item.id;
     element.innerHTML = `<div class="bin-thumb svg">□</div><div class="bin-meta"><div class="bin-name"></div><div class="bin-sub"></div></div><button class="btn tiny accent lib-add" title="添加到播放头">＋</button>`;
     element.querySelector(".bin-name").textContent = item.name || item.id;
     element.querySelector(".bin-sub").textContent = String(item.runtime || "native").toUpperCase();
     element.addEventListener("dblclick", () => addNativeComponent(item.id));
+    element.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/fablecut-component", item.id);
+      event.dataTransfer.effectAllowed = "copy";
+    });
     element.querySelector(".lib-add").addEventListener("click", () => addNativeComponent(item.id));
     els.libList.appendChild(element);
   }
@@ -2378,7 +2384,7 @@ function addComponent() {
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
-async function addNativeComponent(componentId) {
+async function addNativeComponent(componentId, dropTrack = "V2", dropTime = state.time) {
   let manifest = runtime.nativeAnnotationResources.items.find((item) => item.id === componentId);
   if (!manifest) {
     try { manifest = await (await fetch(`/api/components/${encodeURIComponent(componentId)}`)).json(); }
@@ -2386,7 +2392,7 @@ async function addNativeComponent(componentId) {
   }
   pushUndo();
   const props = nativeAnnotationDefaults(manifest);
-  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track: "V2", start: state.time, in: 0, duration: Number(props.duration || 2), name: manifest.name || componentId, props };
+  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track: dropTrack || "V2", start: dropTime, in: 0, duration: Number(props.duration || 3), name: manifest.name || componentId, props };
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
@@ -3526,7 +3532,7 @@ function updateWorkArea() {
 
 /* ── Drag & drop: bin → timeline, files → window ── */
 els.timelineScroll.addEventListener("dragover", (e) => {
-  if (e.dataTransfer.types.includes("text/fablecut-media")) {
+  if (e.dataTransfer.types.includes("text/fablecut-media") || e.dataTransfer.types.includes("text/fablecut-component")) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     for (const row of els.tracks.children)
@@ -3539,6 +3545,12 @@ els.timelineScroll.addEventListener("dragleave", () => {
 els.timelineScroll.addEventListener("drop", (e) => {
   for (const row of els.tracks.children) row.classList.remove("drop-hint");
   const mid = e.dataTransfer.getData("text/fablecut-media");
+  const componentId = e.dataTransfer.getData("text/fablecut-component");
+  if (componentId) {
+    e.preventDefault();
+    addNativeComponent(componentId, trackAtEvent(e), snapTime(timeAtEvent(e), null));
+    return;
+  }
   if (!mid) return;
   e.preventDefault();
   const m = getMedia(mid); if (!m) return;
@@ -5568,8 +5580,8 @@ function drawFrame(t = state.time) {
    handle to rotate. Maps gestures straight onto props.x/y/scale/rotation. */
 function clipBounds(c, p, W, H) {
   const native = isNativeAnnotation(c);
-  const cx = native ? W * clamp(Number(p.x ?? 0.5), 0, 1) : W / 2 + (+p.x || 0);
-  const cy = native ? H * clamp(Number(p.y ?? 0.5), 0, 1) : H / 2 + (+p.y || 0);
+  const cx = W / 2 + (native ? Number(p.x ?? 0) : (+p.x || 0));
+  const cy = H / 2 + (native ? Number(p.y ?? 0) : (+p.y || 0));
   const rot = (p.rotation || 0) * Math.PI / 180, sc = +p.scale || 1;
   let hw, hh;
   if (c.kind === "text") {
@@ -5649,6 +5661,26 @@ function pickClipAt(pt, W, H) {
 }
 let canvasDrag = null, canvasDidMove = false;
 els.preview.style.touchAction = "none";
+els.preview.addEventListener("dragover", (event) => {
+  if (event.dataTransfer?.types.includes("text/fablecut-component")) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+});
+els.preview.addEventListener("drop", async (event) => {
+  const componentId = event.dataTransfer?.getData("text/fablecut-component");
+  if (!componentId) return;
+  event.preventDefault();
+  const point = canvasPt(event);
+  const before = new Set(project.clips.map((clip) => clip.id));
+  await addNativeComponent(componentId, "V2", state.time);
+  const inserted = project.clips.find((clip) => !before.has(clip.id));
+  if (inserted) {
+    inserted.props.x = Math.round(point.x - els.preview.width / 2);
+    inserted.props.y = Math.round(point.y - els.preview.height / 2);
+    scheduleSave(); renderInspector(); drawFrame(state.time);
+  }
+});
 els.preview.addEventListener("pointerdown", (e) => {
   if (e.altKey || e.button === 1) return; // leave to monitor pan
   const W = els.preview.width, H = els.preview.height, pt = canvasPt(e);
@@ -5679,14 +5711,14 @@ els.preview.addEventListener("pointerdown", (e) => {
         canvasDrag = { mode: "scale", id: cur.id, startScale: +cur.props.scale || 1, startDist: Math.hypot(lp.x, lp.y) || 1 };
       }
     } else if (Math.abs(lp.x) <= b.hw && Math.abs(lp.y) <= b.hh) {
-    canvasDrag = { mode: "move", id: cur.id, native: isNativeAnnotation(cur), startX: Number(cur.props.x ?? (isNativeAnnotation(cur) ? 0.5 : 0)), startY: Number(cur.props.y ?? (isNativeAnnotation(cur) ? 0.5 : 0)), startPt: pt };
+    canvasDrag = { mode: "move", id: cur.id, native: isNativeAnnotation(cur), startX: Number(cur.props.x ?? 0), startY: Number(cur.props.y ?? 0), startPt: pt };
     }
   }
   if (!canvasDrag) {
     const hit = pickClipAt(pt, W, H);
     if (!hit) return;
     if (hit.id !== state.selId) { selectClip(hit.id); renderInspector(); }
-    canvasDrag = { mode: "move", id: hit.id, native: isNativeAnnotation(hit), startX: Number(hit.props.x ?? (isNativeAnnotation(hit) ? 0.5 : 0)), startY: Number(hit.props.y ?? (isNativeAnnotation(hit) ? 0.5 : 0)), startPt: pt };
+    canvasDrag = { mode: "move", id: hit.id, native: isNativeAnnotation(hit), startX: Number(hit.props.x ?? 0), startY: Number(hit.props.y ?? 0), startPt: pt };
   }
   canvasDidMove = false;
   if (canvasDrag.mode === "move") els.preview.style.cursor = "move";
@@ -5731,8 +5763,8 @@ els.preview.addEventListener("pointermove", (e) => {
   if (!canvasDidMove) { pushUndo(); canvasDidMove = true; } // one undo per drag, only if it actually moves
   if (canvasDrag.mode === "move") {
     if (canvasDrag.native) {
-      c.props.x = clamp(+(canvasDrag.startX + (pt.x - canvasDrag.startPt.x) / W).toFixed(6), 0, 1);
-      c.props.y = clamp(+(canvasDrag.startY + (pt.y - canvasDrag.startPt.y) / H).toFixed(6), 0, 1);
+      c.props.x = Math.round(canvasDrag.startX + pt.x - canvasDrag.startPt.x);
+      c.props.y = Math.round(canvasDrag.startY + pt.y - canvasDrag.startPt.y);
     } else {
       c.props.x = Math.round(canvasDrag.startX + (pt.x - canvasDrag.startPt.x));
       c.props.y = Math.round(canvasDrag.startY + (pt.y - canvasDrag.startPt.y));
@@ -5789,8 +5821,8 @@ els.preview.addEventListener("pointermove", (e) => {
     const b = clipBounds(c, evalProps(c, state.time), W, H), lp = toLocal(pt, b);
     c.props.scale = clamp(+(canvasDrag.startScale * (Math.hypot(lp.x, lp.y) / canvasDrag.startDist)).toFixed(3), 0.05, 12);
   } else {
-    const cx = isNativeAnnotation(c) ? W * clamp(Number(c.props.x ?? 0.5), 0, 1) : W / 2 + (+c.props.x || 0);
-    const cy = isNativeAnnotation(c) ? H * clamp(Number(c.props.y ?? 0.5), 0, 1) : H / 2 + (+c.props.y || 0);
+    const cx = W / 2 + (isNativeAnnotation(c) ? Number(c.props.x ?? 0) : (+c.props.x || 0));
+    const cy = H / 2 + (isNativeAnnotation(c) ? Number(c.props.y ?? 0) : (+c.props.y || 0));
     let deg = canvasDrag.startRot + (Math.atan2(pt.y - cy, pt.x - cx) - canvasDrag.startAng) * 180 / Math.PI;
     if (e.shiftKey) deg = Math.round(deg / 15) * 15;
     c.props.rotation = Math.round(deg);

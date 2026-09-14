@@ -91,6 +91,8 @@ async function mountDirectComponent(id, props = {}, time = 0, mode = "preview", 
 }
 async function syncDirectComponents(clips, time, viewport, mode = "preview") {
   if (!overlay) return;
+  const cssRect = overlay.getBoundingClientRect();
+  const renderViewport = { ...(viewport || {}), cssWidth: cssRect.width || viewport?.width, cssHeight: cssRect.height || viewport?.height };
   const generation = ++syncGeneration;
   const activeClips = (clips || []).filter((clip) => clip.kind === "component");
   const activeIds = new Set(activeClips.map((clip) => clip.id));
@@ -109,7 +111,7 @@ async function syncDirectComponents(clips, time, viewport, mode = "preview") {
     if (!entry) {
       let pending = mounting.get(clip.id);
       if (!pending) {
-        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {}, time - clip.start, mode, viewport);
+        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {}, time - clip.start, mode, renderViewport);
         mounting.set(clip.id, pending);
       }
       try { entry = await pending; } finally {
@@ -126,7 +128,7 @@ async function syncDirectComponents(clips, time, viewport, mode = "preview") {
       entry.componentId = clip.componentId || "demo";
       entry.host.dataset.clipId = clip.id;
       entry.host.style.display = "flex";
-      await entry.instance.update?.(clip.props || {}, time - clip.start, viewport, mode);
+      await entry.instance.update?.(clip.props || {}, time - clip.start, renderViewport, mode);
     }
   }
   if (generation !== syncGeneration) return;

@@ -54,8 +54,8 @@ test("native component editing uses normalized centered geometry", () => {
   assert.match(app, /isNativeAnnotation/);
   assert.match(app, /Number\(p\.width/);
   assert.match(app, /Number\(p\.height/);
-  assert.match(app, /W \* clamp\(Number\(p\.x \?\? 0\.5\)/);
-  assert.match(app, /H \* clamp\(Number\(p\.y \?\? 0\.5\)/);
+  assert.match(app, /W \/ 2 \+ \(native \? Number\(p\.x \?\? 0\)/);
+  assert.match(app, /H \/ 2 \+ \(native \? Number\(p\.y \?\? 0\)/);
   assert.match(app, /canvasDrag\.native/);
   assert.match(app, /drawFrame\(state\.time\)/);
 });
