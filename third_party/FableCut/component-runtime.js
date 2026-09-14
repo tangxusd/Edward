@@ -138,7 +138,13 @@ async function syncDirectComponents(clips, time, viewport, mode = "preview") {
 }
 function updateDirectComponent(clip, time = 0, mode = "preview", viewport = null) {
   const entry = mounted.get(clip?.id);
-  if (entry) entry.instance.update?.(clip.props || {}, time - (clip.start || 0), viewport, mode);
+  if (entry) {
+    const canvas = document.getElementById("preview");
+    const base = viewport || { width: canvas?.width || 1280, height: canvas?.height || 720 };
+    const rect = overlay?.getBoundingClientRect();
+    const renderViewport = { ...base, cssWidth: base.cssWidth || rect?.width || base.width, cssHeight: base.cssHeight || rect?.height || base.height };
+    entry.instance.update?.(clip.props || {}, time - (clip.start || 0), renderViewport, mode);
+  }
 }
 
 window.fablecutDirectComponents = { mountDirectComponent, syncDirectComponents, updateDirectComponent, prepareFrame, captureCompositeFrame };
