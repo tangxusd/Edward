@@ -12,5 +12,6 @@
     ,{"id": "desktop-export-path", "description": "选择文件夹后将本地目录传入导出文件路径并持久化；下次打开导出弹窗自动回填，目录不存在时拒绝使用", "status": "passed"}
     ,{"id": "desktop-export-button", "description": "导出按钮在路径和文件名有效时启用，并按时间线来源调用 Edward 或 FableCut 原生导出", "status": "passed"}
     ,{"id": "browser-composite-export", "description": "FableCut 组件层与 Canvas 在同一导出帧中合成，显式输出尺寸/FPS且禁用隐式裁切", "status": "in_progress"}
+    ,{"id": "alipay-manual-purchase-design", "description": "支付宝单次购买/手动续费方案、服务端验签通知、幂等权益发放和无独立服务器边界已形成可执行设计", "status": "passed"}
   ]
 }

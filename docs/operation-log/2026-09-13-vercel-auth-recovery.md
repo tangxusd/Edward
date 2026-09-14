@@ -46,6 +46,8 @@
 - 验证：`node --test third_party/FableCut/test/export-compositor.test.js`、`node --check third_party/FableCut/app.js`、`cmake --build build --target test_visual_routes edward_app -j2`、`git diff --check` 通过。尚未完成真实 4K DOM 捕获端到端验收。
 - 2026-09-13 DOM 捕获异常修复：修正组件合成克隆节点在移除预览装饰后进行样式递归时的空目标访问，避免 `Cannot read properties of undefined (reading 'style')` 中断导出。
 - 验证：`node --check third_party/FableCut/component-runtime.js`、`node --test third_party/FableCut/test/export-compositor.test.js`、`cmake --build build --target edward_app -j2`、`git diff --check` 通过。
+- 2026-09-14 支付宝接入设计：确定采用支付宝单次购买/到期手动续费，不把普通收款码或前端跳转当作订阅成功；由 Supabase Edge Functions 负责服务端下单、RSA2 验签、异步通知和幂等权益发放，Vercel 仅承载公开页面（如需要）。暂不启用协议支付、周期扣款或免密代扣。
+- 设计与实施计划：`docs/superpowers/specs/2026-09-14-alipay-manual-purchase-design.md`、`docs/superpowers/plans/2026-09-14-alipay-manual-purchase-plan.md`。支付宝具体接口须以商户后台已开通产品和正式字段合同确认，不猜测接口名。
 - 2026-09-14 导出默认值与路径持久化：导出弹窗打开时读取 FableCut 时间线的 `project.width`、`project.height`、`project.fps`，匹配或新增对应分辨率选项并设为默认；选择的导出目录写入 Edward 的 `preview-storage.ini`，下次打开直接回填，目录不存在时不启用旧路径。
 - 时间线 FPS 若不在预置列表中，会动态加入实际 FPS，并由导出合同使用该数值，不静默回退为 30 fps。
 - 2026-09-14 捕获顺序修正：先对完整监视器克隆执行样式物化，再替换 Canvas 为当前帧 PNG，避免替换节点后样式递归错位。未宣称真实 WebEngine 合成捕获已通过；当前仍需实机确认 `composite capture image load failed` 是否消失。
