@@ -167,6 +167,7 @@ bool SupabaseAuthClient::createNativePayment(const SupabaseAuthConfig& config, c
   if (session.accessToken.isEmpty() || amount < 0.01) { emit paymentCompleted(false, {}, {}, QStringLiteral("支付参数无效")); return false; }
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/huifu-native-create"));
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setTransferTimeout(30000);
   request.setRawHeader("apikey", config.anonKey.toUtf8()); request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + session.accessToken).toUtf8());
   const auto body = QJsonObject{{"amount", amount}, {"goodsDesc", goodsDesc}, {"channel", channel}, {"idempotencyKey", QUuid::createUuid().toString(QUuid::WithoutBraces)}};
   auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
@@ -192,6 +193,7 @@ bool SupabaseAuthClient::createAlipayPayment(const SupabaseAuthConfig& config, c
   if (session.accessToken.isEmpty() || planKey.isEmpty()) { emit paymentCompleted(false, {}, {}, QStringLiteral("支付参数无效")); return false; }
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/alipay-create-order"));
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setTransferTimeout(30000);
   request.setRawHeader("apikey", config.anonKey.toUtf8()); request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + session.accessToken).toUtf8());
   const auto body = QJsonObject{{"planKey", planKey}, {"idempotencyKey", QUuid::createUuid().toString(QUuid::WithoutBraces)}};
   auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
