@@ -9,6 +9,7 @@
 #include <QTimer>
 #include <QProcess>
 #include <QFileInfo>
+#include <QFile>
 #include <QWindow>
 #include <QStandardPaths>
 #include <QTcpSocket>
@@ -70,6 +71,11 @@ int main(int argc, char** argv) {
     if (target.isEmpty()) return;
     const QFileInfo targetInfo(target);
     if (!targetInfo.absoluteDir().exists()) return;
+    if (targetInfo.exists() && (!targetInfo.isFile() || !QFile::remove(targetInfo.absoluteFilePath()))) {
+      download->cancel();
+      runtime.setPendingFablecutExportPath({});
+      return;
+    }
     download->setDownloadDirectory(targetInfo.absolutePath());
     download->setDownloadFileName(targetInfo.fileName());
     download->accept();

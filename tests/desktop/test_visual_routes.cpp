@@ -115,6 +115,7 @@ int main() {
   assert(workbench.find("visible: window.activeRailIndex >= 4") != std::string::npos);
   assert(workbench.find("workbenchRuntime.insertLibraryComponentAtPlayhead(modelData.resourceId)") != std::string::npos);
   assert(main.find("qrc:/qml/Workbench.qml") != std::string::npos);
+  assert(main.find("QFile::remove(targetInfo.absoluteFilePath())") != std::string::npos);
   assert(main.find("Qt::WindowStaysOnTopHint") != std::string::npos);
   assert(main.find("kReferenceSidebarWidth = 388.0") != std::string::npos);
   assert(main.find("kReferenceScreenWidth = 2560.0") != std::string::npos);
