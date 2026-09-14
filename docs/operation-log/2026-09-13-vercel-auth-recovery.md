@@ -70,6 +70,7 @@
 - 验证：Edge Function 类型检查、RSA2 测试和差异检查通过；尚未执行远程数据库迁移或生产支付。
 - 2026-09-14 支付宝部署：远程项目 `naybqwiqgviuzjtemerc` 已应用迁移 `202609140001_alipay_entitlement.sql`，并部署 `alipay-create-order` 与 `alipay-notify`。回读两函数状态均为 `ACTIVE`。
 - 回调可达性：`alipay-notify` 必须关闭 Supabase JWT 校验，已重新部署为 `verify_jwt=false`；匿名模拟 POST 已到达函数并返回业务验签失败文本 `fail`，证明不会被网关 JWT 拦截。`alipay-create-order` 保持 `verify_jwt=true`，匿名请求被拒绝。
+- 2026-09-14 支付联调套餐：远程数据库新增并启用 `edward_test_monthly_001`、`edward_test_quarterly_001`、`edward_test_yearly_001`，均为 0.01 元；新增 `billing_interval_count` 使季付按 3 个月计算。目录接口回读 3 个套餐，金额和周期字段正确。
 - 2026-09-14 时间线画幅显示修正：确认 `404×720` 来源是项目文件遗留的 `exportFrame` 裁切对象，而非顶部时间线分辨率；已移除当前示例项目的遗留裁切，使默认输出恢复完整 `1280×720` 时间线画幅。
 - 2026-09-13 导出错误诊断修复：捕获图片加载失败改为抛出明确的 `composite capture image load failed`；导出异常显示增加兜底文本，避免浏览器事件对象导致界面只显示 `undefined`。
 - 2026-09-13 WebEngine 捕获兼容修复：确认 Qt WebEngine 对 `blob:` SVG 外链载荷拒绝加载，改用内联 `data:image/svg+xml` 载荷，避免对象 URL 安全策略导致完整合成帧无法创建。
