@@ -18,6 +18,8 @@ test("component runtime keeps direct native mount contract", () => {
   assert.match(runtime, /mount\(\{ host, props, time, mode(?:, viewport)? \}\)/);
   assert.match(runtime, /update\?\./);
   assert.match(runtime, /destroy\?\./);
+  assert.match(runtime, /syncDirectComponents\(clips, time, viewport, "export"\)/);
+  assert.match(runtime, /mode = "preview"/);
 });
 
 test("four native annotation resources are manifest-driven", () => {
