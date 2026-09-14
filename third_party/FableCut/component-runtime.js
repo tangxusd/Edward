@@ -1,6 +1,7 @@
 /* Direct browser component runtime. User modules render real DOM/SVG; no IR. */
 const overlay = document.getElementById("userComponentOverlay");
 const mounted = new Map();
+const mounting = new Map();
 let syncGeneration = 0;
 
 function inlineStyles(source, target) {
@@ -99,7 +100,18 @@ async function syncDirectComponents(clips, time, viewport) {
     if (entry && entry.componentId !== (clip.componentId || "demo")) {
       entry.instance.destroy?.(); entry.host.remove(); mounted.delete(clip.id); entry = null;
     }
-    if (!entry) { entry = await mountDirectComponent(clip.componentId || "demo", clip.props || {}); if (entry) mounted.set(clip.id, entry); }
+    if (!entry) {
+      let pending = mounting.get(clip.id);
+      if (!pending) {
+        pending = mountDirectComponent(clip.componentId || "demo", clip.props || {});
+        mounting.set(clip.id, pending);
+      }
+      try { entry = await pending; } finally {
+        if (mounting.get(clip.id) === pending) mounting.delete(clip.id);
+      }
+      if (entry && generation === syncGeneration) mounted.set(clip.id, entry);
+      else if (entry) entry.instance.destroy?.();
+    }
     if (generation !== syncGeneration) {
       if (entry && !mounted.has(clip.id)) entry.instance.destroy?.();
       return;
