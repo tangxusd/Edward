@@ -495,7 +495,46 @@ const runtime = {
   importFolderId: null, // Project-bin folder to place the next import into
   binDragFolderId: null, // folder id currently being dragged (cycle checks)
   binCtxMenu: null,     // Project-tab context menu element
+  nextPreferenceRank: 0, // A/B/C profile used only for the next new component
 };
+
+function preferenceManifestIdentity(manifest, semanticPath, propertyPath, valueType) {
+  const id = String(manifest?.id || "builtin");
+  const family = String(manifest?.family || (id.startsWith("annotation.rect.") ? "annotation.rect" : id));
+  const version = String(manifest?.version || "1");
+  const hash = String(manifest?.manifestHash || `${id}:manifest-v1`);
+  return { componentId: id, componentFamily: family, componentVersion: version,
+    manifestHash: hash, semanticPath: String(semanticPath || "root"),
+    propertyPath: String(propertyPath), valueType: String(valueType || "string") };
+}
+
+async function applyCreationPreferences(manifest, props) {
+  const result = { ...props };
+  const bridge = window.edwardPreferences;
+  if (!bridge?.getCreationPreferences) return result;
+  for (const [key, spec] of Object.entries(manifest?.props || {})) {
+    const identity = preferenceManifestIdentity(manifest, "root", key, spec.type || "string");
+    const preference = await bridge.getCreationPreferences(identity, runtime.nextPreferenceRank || 0);
+    if (preference && preference.value !== undefined && preference.value !== null) result[key] = preference.value;
+  }
+  return result;
+}
+
+function recordPreferenceValue(clip, propertyPath, value) {
+  const manifest = clip?.__preferenceManifest;
+  if (!manifest || !clip.creationSessionId || !window.edwardPreferences?.recordConfirmedPropertyChange) return;
+  const spec = manifest.props?.[propertyPath];
+  if (!spec) return;
+  clip.__preferenceRecorded = clip.__preferenceRecorded || {};
+  const encoded = JSON.stringify(value);
+  if (clip.__preferenceRecorded[propertyPath] === encoded) return;
+  clip.__preferenceRecorded[propertyPath] = encoded;
+  window.edwardPreferences.recordConfirmedPropertyChange({
+    eventId: `pref_${uid()}_${Date.now()}`,
+    ...preferenceManifestIdentity(manifest, "root", propertyPath, spec.type || "string"),
+    value, creationSessionId: clip.creationSessionId, source: "user-confirmed",
+  });
+}
 
 /* ── DOM ───────────────────────────────────────────────────────────────── */
 const $ = (id) => document.getElementById(id);
@@ -2427,11 +2466,21 @@ function addTitle() {
   selectClip(c.id); scheduleSave();
 }
 function addComponent() {
+  return addBuiltInComponent();
+}
+async function addBuiltInComponent() {
+  const manifest = {
+    id: "card6", family: "card", version: "1", manifestHash: "card6:manifest-v1",
+    props: { title: { type: "string" }, color: { type: "color" }, backColor: { type: "color" },
+      midColor: { type: "color" }, frontColor: { type: "color" } },
+  };
+  // Base props: { title: "6", color: "#007bff", x: 0, y: 0, scale: 1, opacity: 1 }
+  const props = await applyCreationPreferences(manifest, { title: "6", color: "#007bff", x: 0, y: 0, scale: 1, opacity: 1 });
   pushUndo();
   const c = {
     id: "c_" + uid(), mediaId: null, kind: "component", componentId: "demo", track: "V2",
     start: state.time, in: 0, duration: 5, name: "Card 6 component",
-    props: { title: "6", color: "#007bff", x: 0, y: 0, scale: 1, opacity: 1 },
+    props, creationSessionId: `create_${uid()}_${Date.now()}`, __preferenceManifest: manifest,
   };
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
@@ -2443,10 +2492,11 @@ async function addNativeComponent(componentId, dropTrack = "V2", dropTime = stat
     catch { toast("组件资源加载失败"); return; }
   }
   pushUndo();
-  const props = nativeAnnotationDefaults(manifest);
+  const props = await applyCreationPreferences(manifest, nativeAnnotationDefaults(manifest));
   const start = Math.max(0, dropTime), duration = Number(props.duration || 3);
   const track = resolveComponentTrack(dropTrack || "V2", start, duration);
-  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track, start, in: 0, duration, name: manifest.name || componentId, props };
+  const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track, start, in: 0, duration, name: manifest.name || componentId, props,
+    creationSessionId: `create_${uid()}_${Date.now()}`, __preferenceManifest: manifest };
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
@@ -3765,7 +3815,13 @@ function renderInspector(lite) {
   const c = getClip(state.selId);
   document.querySelector(".inspector")?.classList.toggle("no-selection", !c);
   if (!c) {
-    els.inspector.innerHTML = `<div class="inspector-empty">Select a clip to edit its<br>transform, effects &amp; audio.</div>`;
+    els.inspector.innerHTML = `<div class="inspector-empty">Select a clip to edit its<br>transform, effects &amp; audio.</div>
+      <div class="insp-section creation-preference"><h3>新增偏好</h3><div class="insp-row"><label for="creationPreferenceRank">方案</label><select id="creationPreferenceRank"><option value="0">A · 最高频</option><option value="1">B · 备选</option><option value="2">C · 备选</option></select></div></div>`;
+    const preferenceSelect = $("creationPreferenceRank");
+    if (preferenceSelect) {
+      preferenceSelect.value = String(runtime.nextPreferenceRank || 0);
+      preferenceSelect.addEventListener("change", () => { runtime.nextPreferenceRank = Number(preferenceSelect.value) || 0; });
+    }
     renderKfGraphsPanel();
     return;
   }
@@ -3807,6 +3863,7 @@ function renderInspector(lite) {
   let html = (state.selIds.size > 1
     ? `<div class="insp-multi">${state.selIds.size} clips selected — drag moves them together, Del deletes all. Fields below edit the primary (white-outlined) clip.</div>`
     : "") + `<div class="insp-section"><h3>Clip — ${c.kind}</h3>
+    ${row("Preference", `<select data-preference-rank disabled><option value="0">A · 最高频</option><option value="1">B · 备选</option><option value="2">C · 备选</option></select>`)}
     ${row("Name", `<input type="text" data-k="name" value="${c.name.replace(/"/g, "&quot;")}">`)}
     ${c.mediaId ? row("Source", `<button type="button" class="btn tiny style-picker-btn" data-media-open title="Replace this clip's media — keeps position, trim, keyframes and effects">${escapeHtml((getMedia(c.mediaId) || {}).name || "Missing media")} ▾</button>`) : ""}
     ${row("Start (s)", `<input type="number" data-k="start" step="0.01" value="${c.start.toFixed(2)}">`)}
@@ -4103,8 +4160,17 @@ function renderInspector(lite) {
       if (valEl) valEl.textContent = input.value;
       if (state.audioHold && (k === "volume" || k === "pan")) scheduleAudioHoldRefresh();
       scheduleSave();
+      if (input.type === "color") recordPreferenceValue(c, k, v);
     });
     input.addEventListener("focus", () => pushUndo(), { once: true });
+    const recordFinal = () => {
+      const value = input.type === "checkbox" ? input.checked
+        : input.value === "" ? null
+          : input.type === "number" || input.type === "range" ? parseFloat(input.value) : input.value;
+      recordPreferenceValue(c, k, value);
+    };
+    input.addEventListener("change", recordFinal);
+    input.addEventListener("blur", recordFinal);
   });
   els.inspector.querySelectorAll("[data-action]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -6757,6 +6823,8 @@ async function openExportSetup() {
   });
 }
 async function startChosenExport() {
+  await window.edwardPreferences?.flushPendingPreferences?.();
+  window.edwardPreferences?.compilePreferences?.();
   persistExportWcOpts();
   try {
     const checkName = await fetch(`/api/export/check-name?name=${encodeURIComponent(project.name || "export")}&ext=.mp4`).then((r) => r.json());
@@ -7413,6 +7481,8 @@ function pickMime() {
 async function startExport() {
   if (state.exporting) return;
   if (!project.clips.length) { alert("Timeline is empty — add some clips first."); return; }
+  await window.edwardPreferences?.flushPendingPreferences?.();
+  window.edwardPreferences?.compilePreferences?.();
   const mime = pickMime();
   if (!mime) { alert("MediaRecorder is not supported in this browser."); return; }
   ensureAudio();
