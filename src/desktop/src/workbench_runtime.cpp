@@ -3228,6 +3228,24 @@ bool WorkbenchRuntime::downloadPreferences(const QString& projectUrl, const QStr
   return preferenceSyncClient_.download(projectUrl, anonKey, sessions_.session().accessToken);
 }
 
+bool WorkbenchRuntime::exportPreferencesToFile(const QString& path) {
+  if (path.trimmed().isEmpty()) return false;
+  QSaveFile file(path);
+  if (!file.open(QIODevice::WriteOnly)) return false;
+  const auto document = QJsonDocument::fromVariant(preferenceStore_.exportFacts());
+  if (file.write(document.toJson(QJsonDocument::Indented)) < 0 || !file.commit()) return false;
+  return true;
+}
+
+bool WorkbenchRuntime::importPreferencesFromFile(const QString& path) {
+  QFile file(path);
+  if (!file.open(QIODevice::ReadOnly)) return false;
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
+  if (!document.isArray()) return false;
+  return preferenceStore_.importFacts(document.array().toVariantList());
+}
+
 void WorkbenchRuntime::setPendingFablecutExportPath(const QString& path) {
   pendingFablecutExportPath_ = path.trimmed();
   emit timelineChanged();

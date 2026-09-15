@@ -2326,21 +2326,27 @@ ApplicationWindow {
                             verticalAlignment: Text.AlignVCenter
                             wrapMode: Text.Wrap
                         }
-                        RowLayout {
+                        TabBar {
+                            id: settingsTabBar
                             Layout.fillWidth: true
                             visible: window.activeUtility === "settings"
                             spacing: 6
-                            Button {
+                            TabButton {
                                 Layout.fillWidth: true
                                 text: "账户"
                                 onClicked: workbenchRuntime.authenticated ? workbenchRuntime.signOut() : signInDialog.open()
                             }
-                            Button {
+                            TabButton {
                                 Layout.fillWidth: true
                                 text: "存储"
                                 onClicked: previewStorageDialog.open()
                             }
-                            Button {
+                            TabButton {
+                                Layout.fillWidth: true
+                                text: "偏好设置"
+                                onClicked: preferenceSettingsDialog.open()
+                            }
+                            TabButton {
                                 Layout.fillWidth: true
                                 text: "布局"
                                 enabled: workbenchRuntime.resolveConnected
@@ -2954,28 +2960,6 @@ ApplicationWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
-                Label { text: "偏好同步（仅手动）"; color: DesignTokens.textPrimary }
-                Item { Layout.fillWidth: true }
-                Button {
-                    text: "上传偏好"
-                    enabled: workbenchRuntime.authenticated
-                    onClicked: workbenchRuntime.uploadPreferences(window.supabaseProjectUrl, window.supabaseAnonKey)
-                }
-                Button {
-                    text: "下载偏好"
-                    enabled: workbenchRuntime.authenticated
-                    onClicked: workbenchRuntime.downloadPreferences(window.supabaseProjectUrl, window.supabaseAnonKey)
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                text: "偏好绑定当前设备；上传/下载不会包含项目、时间线或素材内容。"
-                wrapMode: Text.WordWrap
-                color: DesignTokens.textSecondary
-                font.pixelSize: window.uiFontSize(12)
-            }
-            RowLayout {
-                Layout.fillWidth: true
                 Label { text: "清理仅删除当前工程的派生文件"; color: DesignTokens.textSecondary; font.pixelSize: window.uiFontSize(12) }
                 Item { Layout.fillWidth: true }
                 Button { text: "清理代理"; onClicked: workbenchRuntime.clearDerivedStorage(0) }
@@ -2991,6 +2975,60 @@ ApplicationWindow {
                 failureTimer.restart();
             }
         }
+    }
+
+    Dialog {
+        id: preferenceSettingsDialog
+        anchors.centerIn: Overlay.overlay
+        width: 560
+        modal: true
+        title: "偏好设置"
+        standardButtons: Dialog.Close
+        contentItem: ColumnLayout {
+            spacing: 12
+            Label {
+                Layout.fillWidth: true
+                text: "偏好绑定当前设备，只在新建素材或组件时作为默认属性；不会写入项目文件。"
+                wrapMode: Text.WordWrap
+                color: DesignTokens.textSecondary
+            }
+            Label { Layout.fillWidth: true; text: "云端同步"; color: DesignTokens.textPrimary; font.bold: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Button { text: "上传偏好"; enabled: workbenchRuntime.authenticated; onClicked: workbenchRuntime.uploadPreferences(window.supabaseProjectUrl, window.supabaseAnonKey) }
+                Button { text: "下载偏好"; enabled: workbenchRuntime.authenticated; onClicked: workbenchRuntime.downloadPreferences(window.supabaseProjectUrl, window.supabaseAnonKey) }
+                Item { Layout.fillWidth: true }
+            }
+            Label { Layout.fillWidth: true; text: "本地备份"; color: DesignTokens.textPrimary; font.bold: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Button { text: "导出本地 JSON"; onClicked: preferenceExportDialog.open() }
+                Button { text: "导入本地 JSON"; onClicked: preferenceImportDialog.open() }
+                Item { Layout.fillWidth: true }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: "本地文件仅包含已确认的偏好事实，不包含项目、时间线、素材或路径。"
+                wrapMode: Text.WordWrap
+                color: DesignTokens.textSecondary
+            }
+        }
+    }
+
+    FileDialog {
+        id: preferenceExportDialog
+        title: "导出偏好 JSON"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["偏好 JSON (*.json)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.exportPreferencesToFile(selectedFile.toLocalFile())
+    }
+
+    FileDialog {
+        id: preferenceImportDialog
+        title: "导入偏好 JSON"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["偏好 JSON (*.json)", "所有文件 (*)"]
+        onAccepted: workbenchRuntime.importPreferencesFromFile(selectedFile.toLocalFile())
     }
 
     Dialog {

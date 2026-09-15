@@ -338,6 +338,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE QVariantMap preferenceStoreStatus() const;
   Q_INVOKABLE bool uploadPreferences(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE bool downloadPreferences(const QString& projectUrl, const QString& anonKey);
+  Q_INVOKABLE bool exportPreferencesToFile(const QString& path);
+  Q_INVOKABLE bool importPreferencesFromFile(const QString& path);
   Q_INVOKABLE void setPendingFablecutExportPath(const QString& path);
   Q_INVOKABLE void setSavedExportOutputDirectory(const QString& path);
   Q_INVOKABLE void clearExportDialogRequest();
