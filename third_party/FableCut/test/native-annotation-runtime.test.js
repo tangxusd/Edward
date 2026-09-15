@@ -92,8 +92,10 @@ test("monitor rulers are attached to the monitor frame and use ten-pixel ticks",
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   assert.match(html, /monitor-ruler-top/);
   assert.match(html, /monitor-ruler-left/);
-  assert.match(app, /const dpr = window\.devicePixelRatio \|\| 1, unit = 10/);
-  assert.match(app, /const topH = 22, leftW = 17/);
+  assert.match(app, /const dpr = window\.devicePixelRatio \|\| 1/);
+  assert.match(app, /const topH = 17, leftW = 17/);
+  assert.match(app, /chooseStep/);
+  assert.match(app, /project\.width \/ 2/);
   assert.match(app, /top\.style\.left = `\$\{leftW\}px`/);
   assert.match(app, /left\.style\.left = "0px"/);
 });

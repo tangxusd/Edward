@@ -5627,16 +5627,34 @@ function drawMonitorRulers() {
   const top = els.monitorRulerTop, left = els.monitorRulerLeft, stage = els.monitorStage, cv = els.preview;
   if (!top || !left || !stage || !cv) return;
   const sr = stage.getBoundingClientRect();
-  if (!(sr.width > 0 && sr.height > 0)) return;
-  const dpr = window.devicePixelRatio || 1, unit = 10;
+  const cr = cv.getBoundingClientRect();
+  if (!(sr.width > 0 && sr.height > 0 && cr.width > 0 && cr.height > 0)) return;
+  const dpr = window.devicePixelRatio || 1;
   const setup = (canvas, width, height) => { canvas.width = Math.max(1, Math.round(width * dpr)); canvas.height = Math.max(1, Math.round(height * dpr)); canvas.style.width = `${width}px`; canvas.style.height = `${height}px`; const c = canvas.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, width, height); c.strokeStyle = "#737783"; c.fillStyle = "#aeb1bb"; c.lineWidth = 1; c.font = "10px system-ui, sans-serif"; return c; };
-  const topH = 22, leftW = 17;
+  const topH = 17, leftW = 17;
   top.style.left = `${leftW}px`; top.style.top = "0px";
   left.style.left = "0px"; left.style.top = `${topH}px`;
   const tc = setup(top, Math.max(0, sr.width - leftW), topH), lc = setup(left, leftW, Math.max(0, sr.height - topH));
-  const sx = sr.width / Math.max(1, project.width), sy = (sr.height - topH) / Math.max(1, project.height);
-  for (let px = 0; px <= project.width; px += unit) { const x = px * sx; const major = px % 100 === 0; tc.beginPath(); tc.moveTo(x + .5, topH); tc.lineTo(x + .5, major ? 7 : 14); tc.stroke(); if (major) tc.fillText(String(px - project.width / 2), Math.min(Math.max(2, x + 3), sr.width - leftW - 34), 10); }
-  for (let py = 0; py <= project.height; py += unit) { const y = py * sy; const major = py % 100 === 0; lc.beginPath(); lc.moveTo(leftW, y + .5); lc.lineTo(major ? 7 : 14, y + .5); lc.stroke(); if (major) { lc.save(); lc.translate(10, Math.min(Math.max(12, y + 12), sr.height - topH - 2)); lc.rotate(-Math.PI / 2); lc.fillText(String(project.height / 2 - py), 0, 0); lc.restore(); } }
+  const sx = cr.width / Math.max(1, project.width), sy = cr.height / Math.max(1, project.height);
+  const ox = cr.left - sr.left, oy = cr.top - sr.top;
+  const chooseStep = (scale) => scale * 10 >= 32 ? 10 : scale * 50 >= 32 ? 50 : 100;
+  const xStep = chooseStep(sx), yStep = chooseStep(sy);
+  const drawHorizontal = (world) => {
+    const x = ox + (world + project.width / 2) * sx;
+    if (x < 0 || x > sr.width - leftW) return;
+    const major = Math.abs(world % xStep) < 0.001;
+    tc.beginPath(); tc.moveTo(x + .5, topH); tc.lineTo(x + .5, major ? 4 : 10); tc.stroke();
+    if (major) tc.fillText(String(Math.round(world)), Math.min(Math.max(2, x + 3), sr.width - leftW - 34), 11);
+  };
+  const drawVertical = (world) => {
+    const y = oy + (project.height / 2 - world) * sy;
+    if (y < topH || y > sr.height) return;
+    const major = Math.abs(world % yStep) < 0.001;
+    lc.beginPath(); lc.moveTo(leftW, y + .5); lc.lineTo(major ? 4 : 10, y + .5); lc.stroke();
+    if (major) { lc.save(); lc.translate(11, Math.min(Math.max(11, y + 11), sr.height - 2)); lc.rotate(-Math.PI / 2); lc.fillText(String(Math.round(world)), 0, 0); lc.restore(); }
+  };
+  for (let world = -project.width / 2; world <= project.width / 2; world += 10) drawHorizontal(world);
+  for (let world = -project.height / 2; world <= project.height / 2; world += 10) drawVertical(world);
 }
 function drawFrame(t = state.time) {
   const W = els.preview.width, H = els.preview.height;
@@ -6750,8 +6768,17 @@ async function startChosenExport() {
     alert("无法检查导出文件名：" + (error?.message || error));
     return;
   }
-  const useFast = els.engineFast.checked && !els.engineFast.disabled;
+  const hasComponents = project.clips.some((clip) => clip.kind === "component");
+  let useFast = els.engineFast.checked && !els.engineFast.disabled;
   const useSecond = els.engineRealtime.checked && !els.engineRealtime.disabled;
+  if (hasComponents && !useFast && useSecond && !state.webCodecs) {
+    if (state.connected && !state.ffmpeg) {
+      try { state.ffmpeg = !!(await fetch("/api/export/ffmpeg").then((r) => r.json())).available; } catch { state.ffmpeg = false; }
+    }
+    if (state.connected && state.ffmpeg) useFast = true;
+    else { alert("当前浏览器不支持带组件的实时导出，且服务器 Fast 导出不可用。"); return; }
+  }
+  if (hasComponents && !useFast && useSecond && state.connected && state.ffmpeg) useFast = true;
   if (!useFast && !useSecond) {
     if (state.connected && !state.ffmpeg) {
       try {
@@ -7192,7 +7219,10 @@ function waitEncodeQueue(encoder, max = 2, { signal, getError } = {}) {
 async function webCodecsExport() {
   if (state.exporting) return;
   await detectWebCodecs();
-  if (!state.webCodecs) { startExport(); return; }
+  if (!state.webCodecs) {
+    if (project.clips.some((clip) => clip.kind === "component") && state.connected && state.ffmpeg) { fastExport(); return; }
+    startExport(); return;
+  }
   pause();
   state.exporting = true; state.rendering = true; renderCancelled = false;
   webCodecsAbort = new AbortController();
@@ -7320,6 +7350,13 @@ async function webCodecsExport() {
       await seekVideosTo(t);
       await prepareFrameAssets(t);
       drawFrame(t);
+      await window.fablecutDirectComponents?.prepareFrame?.(visibleClipsAt(t), t, { width: w, height: h });
+      if (window.fablecutDirectComponents?.captureCompositeFrame) {
+        const composite = await window.fablecutDirectComponents.captureCompositeFrame({ width: w, height: h });
+        ctx2d.setTransform(1, 0, 0, 1, 0, 0);
+        ctx2d.globalAlpha = 1;
+        ctx2d.drawImage(composite, 0, 0, w, h);
+      }
       // Absolute µs timestamps; duration = delta so average rate stays exact
       // (constant Math.round(1e6/fps) drifts, e.g. 33333µs → avg 1000000/33333).
       const ts = Math.round(f * 1e6 / fps);

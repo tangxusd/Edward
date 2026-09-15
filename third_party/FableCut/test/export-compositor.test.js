@@ -30,3 +30,12 @@ test('legacy component foreignObject clone clears monitor positioning', () => {
   assert.match(runtime, /clone\.style\.right = "auto"/);
   assert.match(runtime, /clone\.style\.bottom = "auto"/);
 });
+
+test('WebCodecs export composites native component layers before encoding', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(app, /await window\.fablecutDirectComponents\?\.prepareFrame\?\.\(visibleClipsAt\(t\), t, \{ width: w, height: h \}\)/);
+  assert.match(app, /captureCompositeFrame\(\{ width: w, height: h \}\)/);
+  assert.match(app, /ctx2d\.drawImage\(composite, 0, 0, w, h\)/);
+  assert.match(app, /当前浏览器不支持带组件的实时导出/);
+  assert.match(app, /project\.clips\.some\(\(clip\) => clip\.kind === "component"\)/);
+});

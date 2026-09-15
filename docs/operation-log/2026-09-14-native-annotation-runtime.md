@@ -70,3 +70,10 @@
 - 涉及文件：`third_party/FableCut/app.js`、`style.css`、`component-runtime.js`、四个 `annotation.rect.*` 原生组件及对应测试。
 - 结果：左标尺固定为 17px，顶部标尺从左标尺右侧开始；Card 6 foreignObject 克隆清除旧 inset/定位；四种矩形统一使用 SVG `pathLength=1` 完成态。
 - 验证：语法检查通过；针对性测试 13/13；FableCut 全量测试 74/74；`git diff --check` 通过。
+
+## 2026-09-15 导出组件合成与中心标尺修复
+
+- 目的：修复非 Fast 导出路径遗漏原生组件的问题，并将监视器标尺改为以画布中心为 0。
+- 涉及文件：`third_party/FableCut/app.js`、`style.css` 及导出测试。
+- 结果：WebCodecs 在编码前合成原生组件；不支持 WebCodecs 时，含组件项目自动使用可用的 Fast 导出，避免 MediaRecorder 生成缺组件视频。上下左右标尺均为 17px，刻度依据实际画布缩放动态选择 10/50/100 主刻度，零点固定在画布中心。
+- 验证：语法检查和针对性测试通过；待提交后重启服务复核。
