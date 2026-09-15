@@ -18,10 +18,10 @@
     ,{"id": "native-annotation-drag-scale", "description": "组件拖拽使用中心零点像素坐标、缩放使用组件尺寸与 scale，变更后立即重绘 DOM 组件层", "status": "passed"}
     ,{"id": "native-annotation-export-contract", "description": "导出逐帧通过 prepareFrame 使用同一原生组件入口并传入 export 模式和输出视口", "status": "passed"}
     ,{"id": "native-annotation-drag-drop", "description": "标注组件可从资源库拖入时间线或直接拖入预览画布，并按落点写入中心零点像素坐标", "status": "passed"}
-    ,{"id": "preference-store", "description": "设备级 SQLite 偏好库使用 WAL、事实事件幂等写入，并生成最多 A/B/C 三套合法方案", "status": "in_progress"}
-    ,{"id": "preference-isolation", "description": "组件身份、语义路径和属性类型隔离，文字颜色与边框颜色不互相污染", "status": "in_progress"}
-    ,{"id": "preference-triggers", "description": "300 秒闲置、项目切换/关闭、正常退出和导出开始执行批量写入，收敛不阻塞编辑与导出", "status": "pending"}
-    ,{"id": "preference-new-only", "description": "偏好只作用于新建组件/素材，已有片段和 project.json 不被改写", "status": "pending"}
-    ,{"id": "preference-sync", "description": "Supabase 偏好上传/下载必须显式触发，按事实合并并重新校验 manifest", "status": "pending"}
+    ,{"id": "preference-store", "description": "设备级 SQLite 偏好库使用 WAL、事实事件幂等写入，并生成最多 A/B/C 三套合法方案", "status": "passed"}
+    ,{"id": "preference-isolation", "description": "组件身份、语义路径和属性类型隔离，文字颜色与边框颜色不互相污染", "status": "passed"}
+    ,{"id": "preference-triggers", "description": "300 秒闲置、项目切换/关闭、正常退出和导出开始执行批量写入，收敛不阻塞编辑与导出", "status": "passed"}
+    ,{"id": "preference-new-only", "description": "偏好只作用于新建组件/素材，已有片段和 project.json 不被改写", "status": "passed"}
+    ,{"id": "preference-sync", "description": "Supabase 偏好上传/下载必须显式触发，按事实合并并重新校验 manifest", "status": "in_progress"}
   ]
 }

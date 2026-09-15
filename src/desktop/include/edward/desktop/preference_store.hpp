@@ -13,11 +13,13 @@ class PreferenceStore final : public QObject {
   explicit PreferenceStore(QObject* parent = nullptr);
   ~PreferenceStore() override;
 
-  QVariantMap creationPreferences(const QVariantMap& identity) const;
-  bool recordConfirmedPropertyChange(const QVariantMap& observation);
-  bool flushPendingPreferences();
-  bool compilePreferences();
-  QVariantMap status() const;
+  Q_INVOKABLE QVariantMap creationPreferences(const QVariantMap& identity, int rank = 0) const;
+  Q_INVOKABLE bool recordConfirmedPropertyChange(const QVariantMap& observation);
+  Q_INVOKABLE bool flushPendingPreferences();
+  Q_INVOKABLE bool compilePreferences();
+  Q_INVOKABLE QVariantMap status() const;
+  Q_INVOKABLE QVariantList exportFacts();
+  Q_INVOKABLE bool importFacts(const QVariantList& facts);
 
   void setDatabasePathForTests(const QString& path);
 
@@ -31,6 +33,7 @@ class PreferenceStore final : public QObject {
   QVariantList compileTopProfiles(const QList<QVariantMap>& events) const;
   QVariantMap systemDefaults(const QVariantMap& identity) const;
   QVariantList readEvents(const QString& identityKey) const;
+  QVariantList readAllEvents() const;
   bool writeProfile(const QString& identityKey, const QVariantList& profiles) const;
   void closeDatabase() const;
 

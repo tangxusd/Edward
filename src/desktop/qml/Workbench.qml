@@ -2954,6 +2954,28 @@ ApplicationWindow {
             }
             RowLayout {
                 Layout.fillWidth: true
+                Label { text: "偏好同步（仅手动）"; color: DesignTokens.textPrimary }
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: "上传偏好"
+                    enabled: workbenchRuntime.authenticated
+                    onClicked: workbenchRuntime.uploadPreferences(window.supabaseProjectUrl, window.supabaseAnonKey)
+                }
+                Button {
+                    text: "下载偏好"
+                    enabled: workbenchRuntime.authenticated
+                    onClicked: workbenchRuntime.downloadPreferences(window.supabaseProjectUrl, window.supabaseAnonKey)
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: "偏好绑定当前设备；上传/下载不会包含项目、时间线或素材内容。"
+                wrapMode: Text.WordWrap
+                color: DesignTokens.textSecondary
+                font.pixelSize: window.uiFontSize(12)
+            }
+            RowLayout {
+                Layout.fillWidth: true
                 Label { text: "清理仅删除当前工程的派生文件"; color: DesignTokens.textSecondary; font.pixelSize: window.uiFontSize(12) }
                 Item { Layout.fillWidth: true }
                 Button { text: "清理代理"; onClicked: workbenchRuntime.clearDerivedStorage(0) }

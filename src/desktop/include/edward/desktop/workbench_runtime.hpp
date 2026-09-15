@@ -30,6 +30,7 @@
 #include "edward/resources/model_chat_client.hpp"
 #include "edward/resources/resolve_api_manuals.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
+#include "edward/resources/preference_sync_client.hpp"
 #include "edward/resolve/resolve_adapter.hpp"
 #include "edward/resolve/resolve_action_planner.hpp"
 #include "edward/resolve/resolve_capability_telemetry.hpp"
@@ -335,6 +336,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool flushPreferencesForExport();
   Q_INVOKABLE bool compilePreferencesNow();
   Q_INVOKABLE QVariantMap preferenceStoreStatus() const;
+  Q_INVOKABLE bool uploadPreferences(const QString& projectUrl, const QString& anonKey);
+  Q_INVOKABLE bool downloadPreferences(const QString& projectUrl, const QString& anonKey);
   Q_INVOKABLE void setPendingFablecutExportPath(const QString& path);
   Q_INVOKABLE void setSavedExportOutputDirectory(const QString& path);
   Q_INVOKABLE void clearExportDialogRequest();
@@ -410,6 +413,7 @@ class WorkbenchRuntime final : public QObject {
   TimelineController controller_;
   edward::core::ProjectIdentity projectIdentity_ = edward::core::ProjectIdentity::create();
   PreferenceStore preferenceStore_;
+  edward::resources::PreferenceSyncClient preferenceSyncClient_;
   edward::media::RenderStorageRoots previewStorageRoots_;
   edward::media::PreviewSession previewSession_;
   mutable edward::media::PreviewFrameCache previewFrameCache_;
@@ -498,6 +502,7 @@ class WorkbenchRuntime final : public QObject {
   QTimer silentUploadRetryTimer_;
   QTimer playbackTimer_;
   QTimer projectAutosaveTimer_;
+  QTimer preferenceIdleTimer_;
   QString activeProjectPath_;
   enum class ProjectSaveState { Unsaved, Saved, AutoSaved };
   ProjectSaveState projectSaveState_ = ProjectSaveState::Unsaved;

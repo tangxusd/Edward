@@ -42,6 +42,9 @@ int main(int argc, char** argv) {
   assert(store.recordConfirmedPropertyChange(observation("e4", border, "#00ff00", "s1")));
   assert(store.recordConfirmedPropertyChange(observation("e5", border, "#00ff00", "s2")));
   assert(store.flushPendingPreferences());
+  const auto facts = store.exportFacts();
+  assert(facts.size() == 5);
+  assert(!facts.first().toMap().contains("projectId"));
   assert(store.compilePreferences());
 
   const auto textPreference = store.creationPreferences(text);

@@ -503,11 +503,21 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   projectAutosaveTimer_.setSingleShot(true);
   projectAutosaveTimer_.setInterval(1000);
   connect(&projectAutosaveTimer_, &QTimer::timeout, this, &WorkbenchRuntime::saveProjectRecovery);
+  preferenceIdleTimer_.setSingleShot(true);
+  preferenceIdleTimer_.setInterval(300000);
+  connect(&preferenceIdleTimer_, &QTimer::timeout, this, [this] {
+    preferenceStore_.flushPendingPreferences();
+    preferenceStore_.compilePreferences();
+  });
+  preferenceIdleTimer_.start();
   connect(&previewProxyWatcher_, &QFutureWatcher<bool>::finished, this, [this] {
     previewProxyBusy_ = false;
     emit timelineChanged();
   });
   connect(this, &WorkbenchRuntime::timelineChanged, this, &WorkbenchRuntime::scheduleProjectAutosave);
+  connect(this, &WorkbenchRuntime::timelineChanged, this, [this] {
+    preferenceIdleTimer_.start();
+  });
   connect(this, &WorkbenchRuntime::timelineChanged, this, [this] {
     QSettings settings(previewSettingsPath(), QSettings::IniFormat);
     const auto conversation = aiConversation_.size() > 100000 ? aiConversation_.right(100000) : aiConversation_;
@@ -516,6 +526,15 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
   });
   connect(&sessions_, &edward::resources::AuthSessionStore::changed, this,
           &WorkbenchRuntime::timelineChanged);
+  connect(&preferenceSyncClient_, &edward::resources::PreferenceSyncClient::uploadCompleted, this,
+          [this](bool success, const QString& message) { success ? emit operationSucceeded(message) : emit operationFailed(message); });
+  connect(&preferenceSyncClient_, &edward::resources::PreferenceSyncClient::downloadCompleted, this,
+          [this](bool success, const QVariantList& facts, const QString& message) {
+            if (success) {
+              if (!preferenceStore_.importFacts(facts)) { emit operationFailed(QStringLiteral("偏好下载后校验失败")); return; }
+            }
+            success ? emit operationSucceeded(message) : emit operationFailed(message);
+          });
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
           [this](bool success, const QString& message) {
             signInBusy_ = false;
@@ -3199,6 +3218,15 @@ bool WorkbenchRuntime::compilePreferencesNow() {
 }
 
 QVariantMap WorkbenchRuntime::preferenceStoreStatus() const { return preferenceStore_.status(); }
+
+bool WorkbenchRuntime::uploadPreferences(const QString& projectUrl, const QString& anonKey) {
+  return preferenceSyncClient_.upload(projectUrl, anonKey, sessions_.session().accessToken,
+                                       preferenceStore_.exportFacts());
+}
+
+bool WorkbenchRuntime::downloadPreferences(const QString& projectUrl, const QString& anonKey) {
+  return preferenceSyncClient_.download(projectUrl, anonKey, sessions_.session().accessToken);
+}
 
 void WorkbenchRuntime::setPendingFablecutExportPath(const QString& path) {
   pendingFablecutExportPath_ = path.trimmed();

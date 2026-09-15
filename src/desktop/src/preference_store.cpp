@@ -217,6 +217,46 @@ QVariantList PreferenceStore::readEvents(const QString& identityKey) const {
   return events;
 }
 
+QVariantList PreferenceStore::readAllEvents() const {
+  QVariantList events;
+  if (!openDatabase()) return events;
+  QSqlQuery query(QSqlDatabase::database(connectionName_));
+  if (!query.exec(QStringLiteral("SELECT event_id, installation_id, component_id, component_family, component_version, "
+                                 "manifest_hash, semantic_path, property_path, value_type, value_json, "
+                                 "creation_session_id, source, created_at FROM preference_events ORDER BY created_at ASC")))
+    return events;
+  while (query.next()) {
+    const auto values = fromJsonString(query.value(9).toString()).toList();
+    events.append(QVariantMap{{QStringLiteral("eventId"), query.value(0)},
+                              {QStringLiteral("installationId"), query.value(1)},
+                              {QStringLiteral("componentId"), query.value(2)},
+                              {QStringLiteral("componentFamily"), query.value(3)},
+                              {QStringLiteral("componentVersion"), query.value(4)},
+                              {QStringLiteral("manifestHash"), query.value(5)},
+                              {QStringLiteral("semanticPath"), query.value(6)},
+                              {QStringLiteral("propertyPath"), query.value(7)},
+                              {QStringLiteral("valueType"), query.value(8)},
+                              {QStringLiteral("value"), values.isEmpty() ? QVariant{} : values.first()},
+                              {QStringLiteral("creationSessionId"), query.value(10)},
+                              {QStringLiteral("source"), query.value(11)},
+                              {QStringLiteral("createdAt"), query.value(12)}});
+  }
+  return events;
+}
+
+QVariantList PreferenceStore::exportFacts() {
+  if (!flushPendingPreferences()) return {};
+  return readAllEvents();
+}
+
+bool PreferenceStore::importFacts(const QVariantList& facts) {
+  for (const auto& value : facts) {
+    const auto fact = value.toMap();
+    if (!recordConfirmedPropertyChange(fact)) return false;
+  }
+  return flushPendingPreferences() && compilePreferences();
+}
+
 QVariantList PreferenceStore::compileTopProfiles(const QList<QVariantMap>& events) const {
   struct Candidate {
     QVariantMap values;
@@ -275,7 +315,7 @@ QVariantMap PreferenceStore::systemDefaults(const QVariantMap& identity) const {
   return result;
 }
 
-QVariantMap PreferenceStore::creationPreferences(const QVariantMap& identity) const {
+QVariantMap PreferenceStore::creationPreferences(const QVariantMap& identity, int rank) const {
   const auto key = makeIdentityKey(identity);
   if (!openDatabase()) return systemDefaults(identity);
   QSqlQuery query(QSqlDatabase::database(connectionName_));
@@ -283,13 +323,15 @@ QVariantMap PreferenceStore::creationPreferences(const QVariantMap& identity) co
   query.bindValue(0, key);
   if (query.exec() && query.next()) {
     const auto profiles = fromJsonString(query.value(0).toString()).toList();
-    if (!profiles.isEmpty()) return profiles.first().toMap();
+    if (rank >= 0 && rank < profiles.size()) return profiles.at(rank).toMap();
   }
   const auto events = readEvents(key);
   QList<QVariantMap> maps;
   for (const auto& event : events) maps.append(event.toMap());
   const auto profiles = compileTopProfiles(maps);
-  return profiles.isEmpty() ? systemDefaults(identity) : profiles.first().toMap();
+  return profiles.isEmpty() || rank < 0 || rank >= profiles.size()
+             ? systemDefaults(identity)
+             : profiles.at(rank).toMap();
 }
 
 bool PreferenceStore::compilePreferences() {
