@@ -36,3 +36,7 @@ add_test(NAME desktop.diagnostics_reporter COMMAND test_diagnostics_reporter)
 add_executable(test_preference_store test_preference_store.cpp)
 target_link_libraries(test_preference_store PRIVATE edward_desktop Qt6::Sql)
 add_test(NAME desktop.preference_store COMMAND test_preference_store)
+
+add_executable(test_preference_bridge test_preference_bridge.cpp)
+target_link_libraries(test_preference_bridge PRIVATE edward_desktop Qt6::WebChannel)
+add_test(NAME desktop.preference_bridge COMMAND test_preference_bridge)

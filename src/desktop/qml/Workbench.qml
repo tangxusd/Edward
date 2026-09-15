@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtWebEngine
+import QtWebChannel
 import "."
 
 ApplicationWindow {
@@ -33,6 +34,14 @@ ApplicationWindow {
         var raw = value.toString()
         if (raw.indexOf("file://") === 0) raw = raw.slice(7)
         try { return decodeURIComponent(raw) } catch (error) { return raw }
+    }
+    function syncFablecutAuth() {
+        var token = workbenchRuntime.supabaseAccessToken
+        var script = token
+            ? "localStorage.setItem('fablecut-auth-session', " + JSON.stringify(JSON.stringify({access_token: token})) + ");"
+            : "localStorage.removeItem('fablecut-auth-session');"
+        script += "if (typeof resourceBrowserState !== 'undefined' && resourceBrowserState.tab && typeof loadResourceBrowser === 'function') loadResourceBrowser(resourceBrowserState.tab);"
+        fablecutView.runJavaScript(script)
     }
     function applyTimelineExportDefaults(result) {
         try {
@@ -484,15 +493,6 @@ ApplicationWindow {
                             anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6; spacing: 6
                             Text { text: workbenchRuntime.projectWindowTitle; color: DesignTokens.textPrimary; font.pixelSize: window.uiFontSize(11.5); font.bold: true; Layout.alignment: Qt.AlignVCenter; elide: Text.ElideRight; Layout.fillWidth: true }
                             Button {
-                                objectName: "headerPaymentButton"
-                                visible: workbenchRuntime.authenticated
-                                enabled: !workbenchRuntime.paymentBusy
-                                Layout.preferredWidth: 112
-                                Layout.preferredHeight: 24
-                                text: workbenchRuntime.paymentBusy ? "支付中…" : "微信支付 0.01 元"
-                                onClicked: workbenchRuntime.createNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付验证")
-                            }
-                            Button {
                                 objectName: "headerAlipayPaymentButton"
                                 visible: workbenchRuntime.authenticated
                                 enabled: !workbenchRuntime.paymentBusy
@@ -728,24 +728,6 @@ ApplicationWindow {
                         color: workbenchRuntime.resolveConnected ? DesignTokens.accent : DesignTokens.textSecondary
                         font.pixelSize: window.uiFontSize(11)
                         horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.Wrap
-                    }
-                    Button {
-                        objectName: "subscriptionPaymentButton"
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: window.sidebarControlWidth
-                        visible: workbenchRuntime.authenticated
-                        enabled: !workbenchRuntime.paymentBusy
-                        text: workbenchRuntime.paymentBusy ? "支付下单中…" : "微信支付 0.01 元"
-                        onClicked: workbenchRuntime.createNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付验证")
-                    }
-                    Label {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: window.sidebarControlWidth
-                        visible: workbenchRuntime.paymentQrCode !== ""
-                        text: "微信扫码链接：\n" + workbenchRuntime.paymentQrCode
-                        color: DesignTokens.textSecondary
-                        font.pixelSize: window.uiFontSize(8)
                         wrapMode: Text.Wrap
                     }
                     Label {
@@ -3195,25 +3177,14 @@ ApplicationWindow {
         url: "about:blank"
         settings.javascriptEnabled: true
         settings.localStorageEnabled: true
+        webChannel: preferenceWebChannel
+        onLoadingChanged: if (loadRequest.status === WebEngineView.LoadSucceededStatus) syncFablecutAuth()
     }
-    // WebEngineView 作为嵌入式编辑器铺满窗口，支付临时入口必须位于其上层。
-    Button {
-        id: embeddedPaymentButton
-        objectName: "embeddedPaymentButton"
-        x: Math.max(290, window.width * 0.14)
-        y: 34
-        z: 1001
-        width: 132
-        height: 26
-        text: workbenchRuntime.paymentBusy ? "支付中…" : (workbenchRuntime.authenticated ? "微信支付 0.01 元" : "登录后微信支付")
-        enabled: !workbenchRuntime.paymentBusy
-        onClicked: {
-            if (workbenchRuntime.authenticated)
-                workbenchRuntime.createNativePayment(window.supabaseProjectUrl, window.supabaseAnonKey, 0.01, "Edward支付验证")
-            else
-                signInDialog.open()
-        }
+    Connections {
+        target: workbenchRuntime
+        function onTimelineChanged() { syncFablecutAuth() }
     }
+    // WebEngineView 作为嵌入式编辑器铺满窗口，支付宝入口位于其上层。
     Button {
         id: embeddedAlipayPaymentButton
         objectName: "embeddedAlipayPaymentButton"

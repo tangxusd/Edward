@@ -8,6 +8,7 @@
 #include <QUrl>
 #include <QTimer>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QFileInfo>
 #include <QFile>
 #include <QWindow>
@@ -16,6 +17,7 @@
 #include <QtWebEngineQuick>
 #include <QtWebEngineCore/QWebEngineProfile>
 #include <QtWebEngineCore/QWebEngineDownloadRequest>
+#include <QWebChannel>
 
 #ifdef Q_OS_MACOS
 void installEdwardTitlebar(QWindow *window, bool localServiceStarted);
@@ -54,8 +56,38 @@ int main(int argc, char** argv) {
       nodeProgram = QStringLiteral("/usr/local/bin/node");
     fablecutServer.setProgram(nodeProgram.isEmpty() ? QStringLiteral("node") : nodeProgram);
     fablecutServer.setArguments({QStringLiteral("server.js")});
+    // anon key 是公开客户端密钥；资源权限仍由请求携带的用户会话控制。
+    auto serverEnvironment = QProcessEnvironment::systemEnvironment();
+    serverEnvironment.insert(QStringLiteral("SUPABASE_URL"),
+                             QStringLiteral("https://naybqwiqgviuzjtemerc.supabase.co"));
+    serverEnvironment.insert(QStringLiteral("SUPABASE_ANON_KEY"),
+                             QStringLiteral("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5heWJxd2lxZ3ZpdXpqdGVtZXJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NTE3NTQsImV4cCI6MjEwMjQyNzc1NH0.MVnAoziZGfFzw9HelNYM6auqmfQE884D8kMTDAScf_Y"));
+    fablecutServer.setProcessEnvironment(serverEnvironment);
     fablecutServer.start();
     fablecutServer.waitForStarted(3000);
+    // 旧版本异常退出后可能遗留同一项目的 Node 服务，占用 7777 并让新配置无法生效。
+    // 只清理工作目录明确指向本项目 FableCut/server.js 的监听进程。
+#ifdef Q_OS_UNIX
+    if (fablecutServer.state() == QProcess::NotRunning) {
+      QProcess lsof;
+      lsof.start(QStringLiteral("lsof"), {QStringLiteral("-tiTCP:7777"), QStringLiteral("-sTCP:LISTEN")});
+      if (lsof.waitForFinished(1000)) {
+        const auto pids = lsof.readAllStandardOutput().split('\n');
+        for (const auto& pidBytes : pids) {
+          const auto pid = QString::fromLocal8Bit(pidBytes).trimmed();
+          if (pid.isEmpty() || !pid.toLongLong()) continue;
+          QProcess ps;
+          ps.start(QStringLiteral("ps"), {QStringLiteral("-p"), pid, QStringLiteral("-o"), QStringLiteral("command=")});
+          if (!ps.waitForFinished(500)) continue;
+          const auto command = QString::fromLocal8Bit(ps.readAllStandardOutput());
+          if (!command.contains(fablecutEntry)) continue;
+          QProcess::execute(QStringLiteral("kill"), {QStringLiteral("-TERM"), pid});
+        }
+      }
+      fablecutServer.start();
+      fablecutServer.waitForStarted(3000);
+    }
+#endif
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &fablecutServer, [&fablecutServer] {
       if (fablecutServer.state() != QProcess::NotRunning) {
         fablecutServer.terminate();
@@ -65,6 +97,11 @@ int main(int argc, char** argv) {
   }
   QQmlApplicationEngine engine;
   edward::desktop::WorkbenchRuntime runtime;
+  QObject::connect(&app, &QCoreApplication::aboutToQuit, &runtime, [&runtime] {
+    runtime.flushPreferencesForProjectClose();
+  });
+  QWebChannel preferenceChannel;
+  preferenceChannel.registerObject(QStringLiteral("preferenceStore"), runtime.preferenceStore());
   QObject::connect(QWebEngineProfile::defaultProfile(), &QWebEngineProfile::downloadRequested,
                    &app, [&runtime](QWebEngineDownloadRequest* download) {
     const auto target = runtime.pendingFablecutExportPath();
@@ -83,6 +120,7 @@ int main(int argc, char** argv) {
   });
   engine.addImageProvider(QStringLiteral("edward"), new EdwardFrameProvider(runtime));
   engine.rootContext()->setContextProperty(QStringLiteral("workbenchRuntime"), &runtime);
+  engine.rootContext()->setContextProperty(QStringLiteral("preferenceWebChannel"), &preferenceChannel);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Workbench.qml")));
   if (engine.rootObjects().isEmpty()) return 1;
   if (auto* window = qobject_cast<QWindow*>(engine.rootObjects().constFirst())) {

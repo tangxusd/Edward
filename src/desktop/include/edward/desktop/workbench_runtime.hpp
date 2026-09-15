@@ -1,6 +1,7 @@
 #pragma once
 
 #include "edward/desktop/timeline_controller.hpp"
+#include "edward/desktop/preference_store.hpp"
 #include "edward/core/project_identity.hpp"
 
 #include <QObject>
@@ -83,6 +84,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(bool exportDialogRequested READ exportDialogRequested NOTIFY timelineChanged)
   Q_PROPERTY(bool authenticated READ authenticated NOTIFY timelineChanged)
   Q_PROPERTY(QString authenticatedUsername READ authenticatedUsername NOTIFY timelineChanged)
+  Q_PROPERTY(QString supabaseAccessToken READ supabaseAccessToken NOTIFY timelineChanged)
   Q_PROPERTY(QString subscriptionStatus READ subscriptionStatus NOTIFY timelineChanged)
   Q_PROPERTY(QString subscriptionExpiresAt READ subscriptionExpiresAt NOTIFY timelineChanged)
   Q_PROPERTY(qint64 subscriptionCredits READ subscriptionCredits NOTIFY timelineChanged)
@@ -134,6 +136,7 @@ class WorkbenchRuntime final : public QObject {
 
  public:
   explicit WorkbenchRuntime(QObject* parent = nullptr);
+  [[nodiscard]] PreferenceStore* preferenceStore() { return &preferenceStore_; }
   [[nodiscard]] int playheadFrame() const;
   [[nodiscard]] int timelineDurationFrames() const;
   [[nodiscard]] bool playing() const { return playing_; }
@@ -180,6 +183,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString savedExportOutputDirectory() const;
   [[nodiscard]] bool authenticated() const { return sessions_.authenticated(); }
   [[nodiscard]] QString authenticatedUsername() const { return sessions_.username(); }
+  [[nodiscard]] QString supabaseAccessToken() const { return sessions_.session().accessToken; }
   [[nodiscard]] QString subscriptionStatus() const { return subscriptionStatus_; }
   [[nodiscard]] QString subscriptionExpiresAt() const { return subscriptionExpiresAt_; }
   [[nodiscard]] qint64 subscriptionCredits() const { return subscriptionCredits_; }
@@ -327,6 +331,10 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool exportTimeline(const QString& outputPath);
   Q_INVOKABLE bool exportTimelineWithOptions(const QString& outputPath, int width, int height,
                                              int fps, int quality);
+  Q_INVOKABLE bool flushPreferencesForProjectClose();
+  Q_INVOKABLE bool flushPreferencesForExport();
+  Q_INVOKABLE bool compilePreferencesNow();
+  Q_INVOKABLE QVariantMap preferenceStoreStatus() const;
   Q_INVOKABLE void setPendingFablecutExportPath(const QString& path);
   Q_INVOKABLE void setSavedExportOutputDirectory(const QString& path);
   Q_INVOKABLE void clearExportDialogRequest();
@@ -401,6 +409,7 @@ class WorkbenchRuntime final : public QObject {
   edward::core::TrackId videoTrack_;
   TimelineController controller_;
   edward::core::ProjectIdentity projectIdentity_ = edward::core::ProjectIdentity::create();
+  PreferenceStore preferenceStore_;
   edward::media::RenderStorageRoots previewStorageRoots_;
   edward::media::PreviewSession previewSession_;
   mutable edward::media::PreviewFrameCache previewFrameCache_;

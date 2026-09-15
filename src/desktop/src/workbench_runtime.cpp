@@ -443,6 +443,7 @@ bool pluginAllowsComponentEdit(const edward::core::ComponentIr& component,
 
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), timeline_(900), videoTrack_(timeline_.addVideoTrack()), controller_(timeline_, videoTrack_),
+      preferenceStore_(this),
       previewStorageRoots_(defaultPreviewStorageRoots()),
       previewSession_(previewStorageRoots_, projectIdentity_),
       previewFrameCache_(previewStorageRoots_, projectIdentity_),
@@ -3179,6 +3180,26 @@ bool WorkbenchRuntime::exportTimeline(const QString& outputPath) {
   return exportTimelineWithOptions(outputPath, 1920, 1080, 30, 0);
 }
 
+bool WorkbenchRuntime::flushPreferencesForProjectClose() {
+  const auto result = preferenceStore_.flushPendingPreferences();
+  if (!result) emit operationFailed(QStringLiteral("偏好数据写入失败，已继续使用当前项目"));
+  return result;
+}
+
+bool WorkbenchRuntime::flushPreferencesForExport() {
+  const auto result = preferenceStore_.flushPendingPreferences();
+  if (!result) emit operationFailed(QStringLiteral("偏好数据写入失败，导出仍可继续"));
+  return result;
+}
+
+bool WorkbenchRuntime::compilePreferencesNow() {
+  const auto result = preferenceStore_.compilePreferences();
+  if (!result) emit operationFailed(QStringLiteral("偏好方案收敛失败，已保留上一版方案"));
+  return result;
+}
+
+QVariantMap WorkbenchRuntime::preferenceStoreStatus() const { return preferenceStore_.status(); }
+
 void WorkbenchRuntime::setPendingFablecutExportPath(const QString& path) {
   pendingFablecutExportPath_ = path.trimmed();
   emit timelineChanged();
@@ -3205,6 +3226,7 @@ void WorkbenchRuntime::setSavedExportOutputDirectory(const QString& path) {
 
 bool WorkbenchRuntime::exportTimelineWithOptions(const QString& outputPath, int width, int height,
                                                  int fps, int quality) {
+  flushPreferencesForExport();
   if (timelineExportBusy_) {
     emit operationFailed(QStringLiteral("视频导出正在执行"));
     return false;
@@ -4305,6 +4327,7 @@ void WorkbenchRuntime::saveProjectRecovery() {
 }
 
 bool WorkbenchRuntime::loadProject(const QString& path) {
+  flushPreferencesForProjectClose();
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) return false;
   QJsonParseError error;
