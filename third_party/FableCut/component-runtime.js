@@ -25,6 +25,7 @@ async function captureCompositeFrame(outputSpec) {
   const clone = source.cloneNode(true);
   inlineStyles(source, clone);
   clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
+  const nativeSvgHosts = [...source.children].filter((host) => host.style.display !== "none" && host.querySelector("svg"));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
   const encoded = new TextEncoder().encode(svg);
   let binary = "";
@@ -35,6 +36,43 @@ async function captureCompositeFrame(outputSpec) {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("composite capture canvas unavailable");
   context.drawImage(preview, 0, 0, canvas.width, canvas.height);
+  // Native annotation components are SVG documents. Rasterize them directly
+  // instead of putting them inside foreignObject; WebEngine/ffmpeg paths may
+  // otherwise drop the component layer while Card6's HTML happens to survive.
+  if (nativeSvgHosts.length === [...source.children].filter((host) => host.style.display !== "none").length) {
+    const overlayRect = source.getBoundingClientRect();
+    const sx = outputSpec.width / preview.width, sy = outputSpec.height / preview.height;
+    const parts = nativeSvgHosts.map((host) => {
+      const rect = host.getBoundingClientRect();
+      const x = (rect.left - overlayRect.left) * (preview.width / overlayRect.width);
+      const y = (rect.top - overlayRect.top) * (preview.height / overlayRect.height);
+      const w = rect.width * (preview.width / overlayRect.width) * sx;
+      const h = rect.height * (preview.height / overlayRect.height) * sy;
+      const svgNode = host.querySelector("svg");
+      return `<svg x="${x * sx}" y="${y * sy}" width="${w}" height="${h}" viewBox="${svgNode.getAttribute("viewBox") || `0 0 ${rect.width} ${rect.height}`}" preserveAspectRatio="none">${svgNode.innerHTML}</svg>`;
+    }).join("");
+    const directSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}">${parts}</svg>`;
+    const directImage = new Image();
+    await new Promise((resolve, reject) => { directImage.onload = resolve; directImage.onerror = reject; directImage.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(directSvg); });
+    context.drawImage(directImage, 0, 0, outputSpec.width, outputSpec.height);
+    return canvas;
+  }
+  const previewRect = preview.getBoundingClientRect();
+  const nativeSvgs = [...source.querySelectorAll(":scope > [data-user-component] > svg")].filter((node) => getComputedStyle(node).display !== "none");
+  for (const node of nativeSvgs) {
+    const box = node.getBoundingClientRect();
+    const markup = new XMLSerializer().serializeToString(node);
+    const image = new Image();
+    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup); });
+    context.drawImage(image,
+      (box.left - previewRect.left) * outputSpec.width / previewRect.width,
+      (box.top - previewRect.top) * outputSpec.height / previewRect.height,
+      box.width * outputSpec.width / previewRect.width,
+      box.height * outputSpec.height / previewRect.height);
+  }
+  // Native SVG hosts are already painted above; leave only legacy DOM hosts in
+  // the foreignObject fallback so they are not painted twice.
+  nativeSvgs.forEach((node) => node.parentElement?.remove());
   if (!clone.children.length) return canvas;
   try {
     if (typeof createImageBitmap === "function") {

@@ -59,3 +59,13 @@ test("native component editing uses normalized centered geometry", () => {
   assert.match(app, /canvasDrag\.native/);
   assert.match(app, /drawFrame\(state\.time\)/);
 });
+
+test("native components use direct SVG export and automatic upper-track fallback", () => {
+  const runtime = fs.readFileSync(path.join(root, "component-runtime.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(runtime, /Native annotation components are SVG documents/);
+  assert.match(runtime, /directSvg/);
+  assert.match(app, /resolveComponentTrack/);
+  assert.match(app, /addTimelineTrack\("video"\)/);
+  assert.match(app, /setDragImage/);
+});

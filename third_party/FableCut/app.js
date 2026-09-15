@@ -1617,6 +1617,13 @@ function renderNativeAnnotationLibrary() {
     element.addEventListener("dragstart", (event) => {
       event.dataTransfer.setData("text/fablecut-component", item.id);
       event.dataTransfer.effectAllowed = "copy";
+      const ghost = document.createElement("div");
+      ghost.className = "clip native-drag-ghost";
+      ghost.style.cssText = "position:absolute;left:-10000px;top:-10000px;width:220px;height:44px;background:#262638;border:1px solid #6870a0;color:#f2f2f5;border-radius:3px;font:600 13px system-ui;display:flex;align-items:center;padding:0 12px;box-sizing:border-box;";
+      ghost.textContent = item.name || item.id;
+      document.body.appendChild(ghost);
+      event.dataTransfer.setDragImage(ghost, 20, 22);
+      setTimeout(() => ghost.remove(), 0);
     });
     element.querySelector(".lib-add").addEventListener("click", () => addNativeComponent(item.id));
     els.libList.appendChild(element);
@@ -1918,6 +1925,16 @@ function defaultTrackFor(kind) {
 function canPlaceClip(track, start, duration, ignoreId = null) {
   const end = start + duration;
   return !project.clips.some((clip) => clip.track === track && clip.id !== ignoreId && start < clipEnd(clip) - 1e-4 && end > clip.start + 1e-4);
+}
+function resolveComponentTrack(preferred, start, duration) {
+  const videoTracks = TRACKS.filter((track) => track.kind === "video");
+  const index = Math.max(0, videoTracks.findIndex((track) => track.id === (preferred || "V2")));
+  for (let i = index; i >= 0; i--) {
+    if (canPlaceClip(videoTracks[i].id, start, duration)) return videoTracks[i].id;
+  }
+  const created = addTimelineTrack("video");
+  if (created && canPlaceClip(created.id, start, duration)) return created.id;
+  return preferred || "V2";
 }
 function hasTrackOverlap() {
   const byTrack = new Map();
@@ -2409,8 +2426,8 @@ async function addNativeComponent(componentId, dropTrack = "V2", dropTime = stat
   }
   pushUndo();
   const props = nativeAnnotationDefaults(manifest);
-  const track = dropTrack || "V2", start = Math.max(0, dropTime), duration = Number(props.duration || 3);
-  if (!canPlaceClip(track, start, duration)) { toast("该轨道时间段已有片段，不能重叠"); return; }
+  const start = Math.max(0, dropTime), duration = Number(props.duration || 3);
+  const track = resolveComponentTrack(dropTrack || "V2", start, duration);
   const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track, start, in: 0, duration, name: manifest.name || componentId, props };
   project.clips.push(c);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
