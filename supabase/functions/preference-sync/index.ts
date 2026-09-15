@@ -4,11 +4,15 @@ const required = ["eventId", "installationId", "componentId", "componentFamily",
 function validFact(value: unknown) {
   if (!value || typeof value !== "object") return false;
   const fact = value as Record<string, unknown>;
-  if (required.some((key) => typeof fact[key] !== "string" && key !== "value")) return false;
+  if (required.some((key) => (key === "value" ? !("value" in fact) : typeof fact[key] !== "string" || String(fact[key]).trim() === ""))) return false;
   if (fact.source !== "user-confirmed") return false;
   if (["projectId", "projectPath", "projectName", "timelineId"].some((key) => key in fact)) return false;
   if (fact.valueType === "color") return typeof fact.value === "string" && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(fact.value);
-  return ["string", "integer", "float", "boolean"].includes(String(fact.valueType));
+  if (fact.valueType === "string") return typeof fact.value === "string" && fact.value.length <= 4096;
+  if (fact.valueType === "boolean") return typeof fact.value === "boolean";
+  if (fact.valueType === "integer") return Number.isInteger(fact.value) && Number.isSafeInteger(fact.value);
+  if (fact.valueType === "float") return typeof fact.value === "number" && Number.isFinite(fact.value) && Math.abs(fact.value) <= 1e9;
+  return false;
 }
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });

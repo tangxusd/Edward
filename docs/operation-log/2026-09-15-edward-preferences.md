@@ -45,3 +45,6 @@ Supabase 端已补充 `preference_facts` 表、RLS 和 `preference-sync` Edge Fu
 迁移 `202609160001_preference_facts.sql` 已应用；`preference-sync` 已部署为 ACTIVE v1。
 未带 Authorization 的公网请求返回 401，认证边界生效。真实登录账号的上传/下载往返仍需在
 客户端登录后验证。
+
+2026-09-16 再次部署：服务端现在强制校验字符串非空、颜色格式、字符串长度、布尔值、
+安全整数和有限浮点范围；`deno check` 通过，未授权请求仍返回 HTTP 401。
