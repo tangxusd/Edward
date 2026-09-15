@@ -27,6 +27,7 @@
 #include <QPointer>
 #include <QStandardPaths>
 #include <QSettings>
+#include <QDataStream>
 #include <QFileDialog>
 #include <QGuiApplication>
 #include <QClipboard>
@@ -3232,18 +3233,24 @@ bool WorkbenchRuntime::exportPreferencesToFile(const QString& path) {
   if (path.trimmed().isEmpty()) return false;
   QSaveFile file(path);
   if (!file.open(QIODevice::WriteOnly)) return false;
-  const auto document = QJsonDocument::fromVariant(preferenceStore_.exportFacts());
-  if (file.write(document.toJson(QJsonDocument::Indented)) < 0 || !file.commit()) return false;
+  QDataStream stream(&file);
+  stream.setVersion(QDataStream::Qt_6_5);
+  stream << QByteArrayLiteral("EDWARD_PREFS") << quint32(1) << preferenceStore_.exportFacts();
+  if (stream.status() != QDataStream::Ok || !file.commit()) return false;
   return true;
 }
 
 bool WorkbenchRuntime::importPreferencesFromFile(const QString& path) {
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) return false;
-  QJsonParseError parseError;
-  const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
-  if (!document.isArray()) return false;
-  return preferenceStore_.importFacts(document.array().toVariantList());
+  QDataStream stream(&file);
+  stream.setVersion(QDataStream::Qt_6_5);
+  QByteArray magic;
+  quint32 version = 0;
+  QVariantList facts;
+  stream >> magic >> version >> facts;
+  if (stream.status() != QDataStream::Ok || magic != QByteArrayLiteral("EDWARD_PREFS") || version != 1) return false;
+  return preferenceStore_.importFacts(facts);
 }
 
 void WorkbenchRuntime::setPendingFablecutExportPath(const QString& path) {

@@ -2766,7 +2766,7 @@ ApplicationWindow {
         }
         header: Rectangle {
             width: parent.width
-            height: 42
+            height: 78
             color: DesignTokens.background
             Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: DesignTokens.divider }
             Text {
@@ -2777,6 +2777,22 @@ ApplicationWindow {
                 color: DesignTokens.textPrimary
                 font.pixelSize: window.uiFontSize(13)
                 font.bold: true
+            }
+            TabBar {
+                id: aiSettingsTabs
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 30
+                TabButton { text: "大模型设置" }
+                TabButton {
+                    text: "偏好设置"
+                    onClicked: {
+                        aiSettingsTabs.currentIndex = 0
+                        aiSettingsDialog.close()
+                        preferenceSettingsDialog.open()
+                    }
+                }
             }
         }
         footer: RowLayout {
@@ -3002,13 +3018,13 @@ ApplicationWindow {
             Label { Layout.fillWidth: true; text: "本地备份"; color: DesignTokens.textPrimary; font.bold: true }
             RowLayout {
                 Layout.fillWidth: true
-                Button { text: "导出本地 JSON"; onClicked: preferenceExportDialog.open() }
-                Button { text: "导入本地 JSON"; onClicked: preferenceImportDialog.open() }
+                Button { text: "导出偏好文件"; onClicked: preferenceExportDialog.open() }
+                Button { text: "导入偏好文件"; onClicked: preferenceImportDialog.open() }
                 Item { Layout.fillWidth: true }
             }
             Label {
                 Layout.fillWidth: true
-                text: "本地文件仅包含已确认的偏好事实，不包含项目、时间线、素材或路径。"
+                text: "文件为 Edward 专用二进制格式，不包含项目、时间线、素材或路径。"
                 wrapMode: Text.WordWrap
                 color: DesignTokens.textSecondary
             }
@@ -3019,7 +3035,7 @@ ApplicationWindow {
         id: preferenceExportDialog
         title: "导出偏好 JSON"
         fileMode: FileDialog.SaveFile
-        nameFilters: ["偏好 JSON (*.json)", "所有文件 (*)"]
+        nameFilters: ["Edward 偏好文件 (*.edward-preferences)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.exportPreferencesToFile(selectedFile.toLocalFile())
     }
 
@@ -3027,7 +3043,7 @@ ApplicationWindow {
         id: preferenceImportDialog
         title: "导入偏好 JSON"
         fileMode: FileDialog.OpenFile
-        nameFilters: ["偏好 JSON (*.json)", "所有文件 (*)"]
+        nameFilters: ["Edward 偏好文件 (*.edward-preferences)", "所有文件 (*)"]
         onAccepted: workbenchRuntime.importPreferencesFromFile(selectedFile.toLocalFile())
     }
 
