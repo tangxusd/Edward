@@ -7831,12 +7831,6 @@ function resetMonitorView() {
   applyMonitorView(); // immediate — don't wait a frame to clear zoom
 }
 els.btnZoom100.addEventListener("click", resetMonitorView);
-// Keep the fit control in the monitor surface, beside the canvas/rulers.
-// Moving the existing node preserves its event binding and hidden state.
-if (els.btnZoom100 && els.monitorStage && els.btnZoom100.parentElement !== els.monitorStage) {
-  els.btnZoom100.classList.add("monitor-fit-control");
-  els.monitorStage.prepend(els.btnZoom100);
-}
 els.monitorScroll.addEventListener("wheel", (e) => {
   e.preventDefault();
   const scroll = els.monitorScroll;
