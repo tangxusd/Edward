@@ -6740,6 +6740,16 @@ async function openExportSetup() {
 }
 async function startChosenExport() {
   persistExportWcOpts();
+  try {
+    const checkName = await fetch(`/api/export/check-name?name=${encodeURIComponent(project.name || "export")}&ext=.mp4`).then((r) => r.json());
+    if (checkName?.name && !checkName.available) {
+      const proceed = confirm(`文件名已存在，将使用新文件名：${checkName.name}`);
+      if (!proceed) return;
+    }
+  } catch (error) {
+    alert("无法检查导出文件名：" + (error?.message || error));
+    return;
+  }
   const useFast = els.engineFast.checked && !els.engineFast.disabled;
   const useSecond = els.engineRealtime.checked && !els.engineRealtime.disabled;
   if (!useFast && !useSecond) {

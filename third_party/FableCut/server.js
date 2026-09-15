@@ -190,6 +190,15 @@ function finalizeExportPath(sess) {
     }
   }
 }
+function previewExportName(baseName, ext = ".mp4") {
+  const base = safeName(baseName || "export").replace(/\.(mp4|mov|m4v|mkv|webm)$/i, "");
+  for (let i = 0; ; i++) {
+    const stem = i === 0 ? base : `${base}_${i}`;
+    const name = stem + ext;
+    if (!fs.existsSync(path.join(EXPORTS_DIR, name)) && !fs.existsSync(path.join(EXPORTS_DIR, stem + ".part" + ext)))
+      return { requestedName: base + ext, available: i === 0, name };
+  }
+}
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { maxBuffer: 1 << 24 }, (err, _out, stderr) =>
@@ -636,6 +645,11 @@ const server = http.createServer(async (req, res) => {
       const detail = url.searchParams.get("detail") === "1";
       sendJSON(res, 200, listProfilesPublic(detail));
     } catch (e) { sendJSON(res, 500, { error: String(e) }); }
+    return;
+  }
+  if (p === "/api/export/check-name" && req.method === "GET") {
+    const ext = String(url.searchParams.get("ext") || ".mp4").match(/^\.(mp4|mov|m4v|mkv|webm)$/i)?.[0] || ".mp4";
+    sendJSON(res, 200, previewExportName(url.searchParams.get("name") || "export", ext));
     return;
   }
   if (p === "/api/export/begin" && req.method === "POST") {
