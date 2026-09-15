@@ -14,8 +14,11 @@ add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins
   $<TARGET_FILE:test_rpc_plugin> ${CMAKE_BINARY_DIR}/tests/media/fixture.mp4
   ${CMAKE_BINARY_DIR}/tests/media/audio-fixture.mp4)
 
-add_executable(test_resolve_workbench test_resolve_workbench.cpp)
-target_link_libraries(test_resolve_workbench PRIVATE edward_desktop)
+add_executable(test_resolve_workbench
+  test_resolve_workbench.cpp
+  ../resolve/fixture_rpc_server.cpp
+)
+target_link_libraries(test_resolve_workbench PRIVATE edward_desktop Qt6::Network)
 add_test(NAME desktop.resolve_workbench COMMAND test_resolve_workbench)
 
 add_executable(test_resolve_keyframe_edit test_resolve_keyframe_edit.cpp)
@@ -25,3 +28,11 @@ add_test(NAME desktop.resolve_keyframe_edit COMMAND test_resolve_keyframe_edit)
 add_executable(test_export_channels test_export_channels.cpp)
 target_link_libraries(test_export_channels PRIVATE edward_desktop)
 add_test(NAME desktop.export_channels COMMAND test_export_channels)
+
+add_executable(test_diagnostics_reporter test_diagnostics_reporter.cpp)
+target_link_libraries(test_diagnostics_reporter PRIVATE edward_desktop)
+add_test(NAME desktop.diagnostics_reporter COMMAND test_diagnostics_reporter)
+
+add_executable(test_preference_store test_preference_store.cpp)
+target_link_libraries(test_preference_store PRIVATE edward_desktop Qt6::Sql)
+add_test(NAME desktop.preference_store COMMAND test_preference_store)
