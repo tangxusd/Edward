@@ -65,6 +65,9 @@ test("native components use direct SVG export and automatic upper-track fallback
   const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
   assert.match(runtime, /Native annotation components are SVG documents/);
   assert.match(runtime, /directSvg/);
+  assert.match(runtime, /svgNode\.getBoundingClientRect\(\)/);
+  assert.match(runtime, /outputSpec\.width/);
+  assert.match(runtime, /outputSpec\.height/);
   assert.match(app, /resolveComponentTrack/);
   assert.match(app, /addTimelineTrack\("video"\)/);
   assert.match(app, /setDragImage/);

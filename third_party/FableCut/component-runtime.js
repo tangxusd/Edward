@@ -25,7 +25,8 @@ async function captureCompositeFrame(outputSpec) {
   const clone = source.cloneNode(true);
   inlineStyles(source, clone);
   clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
-  const nativeSvgHosts = [...source.children].filter((host) => host.style.display !== "none" && host.querySelector("svg"));
+  const visibleHosts = [...source.children].filter((host) => getComputedStyle(host).display !== "none");
+  const nativeSvgNodes = visibleHosts.map((host) => host.querySelector(":scope > svg") || host.querySelector("svg")).filter(Boolean);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
   const encoded = new TextEncoder().encode(svg);
   let binary = "";
@@ -39,17 +40,16 @@ async function captureCompositeFrame(outputSpec) {
   // Native annotation components are SVG documents. Rasterize them directly
   // instead of putting them inside foreignObject; WebEngine/ffmpeg paths may
   // otherwise drop the component layer while Card6's HTML happens to survive.
-  if (nativeSvgHosts.length === [...source.children].filter((host) => host.style.display !== "none").length) {
+  if (nativeSvgNodes.length === visibleHosts.length && nativeSvgNodes.length > 0) {
     const overlayRect = source.getBoundingClientRect();
-    const sx = outputSpec.width / preview.width, sy = outputSpec.height / preview.height;
-    const parts = nativeSvgHosts.map((host) => {
-      const rect = host.getBoundingClientRect();
-      const x = (rect.left - overlayRect.left) * (preview.width / overlayRect.width);
-      const y = (rect.top - overlayRect.top) * (preview.height / overlayRect.height);
-      const w = rect.width * (preview.width / overlayRect.width) * sx;
-      const h = rect.height * (preview.height / overlayRect.height) * sy;
-      const svgNode = host.querySelector("svg");
-      return `<svg x="${x * sx}" y="${y * sy}" width="${w}" height="${h}" viewBox="${svgNode.getAttribute("viewBox") || `0 0 ${rect.width} ${rect.height}`}" preserveAspectRatio="none">${svgNode.innerHTML}</svg>`;
+    const parts = nativeSvgNodes.map((svgNode) => {
+      const rect = svgNode.getBoundingClientRect();
+      const x = ((rect.left - overlayRect.left) / overlayRect.width) * outputSpec.width;
+      const y = ((rect.top - overlayRect.top) / overlayRect.height) * outputSpec.height;
+      const w = (rect.width / overlayRect.width) * outputSpec.width;
+      const h = (rect.height / overlayRect.height) * outputSpec.height;
+      const viewBox = svgNode.getAttribute("viewBox") || `0 0 ${rect.width} ${rect.height}`;
+      return `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${viewBox}" preserveAspectRatio="none">${svgNode.innerHTML}</svg>`;
     }).join("");
     const directSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}">${parts}</svg>`;
     const directImage = new Image();
