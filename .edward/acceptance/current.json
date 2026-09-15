@@ -22,6 +22,6 @@
     ,{"id": "preference-isolation", "description": "组件身份、语义路径和属性类型隔离，文字颜色与边框颜色不互相污染", "status": "passed"}
     ,{"id": "preference-triggers", "description": "300 秒闲置、项目切换/关闭、正常退出和导出开始执行批量写入，收敛不阻塞编辑与导出", "status": "passed"}
     ,{"id": "preference-new-only", "description": "偏好只作用于新建组件/素材，已有片段和 project.json 不被改写", "status": "passed"}
-    ,{"id": "preference-sync", "description": "Supabase 偏好上传/下载必须显式触发，按事实合并并重新校验 manifest", "status": "in_progress"}
+    ,{"id": "preference-sync", "description": "Supabase 偏好上传/下载必须显式触发，按事实合并并重新校验 manifest", "status": "passed"}
   ]
 }

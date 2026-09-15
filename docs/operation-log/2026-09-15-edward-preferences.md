@@ -40,3 +40,8 @@
 
 Supabase 端已补充 `preference_facts` 表、RLS 和 `preference-sync` Edge Function；云端部署和
 真实账号往返尚未在本机执行，设置入口保持手动触发，不会在登录、打开项目或导出时联网。
+
+2026-09-16 追加结果：已对链接项目 `naybqwiqgviuzjtemerc` 执行 `supabase db push --linked`，
+迁移 `202609160001_preference_facts.sql` 已应用；`preference-sync` 已部署为 ACTIVE v1。
+未带 Authorization 的公网请求返回 401，认证边界生效。真实登录账号的上传/下载往返仍需在
+客户端登录后验证。
