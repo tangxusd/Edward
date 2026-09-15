@@ -33,5 +33,10 @@
 - `node --test third_party/FableCut/test/preferences.test.js`
 - `node --test third_party/FableCut/test/user-components.test.js`
 
+全量 CTest 构建成功；89 个测试中偏好相关 3 个全部通过，FableCut Node 测试 76/76 通过。
+全量 CTest 另有 6 个既有 Resolve/认证环境测试失败（`desktop.visual_routes`、
+`desktop.workbench_plugins`、`desktop.resolve_workbench`、`resources.auth_session_store`、
+`resources.supabase_auth_client`、`resolve.sidecar_rectangle`），未修改这些无关路径。
+
 Supabase 端已补充 `preference_facts` 表、RLS 和 `preference-sync` Edge Function；云端部署和
 真实账号往返尚未在本机执行，设置入口保持手动触发，不会在登录、打开项目或导出时联网。
