@@ -22,3 +22,11 @@ test('server finalizes exports without replacing an existing filename', () => {
   assert.match(server, /fs\.copyFileSync\(sess\.partPath, out, fs\.constants\.COPYFILE_EXCL\)/);
   assert.match(server, /if \(e\.code === "EEXIST"\) continue/);
 });
+
+test('legacy component foreignObject clone clears monitor positioning', () => {
+  const runtime = fs.readFileSync(path.join(__dirname, '..', 'component-runtime.js'), 'utf8');
+  assert.match(runtime, /clone\.style\.position = "relative"/);
+  assert.match(runtime, /clone\.style\.inset = "auto"/);
+  assert.match(runtime, /clone\.style\.right = "auto"/);
+  assert.match(runtime, /clone\.style\.bottom = "auto"/);
+});

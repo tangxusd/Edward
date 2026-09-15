@@ -1017,7 +1017,7 @@ textarea {
 }
 
 .monitor-ruler-top { height: 22px; }
-.monitor-ruler-left { width: 34px; }
+.monitor-ruler-left { width: 17px; }
 
 /* ── Keyframe graphs (left gutter of program monitor) ── */
 .kf-graphs {

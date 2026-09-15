@@ -16,8 +16,7 @@ export function mount({ host, props, time, viewport }) {
   const render = (next, at, size) => {
     const v = values(next, at, size);
     const sx = v.cssWidth / v.width, sy = v.cssHeight / v.height;
-    const perimeter = 2 * (v.boxWidth + v.boxHeight);
-    const rect = window.React.createElement("rect", { x: 0, y: 0, width: v.boxWidth, height: v.boxHeight, rx: v.radius, fill: "none", stroke: v.color, strokeWidth: v.borderWidth, strokeDasharray: perimeter, strokeDashoffset: perimeter * (1 - v.progress) });
+    const rect = window.React.createElement("rect", { x: 0, y: 0, width: v.boxWidth, height: v.boxHeight, rx: v.radius, fill: "none", stroke: v.color, strokeWidth: v.borderWidth, pathLength: 1, strokeDasharray: 1, strokeDashoffset: 1 - v.progress });
     root.render(window.React.createElement("svg", { style: { position: "absolute", left: `${(v.width / 2 + v.x - v.boxWidth / 2) * sx}px`, top: `${(v.height / 2 + v.y - v.boxHeight / 2) * sy}px`, width: `${v.boxWidth * sx}px`, height: `${v.boxHeight * sy}px`, overflow: "visible", pointerEvents: "none", opacity: Number(next.opacity ?? 1), transform: `rotate(${Number(next.rotation ?? 0)}deg)`, transformOrigin: "center" }, viewBox: `0 0 ${v.boxWidth} ${v.boxHeight}` }, rect));
   };
   render(props, time, viewport);

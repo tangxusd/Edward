@@ -45,6 +45,8 @@ test("native rectangles share the one second cubic ease and three second hold", 
     const source = fs.readFileSync(path.join(root, "components", id, "component.js"), "utf8");
     assert.match(source, /(?:0\.5|1)/);
     assert.match(source, /cubic-bezier|ease|progress/);
+    assert.match(source, /pathLength/);
+    assert.match(source, /stroke[-_]dasharray.*1|strokeDasharray: 1/);
   }
 });
 
@@ -91,6 +93,7 @@ test("monitor rulers are attached to the monitor frame and use ten-pixel ticks",
   assert.match(html, /monitor-ruler-top/);
   assert.match(html, /monitor-ruler-left/);
   assert.match(app, /const dpr = window\.devicePixelRatio \|\| 1, unit = 10/);
-  assert.match(app, /top\.style\.left = "0px"/);
+  assert.match(app, /const topH = 22, leftW = 17/);
+  assert.match(app, /top\.style\.left = `\$\{leftW\}px`/);
   assert.match(app, /left\.style\.left = "0px"/);
 });

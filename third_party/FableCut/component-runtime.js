@@ -56,6 +56,14 @@ async function captureCompositeFrame(outputSpec) {
   const legacyIds = new Set(legacyHosts.map((host) => host.dataset.clipId));
   [...clone.children].forEach((host) => { if (!legacyIds.has(host.dataset.clipId)) host.remove(); });
   if (!clone.children.length) return canvas;
+  clone.style.position = "relative";
+  clone.style.inset = "auto";
+  clone.style.left = "0px";
+  clone.style.top = "0px";
+  clone.style.right = "auto";
+  clone.style.bottom = "auto";
+  clone.style.width = `${preview.width}px`;
+  clone.style.height = `${preview.height}px`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
   const encoded = new TextEncoder().encode(svg);
   let binary = "";

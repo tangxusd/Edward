@@ -63,3 +63,10 @@
 - 根因：macOS 当前文件卷不支持对 `.part` 文件执行硬链接，导致导出结束阶段报 `ENOTSUP`；标尺仍以预览画布矩形定位，随画布偏移。
 - 修正：改用 `COPYFILE_EXCL` 原子排他复制，冲突时递增文件名且绝不覆盖；标尺固定在监视器边框左上角，刻度间隔改为 10 像素，标注每 100 像素。
 - 验证：新增文件落盘和固定标尺回归断言；JavaScript 语法检查和 FableCut 测试通过。
+
+## 2026-09-15 导出定位与标尺修复
+
+- 目的：修复左侧标尺尺寸、Card 6 导出坐标偏移，以及 SVG 矩形完成态缺半边。
+- 涉及文件：`third_party/FableCut/app.js`、`style.css`、`component-runtime.js`、四个 `annotation.rect.*` 原生组件及对应测试。
+- 结果：左标尺固定为 17px，顶部标尺从左标尺右侧开始；Card 6 foreignObject 克隆清除旧 inset/定位；四种矩形统一使用 SVG `pathLength=1` 完成态。
+- 验证：语法检查通过；针对性测试 13/13；FableCut 全量测试 74/74；`git diff --check` 通过。

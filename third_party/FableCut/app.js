@@ -5630,12 +5630,12 @@ function drawMonitorRulers() {
   if (!(sr.width > 0 && sr.height > 0)) return;
   const dpr = window.devicePixelRatio || 1, unit = 10;
   const setup = (canvas, width, height) => { canvas.width = Math.max(1, Math.round(width * dpr)); canvas.height = Math.max(1, Math.round(height * dpr)); canvas.style.width = `${width}px`; canvas.style.height = `${height}px`; const c = canvas.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, width, height); c.strokeStyle = "#737783"; c.fillStyle = "#aeb1bb"; c.lineWidth = 1; c.font = "10px system-ui, sans-serif"; return c; };
-  const topH = 22, leftW = 34;
-  top.style.left = "0px"; top.style.top = "0px";
+  const topH = 22, leftW = 17;
+  top.style.left = `${leftW}px`; top.style.top = "0px";
   left.style.left = "0px"; left.style.top = `${topH}px`;
-  const tc = setup(top, sr.width, topH), lc = setup(left, leftW, Math.max(0, sr.height - topH));
+  const tc = setup(top, Math.max(0, sr.width - leftW), topH), lc = setup(left, leftW, Math.max(0, sr.height - topH));
   const sx = sr.width / Math.max(1, project.width), sy = (sr.height - topH) / Math.max(1, project.height);
-  for (let px = 0; px <= project.width; px += unit) { const x = leftW + px * sx; const major = px % 100 === 0; tc.beginPath(); tc.moveTo(x + .5, topH); tc.lineTo(x + .5, major ? 7 : 14); tc.stroke(); if (major) tc.fillText(String(px - project.width / 2), Math.min(Math.max(leftW + 2, x + 3), sr.width - 34), 10); }
+  for (let px = 0; px <= project.width; px += unit) { const x = px * sx; const major = px % 100 === 0; tc.beginPath(); tc.moveTo(x + .5, topH); tc.lineTo(x + .5, major ? 7 : 14); tc.stroke(); if (major) tc.fillText(String(px - project.width / 2), Math.min(Math.max(2, x + 3), sr.width - leftW - 34), 10); }
   for (let py = 0; py <= project.height; py += unit) { const y = py * sy; const major = py % 100 === 0; lc.beginPath(); lc.moveTo(leftW, y + .5); lc.lineTo(major ? 7 : 14, y + .5); lc.stroke(); if (major) { lc.save(); lc.translate(10, Math.min(Math.max(12, y + 12), sr.height - topH - 2)); lc.rotate(-Math.PI / 2); lc.fillText(String(project.height / 2 - py), 0, 0); lc.restore(); } }
 }
 function drawFrame(t = state.time) {
