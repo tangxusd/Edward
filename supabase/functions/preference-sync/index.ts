@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return Response.json({ error: "method_not_allowed" }, { status: 405, headers: cors });
   const body = await req.json().catch(() => ({}));
   if (body.schemaVersion !== 1 || body.manifestVersion !== 1 || !Array.isArray(body.facts) || body.facts.length > 500) return Response.json({ error: "invalid_payload" }, { status: 400, headers: cors });
-  const facts = body.facts.filter(validFact);
+  const facts = body.facts.filter((fact: unknown) => validFact(fact)) as Record<string, unknown>[];
   if (facts.length !== body.facts.length) return Response.json({ error: "invalid_fact" }, { status: 400, headers: cors });
   const result = await client.from("preference_facts").upsert(facts.map((fact) => ({ user_id: data.user.id, event_id: fact.eventId, fact })), { onConflict: "user_id,event_id", ignoreDuplicates: true });
   if (result.error) return Response.json({ error: "preference_write_failed" }, { status: 500, headers: cors });
