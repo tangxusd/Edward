@@ -522,6 +522,7 @@ const els = {
   safeOverlay: $("safeOverlay"), btnSpeed: $("btnSpeed"),
   monitorStage: $("monitorStage"), monitorScroll: $("monitorScroll"),
   monitorZoomInner: $("monitorZoomInner"), kfGraphs: $("kfGraphs"),
+  monitorRulerTop: $("monitorRulerTop"), monitorRulerLeft: $("monitorRulerLeft"),
   exportSetup: $("exportSetup"), engineFast: $("engineFast"), engineRealtime: $("engineRealtime"),
   exportProfileRow: $("exportProfileRow"),
   exportProfileSel: $("exportProfileSel"), exportProfileNote: $("exportProfileNote"),
@@ -945,17 +946,29 @@ function applyProject(data) {
   // panSchema so a later write that omits pan:0 (compact MCP / agent rebuild)
   // does not re-hard-pan a deliberately centered stem.
   const migratePan = !(data.panSchema >= 1);
+  let migrateComponentIds = false;
   for (const c of project.clips) {
     const raw = c.props || {};
     c.props = { ...DEFAULT_PROPS, ...raw };
     if (migratePan && !Object.hasOwn(raw, "pan") && Number.isInteger(raw.audioChannel) && raw.audioChannel >= 0)
       c.props.pan = defaultPanForChannel(raw.audioChannel);
+    if (c.kind === "component" && !c.componentId) {
+      const name = String(c.name || "");
+      const legacyNative = {
+        "闭合矩形 · React": "annotation.rect.react",
+        "闭合矩形 · GSAP": "annotation.rect.gsap",
+        "闭合矩形 · HTML/CSS": "annotation.rect.html-css",
+        "闭合矩形 · SVG": "annotation.rect.svg",
+      }[name];
+      c.componentId = legacyNative || "demo";
+      migrateComponentIds = true;
+    }
     if (c.keyframes) for (const arr of Object.values(c.keyframes))
       if (Array.isArray(arr)) arr.sort((a, b) => a.t - b.t);
     if (c.kind === "text") ensureFont(c.props.font);
   }
   project.panSchema = 1;
-  if (migratePan) scheduleSave(); // persist marker + migrated stem pans
+  if (migratePan || migrateComponentIds) scheduleSave(); // persist migrated project fields
   // AV links aren't always on disk (older saves / agents) — rebuild from matching timing.
   relinkClips();
   // reset runtime playback elements so they rebuild against new data
@@ -1010,8 +1023,13 @@ function projectJSON() {
     tracks: serializeTracks(),
     media: media.filter((m) => !m.transient).map(({ id, name, kind, src, duration, width, height, folderId }) =>
       ({ id, name, kind, src, duration, width, height, folderId: folderId || null })),
-    clips: clips.map(({ id, mediaId, kind, track, start, in: inn, duration, name, props, keyframes, transitionIn, transitionOut, linkedId, linkGroup }) => {
+    clips: clips.map(({ id, mediaId, kind, componentId, runtime: clipRuntime, source, track, start, in: inn, duration, name, props, keyframes, transitionIn, transitionOut, linkedId, linkGroup }) => {
       const clipOut = { id, mediaId, kind, track, start, in: inn, duration, name, props, keyframes, transitionIn, transitionOut };
+      if (kind === "component") {
+        clipOut.componentId = componentId || "demo";
+        if (clipRuntime) clipOut.runtime = clipRuntime;
+        if (source) clipOut.source = source;
+      }
       if (linkGroup) clipOut.linkGroup = linkGroup;
       if (linkedId) clipOut.linkedId = linkedId;
       return clipOut;
@@ -5594,11 +5612,39 @@ function visibleClipsAt(t) {
   }
   return out;
 }
+function syncComponentOverlayGeometry() {
+  const overlay = $("userComponentOverlay");
+  const inner = els.monitorZoomInner, cv = els.preview;
+  if (!overlay || !inner || !cv) return;
+  const ir = inner.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  if (!(cr.width > 0 && cr.height > 0)) return;
+  overlay.style.left = `${cr.left - ir.left}px`;
+  overlay.style.top = `${cr.top - ir.top}px`;
+  overlay.style.width = `${cr.width}px`;
+  overlay.style.height = `${cr.height}px`;
+}
+function drawMonitorRulers() {
+  const top = els.monitorRulerTop, left = els.monitorRulerLeft, stage = els.monitorStage, cv = els.preview;
+  if (!top || !left || !stage || !cv) return;
+  const sr = stage.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  if (!(cr.width > 0 && cr.height > 0)) return;
+  const dpr = window.devicePixelRatio || 1, unit = 100;
+  const setup = (canvas, width, height) => { canvas.width = Math.max(1, Math.round(width * dpr)); canvas.height = Math.max(1, Math.round(height * dpr)); canvas.style.width = `${width}px`; canvas.style.height = `${height}px`; const c = canvas.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, width, height); c.strokeStyle = "#737783"; c.fillStyle = "#aeb1bb"; c.lineWidth = 1; c.font = "10px system-ui, sans-serif"; return c; };
+  const topH = 22, leftW = 34, ox = cr.left - sr.left, oy = cr.top - sr.top;
+  top.style.left = `${ox}px`; top.style.top = `${Math.max(0, oy - topH)}px`;
+  left.style.left = `${Math.max(0, ox - leftW)}px`; left.style.top = `${oy}px`;
+  const tc = setup(top, cr.width, topH), lc = setup(left, leftW, cr.height);
+  const sx = cr.width / Math.max(1, project.width), sy = cr.height / Math.max(1, project.height);
+  for (let px = 0; px <= project.width; px += unit) { const x = px * sx; const major = px % 500 === 0; tc.beginPath(); tc.moveTo(x + .5, topH); tc.lineTo(x + .5, major ? 7 : 13); tc.stroke(); if (major) tc.fillText(String(px - project.width / 2), Math.min(Math.max(2, x + 3), cr.width - 34), 10); }
+  for (let py = 0; py <= project.height; py += unit) { const y = py * sy; const major = py % 500 === 0; lc.beginPath(); lc.moveTo(leftW, y + .5); lc.lineTo(major ? 7 : 13, y + .5); lc.stroke(); if (major) { lc.save(); lc.translate(10, Math.min(Math.max(12, y + 12), cr.height - 2)); lc.rotate(-Math.PI / 2); lc.fillText(String(project.height / 2 - py), 0, 0); lc.restore(); } }
+}
 function drawFrame(t = state.time) {
   const W = els.preview.width, H = els.preview.height;
   ctx2d.setTransform(1, 0, 0, 1, 0, 0);
   ctx2d.filter = "none"; ctx2d.globalAlpha = 1;
   ctx2d.fillStyle = project.background || "#000"; ctx2d.fillRect(0, 0, W, H);
+  syncComponentOverlayGeometry();
+  drawMonitorRulers();
   // Render and reconcile from one immutable visible-clip snapshot. Hide DOM
   // component hosts synchronously before any async mount/update work so a
   // blank interval can never display the previous component for a frame.
@@ -7808,6 +7854,7 @@ els.monitorScroll.addEventListener("scroll", () => {
 });
 if (typeof ResizeObserver !== "undefined") {
   new ResizeObserver(() => {
+    syncComponentOverlayGeometry();
     if (state.viewZoom <= 1.001) {
       monitorFitCache = null;
       if (state.guides) updateSafeOverlay();

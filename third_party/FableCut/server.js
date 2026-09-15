@@ -173,6 +173,23 @@ function reserveExportPaths(dir, baseName, ext) {
     return { outPath, partPath };
   }
 }
+function finalizeExportPath(sess) {
+  const dir = path.dirname(sess.outPath);
+  const ext = path.extname(sess.outPath);
+  const base = path.basename(sess.outPath, ext);
+  for (let i = 0; ; i++) {
+    const stem = i === 0 ? base : `${base}_${i}`;
+    const out = path.join(dir, stem + ext);
+    try {
+      fs.linkSync(sess.partPath, out);
+      fs.rmSync(sess.partPath, { force: true });
+      return out;
+    } catch (e) {
+      if (e.code === "EEXIST") continue;
+      throw e;
+    }
+  }
+}
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { maxBuffer: 1 << 24 }, (err, _out, stderr) =>
@@ -685,8 +702,7 @@ const server = http.createServer(async (req, res) => {
       sess.proc.stdin.end();
       const code = await sess.done;
       if (code !== 0) throw new Error("ffmpeg encode failed: " + sess.err());
-      const out = sess.outPath;
-      fs.renameSync(sess.partPath, out);
+      const out = finalizeExportPath(sess);
       sess.partPath = null; // renamed — cleanup must not delete the finished file
       cleanupExport(id);
       sendJSON(res, 200, { ok: true, src: "/exports/" + encodeURIComponent(path.basename(out)) });

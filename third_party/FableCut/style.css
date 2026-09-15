@@ -215,6 +215,7 @@ body.resizing-panels * {
   flex: 1;
   text-align: center;
   color: var(--dim);
+  font-size: 10px;
 }
 .connection-status::before {
   content: "";
@@ -1007,6 +1008,16 @@ textarea {
   max-width: none;
   max-height: none;
 }
+
+.monitor-ruler {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  background: #1d1e22e8;
+}
+
+.monitor-ruler-top { height: 22px; }
+.monitor-ruler-left { width: 34px; }
 
 /* ── Keyframe graphs (left gutter of program monitor) ── */
 .kf-graphs {

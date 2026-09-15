@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { normalizeOutputSpec, createExportSnapshot } = require('../export-compositor.js');
+const fs = require('node:fs');
+const path = require('node:path');
 
 test('normalizes explicit 4K 60fps output without crop', () => {
   const spec = normalizeOutputSpec({ width: 3840, height: 2160, fps: 60 }, { width: 1280, height: 720, fps: 30 });
@@ -12,4 +14,11 @@ test('snapshot is detached from mutable project state', () => {
   const snapshot = createExportSnapshot(project);
   project.clips[0].props.text = 'B';
   assert.equal(snapshot.clips[0].props.text, 'A');
+});
+
+test('server finalizes exports without replacing an existing filename', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(server, /function finalizeExportPath\(sess\)/);
+  assert.match(server, /fs\.linkSync\(sess\.partPath, out\)/);
+  assert.match(server, /if \(e\.code === "EEXIST"\) continue/);
 });

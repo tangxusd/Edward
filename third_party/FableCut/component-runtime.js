@@ -27,11 +27,6 @@ async function captureCompositeFrame(outputSpec) {
   clone.querySelectorAll("#safeOverlay,#exportFrameOverlay").forEach((node) => node.remove());
   const visibleHosts = [...source.children].filter((host) => getComputedStyle(host).display !== "none");
   const nativeSvgNodes = visibleHosts.map((host) => host.querySelector(":scope > svg") || host.querySelector("svg")).filter(Boolean);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
-  const encoded = new TextEncoder().encode(svg);
-  let binary = "";
-  for (const byte of encoded) binary += String.fromCharCode(byte);
-  const url = "data:image/svg+xml;base64," + btoa(binary);
   const canvas = document.createElement("canvas");
   canvas.width = outputSpec.width; canvas.height = outputSpec.height;
   const context = canvas.getContext("2d");
@@ -40,7 +35,7 @@ async function captureCompositeFrame(outputSpec) {
   // Native annotation components are SVG documents. Rasterize them directly
   // instead of putting them inside foreignObject; WebEngine/ffmpeg paths may
   // otherwise drop the component layer while Card6's HTML happens to survive.
-  if (nativeSvgNodes.length === visibleHosts.length && nativeSvgNodes.length > 0) {
+  if (nativeSvgNodes.length > 0) {
     const overlayRect = source.getBoundingClientRect();
     const parts = nativeSvgNodes.map((svgNode) => {
       const rect = svgNode.getBoundingClientRect();
@@ -55,25 +50,17 @@ async function captureCompositeFrame(outputSpec) {
     const directImage = new Image();
     await new Promise((resolve, reject) => { directImage.onload = resolve; directImage.onerror = reject; directImage.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(directSvg); });
     context.drawImage(directImage, 0, 0, outputSpec.width, outputSpec.height);
-    return canvas;
   }
-  const previewRect = preview.getBoundingClientRect();
-  const nativeSvgs = [...source.querySelectorAll(":scope > [data-user-component] > svg")].filter((node) => getComputedStyle(node).display !== "none");
-  for (const node of nativeSvgs) {
-    const box = node.getBoundingClientRect();
-    const markup = new XMLSerializer().serializeToString(node);
-    const image = new Image();
-    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup); });
-    context.drawImage(image,
-      (box.left - previewRect.left) * outputSpec.width / previewRect.width,
-      (box.top - previewRect.top) * outputSpec.height / previewRect.height,
-      box.width * outputSpec.width / previewRect.width,
-      box.height * outputSpec.height / previewRect.height);
-  }
-  // Native SVG hosts are already painted above; leave only legacy DOM hosts in
-  // the foreignObject fallback so they are not painted twice.
-  nativeSvgs.forEach((node) => node.parentElement?.remove());
+  const legacyHosts = visibleHosts.filter((host) => !host.querySelector(":scope > svg") && !host.querySelector("svg"));
+  if (!legacyHosts.length) return canvas;
+  const legacyIds = new Set(legacyHosts.map((host) => host.dataset.clipId));
+  [...clone.children].forEach((host) => { if (!legacyIds.has(host.dataset.clipId)) host.remove(); });
   if (!clone.children.length) return canvas;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${outputSpec.width}" height="${outputSpec.height}" viewBox="0 0 ${preview.width} ${preview.height}"><foreignObject width="100%" height="100%" x="0" y="0"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${preview.width}px;height:${preview.height}px">${clone.outerHTML}</div></foreignObject></svg>`;
+  const encoded = new TextEncoder().encode(svg);
+  let binary = "";
+  for (const byte of encoded) binary += String.fromCharCode(byte);
+  const url = "data:image/svg+xml;base64," + btoa(binary);
   try {
     if (typeof createImageBitmap === "function") {
       try {

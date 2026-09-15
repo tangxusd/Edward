@@ -77,3 +77,10 @@ test("stale asynchronous component mounts remove their host", () => {
   const runtime = fs.readFileSync(path.join(root, "component-runtime.js"), "utf8");
   assert.match(runtime, /entry\.instance\.destroy\?\.\(\);\s*entry\.host\.remove\(\);/);
 });
+
+test("native and legacy component hosts are composited together", () => {
+  const runtime = fs.readFileSync(path.join(root, "component-runtime.js"), "utf8");
+  assert.match(runtime, /if \(nativeSvgNodes\.length > 0\)/);
+  assert.match(runtime, /const legacyHosts = visibleHosts\.filter/);
+  assert.match(runtime, /legacyIds/);
+});
