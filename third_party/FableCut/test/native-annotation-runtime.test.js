@@ -72,3 +72,8 @@ test("native components use direct SVG export and automatic upper-track fallback
   assert.match(app, /addTimelineTrack\("video"\)/);
   assert.match(app, /setDragImage/);
 });
+
+test("stale asynchronous component mounts remove their host", () => {
+  const runtime = fs.readFileSync(path.join(root, "component-runtime.js"), "utf8");
+  assert.match(runtime, /entry\.instance\.destroy\?\.\(\);\s*entry\.host\.remove\(\);/);
+});

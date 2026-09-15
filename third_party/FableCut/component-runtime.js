@@ -166,10 +166,16 @@ async function syncDirectComponents(clips, time, viewport, mode = "preview") {
         if (mounting.get(clip.id) === pending) mounting.delete(clip.id);
       }
       if (entry && desiredComponentIds.has(clip.id)) mounted.set(clip.id, entry);
-      else if (entry) entry.instance.destroy?.();
+      else if (entry) {
+        entry.instance.destroy?.();
+        entry.host.remove();
+      }
     }
     if (generation !== syncGeneration && !desiredComponentIds.has(clip.id)) {
-      if (entry && !mounted.has(clip.id)) entry.instance.destroy?.();
+      if (entry && !mounted.has(clip.id)) {
+        entry.instance.destroy?.();
+        entry.host.remove();
+      }
       return;
     }
     if (entry) {
