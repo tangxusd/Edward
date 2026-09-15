@@ -181,7 +181,7 @@ function finalizeExportPath(sess) {
     const stem = i === 0 ? base : `${base}_${i}`;
     const out = path.join(dir, stem + ext);
     try {
-      fs.linkSync(sess.partPath, out);
+      fs.copyFileSync(sess.partPath, out, fs.constants.COPYFILE_EXCL);
       fs.rmSync(sess.partPath, { force: true });
       return out;
     } catch (e) {

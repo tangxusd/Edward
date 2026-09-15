@@ -19,6 +19,6 @@ test('snapshot is detached from mutable project state', () => {
 test('server finalizes exports without replacing an existing filename', () => {
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.match(server, /function finalizeExportPath\(sess\)/);
-  assert.match(server, /fs\.linkSync\(sess\.partPath, out\)/);
+  assert.match(server, /fs\.copyFileSync\(sess\.partPath, out, fs\.constants\.COPYFILE_EXCL\)/);
   assert.match(server, /if \(e\.code === "EEXIST"\) continue/);
 });
