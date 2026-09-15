@@ -944,6 +944,16 @@ textarea {
   z-index: 1;
 }
 
+.monitor-fit-control {
+  position: absolute;
+  z-index: 7;
+  top: 8px;
+  left: 8px;
+  height: 24px;
+  font-size: 11px;
+  box-shadow: 0 2px 8px #0008;
+}
+
 .monitor-scroll.is-zoomed {
   display: block;
   overflow: auto;

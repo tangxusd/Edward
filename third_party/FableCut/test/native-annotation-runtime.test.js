@@ -98,4 +98,7 @@ test("monitor rulers are attached to the monitor frame and use ten-pixel ticks",
   assert.match(app, /project\.width \/ 2/);
   assert.match(app, /top\.style\.left = `\$\{leftW\}px`/);
   assert.match(app, /left\.style\.left = "0px"/);
+  assert.match(app, /monitorStage\.prepend\(els\.btnZoom100\)/);
+  const css = fs.readFileSync(path.join(root, "style.css"), "utf8");
+  assert.match(css, /\.monitor-fit-control[\s\S]*position: absolute[\s\S]*top: 8px[\s\S]*left: 8px/);
 });
