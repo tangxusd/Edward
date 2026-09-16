@@ -44,6 +44,25 @@ bool TimelineController::dropComponentAtPlayhead(const edward::core::ComponentIr
   return true;
 }
 
+bool TimelineController::dropNativeRuntimeAtPlayhead(
+    const edward::core::NativeRuntimeComponent& component, edward::core::Frame duration) {
+  if (!component.valid() || duration <= 0) return false;
+  const auto snapshot = timeline_.snapshot();
+  const auto start = snapshot.playheadFrame;
+  if (start + duration > snapshot.durationFrames) return false;
+  const auto id = nextClipId();
+  const edward::core::TimelineClip clip{id, trackId_, {}, 0, duration, start,
+                                        edward::core::TimelineClipKind::Component, {}, component};
+  if (!timeline_.insertClip(clip)) {
+    const auto alternateTrack = timeline_.addVideoTrack();
+    if (!timeline_.insertClip({id, alternateTrack, {}, 0, duration, start,
+                               edward::core::TimelineClipKind::Component, {}, component})) return false;
+    trackId_ = alternateTrack;
+  }
+  selectedClip_ = id;
+  return true;
+}
+
 bool TimelineController::splitSelectedAtPlayhead() {
   return selectedClip_ != 0 && commands_.splitClipAtPlayhead(selectedClip_);
 }

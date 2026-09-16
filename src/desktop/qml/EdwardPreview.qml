@@ -1,4 +1,5 @@
 import QtQuick
+import QtWebEngine
 import "."
 
 Item {
@@ -14,6 +15,9 @@ Item {
     property int componentHeight: 72
     property var componentNodes: []
     property string selectedComponentNodeId: ""
+    property bool nativeRuntimeVisible: false
+    property url nativeRuntimeEntry
+    property var nativeRuntimeMessage: ({})
     signal componentDragged(int x, int y)
     signal componentNodeSelected(string nodeId)
 
@@ -146,6 +150,18 @@ Item {
             cache: false
             fillMode: Image.PreserveAspectFit
             visible: status === Image.Ready || source !== ""
+        }
+
+        WebEngineView {
+            id: nativeRuntimeView
+            anchors.fill: parent
+            visible: root.nativeRuntimeVisible && root.nativeRuntimeEntry.toString() !== ""
+            url: root.nativeRuntimeEntry
+            settings.javascriptEnabled: true
+            onLoadingChanged: function(loadRequest) {
+                if (loadRequest.status === WebEngineView.LoadSucceededStatus)
+                    runJavaScript("window.dispatchEvent(new CustomEvent('edward-runtime-message', {detail: " + JSON.stringify(root.nativeRuntimeMessage) + "}));")
+            }
         }
 
         Text {

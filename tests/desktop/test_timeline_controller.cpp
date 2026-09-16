@@ -45,6 +45,10 @@ int main(int argc, char** argv) {
   assert(controller.selectClip(3));
   assert(controller.rippleDeleteSelected());
   assert(timeline.clips(tracks[1]).empty());
+  edward::core::NativeRuntimeComponent native{"/packages/marker", "manifest.json", "svg", {{"color", "#007aff"}}};
+  assert(controller.setPlayhead(0));
+  assert(controller.dropNativeRuntimeAtPlayhead(native, 20));
+  assert(timeline.clip(controller.selectedClip())->nativeRuntime);
 
   edward::core::Timeline transitionTimeline(100);
   const auto transitionTrack = transitionTimeline.addVideoTrack();
