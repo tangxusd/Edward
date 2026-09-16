@@ -1,0 +1,6 @@
+#include "edward/ai/resource_matcher.hpp"
+#include <algorithm>
+namespace edward::ai { namespace { double match(const QString& expected, const QString& actual) { return expected.isEmpty() ? 0.0 : expected.compare(actual, Qt::CaseInsensitive) == 0 ? 1.0 : 0.0; } }
+QVector<ResourceCandidate> ResourceMatcher::rank(const TargetIntent& intent, const QVector<VerifiedResource>& catalog) const { QVector<ResourceCandidate> result; for (const auto& item : catalog) { if (!item.entitled || item.id.isEmpty()) continue; const auto score = match(intent.target, item.target) * .45 + match(intent.runtime, item.runtime) * .25 + match(intent.scene, item.scene) * .15 + match(intent.action, item.action) * .15; if (score > 0) result.push_back({item.id, score}); } std::sort(result.begin(), result.end(), [](const auto& left, const auto& right) { return left.score == right.score ? left.id < right.id : left.score > right.score; }); return result; }
+MatchDecision ResourceMatcher::choose(const QVector<ResourceCandidate>& candidates) const { MatchDecision result; result.candidates = candidates; if (candidates.isEmpty() || candidates.front().score < .70 || (candidates.size() > 1 && candidates.front().score - candidates[1].score < .15)) return result; result.requiresClarification = false; result.resourceId = candidates.front().id; return result; }
+}  // namespace edward::ai

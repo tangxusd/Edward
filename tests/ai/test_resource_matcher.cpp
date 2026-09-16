@@ -1,0 +1,3 @@
+#include <edward/ai/resource_matcher.hpp>
+#include <cassert>
+int main() { edward::ai::ResourceMatcher matcher; const QVector<edward::ai::VerifiedResource> catalog{{"a", "callout", "svg", "product", "highlight", true}, {"b", "callout", "react", "product", "highlight", true}, {"c", "callout", "svg", "product", "highlight", false}}; const auto ranked = matcher.rank({"callout", "svg", "product", "highlight"}, catalog); assert(ranked.size() == 2 && ranked.front().id == "a"); assert(!matcher.choose(ranked).requiresClarification); const auto unclear = matcher.rank({"callout", {}, {}, {}}, catalog); assert(matcher.choose(unclear).requiresClarification); }
