@@ -23,4 +23,11 @@ int main(int argc, char** argv) {
   assert(runtime.nativeRuntimeSelected());
   assert(runtime.nativeRuntimeProps().value("color") == "#007aff");
   assert(runtime.nativeRuntimePreviewEntry().endsWith("preview.html"));
+  assert(runtime.setNativeRuntimeProps({{"color", "#ff453a"}, {"radius", 5}}));
+  assert(runtime.nativeRuntimeProps().value("color") == "#ff453a");
+  const auto message = runtime.nativeRuntimeHostMessage();
+  assert(message.value("protocol") == "edward.web-runtime.host-message.v1");
+  assert(message.value("type") == "setFrame");
+  assert(message.value("runtime") == "svg");
+  assert(message.value("props").toObject().value("radius") == 5);
 }

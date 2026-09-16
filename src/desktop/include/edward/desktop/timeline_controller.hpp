@@ -19,6 +19,7 @@ class TimelineController {
   bool deleteSelected();
   bool rippleDeleteSelected();
   bool moveSelectedTo(edward::core::Frame destination);
+  bool setSelectedNativeRuntimeProps(QJsonObject props);
   bool trimSelectedLeftToPlayhead();
   bool trimSelectedRightToPlayhead();
   bool setTransitionDuration(edward::core::ClipId leftClipId, edward::core::ClipId rightClipId,

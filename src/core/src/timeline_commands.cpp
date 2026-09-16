@@ -63,6 +63,16 @@ bool TimelineCommands::moveClip(ClipId id, Frame destination) {
   return mutate([&] { auto moved = *original; moved.timelineStart = destination; return timeline_.replaceClip(id, moved); });
 }
 
+bool TimelineCommands::setNativeRuntimeProps(ClipId id, QJsonObject props) {
+  const auto original = timeline_.clip(id);
+  if (!original || !original->nativeRuntime) return false;
+  return mutate([&] {
+    auto updated = *original;
+    updated.nativeRuntime->props = std::move(props);
+    return timeline_.replaceClip(id, std::move(updated));
+  });
+}
+
 bool TimelineCommands::setTransitionDuration(ClipId leftClipId, ClipId rightClipId, Frame duration) {
   return mutate([&] { return timeline_.setTransitionDuration(leftClipId, rightClipId, duration).has_value(); });
 }

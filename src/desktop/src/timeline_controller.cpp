@@ -84,6 +84,10 @@ bool TimelineController::moveSelectedTo(edward::core::Frame destination) {
   return selectedClip_ != 0 && commands_.moveClip(selectedClip_, destination);
 }
 
+bool TimelineController::setSelectedNativeRuntimeProps(QJsonObject props) {
+  return selectedClip_ != 0 && commands_.setNativeRuntimeProps(selectedClip_, std::move(props));
+}
+
 bool TimelineController::trimSelectedLeftToPlayhead() {
   const auto selected = timeline_.clip(selectedClip_);
   if (!selected) return false;

@@ -16,6 +16,7 @@ class TimelineCommands {
   bool deleteClip(ClipId id);
   bool rippleDelete(TrackId trackId, ClipId id);
   bool moveClip(ClipId id, Frame destination);
+  bool setNativeRuntimeProps(ClipId id, QJsonObject props);
   bool setTransitionDuration(ClipId leftClipId, ClipId rightClipId, Frame duration);
   bool removeTransition(ClipId leftClipId, ClipId rightClipId);
   bool setPlayhead(Frame frame);

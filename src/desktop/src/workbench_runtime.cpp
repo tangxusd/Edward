@@ -9,6 +9,8 @@
 #include "edward/core/component_edit_command.hpp"
 #include "edward/core/component_edit_command_parser.hpp"
 #include "edward/desktop/diagnostics_reporter.hpp"
+#include "edward/runtime/runtime_manifest.hpp"
+#include "edward/runtime/web_runtime_host.hpp"
 
 #include <QVariantMap>
 #include <QCoreApplication>
@@ -1871,6 +1873,10 @@ QVariantList WorkbenchRuntime::clips() const {
                                          ? QStringLiteral("component") : QStringLiteral("media"));
       if (clip.kind == edward::core::TimelineClipKind::Component)
         item.insert(QStringLiteral("name"), QStringLiteral("组件"));
+      if (clip.nativeRuntime) {
+        item.insert(QStringLiteral("runtime"), clip.nativeRuntime->runtime);
+        item.insert(QStringLiteral("packageRoot"), clip.nativeRuntime->packageRoot);
+      }
       item.insert(QStringLiteral("selected"), clip.id == controller_.selectedClip());
       item.insert(QStringLiteral("waveform"), clipWaveforms_.value(static_cast<qint64>(clip.id)));
       item.insert(QStringLiteral("hasAudio"), clipWaveforms_.contains(static_cast<qint64>(clip.id)));
@@ -2140,7 +2146,14 @@ void WorkbenchRuntime::refreshClipThumbnails() {
 bool WorkbenchRuntime::selectClip(qlonglong id) {
   if (!controller_.selectClip(static_cast<edward::core::ClipId>(id))) return false;
   if (const auto clip = timeline_.clip(static_cast<edward::core::ClipId>(id));
-      clip && clip->kind == edward::core::TimelineClipKind::Component && clip->component) {
+      clip && clip->kind == edward::core::TimelineClipKind::Component && clip->nativeRuntime) {
+    selectedNativeRuntime_ = *clip->nativeRuntime;
+    demoOverlayIr_.reset();
+    editingComponentClipId_ = clip->id;
+    demoOverlayEnabled_ = false;
+    refreshDemoOverlay();
+  } else if (clip && clip->kind == edward::core::TimelineClipKind::Component && clip->component) {
+    selectedNativeRuntime_.reset();
     demoOverlayIr_ = *clip->component;
     componentClipId_ = 0;
     editingComponentClipId_ = clip->id;
@@ -2148,6 +2161,7 @@ bool WorkbenchRuntime::selectClip(qlonglong id) {
     syncDemoOverlayProperties(demoOverlayIr_->toJson());
     refreshDemoOverlay();
   } else if (editingComponentClipId_ != 0) {
+    selectedNativeRuntime_.reset();
     editingComponentClipId_ = 0;
     demoOverlayIr_.reset();
     demoOverlayEnabled_ = false;
@@ -2352,6 +2366,90 @@ bool WorkbenchRuntime::addCurrentComponentToTimeline(int durationFrames) {
   refreshDemoOverlay();
   emit timelineChanged();
   emit operationSucceeded(QStringLiteral("组件已作为独立片段加入时间线"));
+  return true;
+}
+
+bool WorkbenchRuntime::addNativeRuntimePackage(const QString& packageRoot, const QJsonObject& props) {
+  const QFileInfo root(packageRoot);
+  const QFileInfo manifestFile(QDir(root.filePath()).filePath(QStringLiteral("manifest.json")));
+  if (!root.isDir() || !manifestFile.isFile()) {
+    emit operationFailed(QStringLiteral("原生运行时组件必须是包含 manifest.json 的目录"));
+    return false;
+  }
+  QFile file(manifestFile.filePath());
+  if (!file.open(QIODevice::ReadOnly)) {
+    emit operationFailed(QStringLiteral("无法读取原生运行时组件 manifest"));
+    return false;
+  }
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
+  QString error;
+  const auto manifest = document.isObject()
+      ? edward::runtime::RuntimeManifest::parse(document.object(), &error)
+      : std::nullopt;
+  if (!manifest) {
+    emit operationFailed(QStringLiteral("原生运行时组件 manifest 无效：%1")
+                             .arg(error.isEmpty() ? parseError.errorString() : error));
+    return false;
+  }
+  edward::core::NativeRuntimeComponent component{root.canonicalFilePath(), manifestFile.canonicalFilePath(),
+                                                   manifest->runtime, props};
+  if (!controller_.dropNativeRuntimeAtPlayhead(component, manifest->durationInFrames)) {
+    emit operationFailed(QStringLiteral("原生运行时组件无法插入时间线"));
+    return false;
+  }
+  selectedNativeRuntime_ = component;
+  editingComponentClipId_ = controller_.selectedClip();
+  demoOverlayIr_.reset();
+  demoOverlayEnabled_ = false;
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("原生运行时组件已加入时间线"));
+  return true;
+}
+
+bool WorkbenchRuntime::nativeRuntimeSelected() const { return selectedNativeRuntime_.has_value(); }
+QJsonObject WorkbenchRuntime::nativeRuntimeProps() const {
+  return selectedNativeRuntime_ ? selectedNativeRuntime_->props : QJsonObject{};
+}
+QString WorkbenchRuntime::nativeRuntimePreviewEntry() const {
+  if (!selectedNativeRuntime_) return {};
+  QFile file(selectedNativeRuntime_->manifestPath);
+  if (!file.open(QIODevice::ReadOnly)) return {};
+  const auto document = QJsonDocument::fromJson(file.readAll());
+  const auto entry = document.object().value(QStringLiteral("previewEntry")).toString();
+  return entry.isEmpty() ? QString{} : QDir(selectedNativeRuntime_->packageRoot).filePath(entry);
+}
+
+QJsonObject WorkbenchRuntime::nativeRuntimeHostMessage() const {
+  if (!selectedNativeRuntime_ || editingComponentClipId_ == 0) return {};
+  const auto clip = timeline_.clip(editingComponentClipId_);
+  if (!clip || !clip->nativeRuntime) return {};
+  QFile file(selectedNativeRuntime_->manifestPath);
+  if (!file.open(QIODevice::ReadOnly)) return {};
+  QString error;
+  const auto manifest = edward::runtime::RuntimeManifest::parse(
+      QJsonDocument::fromJson(file.readAll()).object(), &error);
+  if (!manifest) return {};
+  edward::runtime::WebRuntimeHost host;
+  if (!host.mount(*manifest, selectedNativeRuntime_->packageRoot, clip->nativeRuntime->props).ok) return {};
+  const auto localFrame = std::clamp<edward::core::Frame>(
+      controller_.playheadFrame() - clip->timelineStart, 0, manifest->durationInFrames - 1);
+  if (!host.setFrame(localFrame).ok) return {};
+  auto message = host.message(QStringLiteral("setFrame"));
+  message.insert(QStringLiteral("protocol"), QStringLiteral("edward.web-runtime.host-message.v1"));
+  message.insert(QStringLiteral("clipId"), static_cast<qint64>(clip->id));
+  message.insert(QStringLiteral("entryUrl"), QUrl::fromLocalFile(
+      QDir(selectedNativeRuntime_->packageRoot).filePath(manifest->previewEntry)).toString());
+  return message;
+}
+
+bool WorkbenchRuntime::setNativeRuntimeProps(const QJsonObject& props) {
+  if (!selectedNativeRuntime_ || !controller_.setSelectedNativeRuntimeProps(props)) {
+    emit operationFailed(QStringLiteral("请先选择原生运行时组件"));
+    return false;
+  }
+  selectedNativeRuntime_->props = props;
+  emit timelineChanged();
   return true;
 }
 

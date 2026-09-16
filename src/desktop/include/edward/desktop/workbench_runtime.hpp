@@ -124,6 +124,10 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QString renderStorageRoot READ renderStorageRoot NOTIFY timelineChanged)
   Q_PROPERTY(bool qualityImprovementEnabled READ qualityImprovementEnabled NOTIFY timelineChanged)
   Q_PROPERTY(bool qualityImprovementNoticeRequired READ qualityImprovementNoticeRequired NOTIFY timelineChanged)
+  Q_PROPERTY(bool nativeRuntimeSelected READ nativeRuntimeSelected NOTIFY timelineChanged)
+  Q_PROPERTY(QJsonObject nativeRuntimeProps READ nativeRuntimeProps NOTIFY timelineChanged)
+  Q_PROPERTY(QString nativeRuntimePreviewEntry READ nativeRuntimePreviewEntry NOTIFY timelineChanged)
+  Q_PROPERTY(QJsonObject nativeRuntimeHostMessage READ nativeRuntimeHostMessage NOTIFY timelineChanged)
   Q_PROPERTY(bool resolveConnected READ resolveConnected NOTIFY resolveStateChanged)
   Q_PROPERTY(bool resolveComponentImportBusy READ resolveComponentImportBusy NOTIFY timelineChanged)
   Q_PROPERTY(QString resolveStatus READ resolveStatus NOTIFY resolveStateChanged)
@@ -226,6 +230,10 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QString renderStorageRoot() const;
   [[nodiscard]] bool qualityImprovementEnabled() const;
   [[nodiscard]] bool qualityImprovementNoticeRequired() const;
+  [[nodiscard]] bool nativeRuntimeSelected() const;
+  [[nodiscard]] QJsonObject nativeRuntimeProps() const;
+  [[nodiscard]] QString nativeRuntimePreviewEntry() const;
+  [[nodiscard]] QJsonObject nativeRuntimeHostMessage() const;
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -262,6 +270,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE void toggleDemoOverlay();
   Q_INVOKABLE bool bindComponentToSelectedClip();
   Q_INVOKABLE bool addCurrentComponentToTimeline(int durationFrames = 150);
+  Q_INVOKABLE bool addNativeRuntimePackage(const QString& packageRoot, const QJsonObject& props = {});
+  Q_INVOKABLE bool setNativeRuntimeProps(const QJsonObject& props);
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
   Q_INVOKABLE bool requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
@@ -425,6 +435,7 @@ class WorkbenchRuntime final : public QObject {
   edward::media::RenderGraph renderGraph_;
   bool demoOverlayEnabled_ = false;
   std::optional<edward::core::ComponentIr> demoOverlayIr_;
+  std::optional<edward::core::NativeRuntimeComponent> selectedNativeRuntime_;
   edward::core::ClipId componentClipId_ = 0;
   edward::core::ClipId editingComponentClipId_ = 0;
   QHash<QString, QString> resolveComponentNodeTimelineIds_;
