@@ -60,4 +60,16 @@ void WebRuntimeHost::unmount() {
   frame_ = 0;
   mounted_ = false;
 }
+
+QJsonObject WebRuntimeHost::message(const QString& type, const QJsonObject& extra) const {
+  QJsonObject result = extra;
+  result.insert(QStringLiteral("type"), type);
+  result.insert(QStringLiteral("frame"), frame_);
+  result.insert(QStringLiteral("props"), props_);
+  if (manifest_) {
+    result.insert(QStringLiteral("runtime"), manifest_->runtime);
+    result.insert(QStringLiteral("entry"), type == QStringLiteral("renderFrame") ? manifest_->renderEntry : manifest_->previewEntry);
+  }
+  return result;
+}
 }  // namespace edward::runtime

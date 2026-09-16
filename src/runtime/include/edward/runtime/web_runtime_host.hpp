@@ -30,6 +30,7 @@ class WebRuntimeHost final {
   [[nodiscard]] std::int64_t frame() const { return frame_; }
   [[nodiscard]] const QJsonObject& props() const { return props_; }
   [[nodiscard]] const QString& packageRoot() const { return packageRoot_; }
+  [[nodiscard]] QJsonObject message(const QString& type, const QJsonObject& extra = {}) const;
 
  private:
   const RuntimeManifest* manifest_ = nullptr;

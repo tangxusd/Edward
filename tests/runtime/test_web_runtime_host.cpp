@@ -36,6 +36,8 @@ void testMountsAndSharesFrameProps() {
   assert(host.setProps(QJsonObject{{"color", "red"}}).ok);
   assert(host.props().value("color") == "red");
   assert(host.renderFrame(12, dir.filePath("out.png")).ok);
+  const auto message = host.message("renderFrame");
+  assert(message.value("frame") == 12 && message.value("props").toObject().value("color") == "red");
 }
 void testRejectsOutsideOrMissingPackage() {
   edward::runtime::WebRuntimeHost host;
