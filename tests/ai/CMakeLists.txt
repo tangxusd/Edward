@@ -1,0 +1,6 @@
+add_executable(test_action_plan test_action_plan.cpp)
+target_link_libraries(test_action_plan PRIVATE edward_ai Qt6::Core)
+add_test(NAME test_action_plan COMMAND test_action_plan)
+add_executable(test_ai_transaction test_ai_transaction.cpp)
+target_link_libraries(test_ai_transaction PRIVATE edward_ai Qt6::Core)
+add_test(NAME test_ai_transaction COMMAND test_ai_transaction)
