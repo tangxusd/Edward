@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edward.app/contracts/runtime-host.v1.schema.json",
+  "title": "Edward Web Runtime Host manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "runtime",
+    "width",
+    "height",
+    "fps",
+    "durationInFrames",
+    "previewEntry",
+    "renderEntry",
+    "propsSchema",
+    "editableProperties"
+  ],
+  "properties": {
+    "protocol": { "const": "edward.web-runtime.v1" },
+    "runtime": { "enum": ["react", "html-css", "svg", "gsap"] },
+    "width": { "type": "integer", "minimum": 1 },
+    "height": { "type": "integer", "minimum": 1 },
+    "fps": { "type": "number", "exclusiveMinimum": 0 },
+    "durationInFrames": { "type": "integer", "minimum": 1 },
+    "previewEntry": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\\\)(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.?(?:[/\\\\]|$))[^:]+$"
+    },
+    "renderEntry": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\\\)(?![A-Za-z]:)(?!.*(?:^|[/\\\\])\\.\\.?(?:[/\\\\]|$))[^:]+$"
+    },
+    "propsSchema": { "type": "object" },
+    "editableProperties": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}

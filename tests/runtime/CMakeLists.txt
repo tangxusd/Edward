@@ -1,0 +1,3 @@
+add_executable(test_runtime_manifest test_runtime_manifest.cpp)
+target_link_libraries(test_runtime_manifest PRIVATE edward_runtime Qt6::Core)
+add_test(NAME test_runtime_manifest COMMAND test_runtime_manifest)
