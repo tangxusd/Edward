@@ -8,20 +8,20 @@ edward::ai::ActionPlan action(qint64 revision, const QJsonArray& operations) {
   assert(parsed); return *parsed;
 }
 void testRollbackAndUndoDepth() {
-  edward::ai::ProjectState state{0, {}}; edward::ai::AiTransaction transaction;
-  const auto broken = action(0, QJsonArray{QJsonObject{{"type", "insert_native_component"}, {"id", "one"}}, QJsonObject{{"type", "insert_native_component"}, {"id", "one"}}});
-  assert(!transaction.apply(broken, state).ok && state.objects.isEmpty());
+  edward::ai::ProjectState state{0, {{"target", QJsonObject{}}}}; edward::ai::AiTransaction transaction;
+  const auto broken = action(0, QJsonArray{QJsonObject{{"type", "remove_clip"}, {"targetId", "missing"}}});
+  assert(!transaction.apply(broken, state).ok && state.objects.contains("target"));
   for (int index = 0; index < 6; ++index) {
-    const auto plan = action(state.revision, QJsonArray{QJsonObject{{"type", "insert_native_component"}, {"id", QStringLiteral("id%1").arg(index)}}});
+    const auto plan = action(state.revision, QJsonArray{QJsonObject{{"type", "set_component_props"}, {"targetId", "target"}, {"props", QJsonObject{{"index", index}}}}});
     assert(transaction.apply(plan, state).ok);
   }
   assert(transaction.undoDepth() == 5);
   assert(transaction.undoLast(state).ok);
 }
 void testRejectsExportCollision() {
-  edward::ai::ProjectState state{0, {}}; edward::ai::AiTransaction transaction;
-  const auto plan = action(0, QJsonArray{QJsonObject{{"type", "export_timeline"}, {"explicitUserRequest", true}, {"outputPath", "/"}}});
-  assert(!transaction.apply(plan, state).ok);
+  QString error;
+  const auto plan = edward::ai::ActionPlan::parse({{"schemaVersion", "edward.action-plan.v1"}, {"requestId", "r"}, {"baseProjectRevision", 0}, {"operations", QJsonArray{QJsonObject{{"type", "export_timeline"}}}}}, &error);
+  assert(!plan);
 }
 }
 int main() { testRollbackAndUndoDepth(); testRejectsExportCollision(); }

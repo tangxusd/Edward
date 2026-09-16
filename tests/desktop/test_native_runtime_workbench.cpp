@@ -30,4 +30,12 @@ int main(int argc, char** argv) {
   assert(message.value("type") == "setFrame");
   assert(message.value("runtime") == "svg");
   assert(message.value("props").toObject().value("radius") == 5);
+  const auto projectPath = settings.filePath("native-runtime.edward.json");
+  assert(runtime.saveProject(projectPath));
+  edward::desktop::WorkbenchRuntime restored;
+  assert(restored.loadProject(projectPath));
+  assert(restored.clips().size() == 1);
+  assert(restored.selectClip(restored.clips().first().toMap().value("id").toLongLong()));
+  assert(restored.nativeRuntimeProps().value("color") == "#ff453a");
+  assert(restored.nativeRuntimeHostMessage().value("runtime") == "svg");
 }

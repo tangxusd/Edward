@@ -12,8 +12,39 @@ bool string(const QJsonObject& object, const char* key, QString& value) {
   return true;
 }
 bool knownOperation(const QString& value) {
-  static const QSet<QString> allowed = {"insert_native_component", "insert_resource_component", "set_component_props", "move_clip", "resize_clip", "set_keyframes", "remove_clip", "render_component", "export_timeline"};
+  static const QSet<QString> allowed = {"insert_native_component", "set_component_props", "move_clip", "resize_clip", "remove_clip"};
   return allowed.contains(value);
+}
+
+bool hasOnlyFields(const QJsonObject& operation, const QSet<QString>& allowed) {
+  for (auto it = operation.begin(); it != operation.end(); ++it)
+    if (!allowed.contains(it.key())) return false;
+  return true;
+}
+
+bool validOperationShape(const QJsonObject& operation, QString* error) {
+  const auto type = operation.value(QStringLiteral("type")).toString();
+  const auto requiredString = [&operation](const char* key) {
+    return operation.value(QLatin1String(key)).isString() && !operation.value(QLatin1String(key)).toString().isEmpty();
+  };
+  if (type == QStringLiteral("insert_native_component")) {
+    if (hasOnlyFields(operation, {QStringLiteral("type"), QStringLiteral("resourceId")}) && requiredString("resourceId")) return true;
+  } else if (type == QStringLiteral("set_component_props")) {
+    if (hasOnlyFields(operation, {QStringLiteral("type"), QStringLiteral("targetId"), QStringLiteral("props")}) &&
+        requiredString("targetId") && operation.value(QStringLiteral("props")).isObject()) return true;
+  } else if (type == QStringLiteral("move_clip")) {
+    if (hasOnlyFields(operation, {QStringLiteral("type"), QStringLiteral("targetId"), QStringLiteral("timelineStart")}) &&
+        requiredString("targetId") && operation.value(QStringLiteral("timelineStart")).isDouble() &&
+        operation.value(QStringLiteral("timelineStart")).toInteger(-1) >= 0) return true;
+  } else if (type == QStringLiteral("resize_clip")) {
+    if (hasOnlyFields(operation, {QStringLiteral("type"), QStringLiteral("targetId"), QStringLiteral("durationFrames")}) &&
+        requiredString("targetId") && operation.value(QStringLiteral("durationFrames")).isDouble() &&
+        operation.value(QStringLiteral("durationFrames")).toInteger(0) > 0) return true;
+  } else if (type == QStringLiteral("remove_clip")) {
+    if (hasOnlyFields(operation, {QStringLiteral("type"), QStringLiteral("targetId")}) && requiredString("targetId")) return true;
+  }
+  fail(error, QStringLiteral("ActionPlan operation fields are invalid"));
+  return false;
 }
 }
 
@@ -31,7 +62,8 @@ std::optional<ActionPlan> ActionPlan::parse(const QJsonObject& object, QString* 
   plan.operations = object.value("operations").toArray();
   if (plan.operations.isEmpty()) { fail(error, QStringLiteral("ActionPlan operations must not be empty")); return std::nullopt; }
   for (const auto& item : plan.operations) {
-    if (!item.isObject() || !item.toObject().value("type").isString() || !knownOperation(item.toObject().value("type").toString())) {
+    if (!item.isObject() || !item.toObject().value("type").isString() || !knownOperation(item.toObject().value("type").toString()) ||
+        !validOperationShape(item.toObject(), error)) {
       fail(error, QStringLiteral("ActionPlan contains unsupported operation")); return std::nullopt;
     }
   }
@@ -48,7 +80,6 @@ bool ActionPlan::validate(const ProjectSnapshot& project, QString* error) const 
     if (!targetId.isEmpty() && !project.knownTargetIds.contains(targetId)) { fail(error, QStringLiteral("ActionPlan target does not exist")); return false; }
     const auto resourceId = operation.value("resourceId").toString();
     if (!resourceId.isEmpty() && !project.verifiedResourceIds.contains(resourceId)) { fail(error, QStringLiteral("ActionPlan resource is not verified")); return false; }
-    if (type == QStringLiteral("export_timeline") && !operation.value("explicitUserRequest").toBool()) { fail(error, QStringLiteral("export requires explicit user request")); return false; }
   }
   return true;
 }

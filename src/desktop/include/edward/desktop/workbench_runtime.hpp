@@ -6,6 +6,7 @@
 
 #include <QObject>
 #include <QVariantList>
+#include <deque>
 #include <QImage>
 #include <QJsonArray>
 #include <QFutureWatcher>
@@ -128,6 +129,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QJsonObject nativeRuntimeProps READ nativeRuntimeProps NOTIFY timelineChanged)
   Q_PROPERTY(QString nativeRuntimePreviewEntry READ nativeRuntimePreviewEntry NOTIFY timelineChanged)
   Q_PROPERTY(QJsonObject nativeRuntimeHostMessage READ nativeRuntimeHostMessage NOTIFY timelineChanged)
+  Q_PROPERTY(QString pendingAiActionPlan READ pendingAiActionPlan NOTIFY timelineChanged)
   Q_PROPERTY(bool resolveConnected READ resolveConnected NOTIFY resolveStateChanged)
   Q_PROPERTY(bool resolveComponentImportBusy READ resolveComponentImportBusy NOTIFY timelineChanged)
   Q_PROPERTY(QString resolveStatus READ resolveStatus NOTIFY resolveStateChanged)
@@ -234,6 +236,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QJsonObject nativeRuntimeProps() const;
   [[nodiscard]] QString nativeRuntimePreviewEntry() const;
   [[nodiscard]] QJsonObject nativeRuntimeHostMessage() const;
+  [[nodiscard]] QString pendingAiActionPlan() const { return pendingAiActionPlan_; }
   [[nodiscard]] QJsonObject componentJson() const;
   void setDemoOverlayX(int value);
   void setDemoOverlayY(int value);
@@ -272,6 +275,8 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool addCurrentComponentToTimeline(int durationFrames = 150);
   Q_INVOKABLE bool addNativeRuntimePackage(const QString& packageRoot, const QJsonObject& props = {});
   Q_INVOKABLE bool setNativeRuntimeProps(const QJsonObject& props);
+  Q_INVOKABLE bool applyPendingAiActionPlan();
+  Q_INVOKABLE bool undoLastAiAction();
   Q_INVOKABLE void generateComponentDraft();
   Q_INVOKABLE bool applyAiComponentCommand(const QString& json);
   Q_INVOKABLE bool requestAiComponentDraft(const QString& endpoint, const QString& apiKey,
@@ -436,6 +441,8 @@ class WorkbenchRuntime final : public QObject {
   bool demoOverlayEnabled_ = false;
   std::optional<edward::core::ComponentIr> demoOverlayIr_;
   std::optional<edward::core::NativeRuntimeComponent> selectedNativeRuntime_;
+  QHash<QString, edward::core::NativeRuntimeComponent> nativeRuntimePackages_;
+  std::deque<edward::core::TimelineSnapshot> aiTimelineUndo_;
   edward::core::ClipId componentClipId_ = 0;
   edward::core::ClipId editingComponentClipId_ = 0;
   QHash<QString, QString> resolveComponentNodeTimelineIds_;
@@ -507,9 +514,11 @@ class WorkbenchRuntime final : public QObject {
   QString resolveRebuildTransactionState_;
   edward::resources::ResolveApiManuals resolveApiManuals_;
   QString pendingAiPrompt_;
+  QString pendingAiActionPlan_;
   QJsonArray aiLastInsertionRecords_;
   bool pendingAiAnalysis_ = false;
   bool pendingAiConversationOnly_ = false;
+  bool pendingAiNativeProtocol_ = false;
   std::unique_ptr<edward::resources::ComponentUploadDispatcher> silentUploadDispatcher_;
   QString silentUploadEndpoint_;
   QTimer silentUploadRetryTimer_;

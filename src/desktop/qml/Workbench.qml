@@ -1883,6 +1883,21 @@ ApplicationWindow {
                                 onClicked: workbenchRuntime.discardPendingAiComponentCommand()
                             }
                         }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: workbenchRuntime.pendingAiActionPlan.length > 0
+                            spacing: 6
+                            Button {
+                                Layout.fillWidth: true
+                                text: "确认并应用 AI 修改"
+                                onClicked: workbenchRuntime.applyPendingAiActionPlan()
+                            }
+                            Button {
+                                Layout.preferredWidth: 92
+                                text: "撤销最近 AI"
+                                onClicked: workbenchRuntime.undoLastAiAction()
+                            }
+                        }
                         Rectangle {
                             objectName: "aiSendButton"
                             id: aiInputSurface

@@ -11,6 +11,7 @@
 #include "edward/desktop/diagnostics_reporter.hpp"
 #include "edward/runtime/runtime_manifest.hpp"
 #include "edward/runtime/web_runtime_host.hpp"
+#include "edward/ai/ai_orchestrator.hpp"
 
 #include <QVariantMap>
 #include <QCoreApplication>
@@ -39,6 +40,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <algorithm>
+#include <limits>
 
 namespace edward::desktop {
 
@@ -48,6 +50,33 @@ QString previewSettingsPath() {
   if (!overridePath.isEmpty()) return overridePath;
   return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) +
          QStringLiteral("/preview-storage.ini");
+}
+
+QString nativeRuntimeResourceId(const edward::core::NativeRuntimeComponent& component) {
+  const auto source = component.packageRoot + QLatin1Char('|') + component.manifestPath;
+  return QStringLiteral("runtime.") + QString::fromLatin1(
+      QCryptographicHash::hash(source.toUtf8(), QCryptographicHash::Sha256).toHex().left(16));
+}
+
+qint64 nativeAiProjectRevision(const edward::core::TimelineSnapshot& snapshot) {
+  QByteArray state;
+  state.append(QByteArray::number(snapshot.playheadFrame));
+  for (const auto& clip : snapshot.clips) {
+    state.append('|').append(QByteArray::number(clip.id));
+    state.append(':').append(QByteArray::number(clip.trackId));
+    state.append(':').append(QByteArray::number(clip.timelineStart));
+    state.append(':').append(QByteArray::number(clip.sourceIn));
+    state.append(':').append(QByteArray::number(clip.sourceOut));
+    if (clip.nativeRuntime) {
+      state.append(':').append(clip.nativeRuntime->runtime.toUtf8());
+      state.append(':').append(QJsonDocument(clip.nativeRuntime->props).toJson(QJsonDocument::Compact));
+    }
+  }
+  const auto digest = QCryptographicHash::hash(state, QCryptographicHash::Sha256);
+  qint64 revision = 0;
+  for (int index = 0; index < 8; ++index)
+    revision = (revision << 8) | static_cast<unsigned char>(digest.at(index));
+  return revision & std::numeric_limits<qint64>::max();
 }
 
 QString telemetryInstallationId() {
@@ -231,6 +260,13 @@ QByteArray previewCacheKey(const edward::core::TimelineSnapshot& snapshot,
                       {QStringLiteral("timelineStart"), clip.timelineStart},
                       {QStringLiteral("kind"), static_cast<int>(clip.kind)}};
     if (clip.component) entry.insert(QStringLiteral("component"), clip.component->toJson());
+    if (clip.nativeRuntime) {
+      entry.insert(QStringLiteral("nativeRuntime"), QJsonObject{
+          {QStringLiteral("packageRoot"), clip.nativeRuntime->packageRoot},
+          {QStringLiteral("manifestPath"), clip.nativeRuntime->manifestPath},
+          {QStringLiteral("runtime"), clip.nativeRuntime->runtime},
+          {QStringLiteral("props"), clip.nativeRuntime->props}});
+    }
     clips.append(entry);
   }
   QJsonArray transitions;
@@ -603,6 +639,8 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
               }
               pendingAiAnalysis_ = false;
               pendingAiConversationOnly_ = false;
+              pendingAiNativeProtocol_ = false;
+              pendingAiActionPlan_.clear();
               pendingAiPrompt_.clear();
               emit timelineChanged();
             };
@@ -617,6 +655,30 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
                 aiConversation_ += QStringLiteral("AI：") + result.trimmed();
               }
               pendingAiPrompt_.clear();
+              emit timelineChanged();
+            } else if (pendingAiNativeProtocol_) {
+              clearProcessingMessage();
+              pendingAiNativeProtocol_ = false;
+              const auto snapshot = timeline_.snapshot();
+              QStringList targets;
+              for (const auto& clip : snapshot.clips) targets.append(QString::number(clip.id));
+              edward::ai::ProjectSnapshot project{nativeAiProjectRevision(snapshot), targets,
+                                                  nativeRuntimePackages_.keys()};
+              const auto routed = edward::ai::AiOrchestrator{}.handle(result, project);
+              if (!aiConversation_.isEmpty()) aiConversation_ += QLatin1Char('\n');
+              if (routed.kind == edward::ai::AiResult::Kind::ActionPlan && routed.plan) {
+                pendingAiActionPlan_ = QString::fromUtf8(
+                    QJsonDocument(QJsonObject{{QStringLiteral("schemaVersion"), routed.plan->schemaVersion},
+                                              {QStringLiteral("requestId"), routed.plan->requestId},
+                                              {QStringLiteral("baseProjectRevision"), routed.plan->baseProjectRevision},
+                                              {QStringLiteral("operations"), routed.plan->operations}})
+                        .toJson(QJsonDocument::Compact));
+                aiConversation_ += QStringLiteral("AI：已生成可执行项目修改方案。确认后将作为一个可撤销事务应用。");
+              } else {
+                aiConversation_ += QStringLiteral("AI：") + routed.text;
+              }
+              pendingAiPrompt_.clear();
+              pendingAiAnalysis_ = false;
               emit timelineChanged();
             // 历史兼容分支不得由 0.6.0 的新 AI 请求触发。
             } else if (false && [&result]() {
@@ -2399,6 +2461,7 @@ bool WorkbenchRuntime::addNativeRuntimePackage(const QString& packageRoot, const
     return false;
   }
   selectedNativeRuntime_ = component;
+  nativeRuntimePackages_.insert(nativeRuntimeResourceId(component), component);
   editingComponentClipId_ = controller_.selectedClip();
   demoOverlayIr_.reset();
   demoOverlayEnabled_ = false;
@@ -2450,6 +2513,135 @@ bool WorkbenchRuntime::setNativeRuntimeProps(const QJsonObject& props) {
   }
   selectedNativeRuntime_->props = props;
   emit timelineChanged();
+  return true;
+}
+
+bool WorkbenchRuntime::applyPendingAiActionPlan() {
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(pendingAiActionPlan_.toUtf8(), &parseError);
+  QString error;
+  const auto plan = document.isObject()
+      ? edward::ai::ActionPlan::parse(document.object(), &error)
+      : std::nullopt;
+  if (!plan) {
+    emit operationFailed(QStringLiteral("AI 操作计划无效：%1")
+                             .arg(error.isEmpty() ? parseError.errorString() : error));
+    return false;
+  }
+
+  const auto before = timeline_.snapshot();
+  QStringList targetIds;
+  for (const auto& clip : before.clips) targetIds.append(QString::number(clip.id));
+  edward::ai::ProjectSnapshot project{nativeAiProjectRevision(before), targetIds,
+                                      nativeRuntimePackages_.keys()};
+  if (!plan->validate(project, &error)) {
+    emit operationFailed(QStringLiteral("AI 操作计划未执行：%1").arg(error));
+    return false;
+  }
+
+  const auto selectedBefore = controller_.selectedClip();
+  const auto rollback = [&] {
+    timeline_.restore(before);
+    if (selectedBefore != 0) controller_.selectClip(selectedBefore);
+  };
+  for (const auto& rawOperation : plan->operations) {
+    const auto operation = rawOperation.toObject();
+    const auto type = operation.value(QStringLiteral("type")).toString();
+    const auto targetId = static_cast<edward::core::ClipId>(
+        operation.value(QStringLiteral("targetId")).toString().toLongLong());
+    if (type == QStringLiteral("insert_native_component")) {
+      const auto component = nativeRuntimePackages_.value(operation.value(QStringLiteral("resourceId")).toString());
+      QFile file(component.manifestPath);
+      QString manifestError;
+      const auto manifest = file.open(QIODevice::ReadOnly)
+          ? edward::runtime::RuntimeManifest::parse(QJsonDocument::fromJson(file.readAll()).object(), &manifestError)
+          : std::nullopt;
+      if (!manifest || !controller_.dropNativeRuntimeAtPlayhead(component, manifest->durationInFrames)) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 原生组件插入失败：%1")
+                                 .arg(manifestError.isEmpty() ? QStringLiteral("资源或时间线位置无效") : manifestError));
+        return false;
+      }
+      continue;
+    }
+    const auto clip = timeline_.clip(targetId);
+    if (!clip) {
+      rollback();
+      emit operationFailed(QStringLiteral("AI 操作目标已不存在"));
+      return false;
+    }
+    if (type == QStringLiteral("remove_clip")) {
+      if (!timeline_.removeClip(targetId)) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 无法删除目标片段"));
+        return false;
+      }
+    } else if (type == QStringLiteral("set_component_props")) {
+      if (!clip->nativeRuntime) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 属性修改仅适用于原生运行时组件"));
+        return false;
+      }
+      auto updated = *clip;
+      updated.nativeRuntime->props = operation.value(QStringLiteral("props")).toObject();
+      if (!timeline_.replaceClip(targetId, std::move(updated))) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 无法更新组件属性"));
+        return false;
+      }
+    } else if (type == QStringLiteral("move_clip")) {
+      auto updated = *clip;
+      updated.timelineStart = operation.value(QStringLiteral("timelineStart")).toInteger(-1);
+      if (!timeline_.replaceClip(targetId, std::move(updated))) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 移动片段会产生冲突或越界"));
+        return false;
+      }
+    } else if (type == QStringLiteral("resize_clip")) {
+      const auto duration = operation.value(QStringLiteral("durationFrames")).toInteger(-1);
+      if (duration <= 0) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 片段时长无效"));
+        return false;
+      }
+      auto updated = *clip;
+      updated.sourceOut = updated.sourceIn + duration;
+      if (!timeline_.replaceClip(targetId, std::move(updated))) {
+        rollback();
+        emit operationFailed(QStringLiteral("AI 调整片段时长会产生冲突或越界"));
+        return false;
+      }
+    } else {
+      rollback();
+      emit operationFailed(QStringLiteral("AI 操作需要明确确认或当前版本尚不可执行：%1").arg(type));
+      return false;
+    }
+  }
+
+  aiTimelineUndo_.push_back(before);
+  while (aiTimelineUndo_.size() > 5) aiTimelineUndo_.pop_front();
+  pendingAiActionPlan_.clear();
+  selectedNativeRuntime_.reset();
+  if (const auto selected = timeline_.clip(controller_.selectedClip()); selected && selected->nativeRuntime)
+    selectedNativeRuntime_ = *selected->nativeRuntime;
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("AI 操作计划已作为一个事务应用，可撤销"));
+  return true;
+}
+
+bool WorkbenchRuntime::undoLastAiAction() {
+  if (aiTimelineUndo_.empty() || !timeline_.restore(aiTimelineUndo_.back())) {
+    emit operationFailed(QStringLiteral("没有可撤销的 AI 项目操作"));
+    return false;
+  }
+  aiTimelineUndo_.pop_back();
+  selectedNativeRuntime_.reset();
+  if (const auto selected = timeline_.clip(controller_.selectedClip()); selected && selected->nativeRuntime)
+    selectedNativeRuntime_ = *selected->nativeRuntime;
+  refreshDemoOverlay();
+  emit timelineChanged();
+  emit operationSucceeded(QStringLiteral("已撤销最近一次 AI 项目操作"));
   return true;
 }
 
@@ -2515,35 +2707,24 @@ bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QS
   QString contextualPrompt;
   const auto agents = projectAgentInstructions();
   const auto agentContext = agents.isEmpty() ? QString() : QStringLiteral("\n项目 AGENTS.md 约束（必须遵守）：\n%1").arg(agents);
-  if (!demoOverlayIr_) {
-    systemPrompt = QStringLiteral("You are Edward, a concise Chinese video editing assistant. Reply with plain text for explanation or clarification. For an unambiguous project modification, return exactly one edward.action-plan.v1 JSON object. Only use official native runtime packages: react, html-css, svg, gsap. Never return Component IR, conversion instructions, Resolve, Fusion, Premiere or OpenShot operations. If the target, resource, position, duration or requested modification is ambiguous, ask one concise clarification question. Do not return paths, shell commands, or direct file writes.");
-    contextualPrompt = QStringLiteral("Resolve 当前上下文：%1\n历史对话：%2\n用户请求：%3")
-                           .arg(projectWindowTitle(), aiConversation_, promptWithTextAttachmentContents(prompt)) + agentContext;
-    // 普通对话仍允许显式 operation（例如 insert_media）进入已验证的 Resolve 命令链路。
-    // 是否触发 IR/Resolve 由响应中的 operation 决定，而不是由当前是否选中组件决定。
-    pendingAiConversationOnly_ = false;
-    pendingAiAnalysis_ = false;
-  } else {
-    systemPrompt = QStringLiteral(
-        "You are Edward's independent chat sandbox. Answer ordinary conversation in plain text. "
-        "Understand natural-language requests and map them to verified operations when the intent and target are unambiguous. "
-        "If the asset, position, or requested action is ambiguous, ask a concise clarification question instead of guessing. "
-        "Only when the user explicitly requests a component edit or uses /component, return exactly one JSON object "
-        "with an operation field; allowed operations are setTransformNumber, setProperty, setKeyframeValue. "
-        "Do not use Markdown or code fences for JSON.");
-    const auto componentContext = QString::fromUtf8(
-        QJsonDocument(demoOverlayIr_->toJson()).toJson(QJsonDocument::Compact));
-    const auto dependency = demoOverlayIr_->pluginDependency();
-    const auto editable = dependency && installedPlugin_ &&
-                                  dependency->pluginId == installedPlugin_->manifest.pluginId &&
-                                  dependency->version == installedPlugin_->manifest.version
-                              ? installedPlugin_->manifest.editableProps.join(QStringLiteral(","))
-                              : QStringLiteral("standard Edward fields");
-    contextualPrompt = QStringLiteral(
-        "Current Component IR (read-only context): %1\nAllowed plugin editable fields: %2\nPrevious conversation: %3\nUser request: %4")
-                          .arg(componentContext, editable, aiConversation_, prompt) + agentContext;
-    pendingAiConversationOnly_ = false;
-  }
+  const auto timeline = timeline_.snapshot();
+  QStringList knownTargets;
+  for (const auto& clip : timeline.clips) knownTargets.append(QString::number(clip.id));
+  const auto revision = nativeAiProjectRevision(timeline);
+  const auto resources = nativeRuntimePackages_.keys().join(QStringLiteral(", "));
+  systemPrompt = QStringLiteral(
+      "You are Edward, a concise Chinese video editing assistant. Reply with plain text for explanation or clarification. "
+      "For one unambiguous project modification, return exactly one edward.action-plan.v1 JSON object with schemaVersion, requestId, baseProjectRevision and operations. "
+      "Allowed executable operations are insert_native_component(resourceId), set_component_props(targetId, props), move_clip(targetId, timelineStart), resize_clip(targetId, durationFrames), and remove_clip(targetId). "
+      "Use only listed verified native runtime resources. Edward supports react, html-css, svg and gsap package runtimes, but never accepts component code, Component IR, conversion instructions, paths, shell commands, Resolve, Fusion, Premiere or OpenShot operations. "
+      "If the target, verified resource, position, duration, or requested modification is ambiguous, ask one concise clarification question. Do not use Markdown or code fences for JSON.");
+  contextualPrompt = QStringLiteral("当前项目：%1\n项目修订：%2\n可选片段 ID：%3\n已验证原生运行时资源：%4\n历史对话：%5\n用户请求：%6")
+                         .arg(projectWindowTitle(), QString::number(revision), knownTargets.join(QStringLiteral(", ")),
+                              resources.isEmpty() ? QStringLiteral("无") : resources,
+                              aiConversation_, promptWithTextAttachmentContents(prompt)) + agentContext;
+  pendingAiConversationOnly_ = false;
+  pendingAiAnalysis_ = false;
+  pendingAiNativeProtocol_ = true;
   if (contextualPrompt.toUtf8().size() > 256 * 1024) {
     emit operationFailed(QStringLiteral("AI 请求失败：代码或上下文超过 256 KB 输入上限"));
     return false;
@@ -2682,34 +2863,10 @@ QStringList WorkbenchRuntime::chooseAiAttachments() {
 }
 
 bool WorkbenchRuntime::analyzeCurrentClipWithAi(const QString& prompt) {
-  if (aiRequestBusy_) return false;
   const auto request = prompt.trimmed().isEmpty()
-                           ? QStringLiteral("分析当前 Resolve 选中的视频片段，生成一个可叠加的 Edward Component IR 组件。")
+                           ? QStringLiteral("分析当前选中的片段，并给出明确的 Edward 项目修改建议。")
                            : prompt.trimmed();
-  const auto effectiveEndpoint = aiModelEndpoint_;
-  const auto effectiveApiKey = aiModelApiKey_;
-  const auto effectiveModel = aiModelId_;
-  if (effectiveEndpoint.isEmpty() || effectiveApiKey.isEmpty() || effectiveModel.isEmpty()) {
-    emit operationFailed(QStringLiteral("AI 分析失败：请先在设置中配置模型"));
-    return false;
-  }
-  const auto systemPrompt = QStringLiteral(
-      "Return exactly one valid Edward Component IR JSON object. Version must be 1. "
-      "Allowed node types are container, text, shape, image. Use only properties and keyframes "
-      "supported by the current Component IR schema. Do not use Markdown or code fences.");
-  const auto context = QStringLiteral("Resolve 当前上下文：%1\n用户要求：%2")
-                           .arg(resolveContextSummary_, request);
-  pendingAiPrompt_ = request;
-  pendingAiAnalysis_ = true;
-  aiRequestBusy_ = true;
-  emit timelineChanged();
-  if (!modelChatClient_.request({effectiveEndpoint, effectiveApiKey, effectiveModel}, systemPrompt, context)) {
-    pendingAiAnalysis_ = false;
-    aiRequestBusy_ = false;
-    emit timelineChanged();
-    return false;
-  }
-  return true;
+  return requestAiComponentDraft({}, {}, {}, request);
 }
 
 bool WorkbenchRuntime::configureAiModel(const QString& providerName, const QString& endpoint,
@@ -4362,14 +4519,22 @@ bool WorkbenchRuntime::writeProject(const QString& path) const {
   for (const auto track : snapshot.videoTracks) tracks.append(static_cast<qint64>(track));
   QJsonArray clips;
   for (const auto& clip : snapshot.clips) {
-    clips.append(QJsonObject{{"id", static_cast<qint64>(clip.id)},
+    auto clipObject = QJsonObject{{"id", static_cast<qint64>(clip.id)},
                              {"trackId", static_cast<qint64>(clip.trackId)},
                              {"source", QString::fromStdString(clip.source.string())},
                              {"sourceIn", static_cast<qint64>(clip.sourceIn)},
                              {"sourceOut", static_cast<qint64>(clip.sourceOut)},
                              {"timelineStart", static_cast<qint64>(clip.timelineStart)},
                              {"kind", clip.kind == edward::core::TimelineClipKind::Component ? "component" : "media"},
-                             {"component", clip.component ? QJsonValue(clip.component->toJson()) : QJsonValue()}});
+                             {"component", clip.component ? QJsonValue(clip.component->toJson()) : QJsonValue()}};
+    if (clip.nativeRuntime) {
+      clipObject.insert(QStringLiteral("nativeRuntime"), QJsonObject{
+          {QStringLiteral("packageRoot"), clip.nativeRuntime->packageRoot},
+          {QStringLiteral("manifestPath"), clip.nativeRuntime->manifestPath},
+          {QStringLiteral("runtime"), clip.nativeRuntime->runtime},
+          {QStringLiteral("props"), clip.nativeRuntime->props}});
+    }
+    clips.append(clipObject);
   }
   QJsonArray transitions;
   for (const auto& transition : snapshot.transitions) {
@@ -4497,6 +4662,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
     projectIdentity = *parsed;
   }
   edward::core::TimelineSnapshot snapshot;
+  QHash<QString, edward::core::NativeRuntimeComponent> loadedNativeRuntimePackages;
   snapshot.durationFrames = project.value("durationFrames").toInteger();
   snapshot.playheadFrame = project.value("playheadFrame").toInteger();
   for (const auto value : project.value("videoTracks").toArray()) {
@@ -4513,16 +4679,29 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
                                                                   : edward::core::TimelineClipKind::Media;
     if (kindValue != QStringLiteral("media") && kindValue != QStringLiteral("component")) return false;
     std::optional<edward::core::ComponentIr> clipComponent;
+    std::optional<edward::core::NativeRuntimeComponent> clipNativeRuntime;
     if (kind == edward::core::TimelineClipKind::Component) {
-      if (!clip.value("component").isObject()) return false;
-      clipComponent = edward::core::ComponentIr::parse(clip.value("component").toObject());
-      if (!clipComponent) return false;
+      if (clip.value("nativeRuntime").isObject()) {
+        const auto native = clip.value("nativeRuntime").toObject();
+        if (!native.value("packageRoot").isString() || !native.value("manifestPath").isString() ||
+            !native.value("runtime").isString() || !native.value("props").isObject()) return false;
+        clipNativeRuntime = edward::core::NativeRuntimeComponent{
+            native.value("packageRoot").toString(), native.value("manifestPath").toString(),
+            native.value("runtime").toString(), native.value("props").toObject()};
+        if (!clipNativeRuntime->valid()) return false;
+      } else {
+        if (!clip.value("component").isObject()) return false;
+        clipComponent = edward::core::ComponentIr::parse(clip.value("component").toObject());
+        if (!clipComponent) return false;
+      }
     }
+    if (clipNativeRuntime)
+      loadedNativeRuntimePackages.insert(nativeRuntimeResourceId(*clipNativeRuntime), *clipNativeRuntime);
     snapshot.clips.push_back({static_cast<edward::core::ClipId>(clip.value("id").toInteger()),
                               static_cast<edward::core::TrackId>(clip.value("trackId").toInteger()),
                               clip.value("source").toString().toStdString(), clip.value("sourceIn").toInteger(),
                               clip.value("sourceOut").toInteger(), clip.value("timelineStart").toInteger(),
-                              kind, std::move(clipComponent)});
+                              kind, std::move(clipComponent), std::move(clipNativeRuntime)});
   }
   if (!project.value("transitions").isUndefined()) {
     if (!project.value("transitions").isArray()) return false;
@@ -4563,6 +4742,7 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
         })) return false;
   }
   if (!timeline_.restore(snapshot)) return false;
+  nativeRuntimePackages_ = std::move(loadedNativeRuntimePackages);
   projectIdentity_ = std::move(projectIdentity);
   previewSession_ = edward::media::PreviewSession(previewStorageRoots_, projectIdentity_);
   previewFrameCache_ = edward::media::PreviewFrameCache(previewStorageRoots_, projectIdentity_);
@@ -4571,8 +4751,16 @@ bool WorkbenchRuntime::loadProject(const QString& path) {
   demoOverlayIr_ = std::move(component);
   componentClipId_ = demoOverlayIr_ ? componentClipId : 0;
   aiConversation_ = std::move(conversation);
+  selectedNativeRuntime_.reset();
+  editingComponentClipId_ = 0;
+  if (const auto selected = timeline_.clip(controller_.selectedClip()); selected && selected->nativeRuntime) {
+    selectedNativeRuntime_ = *selected->nativeRuntime;
+    editingComponentClipId_ = selected->id;
+  }
   pendingAiPrompt_.clear();
   pendingAiConversationOnly_ = false;
+  pendingAiNativeProtocol_ = false;
+  pendingAiActionPlan_.clear();
   if (demoOverlayIr_) syncDemoOverlayProperties(project.value("component").toObject());
   demoOverlayEnabled_ = demoOverlayIr_.has_value();
   refreshDemoOverlay();
