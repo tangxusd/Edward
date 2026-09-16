@@ -616,7 +616,8 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
               }
               pendingAiPrompt_.clear();
               emit timelineChanged();
-            } else if ([&result]() {
+            // 历史兼容分支不得由 0.6.0 的新 AI 请求触发。
+            } else if (false && [&result]() {
                          QJsonParseError error;
                          const auto document = QJsonDocument::fromJson(result.toUtf8(), &error);
                          return error.error == QJsonParseError::NoError && document.isObject() &&
@@ -653,7 +654,7 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
               pendingAiPrompt_.clear();
               aiConversation_ += QStringLiteral("\nAI：已将 React 组件经过理解层转换为 Component IR 草案。确认后可转写为 Fusion。\n");
               emit timelineChanged();
-            } else if ([&result]() {
+            } else if (false && [&result]() {
                          QJsonParseError error;
                          const auto document = QJsonDocument::fromJson(result.toUtf8(), &error);
                          return error.error == QJsonParseError::NoError && document.isObject() &&
@@ -692,14 +693,14 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
               pendingAiPrompt_.clear();
               aiConversation_ += QStringLiteral("\nAI：已将 CSS 经过规范化层转换为 Component IR 草案。确认后可转写为 Fusion。\n");
               emit timelineChanged();
-            } else if (pendingAiAnalysis_ || [&result]() {
+            } else if (false && (pendingAiAnalysis_ || [&result]() {
                          QJsonParseError error;
                          const auto document = QJsonDocument::fromJson(result.toUtf8(), &error);
                          return error.error == QJsonParseError::NoError && document.isObject() &&
                                 document.object().contains(QStringLiteral("version")) &&
                                 (document.object().contains(QStringLiteral("root")) ||
                                  document.object().contains(QStringLiteral("nodes")));
-                       }()) {
+                       }())) {
               clearProcessingMessage();
               QJsonParseError parseError;
               const auto document = QJsonDocument::fromJson(result.toUtf8(), &parseError);
