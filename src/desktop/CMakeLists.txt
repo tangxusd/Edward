@@ -9,7 +9,7 @@ add_library(edward_desktop STATIC
   src/workbench_runtime.cpp
 )
 target_include_directories(edward_desktop PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(edward_desktop PUBLIC edward_core edward_media edward_plugins edward_resources edward_resolve Qt6::Core Qt6::Concurrent Qt6::Sql Qt6::WebChannel Qt6::Widgets)
+target_link_libraries(edward_desktop PUBLIC edward_core edward_runtime edward_media edward_plugins edward_resources edward_resolve Qt6::Core Qt6::Concurrent Qt6::Sql Qt6::WebChannel Qt6::Widgets)
 target_compile_definitions(edward_desktop PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 # Qt SVG Image 不支持 CSS currentColor；为 Rail 选中态生成同源橙色 SVG，

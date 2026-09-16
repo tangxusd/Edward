@@ -1,3 +1,6 @@
 add_executable(test_runtime_manifest test_runtime_manifest.cpp)
 target_link_libraries(test_runtime_manifest PRIVATE edward_runtime Qt6::Core)
 add_test(NAME test_runtime_manifest COMMAND test_runtime_manifest)
+add_executable(test_web_runtime_host test_web_runtime_host.cpp)
+target_link_libraries(test_web_runtime_host PRIVATE edward_runtime Qt6::Core)
+add_test(NAME test_web_runtime_host COMMAND test_web_runtime_host)
