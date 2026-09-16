@@ -40,3 +40,7 @@ add_test(NAME desktop.preference_store COMMAND test_preference_store)
 add_executable(test_preference_bridge test_preference_bridge.cpp)
 target_link_libraries(test_preference_bridge PRIVATE edward_desktop Qt6::WebChannel)
 add_test(NAME desktop.preference_bridge COMMAND test_preference_bridge)
+
+add_executable(test_native_runtime_workbench test_native_runtime_workbench.cpp)
+target_link_libraries(test_native_runtime_workbench PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.native_runtime_workbench COMMAND test_native_runtime_workbench)
