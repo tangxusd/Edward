@@ -1,4 +1,6 @@
-# Edward 外部插件沙盒合同
+# Edward 外部插件沙盒合同（历史路线）
+
+> 本合同仅供历史审计。Edward 0.6.0 的新 AI 对话和组件宿主不得依赖 Component IR、理解层或转换层；新实现以 `docs/superpowers/specs/2026-09-16-ai-conversation-module-design.md` 为准。
 
 ## 目标
 

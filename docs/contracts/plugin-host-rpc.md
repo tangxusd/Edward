@@ -1,4 +1,6 @@
-# Edward 0.2.0 受限插件宿主 RPC 合同
+# Edward 0.2.0 受限插件宿主 RPC 合同（历史路线）
+
+> 本合同仅供历史审计。Edward 0.6.0 AI 对话和官方运行时宿主不得使用 Component IR、转换层或 ProRes 替代输出；新实现以 `docs/superpowers/specs/2026-09-16-ai-conversation-module-design.md` 为准。
 
 ## 进程与权限
 

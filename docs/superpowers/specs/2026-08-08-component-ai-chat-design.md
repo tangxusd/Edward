@@ -1,4 +1,6 @@
-# 组件 AI 对话修改设计
+# 组件 AI 对话修改设计（历史路线）
+
+> 本文保留为历史记录。Edward 0.6.0 新 AI 对话不得采用其中的 Component IR、理解层、转换层或“仅点击应用草案”的旧流程；以 `2026-09-16-ai-conversation-module-design.md` 为准。
 
 ## 目标
 
