@@ -43,6 +43,9 @@ int main() {
   assert(timeline.clip(4)->kind == TimelineClipKind::Component);
   assert(commands.moveClip(4, 220));
   assert(timeline.clip(4)->timelineStart == 220);
+  NativeRuntimeComponent native{"/packages/marker", "manifest.json", "svg", {{"color", "#007aff"}}};
+  assert(timeline.insertClip({5, track, {}, 0, 20, 260, TimelineClipKind::Component, {}, native}));
+  assert(timeline.clip(5)->nativeRuntime && timeline.clip(5)->nativeRuntime->runtime == "svg");
 
   Timeline transitions(300);
   const auto transitionTrack = transitions.addVideoTrack();

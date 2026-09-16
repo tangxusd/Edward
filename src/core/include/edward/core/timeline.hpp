@@ -2,6 +2,7 @@
 
 #include "edward/core/media_project.hpp"
 #include "edward/core/component_ir.hpp"
+#include "edward/core/native_runtime_component.hpp"
 #include "edward/core/transitions.hpp"
 
 #include <optional>
@@ -20,6 +21,7 @@ struct TimelineClip {
   Frame timelineStart = 0;
   TimelineClipKind kind = TimelineClipKind::Media;
   std::optional<ComponentIr> component;
+  std::optional<NativeRuntimeComponent> nativeRuntime;
 };
 
 struct TimelineSnapshot {

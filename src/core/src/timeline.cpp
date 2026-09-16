@@ -119,8 +119,10 @@ bool Timeline::restore(const TimelineSnapshot& snapshot) {
   for (const auto& clip : snapshot.clips) {
     const auto duration = clip.sourceOut - clip.sourceIn;
     if (clip.id == 0 || std::ranges::find(snapshot.videoTracks, clip.trackId) == snapshot.videoTracks.end() ||
-        ((clip.kind == TimelineClipKind::Media && (clip.source.empty() || clip.component.has_value())) ||
-         (clip.kind == TimelineClipKind::Component && (!clip.component || !clip.component->validate()))) ||
+        ((clip.kind == TimelineClipKind::Media && (clip.source.empty() || clip.component.has_value() || clip.nativeRuntime.has_value())) ||
+         (clip.kind == TimelineClipKind::Component &&
+          ((clip.component.has_value() == clip.nativeRuntime.has_value()) ||
+           (clip.component && !clip.component->validate()) || (clip.nativeRuntime && !clip.nativeRuntime->valid())))) ||
         clip.sourceIn < 0 || duration <= 0 || clip.timelineStart < 0 ||
         clip.timelineStart + duration > durationFrames_) return false;
     for (const auto& other : snapshot.clips) {
@@ -149,8 +151,11 @@ bool Timeline::restore(const TimelineSnapshot& snapshot) {
 bool Timeline::isKnownTrack(TrackId id) const { return std::ranges::find(videoTracks_, id) != videoTracks_.end(); }
 bool Timeline::isValid(const TimelineClip& clip) const {
   const auto duration = clip.sourceOut - clip.sourceIn;
-  const bool hasValidContent = (clip.kind == TimelineClipKind::Media && !clip.source.empty() && !clip.component) ||
-                               (clip.kind == TimelineClipKind::Component && clip.component && clip.component->validate());
+  const bool hasValidContent =
+      (clip.kind == TimelineClipKind::Media && !clip.source.empty() && !clip.component && !clip.nativeRuntime) ||
+      (clip.kind == TimelineClipKind::Component &&
+       ((clip.component && !clip.nativeRuntime && clip.component->validate()) ||
+        (clip.nativeRuntime && !clip.component && clip.nativeRuntime->valid())));
   return clip.id > 0 && isKnownTrack(clip.trackId) && hasValidContent && clip.sourceIn >= 0 &&
     duration > 0 && clip.timelineStart >= 0 && clip.timelineStart + duration <= durationFrames_;
 }
