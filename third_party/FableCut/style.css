@@ -59,6 +59,11 @@ body {
 .inspector.no-selection .panel-head,
 .inspector.no-selection .inspector-body { display: none; }
 .inspector.no-selection .inspector-ai { flex: 1 1 auto; }
+.inspector.ai-idle .inspector-ai { flex: 0 0 118px; min-height: 118px; }
+.inspector.ai-idle .inspector-ai-messages { flex: 0 0 25px; height: 25px; min-height: 25px; padding: 3px 8px; overflow: hidden; }
+.inspector.ai-idle .inspector-ai-msg { width: 100%; max-width: 100%; padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inspector.ai-idle .inspector-ai-form { gap: 4px; padding: 5px 8px 7px; }
+.inspector.ai-idle .inspector-ai-form textarea { min-height: 34px; height: 34px; padding: 6px 8px; }
 .inspector-ai { position: relative; }
 .inspector-ai::before { content: ""; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent) 18%, var(--accent) 82%, transparent); }
 .inspector-ai-head { flex: none; padding: 10px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); }

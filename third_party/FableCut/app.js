@@ -3813,7 +3813,9 @@ function pruneSelection() {
 const selectedClips = () => project.clips.filter((c) => state.selIds.has(c.id));
 function renderInspector(lite) {
   const c = getClip(state.selId);
-  document.querySelector(".inspector")?.classList.toggle("no-selection", !c);
+  const inspector = document.querySelector(".inspector");
+  inspector?.classList.toggle("no-selection", !c);
+  inspector?.classList.toggle("ai-idle", !!c && !document.querySelector("#inspectorAiMessages .inspector-ai-msg.user"));
   if (!c) {
     els.inspector.innerHTML = `<div class="inspector-empty">Select a clip to edit its<br>transform, effects &amp; audio.</div>
       <div class="insp-section creation-preference"><h3>新增偏好</h3><div class="insp-row"><label for="creationPreferenceRank">方案</label><select id="creationPreferenceRank"><option value="0">A · 最高频</option><option value="1">B · 备选</option><option value="2">C · 备选</option></select></div></div>`;
@@ -8395,6 +8397,7 @@ document.querySelector("#inspectorAiForm")?.addEventListener("submit", (e) => {
   if (!text) return;
   const box = document.querySelector("#inspectorAiMessages"), msg = document.createElement("div");
   msg.className = "inspector-ai-msg user"; msg.textContent = text; box.appendChild(msg); input.value = ""; box.scrollTop = box.scrollHeight;
+  document.querySelector(".inspector")?.classList.remove("ai-idle");
 });
 buildTrackDOM();
 rebuildClips();

@@ -1808,7 +1808,7 @@ ApplicationWindow {
                         anchors.bottomMargin: 2
                         spacing: 6
                         Label {
-                            text: "AI 对话"
+                            text: "AI 剪辑助理"
                             color: DesignTokens.accent
                             font.pixelSize: window.uiFontSize(9)
                             font.bold: true
