@@ -12,6 +12,7 @@
 #include "edward/runtime/runtime_manifest.hpp"
 #include "edward/runtime/web_runtime_host.hpp"
 #include "edward/ai/ai_orchestrator.hpp"
+#include "edward/ai/rule_file_loader.hpp"
 
 #include <QVariantMap>
 #include <QCoreApplication>
@@ -87,20 +88,6 @@ QString telemetryInstallationId() {
   settings.setValue(QStringLiteral("diagnostics/installationId"), identifier);
   settings.sync();
   return settings.status() == QSettings::NoError ? identifier : QString{};
-}
-
-QString projectAgentInstructions() {
-  auto directory = QDir::current();
-  for (int i = 0; i < 6; ++i) {
-    const auto path = directory.filePath(QStringLiteral("AGENTS.md"));
-    QFile file(path);
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-      const auto text = QString::fromUtf8(file.read(24 * 1024));
-      return text;
-    }
-    if (!directory.cdUp()) break;
-  }
-  return {};
 }
 
 QString normalizeAiAssetPath(const QJsonObject& object, const QString& prompt) {
@@ -2705,8 +2692,13 @@ bool WorkbenchRuntime::requestAiComponentDraft(const QString& endpoint, const QS
   }
   QString systemPrompt;
   QString contextualPrompt;
-  const auto agents = projectAgentInstructions();
-  const auto agentContext = agents.isEmpty() ? QString() : QStringLiteral("\n项目 AGENTS.md 约束（必须遵守）：\n%1").arg(agents);
+  const auto activeProject = QFileInfo(activeProjectPath_);
+  const auto rulesRoot = activeProjectPath_.isEmpty() ? QDir::currentPath() : activeProject.absolutePath();
+  const auto rulesTarget = activeProjectPath_.isEmpty() ? rulesRoot : activeProject.absoluteFilePath();
+  const auto rules = edward::ai::RuleFileLoader{}.load(rulesRoot.toStdString(), rulesTarget.toStdString());
+  const auto agentContext = rules.text.isEmpty() ? QString()
+      : QStringLiteral("\n项目规则（按目录由外到内、同级 AGENTS.override.md > AGENTS.md > CLAUDE.md）：\n%1")
+            .arg(rules.effectiveRules());
   const auto timeline = timeline_.snapshot();
   QStringList knownTargets;
   for (const auto& clip : timeline.clips) knownTargets.append(QString::number(clip.id));
