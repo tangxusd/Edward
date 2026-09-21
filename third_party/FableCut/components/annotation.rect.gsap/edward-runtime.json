@@ -1,0 +1,14 @@
+{
+  "protocol": "edward.web-runtime.v1",
+  "runtime": "gsap",
+  "width": 1280,
+  "height": 720,
+  "fps": 30,
+  "durationInFrames": 90,
+  "previewEntry": "component.js",
+  "renderEntry": "component.js",
+  "propsSchema": { "type": "object", "additionalProperties": false, "properties": { "x": { "type": "number", "default": 0 }, "y": { "type": "number", "default": 0 }, "width": { "type": "number", "default": 0.56 }, "height": { "type": "number", "default": 0.28 }, "borderWidth": { "type": "number", "default": 2 }, "radius": { "type": "number", "default": 5 }, "color": { "type": "string", "format": "color", "default": "#1683ff" }, "duration": { "type": "number", "default": 3 } } },
+  "editableProperties": ["x", "y", "width", "height", "borderWidth", "radius", "color", "duration"],
+  "editableTracks": ["x", "y", "width", "height", "borderWidth", "radius", "color"],
+  "capabilities": { "preview": true, "export": true, "editable": true, "audio": false, "transparent": true }
+}

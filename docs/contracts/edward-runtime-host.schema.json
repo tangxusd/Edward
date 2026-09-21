@@ -14,7 +14,9 @@
     "previewEntry",
     "renderEntry",
     "propsSchema",
-    "editableProperties"
+    "editableProperties",
+    "editableTracks",
+    "capabilities"
   ],
   "properties": {
     "protocol": { "const": "edward.web-runtime.v1" },
@@ -36,8 +38,27 @@
     "propsSchema": { "type": "object" },
     "editableProperties": {
       "type": "array",
+      "minItems": 1,
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
+    },
+    "editableTracks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preview", "export", "editable", "audio", "transparent"],
+      "properties": {
+        "preview": { "const": true },
+        "export": { "const": true },
+        "editable": { "type": "boolean" },
+        "audio": { "type": "boolean" },
+        "transparent": { "type": "boolean" }
+      }
     }
   }
 }
