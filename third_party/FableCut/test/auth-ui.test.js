@@ -192,6 +192,13 @@ test("default provider is visually synchronized with the AI assistant", () => {
   assert.match(css, /\.inspector\.ai-thinking \.inspector-ai::before/);
 });
 
+test("a single fetched model is persisted as the default model", () => {
+  const app = fs.readFileSync(path.join(root, "app.js"), "utf8");
+  assert.match(app, /result\.values\.length === 1/);
+  assert.match(app, /自动设为默认模型并保存/);
+  assert.match(app, /window\.edwardSettings\.save\(\$\("setAiProviderId"\)/);
+});
+
 test("top bar uses only the connection dot when connected", () => {
   const html = read("index.html");
   const app = read("app.js");

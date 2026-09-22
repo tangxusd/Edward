@@ -69,7 +69,9 @@ int main(int argc, char** argv) {
   webChannelBootstrap.setName(QStringLiteral("edward-webchannel-bootstrap"));
   webChannelBootstrap.setInjectionPoint(QWebEngineScript::DocumentCreation);
   webChannelBootstrap.setWorldId(QWebEngineScript::MainWorld);
-  webChannelBootstrap.setSourceUrl(QUrl(QStringLiteral("qrc:///qtwebchannel/qwebchannel.js")));
+  QFile webChannelSource(QStringLiteral(":/qtwebchannel/qwebchannel.js"));
+  if (webChannelSource.open(QIODevice::ReadOnly))
+    webChannelBootstrap.setSourceCode(QString::fromUtf8(webChannelSource.readAll()));
   webProfile->scripts()->insert(webChannelBootstrap);
   QQuickStyle::setStyle(QStringLiteral("Basic"));
   QProcess fablecutServer;

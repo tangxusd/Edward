@@ -280,3 +280,10 @@
 - 约束：API Key 按用户明确要求仅保存在本机明文 `settings.ini` 文件中，不进入 macOS Keychain、Windows Credential Manager 或云端；桌面端、会话存储和启动初始化均使用同一 `QStandardPaths::AppConfigLocation/settings.ini`，测试可用 `EDWARD_SETTINGS_PATH` 覆盖；日志只记录请求长度、快照大小和结果，不记录密钥及原始对话。
 - 验证：`node --test third_party/FableCut/test/visual-layout.test.js`、AI 前端测试、`node --check third_party/FableCut/app.js`、CMake AI/桌面目标构建通过。
 - 加固：模型即使返回带 `json` Markdown 代码围栏的计划，也只去除外层围栏后交给同一套严格解析与版本校验；围栏之外的自然语言不会被当作可执行指令。
+
+## 2026-09-22 WebChannel 注入与单模型默认值修复
+
+- 根因：`QWebEngineScript::setSourceUrl` 只设置脚本来源信息，不会向页面注入 `qwebchannel.js` 的内容；因此 Edward.app 中的 FableCut 页面缺少 `QWebChannel`，AI 助手与模型设置桥接都被误判为非桌面环境。
+- 修复：启动时从 `:/qtwebchannel/qwebchannel.js` 读取脚本并通过 `setSourceCode` 在文档创建阶段注入，确保页面装载时 WebChannel 可连接。
+- 修复：拉取结果只有一个模型时，将该模型和当前供应商配置立即保存到本机 `settings.ini`，同时更新默认模型卡片和 AI 助理供应商标签。
+- 验证：AI 桥接、设置 UI 与桌面启动测试通过；重新构建并重启当前开发测试版 Edward.app。

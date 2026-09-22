@@ -8631,7 +8631,17 @@ $("btnFetchModels").addEventListener("click", async () => {
     $("setAiModel").value = result.values[0];
     const catalog = $("setAiModelCatalog"); catalog.replaceChildren();
     for (const model of result.values) { const option = document.createElement("option"); option.value = model; option.textContent = model; catalog.append(option); }
-    setSettingsStatus(`已获取 ${result.values.length} 个模型，已选择第一个。`);
+    if (result.values.length === 1) {
+      const saved = await window.edwardSettings.save($("setAiProviderId").value, $("setAiProvider").value,
+        $("setAiEndpoint").value, $("setAiApiKey").value, result.values[0], $("setAiProtocol").value, "");
+      if (saved) {
+        activeProviderSnapshot = { providerId: $("setAiProviderId").value.trim(), provider: $("setAiProvider").value.trim(),
+          endpoint: $("setAiEndpoint").value.trim(), protocol: $("setAiProtocol").value, model: result.values[0] };
+        syncAiAssistantProvider(activeProviderSnapshot);
+        renderProviderCards(activeProviderSnapshot);
+        setSettingsStatus("仅检测到一个模型，已自动设为默认模型并保存。");
+      } else setSettingsStatus("已获取 1 个模型，但默认模型保存失败。");
+    } else setSettingsStatus(`已获取 ${result.values.length} 个模型，请选择后保存。`);
   } else setSettingsStatus(`模型列表获取失败：${result.message}`);
 });
 $("btnShowProviderForm").addEventListener("click", async () => { showProviderDetail(null, true); await loadProviderPresets(); });

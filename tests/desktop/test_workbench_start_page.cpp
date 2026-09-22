@@ -14,7 +14,8 @@ int main() {
   QFile mainSource(QStringLiteral(EDWARD_SOURCE_DIR "/src/desktop/src/main.cpp"));
   assert(mainSource.open(QIODevice::ReadOnly));
   const auto sourceText = QString::fromUtf8(mainSource.readAll());
-  assert(sourceText.contains(QStringLiteral("qrc:///qtwebchannel/qwebchannel.js")));
+  assert(sourceText.contains(QStringLiteral(":/qtwebchannel/qwebchannel.js")));
+  assert(sourceText.contains(QStringLiteral("setSourceCode")));
   assert(sourceText.contains(QStringLiteral("QWebEngineScript::DocumentCreation")));
   assert(sourceText.contains(QStringLiteral("QProcess::MergedChannels")));
   assert(sourceText.contains(QStringLiteral("recordFablecutDiagnostic")));
