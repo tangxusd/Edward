@@ -28,9 +28,21 @@ test("Edward AI client sends the compact project snapshot through the desktop We
   });
 });
 
+test("Edward AI client waits for a late desktop WebChannel injection", async () => {
+  const bridge = {};
+  const window = {};
+  const QWebChannel = function QWebChannel(_transport, ready) { ready({ objects: { workbenchRuntime: bridge } }); };
+  vm.runInNewContext(source, {
+    window, globalThis: window, Promise, setTimeout, document: {}, QWebChannel,
+  });
+  const pending = window.edwardAi.connect();
+  setTimeout(() => { window.qt = { webChannelTransport: {} }; window.QWebChannel = QWebChannel; }, 5);
+  assert.equal(await pending, bridge);
+});
+
 test("Edward AI client is a safe no-op outside the desktop WebChannel", async () => {
   const window = {};
-  vm.runInNewContext(source, { window, globalThis: window, Promise, document: {} });
+  vm.runInNewContext(source, { window, globalThis: window, Promise, setTimeout, document: {} });
   assert.equal(await window.edwardAi.connect(), null);
   assert.equal(await window.edwardAi.send({ revision: 1, clips: [], resources: [] }, "测试"), false);
 });

@@ -4,18 +4,17 @@
   let bridgePromise = null;
   function connect() {
     if (bridgePromise) return bridgePromise;
-    if (!window.qt || !window.qt.webChannelTransport) return Promise.resolve(null);
     bridgePromise = new Promise((resolve) => {
+      const deadline = Date.now() + 500;
       const start = () => {
-        if (!window.QWebChannel) return resolve(null);
-        new QWebChannel(window.qt.webChannelTransport, (channel) => resolve(channel.objects.workbenchRuntime || null));
+        if (!window.qt || !window.qt.webChannelTransport) {
+          if (Date.now() < deadline) return setTimeout(start, 25);
+          return resolve(null);
+        }
+        if (!window.QWebChannel) return setTimeout(start, 25);
+        new window.QWebChannel(window.qt.webChannelTransport, (channel) => resolve(channel.objects.workbenchRuntime || null));
       };
-      if (window.QWebChannel) return start();
-      const script = document.createElement("script");
-      script.src = "qrc:///qtwebchannel/qwebchannel.js";
-      script.onload = start;
-      script.onerror = () => resolve(null);
-      document.head.appendChild(script);
+      start();
     });
     return bridgePromise;
   }
