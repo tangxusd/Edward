@@ -1,6 +1,23 @@
 set(APP_BUNDLE "${BINARY_DIR}/bin/Edward.app")
 set(OUTPUT_DIR "${BINARY_DIR}/macos-package")
 set(PACKAGE_SCRIPT "${SOURCE_DIR}/packaging/macos/Package.cmake")
+set(PACKAGING_CMAKELISTS "${SOURCE_DIR}/tests/packaging/CMakeLists.txt")
+
+file(READ "${PACKAGING_CMAKELISTS}" PACKAGING_CMAKE_CONTENTS)
+if(NOT PACKAGING_CMAKE_CONTENTS MATCHES
+   "DEPENDS edward_app prepare_macos_development_inputs prepare_macos_development_mlt_runtime")
+  message(FATAL_ERROR
+    "Development package must depend on prepare_macos_development_mlt_runtime so it never packages placeholder MLT inputs")
+endif()
+file(READ "${PACKAGE_SCRIPT}" PACKAGE_SCRIPT_CONTENTS)
+string(FIND "${PACKAGE_SCRIPT_CONTENTS}"
+  "get_filename_component(EDWARD_PACKAGE_SOURCE_DIR \"\${CMAKE_CURRENT_LIST_DIR}/../..\" ABSOLUTE)"
+  PACKAGE_SOURCE_ROOT_INDEX)
+if(PACKAGE_SOURCE_ROOT_INDEX EQUAL -1)
+  message(FATAL_ERROR
+    "Package.cmake must derive its source root from CMAKE_CURRENT_LIST_DIR because cmake -P does not set CMAKE_SOURCE_DIR to the repository")
+endif()
+
 execute_process(
   COMMAND "${CMAKE_COMMAND}"
     -DAPP_BUNDLE=${APP_BUNDLE}

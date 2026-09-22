@@ -6,11 +6,11 @@ namespace {
 QJsonObject plan(QJsonObject operation = {{"type", "move_clip"}, {"targetId", "clip-1"}, {"timelineStart", 0}}) {
   return {{"schemaVersion", "edward.action-plan.v1"}, {"requestId", "request-1"}, {"baseProjectRevision", 3}, {"operations", QJsonArray{operation}}};
 }
-void testRejectsUnknownOperationAndIr() {
+void testRejectsUnknownOperationAndUnexpectedPayload() {
   QString error;
-  auto invalid = plan({{"type", "component_ir"}});
+  auto invalid = plan({{"type", "unknown_operation"}});
   assert(!edward::ai::ActionPlan::parse(invalid, &error));
-  invalid = plan(); invalid.insert("componentIr", QJsonObject{});
+  invalid = plan(); invalid.insert("unexpectedPayload", QJsonObject{});
   assert(!edward::ai::ActionPlan::parse(invalid, &error));
 }
 void testRejectsStaleRevision() {
@@ -28,4 +28,4 @@ void testRejectsPartialOrUnexpectedOperations() {
   assert(!edward::ai::ActionPlan::parse(plan({{"type", "remove_clip"}, {"targetId", "clip-1"}, {"path", "/tmp"}}), &error));
 }
 }
-int main() { testRejectsUnknownOperationAndIr(); testRejectsStaleRevision(); testRequiresExplicitExport(); testRejectsPartialOrUnexpectedOperations(); }
+int main() { testRejectsUnknownOperationAndUnexpectedPayload(); testRejectsStaleRevision(); testRequiresExplicitExport(); testRejectsPartialOrUnexpectedOperations(); }

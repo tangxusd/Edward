@@ -18,6 +18,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { spawn, spawnSync, execFile } = require("child_process");
 
 const { analyze } = require("./analyze");
@@ -32,9 +33,11 @@ const {
   dryRunProfile,
 } = require("./encode-profiles");
 const { downloadImportUrl, maybeFaststart } = require("./import-url");
+const { resourceCacheKey, validateCacheIdentity, validateCacheIndex, cacheFileMetadata, cacheFilesMatchMetadata, cacheDirectory, safeRelativePath } = require("./resource-cache");
+const { extractZipBuffer } = require("./zip-extract");
 
 const {
-  APP_DIR, DATA_DIR, MEDIA_DIR, EXPORTS_DIR, ANALYSIS_DIR, LIBRARY_DIR,
+  APP_DIR, DATA_DIR, MEDIA_DIR, EXPORTS_DIR, ANALYSIS_DIR, RESOURCE_CACHE_DIR, LIBRARY_DIR,
   PROJECT_FILE, LIBRARY_SUBDIRS, COMPONENTS_DIR, ensureDirs,
 } = require("./paths");
 // macOS metadata files (for example .DS_Store and ._image.svg) are never user assets.
@@ -50,6 +53,9 @@ const PORT = process.env.PORT || 7777;
 const HOST = process.env.HOST || "127.0.0.1";
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
+const resourceCacheJobs = new Map();
+const resourceCacheVerification = new Map();
+const resourceCacheSessions = new Map();
 
 /* Requests must come from the local machine (or an explicitly allowed host).
    The Host check stops DNS rebinding; the Origin check stops malicious web
@@ -93,6 +99,7 @@ const MIME = {
 };
 
 ensureDirs();
+fs.mkdirSync(RESOURCE_CACHE_DIR, { recursive: true });
 if (!fs.existsSync(PROJECT_FILE)) {
   fs.writeFileSync(PROJECT_FILE, JSON.stringify({
     name: "Untitled Project", width: 1280, height: 720, fps: 30,
@@ -136,10 +143,24 @@ if (process.env.FABLECUT_NO_FS_WATCH !== "1") {
 function safeName(name) {
   return name.replace(/[^\w.\- ()\[\]]+/g, "_").slice(0, 120) || "file";
 }
-function sendJSON(res, code, obj) {
+function sendJSON(res, code, obj, headers = {}) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+  res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers });
   res.end(body);
+}
+function readComponentManifest(id) {
+  const dir = path.join(COMPONENTS_DIR, id);
+  if (!dir.startsWith(COMPONENTS_DIR + path.sep)) return null;
+  const legacyFile = path.join(dir, "manifest.json");
+  const runtimeFile = path.join(dir, "edward-runtime.json");
+  let legacy = null, runtime = null;
+  try { if (fs.existsSync(legacyFile)) legacy = JSON.parse(fs.readFileSync(legacyFile, "utf8")); } catch {}
+  try { if (fs.existsSync(runtimeFile)) runtime = JSON.parse(fs.readFileSync(runtimeFile, "utf8")); } catch {}
+  if (runtime?.protocol === "edward.web-runtime.v1" && typeof runtime.previewEntry === "string" &&
+      typeof runtime.renderEntry === "string" && typeof runtime.runtime === "string") {
+    return { ...(legacy || {}), ...runtime, id, name: legacy?.name || id, category: legacy?.category || "annotation" };
+  }
+  return legacy && typeof legacy.name === "string" && typeof legacy.entry === "string" ? { ...legacy, id } : null;
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -207,10 +228,18 @@ function run(cmd, args) {
 }
 async function supabaseProxy(pathname, req, body) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("supabase_not_configured");
-  const headers = { apikey: SUPABASE_ANON_KEY, Accept: "application/json" };
-  if (req.headers.authorization) headers.Authorization = req.headers.authorization;
+  const headers = { apikey: SUPABASE_ANON_KEY, Accept: "application/json",
+    Authorization: req.headers.authorization || `Bearer ${SUPABASE_ANON_KEY}` };
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const response = await fetch(SUPABASE_URL + pathname, { method: body === undefined ? "GET" : "POST", headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let response;
+  try {
+    response = await fetch(SUPABASE_URL + pathname, { method: body === undefined ? "GET" : "POST", headers, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") return { status: 504, value: { error: "supabase_timeout", path: pathname } };
+    throw error;
+  } finally { clearTimeout(timeout); }
   const text = await response.text();
   let value; try { value = JSON.parse(text); } catch { value = { error: text.slice(0, 300) }; }
   return { status: response.status, value };
@@ -221,6 +250,183 @@ async function supabaseAuth(pathname, body) {
   const text = await response.text();
   let value; try { value = JSON.parse(text); } catch { value = { error: "auth_unavailable" }; }
   return { status: response.status, value };
+}
+
+function resourceCacheLog(event, fields = {}) {
+  const record = { time: new Date().toISOString(), event, ...fields };
+  const line = JSON.stringify(record) + "\n";
+  try { fs.appendFileSync(path.join(DATA_DIR, "resource-cache.log"), line, { mode: 0o600 }); } catch {}
+  console.log(`resource ${event} ${Object.entries(fields).map(([key, value]) => `${key}=${String(value).replace(/[\r\n ]/g, "_").slice(0, 160)}`).join(" ")}`.trim());
+}
+function resourceRequestId() { return crypto.randomBytes(12).toString("hex"); }
+function resourceCacheSession(req) {
+  const match = /(?:^|;\s*)fablecut-resource-session=([a-f0-9]{48})(?:;|$)/.exec(String(req.headers.cookie || ""));
+  if (!match) return false;
+  const expiresAt = resourceCacheSessions.get(match[1]);
+  if (!expiresAt || expiresAt < Date.now()) { resourceCacheSessions.delete(match[1]); return false; }
+  return true;
+}
+function issueResourceCacheSession() {
+  const token = crypto.randomBytes(24).toString("hex");
+  resourceCacheSessions.set(token, Date.now() + 15 * 60 * 1000);
+  return token;
+}
+function safeResourceReason(error) {
+  const reason = String(error?.message || error || "internal_error");
+  return /^[a-z0-9_:-]{1,120}$/i.test(reason) ? reason : "internal_error";
+}
+function sha256(bytes) { return crypto.createHash("sha256").update(bytes).digest("hex"); }
+function parseResourceCacheKey(key) {
+  const match = /^([a-z0-9][a-z0-9._-]{2,127})@(\d+\.\d+\.\d+)#([a-f0-9]{64})$/.exec(String(key || ""));
+  return match ? { componentId: match[1], version: match[2], contentHash: match[3] } : null;
+}
+function readResourceCache(key) {
+  const identity = parseResourceCacheKey(key);
+  if (!identity) return null;
+  const directory = cacheDirectory(RESOURCE_CACHE_DIR, identity);
+  const indexPath = path.join(directory, "cache.json");
+  try {
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    if (!validateCacheIndex(index, { requireMetadata: false }).ok || resourceCacheKey(index) !== key) return null;
+    return { identity, directory, index };
+  } catch { return null; }
+}
+async function fetchSignedResource(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error("resource_download_failed");
+    return Buffer.from(await response.arrayBuffer());
+  } finally { clearTimeout(timer); }
+}
+function verifyRuntimeManifest(runtime, packageManifest) {
+  const runtimes = new Set(["react", "html-css", "gsap", "svg"]);
+  if (!runtime || runtime.protocol !== "edward.web-runtime.v1" || !runtimes.has(runtime.runtime)) throw new Error("runtime_manifest_invalid");
+  if (!safeRelativePath(runtime.previewEntry) || !safeRelativePath(runtime.renderEntry)) throw new Error("runtime_entry_invalid");
+  const timeline = packageManifest?.timeline;
+  const runtimeProperties = Array.isArray(runtime.editableProperties) ? runtime.editableProperties : [];
+  const runtimeTracks = Array.isArray(runtime.editableTracks) ? runtime.editableTracks : [];
+  const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((value, index) => value === b[index]);
+  const schemaValid = runtime.propsSchema && runtime.propsSchema.type === "object" && runtime.propsSchema.additionalProperties === false && runtime.propsSchema.properties && typeof runtime.propsSchema.properties === "object";
+  const propertiesComplete = schemaValid && [...runtimeProperties, ...runtimeTracks.map((track) => String(track).split(".")[0])].every((property) => Object.hasOwn(runtime.propsSchema.properties, property));
+  if (!Number.isInteger(runtime.fps) || !Number.isInteger(runtime.durationInFrames) || !timeline || runtime.fps !== timeline.authoringFps || runtime.durationInFrames !== timeline.durationFrames || !sameList(runtimeProperties, packageManifest.editableProperties) || !sameList(runtimeTracks, packageManifest.editableTracks) || !schemaValid || !propertiesComplete || !runtime.capabilities?.preview || !runtime.capabilities?.export) throw new Error("runtime_contract_invalid");
+  const assets = Array.isArray(packageManifest.assets) ? packageManifest.assets : [];
+  const allowed = new Set(["edward-runtime.json", runtime.previewEntry, runtime.renderEntry]);
+  for (const asset of assets) {
+    if (!asset || !safeRelativePath(asset.path) || !/^[a-f0-9]{64}$/.test(String(asset.sha256 || ""))) throw new Error("asset_manifest_invalid");
+    allowed.add(asset.path);
+  }
+  return allowed;
+}
+function validateExtractedAssets(runtimeDir, packageManifest, allowedPaths) {
+  for (const asset of packageManifest.assets || []) {
+    const file = path.join(runtimeDir, asset.path);
+    if (!file.startsWith(runtimeDir + path.sep) || !fs.existsSync(file) || fs.statSync(file).size !== asset.bytes || sha256(fs.readFileSync(file)) !== asset.sha256) throw new Error("asset_hash_invalid");
+  }
+  for (const entry of allowedPaths) {
+    const file = path.join(runtimeDir, entry);
+    if (!file.startsWith(runtimeDir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error("runtime_entry_missing");
+  }
+}
+function validateCachedResource(existing) {
+  const { directory, identity, index } = existing;
+  for (const relativePath of index.files) {
+    const file = path.join(directory, relativePath);
+    if (!file.startsWith(directory + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile() || sha256(fs.readFileSync(file)) !== index.fileHashes[relativePath])
+      throw new Error("cache_file_hash_invalid");
+  }
+  const packageBytes = fs.readFileSync(path.join(directory, "package.zip"));
+  if (sha256(packageBytes) !== identity.contentHash) throw new Error("cache_package_hash_invalid");
+  const packageManifest = JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf8"));
+  if (packageManifest.component_id !== identity.componentId || packageManifest.version !== identity.version) throw new Error("cache_manifest_mismatch");
+  const runtimeDirectory = path.join(directory, "runtime");
+  const runtime = JSON.parse(fs.readFileSync(path.join(runtimeDirectory, "edward-runtime.json"), "utf8"));
+  const allowedPaths = verifyRuntimeManifest(runtime, packageManifest);
+  validateExtractedAssets(runtimeDirectory, packageManifest, allowedPaths);
+  const preview = fs.readFileSync(path.join(directory, "preview.mp4"));
+  if (preview.length < 12 || preview.subarray(4, 8).toString("ascii") !== "ftyp") throw new Error("cache_preview_invalid");
+  return runtime;
+}
+function runtimeWithIdentity(runtime, identity) {
+  return { ...runtime, componentId: identity.componentId, version: identity.version, contentHash: identity.contentHash };
+}
+function readVerifiedResourceCache(key) {
+  const existing = readResourceCache(key);
+  if (!existing) return null;
+  try {
+    const verified = resourceCacheVerification.get(key);
+    if (verified && cacheFilesMatchMetadata(existing.directory, existing.index)) return { ...existing, runtime: verified.runtime };
+    const runtime = validateCachedResource(existing);
+    existing.index.fileMetadata = Object.fromEntries(existing.index.files.map((relativePath) => [relativePath, cacheFileMetadata(path.join(existing.directory, relativePath))]));
+    fs.writeFileSync(path.join(existing.directory, "cache.json"), JSON.stringify(existing.index));
+    resourceCacheVerification.set(key, { runtime });
+    return { ...existing, runtime };
+  } catch (error) {
+    fs.rmSync(existing.directory, { recursive: true, force: true });
+    resourceCacheVerification.delete(key);
+    resourceCacheLog("resource_cache_invalidated", { componentId: existing.identity.componentId, version: existing.identity.version, contentHash: existing.identity.contentHash, reason: safeResourceReason(error) });
+    return null;
+  }
+}
+async function cacheResourcePackage(req, request, requestId) {
+  const identity = { componentId: request.componentId, version: request.version, contentHash: request.contentHash };
+  if (typeof request.resourceId !== "string" || !validateCacheIdentity(identity).ok) throw new Error("invalid_cache_request");
+  const detail = await supabaseProxy(`/functions/v1/resource-detail?resourceId=${encodeURIComponent(request.resourceId)}&version=${encodeURIComponent(identity.version)}&contentHash=${encodeURIComponent(identity.contentHash)}`, req);
+  if (detail.status !== 200 || !detail.value?.resource || !detail.value?.version) throw new Error("resource_detail_unavailable");
+  if (detail.value.resource.component_id !== identity.componentId || detail.value.resource.target !== "web.runtime" || detail.value.version.version !== identity.version || detail.value.version.content_hash !== identity.contentHash) throw new Error("resource_identity_mismatch");
+  const key = resourceCacheKey(identity);
+  const existing = readVerifiedResourceCache(key);
+  if (existing) {
+    return { state: "ready", key, previewUrl: `/api/resources/cache-preview?key=${encodeURIComponent(key)}`, manifest: runtimeWithIdentity(existing.runtime, identity) };
+  }
+  if (resourceCacheJobs.has(key)) return resourceCacheJobs.get(key);
+  const task = (async () => {
+    const [manifestBytes, packageBytes, previewBytes] = await Promise.all([fetchSignedResource(detail.value.manifestUrl), fetchSignedResource(detail.value.packageUrl), fetchSignedResource(detail.value.previewUrl)]);
+    if (sha256(packageBytes) !== identity.contentHash) throw new Error("package_hash_invalid");
+    const packageManifest = JSON.parse(manifestBytes.toString("utf8"));
+    if (packageManifest.component_id !== identity.componentId || packageManifest.version !== identity.version) throw new Error("package_manifest_mismatch");
+    const finalDirectory = cacheDirectory(RESOURCE_CACHE_DIR, identity);
+    const temporaryDirectory = `${finalDirectory}.tmp-${process.pid}-${crypto.randomBytes(6).toString("hex")}`;
+    try {
+      fs.mkdirSync(temporaryDirectory, { recursive: false });
+      fs.writeFileSync(path.join(temporaryDirectory, "manifest.json"), manifestBytes, { flag: "wx" });
+      fs.writeFileSync(path.join(temporaryDirectory, "package.zip"), packageBytes, { flag: "wx" });
+      fs.writeFileSync(path.join(temporaryDirectory, "preview.mp4"), previewBytes, { flag: "wx" });
+      const runtimeDirectory = path.join(temporaryDirectory, "runtime");
+      fs.mkdirSync(runtimeDirectory);
+      const extracted = extractZipBuffer(packageBytes, runtimeDirectory);
+      const runtimePath = path.join(runtimeDirectory, "edward-runtime.json");
+      const runtime = JSON.parse(fs.readFileSync(runtimePath, "utf8"));
+      const allowedPaths = verifyRuntimeManifest(runtime, packageManifest);
+      validateExtractedAssets(runtimeDirectory, packageManifest, allowedPaths);
+      const files = ["manifest.json", "package.zip", "preview.mp4", ...extracted.map((entry) => `runtime/${entry}`)];
+      const fileHashes = Object.fromEntries(files.map((relativePath) => [relativePath, sha256(fs.readFileSync(path.join(temporaryDirectory, relativePath)))]));
+      const fileMetadata = Object.fromEntries(files.map((relativePath) => [relativePath, cacheFileMetadata(path.join(temporaryDirectory, relativePath))]));
+      const index = { ...identity, resourceId: request.resourceId, files, fileHashes, fileMetadata };
+      if (!validateCacheIndex(index).ok) throw new Error("cache_index_invalid");
+      fs.writeFileSync(path.join(temporaryDirectory, "cache.json"), JSON.stringify(index), { flag: "wx" });
+      if (!fs.existsSync(finalDirectory)) fs.renameSync(temporaryDirectory, finalDirectory);
+      else fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+      resourceCacheVerification.set(key, { runtime });
+      resourceCacheLog("resource_cache_ready", { requestId, componentId: identity.componentId, version: identity.version, contentHash: identity.contentHash });
+      return { state: "ready", key, previewUrl: `/api/resources/cache-preview?key=${encodeURIComponent(key)}`, manifest: runtimeWithIdentity(runtime, identity) };
+    } catch (error) {
+      fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+      resourceCacheLog("resource_cache_failed", { requestId, componentId: identity.componentId, version: identity.version, contentHash: identity.contentHash, reason: safeResourceReason(error) });
+      throw error;
+    }
+  })();
+  resourceCacheJobs.set(key, task);
+  try { return await task; } finally { resourceCacheJobs.delete(key); }
+}
+
+function clearResourceCache() {
+  fs.rmSync(RESOURCE_CACHE_DIR, { recursive: true, force: true });
+  fs.mkdirSync(RESOURCE_CACHE_DIR, { recursive: true, mode: 0o700 });
+  resourceCacheVerification.clear();
+  resourceCacheJobs.clear();
+  resourceCacheSessions.clear();
 }
 
 /* Remux MP4-family uploads with `+faststart` so the moov atom leads the file —
@@ -476,42 +682,144 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
     return;
   }
-  if ((p === "/api/auth/login" || p === "/api/auth/signup" || p === "/api/auth/refresh") && req.method === "POST") {
+  if ((p === "/api/auth/login" || p === "/api/auth/signup" || p === "/api/auth/recover" || p === "/api/auth/refresh") && req.method === "POST") {
     try {
       const body = JSON.parse((await readBody(req)).toString("utf8"));
-      const pathName = p === "/api/auth/login" ? "/functions/v1/auth-login" : p === "/api/auth/signup" ? "/functions/v1/auth-register" : "/auth/v1/token?grant_type=refresh_token";
+      const pathName = p === "/api/auth/login" ? "/functions/v1/auth-login" : p === "/api/auth/signup" ? "/functions/v1/auth-register" : p === "/api/auth/recover" ? "/auth/v1/recover" : "/auth/v1/token?grant_type=refresh_token";
+      if (p === "/api/auth/recover") body.redirect_to = "https://auth-recovery.vercel.app/?flow=recovery";
       const result = await supabaseAuth(pathName, body);
       sendJSON(res, result.status, result.value);
     } catch (e) { sendJSON(res, 400, { error: String(e.message || e) }); }
     return;
   }
+  if (p === "/api/auth/session" && req.method === "GET") {
+    try {
+      const result = await supabaseProxy("/auth/v1/user", req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: "auth_unavailable" }); }
+    return;
+  }
+  if (p === "/api/resources/cache-session" && req.method === "POST") {
+    try {
+      const result = await supabaseProxy("/auth/v1/user", req);
+      if (result.status !== 200) { sendJSON(res, result.status, result.value); return; }
+      const token = issueResourceCacheSession();
+      sendJSON(res, 200, { ok: true }, { "Set-Cookie": `fablecut-resource-session=${token}; HttpOnly; SameSite=Strict; Path=/api/resources; Max-Age=900` });
+    } catch { sendJSON(res, 503, { error: "auth_unavailable" }); }
+    return;
+  }
   if (p === "/api/auth/entitlements" && req.method === "GET") {
     try {
-      const result = await supabaseProxy("/rest/v1/entitlements?select=plan_key,status,starts_at,expires_at,updated_at&order=updated_at.desc", req);
+      const result = await supabaseProxy("/functions/v1/auth-entitlement", req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/subscription/catalog" && req.method === "GET") {
+    try {
+      const result = await supabaseProxy("/functions/v1/subscription-catalog", req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/subscription/banner" && req.method === "GET") {
+    try {
+      const query = new URLSearchParams({ select: "image_url,title,href", status: "eq.active", order: "sort_order.asc", limit: "1" });
+      const result = await supabaseProxy(`/rest/v1/subscription_banners?${query}`, req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/settings/provider-presets" && req.method === "GET") {
+    try {
+      const result = await supabaseProxy("/functions/v1/model-provider-presets", req);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/settings/preferences" && (req.method === "GET" || req.method === "POST")) {
+    try {
+      const body = req.method === "POST" ? JSON.parse((await readBody(req)).toString("utf8")) : undefined;
+      const result = await supabaseProxy("/functions/v1/preference-sync", req, body);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/settings/feedback" && req.method === "POST") {
+    try {
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const result = await supabaseProxy("/functions/v1/desktop-feedback", req, body);
       sendJSON(res, result.status, result.value);
     } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
     return;
   }
   if (p === "/api/resources/catalog" && req.method === "GET") {
+    const startedAt = Date.now();
     try {
       const query = new URLSearchParams(url.searchParams);
       const result = await supabaseProxy(`/functions/v1/resource-catalog?${query}`, req);
+      resourceCacheLog("resource_catalog", { tab: query.get("tabKey") || "", filter: query.get("filter") || query.get("sort") || "latest", category: query.get("categoryId") || "all", status: result.status, durationMs: Date.now() - startedAt, count: Array.isArray(result.value) ? result.value.length : Number(result.value?.items?.length || 0) });
       sendJSON(res, result.status, result.value);
-    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    } catch (e) { resourceCacheLog("resource_catalog_error", { status: 503, durationMs: Date.now() - startedAt, reason: String(e.message || e) }); sendJSON(res, 503, { error: String(e.message || e) }); }
     return;
   }
   if (p === "/api/resources/detail" && req.method === "GET") {
+    const requestId = resourceRequestId();
+    const startedAt = Date.now();
     try {
       const result = await supabaseProxy(`/functions/v1/resource-detail?${url.searchParams}`, req);
+      resourceCacheLog("resource_detail", { requestId, resourceId: url.searchParams.get("resourceId") || url.searchParams.get("id") || "unknown", status: result.status, durationMs: Date.now() - startedAt });
       sendJSON(res, result.status, result.value);
-    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    } catch (e) { resourceCacheLog("resource_detail_error", { requestId, status: 503, durationMs: Date.now() - startedAt, reason: safeResourceReason(e) }); sendJSON(res, 503, { error: "resource_detail_unavailable" }); }
+    return;
+  }
+  if (p === "/api/resources/cache" && req.method === "POST") {
+    const requestId = resourceRequestId();
+    const startedAt = Date.now();
+    let body = null;
+    try {
+      body = JSON.parse((await readBody(req)).toString("utf8"));
+      sendJSON(res, 200, await cacheResourcePackage(req, body, requestId));
+    } catch (e) { resourceCacheLog("resource_cache_request_error", { requestId, componentId: body?.componentId || "unknown", version: body?.version || "unknown", contentHash: body?.contentHash || "unknown", status: 422, durationMs: Date.now() - startedAt, reason: safeResourceReason(e) }); sendJSON(res, 422, { error: "resource_cache_unavailable" }); }
+    return;
+  }
+  if (p === "/api/resources/cache" && req.method === "DELETE") {
+    clearResourceCache();
+    sendJSON(res, 200, { ok: true });
+    return;
+  }
+  if (p === "/api/resources/cache-preview" && req.method === "GET") {
+    if (!resourceCacheSession(req)) { sendJSON(res, 401, { error: "authentication_required" }); return; }
+    const cache = readVerifiedResourceCache(url.searchParams.get("key"));
+    if (!cache) { sendJSON(res, 404, { error: "resource_cache_not_found" }); return; }
+    serveFile(req, res, path.join(cache.directory, "preview.mp4"));
+    return;
+  }
+  if (p === "/api/resources/cache-entry" && req.method === "GET") {
+    if (!resourceCacheSession(req)) { sendJSON(res, 401, { error: "authentication_required" }); return; }
+    const cache = readVerifiedResourceCache(url.searchParams.get("key"));
+    const entry = url.searchParams.get("path") || "";
+    if (!cache || !safeRelativePath(entry)) { sendJSON(res, 404, { error: "resource_cache_entry_not_found" }); return; }
+    try {
+      const packageManifest = JSON.parse(fs.readFileSync(path.join(cache.directory, "manifest.json"), "utf8"));
+      const allowed = verifyRuntimeManifest(cache.runtime, packageManifest);
+      if (!allowed.has(entry)) { sendJSON(res, 403, { error: "resource_cache_entry_forbidden" }); return; }
+      const file = path.join(cache.directory, "runtime", entry);
+      if (!file.startsWith(path.join(cache.directory, "runtime") + path.sep)) { sendJSON(res, 403, { error: "resource_cache_entry_forbidden" }); return; }
+      if (entry === "edward-runtime.json") sendJSON(res, 200, { ...cache.runtime, componentId: cache.identity.componentId, version: cache.identity.version, contentHash: cache.identity.contentHash });
+      else serveFile(req, res, file);
+    } catch { sendJSON(res, 404, { error: "resource_cache_entry_not_found" }); }
     return;
   }
   if (p === "/api/resources/favorite" && req.method === "POST") {
+    const requestId = resourceRequestId();
+    const startedAt = Date.now();
     try {
-      const result = await supabaseProxy("/functions/v1/resource-favorite", req, JSON.parse((await readBody(req)).toString("utf8")));
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const result = await supabaseProxy("/functions/v1/resource-favorite", req, body);
+      resourceCacheLog("resource_favorite", { requestId, resourceId: body?.resourceId || "unknown", favorite: body?.favorite === true ? "true" : body?.favorite === false ? "false" : "invalid", status: result.status, durationMs: Date.now() - startedAt });
       sendJSON(res, result.status, result.value);
-    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    } catch (e) { resourceCacheLog("resource_favorite_error", { requestId, status: 503, durationMs: Date.now() - startedAt, reason: safeResourceReason(e) }); sendJSON(res, 503, { error: "resource_favorite_unavailable" }); }
     return;
   }
   if (p === "/api/payment/native" && req.method === "POST") {
@@ -522,7 +830,30 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
     return;
   }
-
+  if (p === "/api/payment/alipay" && req.method === "POST") {
+    try {
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const result = await supabaseProxy("/functions/v1/alipay-create-order", req, body);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/payment/alipay/status" && req.method === "POST") {
+    try {
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const result = await supabaseProxy("/functions/v1/alipay-query-order", req, body);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
+  if (p === "/api/payment/alipay/state" && req.method === "POST") {
+    try {
+      const body = JSON.parse((await readBody(req)).toString("utf8"));
+      const result = await supabaseProxy("/functions/v1/alipay-order-state", req, body);
+      sendJSON(res, result.status, result.value);
+    } catch (e) { sendJSON(res, 503, { error: String(e.message || e) }); }
+    return;
+  }
   /* API: media library listing */
   if (p === "/api/media" && req.method === "GET") {
     try {
@@ -568,13 +899,8 @@ const server = http.createServer(async (req, res) => {
         if (!isVisibleResourceName(name)) continue;
         const dir = path.join(COMPONENTS_DIR, name);
         if (!fs.statSync(dir).isDirectory()) continue;
-        const file = path.join(dir, "manifest.json");
-        if (!fs.existsSync(file)) continue;
-        try {
-          const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-          if (manifest && typeof manifest.name === "string" && typeof manifest.entry === "string")
-            components.push({ ...manifest, id: name });
-        } catch {}
+        const manifest = readComponentManifest(name);
+        if (manifest) components.push(manifest);
       }
       sendJSON(res, 200, components);
     } catch (e) { sendJSON(res, 500, { error: String(e) }); }
@@ -582,12 +908,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (p.startsWith("/api/components/") && req.method === "GET") {
     const id = path.basename(p);
-    const file = path.join(COMPONENTS_DIR, id, "manifest.json");
-    if (!file.startsWith(COMPONENTS_DIR + path.sep) || !fs.existsSync(file)) {
+    const manifest = readComponentManifest(id);
+    if (!manifest) {
       sendJSON(res, 404, { error: "component not found" }); return;
     }
-    try { sendJSON(res, 200, { ...JSON.parse(fs.readFileSync(file, "utf8")), id }); }
-    catch (e) { sendJSON(res, 500, { error: String(e) }); }
+    sendJSON(res, 200, manifest);
     return;
   }
 

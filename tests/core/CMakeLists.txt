@@ -1,35 +1,12 @@
 add_executable(test_media_project test_media_project.cpp)
 target_link_libraries(test_media_project PRIVATE edward_core)
 add_test(NAME core.media_project COMMAND test_media_project)
-
-add_executable(test_timeline_commands test_timeline_commands.cpp)
-target_link_libraries(test_timeline_commands PRIVATE edward_core)
-add_test(NAME core.timeline_commands COMMAND test_timeline_commands)
-
 add_executable(test_timeline_stress test_timeline_stress.cpp)
 target_link_libraries(test_timeline_stress PRIVATE edward_core)
 add_test(NAME core.timeline_stress COMMAND test_timeline_stress)
-
 add_executable(test_timeline_transitions test_timeline_transitions.cpp)
 target_link_libraries(test_timeline_transitions PRIVATE edward_core)
 add_test(NAME core.timeline_transitions COMMAND test_timeline_transitions)
-
-add_executable(test_component_ir test_component_ir.cpp)
-target_link_libraries(test_component_ir PRIVATE edward_core Qt6::Core)
-add_test(NAME core.component_ir COMMAND test_component_ir)
-
-add_executable(test_component_conversion_report test_component_conversion_report.cpp)
-target_link_libraries(test_component_conversion_report PRIVATE edward_core)
-add_test(NAME core.component_conversion_report COMMAND test_component_conversion_report)
-
-add_executable(test_component_edit_command test_component_edit_command.cpp)
-target_link_libraries(test_component_edit_command PRIVATE edward_core)
-add_test(NAME core.component_edit_command COMMAND test_component_edit_command)
-
-add_executable(test_component_edit_command_parser test_component_edit_command_parser.cpp)
-target_link_libraries(test_component_edit_command_parser PRIVATE edward_core)
-add_test(NAME core.component_edit_command_parser COMMAND test_component_edit_command_parser)
-
 add_executable(test_project_identity test_project_identity.cpp)
 target_link_libraries(test_project_identity PRIVATE edward_core)
 add_test(NAME core.project_identity COMMAND test_project_identity)

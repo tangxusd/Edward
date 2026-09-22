@@ -71,10 +71,11 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
 
 bool SupabaseAuthClient::sendPasswordReset(const SupabaseAuthConfig& config, const QString& email) {
   if (email.trimmed().isEmpty() || !email.contains(QLatin1Char('@'))) { emit completed(false, QStringLiteral("请输入注册邮箱")); return false; }
+  const QString redirectTo = QStringLiteral("https://auth-recovery.vercel.app/?flow=recovery");
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/recover"));
-  QUrlQuery redirectQuery; redirectQuery.addQueryItem(QStringLiteral("redirect_to"), QStringLiteral("https://auth-recovery.vercel.app/")); endpoint.setQuery(redirectQuery);
+  QUrlQuery redirectQuery; redirectQuery.addQueryItem(QStringLiteral("redirect_to"), redirectTo); endpoint.setQuery(redirectQuery);
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
-  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}, {"redirect_to", "https://auth-recovery.vercel.app/"}, {"options", QJsonObject{{"redirectTo", "https://auth-recovery.vercel.app/"}}}}).toJson(QJsonDocument::Compact));
+  auto* reply = network_.post(request, QJsonDocument(QJsonObject{{"email", email.trimmed()}, {"redirect_to", redirectTo}, {"options", QJsonObject{{"redirectTo", redirectTo}}}}).toJson(QJsonDocument::Compact));
   connect(reply, &QNetworkReply::finished, this, [this, reply] {
     const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const bool ok = reply->error() == QNetworkReply::NoError && status >= 200 && status < 300;
@@ -93,18 +94,77 @@ bool SupabaseAuthClient::signUpWithPassword(const SupabaseAuthConfig& config, co
   connect(reply, &QNetworkReply::finished, this, [this, reply] {
     const auto raw = reply->readAll();
     const auto object = QJsonDocument::fromJson(raw).object();
-    const auto code = object.value(QStringLiteral("error")).toString();
-    const bool ok = reply->error() == QNetworkReply::NoError && code.isEmpty();
+    const auto code = object.value(QStringLiteral("code")).toString(object.value(QStringLiteral("error")).toString());
+    const bool ok = reply->error() == QNetworkReply::NoError && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 300 && code == QStringLiteral("confirmation_pending");
     QString message = ok ? QStringLiteral("注册请求已提交，请检查邮箱") : reply->errorString();
     if (!code.isEmpty()) {
       const QHash<QString, QString> messages{{QStringLiteral("invalid_registration"), QStringLiteral("请使用有效邮箱，密码至少 8 位，用户名 3～32 个字符")},
                                              {QStringLiteral("rate_limited"), QStringLiteral("注册请求过于频繁，请稍后再试")},
                                              {QStringLiteral("registration_unavailable"), QStringLiteral("注册失败，请稍后重试")},
                                              {QStringLiteral("email_already_registered"), QStringLiteral("该邮箱已完成注册，请直接登录")},
-                                             {QStringLiteral("email_confirmation_required"), QStringLiteral("当前未启用邮箱确认，注册未完成，请在 Supabase Auth 中启用邮箱确认")}};
-      message = messages.value(code, QStringLiteral("注册失败：%1").arg(code));
+                                             {QStringLiteral("email_delivery_unavailable"), QStringLiteral("确认邮件发送失败，请检查 Supabase 邮件服务配置后重试")},
+                                             {QStringLiteral("email_confirmation_required"), QStringLiteral("确认邮件已发送，请检查邮箱并完成验证")},
+                                             {QStringLiteral("confirmation_pending"), QStringLiteral("确认邮件已发送，请在 10 分钟内确认完成")},
+                                             {QStringLiteral("account_active"), QStringLiteral("该邮箱已完成注册，请直接登录")},
+                                             {QStringLiteral("device_already_registered"), QStringLiteral("该设备已注册账号，请直接登录或使用其他设备")},
+                                             {QStringLiteral("invalid_device"), QStringLiteral("无法读取设备标识，请检查系统权限后重试")}};
+      message = messages.value(code, QStringLiteral("注册暂时无法完成，请稍后重试"));
     }
     emit completed(ok, message);
+    reply->deleteLater();
+  });
+  return true;
+}
+
+bool SupabaseAuthClient::signUpWithDevice(const SupabaseAuthConfig& config, const QString& email,
+                                          const QString& password, const QString& username,
+                                          const DeviceIdentity& device) {
+  if (email.trimmed().isEmpty() || password.isEmpty() || username.trimmed().isEmpty() || !device.valid()) {
+    emit completed(false, device.error.isEmpty() ? QStringLiteral("请填写完整的注册信息。") : device.error); return false;
+  }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/auth-register"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
+  const QJsonObject body{{"email", email.trimmed()}, {"password", password}, {"username", username.trimmed()}, {"deviceSerial", device.serial}, {"deviceMac", device.mac}};
+  auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object();
+    const bool ok = reply->error() == QNetworkReply::NoError && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 300;
+    emit completed(ok, object.value("message").toString(ok ? QStringLiteral("确认邮件已发送，请在 10 分钟内确认完成。") : QStringLiteral("注册暂时无法完成，请稍后重试。"))); reply->deleteLater();
+  });
+  return true;
+}
+
+bool SupabaseAuthClient::beginPasswordRecovery(const SupabaseAuthConfig& config, const QString& email,
+                                               const DeviceIdentity& device) {
+  if (email.trimmed().isEmpty() || !device.valid()) { emit completed(false, device.error.isEmpty() ? QStringLiteral("请输入注册邮箱。") : device.error); return false; }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/auth-recover"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());
+  const QJsonObject body{{"email", email.trimmed()}, {"deviceSerial", device.serial}, {"deviceMac", device.mac}};
+  auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object();
+    const bool ok = reply->error() == QNetworkReply::NoError && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 300;
+    emit completed(ok, object.value("message").toString(ok ? QStringLiteral("如该邮箱可使用，重置链接已发送，请检查邮箱。") : QStringLiteral("认证服务暂时不可用，请稍后重试。"))); reply->deleteLater();
+  });
+  return true;
+}
+
+bool SupabaseAuthClient::enrollDevice(const SupabaseAuthConfig& config, const QString& accessToken,
+                                      const DeviceIdentity& device) {
+  if (accessToken.trimmed().isEmpty() || !device.valid()) {
+    emit completed(false, device.error.isEmpty() ? QStringLiteral("设备校验暂时无法完成。") : device.error);
+    return false;
+  }
+  QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/functions/v1/auth-device-enroll"));
+  QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  request.setRawHeader("apikey", config.anonKey.toUtf8());
+  request.setRawHeader("Authorization", (QStringLiteral("Bearer ") + accessToken.trimmed()).toUtf8());
+  const QJsonObject body{{"deviceSerial", device.serial}, {"deviceMac", device.mac}};
+  auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    const auto object = QJsonDocument::fromJson(reply->readAll()).object();
+    const bool ok = reply->error() == QNetworkReply::NoError && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() < 300;
+    emit completed(ok, object.value("message").toString(ok ? QStringLiteral("设备校验完成。") : QStringLiteral("设备校验暂时无法完成。")));
     reply->deleteLater();
   });
   return true;

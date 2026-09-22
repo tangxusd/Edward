@@ -1,2 +1,83 @@
-const cors = { "Access-Control-Allow-Origin": "*", "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" };
-Deno.serve(() => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edward 账户</title><style>body{margin:0;background:#111;color:#eee;font:16px system-ui;padding:32px}main{max-width:420px;margin:10vh auto;background:#202020;border:1px solid #444;border-radius:8px;padding:24px}input,button{box-sizing:border-box;width:100%;padding:12px;margin-top:12px;border-radius:5px;border:1px solid #555;background:#171717;color:#eee}button{background:#ff9500;border-color:#ff9500;color:#111;font-weight:600}#status{margin-top:14px;color:#aaa}</style><main><h2>Edward 账户</h2><p id="hint">正在验证链接…</p><input id="password" type="password" placeholder="新密码（至少 8 位）" hidden><button id="save" hidden>设置新密码</button><div id="status"></div></main><script type="module">import{createClient}from"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";const c=createClient("https://naybqwiqgviuzjtemerc.supabase.co","${Deno.env.get("SUPABASE_ANON_KEY")||""}");const h=new URLSearchParams(location.hash.slice(1));const type=h.get("type");const at=h.get("access_token"),rt=h.get("refresh_token");const hint=document.querySelector("#hint"),pw=document.querySelector("#password"),save=document.querySelector("#save"),status=document.querySelector("#status");if(type==="recovery"&&at&&rt){await c.auth.setSession({access_token:at,refresh_token:rt});hint.textContent="请输入新密码";pw.hidden=false;save.hidden=false}else{hint.textContent="邮箱已确认，请返回 Edward 登录"}save.onclick=async()=>{if(pw.value.length<8){status.textContent="密码至少 8 位";return}const{error}=await c.auth.updateUser({password:pw.value});status.textContent=error?"设置失败，请重新申请找回密码":"密码已更新，请返回 Edward 登录";save.disabled=true};</script>`, { headers: cors }));
+const htmlHeaders = new Headers([
+  ["Access-Control-Allow-Origin", "*"],
+  ["Content-Type", "text/html; charset=utf-8"],
+  ["Cache-Control", "no-store"],
+  ["Content-Disposition", "inline"],
+]);
+
+const html = `<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edward 账户</title>
+<style>
+body{margin:0;background:#111;color:#eee;font:16px system-ui;padding:32px}
+main{max-width:420px;margin:10vh auto;background:#202020;border:1px solid #444;border-radius:8px;padding:24px}
+input,button{box-sizing:border-box;width:100%;padding:12px;margin-top:12px;border-radius:5px;border:1px solid #555;background:#171717;color:#eee}
+button{background:#ff9500;border-color:#ff9500;color:#111;font-weight:600}
+#status{margin-top:14px;color:#aaa}
+</style>
+<main>
+  <h2>Edward 账户</h2>
+  <p id="hint">正在验证链接…</p>
+  <input id="password" type="password" autocomplete="new-password" placeholder="新密码（至少 8 位）" hidden>
+  <input id="password-confirm" type="password" autocomplete="new-password" placeholder="再次输入新密码" hidden>
+  <button id="save" hidden>设置新密码</button>
+  <button id="confirm-signup" hidden>确认邮箱</button>
+  <input id="resend-email" type="email" autocomplete="email" placeholder="注册邮箱" hidden>
+  <button id="resend" hidden>重新发送确认邮件</button>
+  <div id="status"></div>
+</main>
+<script type="module">
+import{createClient}from"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const c=createClient("https://naybqwiqgviuzjtemerc.supabase.co","${Deno.env.get("SUPABASE_ANON_KEY") || ""}");
+const functionBase="https://naybqwiqgviuzjtemerc.supabase.co/functions/v1";
+const query=new URLSearchParams(location.search);
+const hash=new URLSearchParams(location.hash.slice(1));
+const flow=query.get("flow"),type=hash.get("type"),at=hash.get("access_token"),rt=hash.get("refresh_token"),errorCode=hash.get("error_code"),signupToken=query.get("token_hash");
+const hint=document.querySelector("#hint"),pw=document.querySelector("#password"),confirm=document.querySelector("#password-confirm"),save=document.querySelector("#save"),confirmSignup=document.querySelector("#confirm-signup"),resendEmail=document.querySelector("#resend-email"),resend=document.querySelector("#resend"),status=document.querySelector("#status");
+const showRecovery=()=>{hint.textContent="请设置新密码";pw.hidden=false;confirm.hidden=false;save.hidden=false};
+const showSignupResend=()=>{hint.textContent="确认链接已失效或已过期";resendEmail.hidden=false;resend.hidden=false};
+const showSignupConfirmation=()=>{hint.textContent="请确认邮箱完成注册";confirmSignup.hidden=false};
+const finishFlow=async(endpoint,token)=>{
+  const response=await fetch(functionBase+"/"+endpoint,{method:"POST",headers:{apikey:"${Deno.env.get("SUPABASE_ANON_KEY") || ""}",Authorization:"Bearer "+token}});
+  const value=await response.json();
+  return {ok:response.ok,message:value.message||"账户操作暂时无法完成，请稍后重试。"};
+};
+if(flow === "recovery" && type === "recovery" && at && rt){
+  const {data,error}=await c.auth.setSession({access_token:at,refresh_token:rt});
+  if(error||!data.session) status.textContent="重置链接已失效或已过期，请重新发起找回密码。";else {window.__edwardRecoveryToken=data.session.access_token;showRecovery()}
+}else if(flow === "signup" && signupToken){
+  showSignupConfirmation();
+}else if(flow === "signup" && errorCode === "otp_expired"){
+  showSignupResend();
+}else{
+  hint.textContent="链接无效或已过期";
+}
+resend.onclick=async()=>{
+  const email=resendEmail.value.trim();
+  if(!email){status.textContent="请输入注册邮箱";resendEmail.focus();return}
+  resend.disabled=true;status.textContent="正在发送确认邮件…";
+  const {error}=await c.auth.resend({type:"signup",email,options:{emailRedirectTo:"https://auth-recovery.vercel.app/?flow=signup"}});
+  status.textContent=error?"发送失败，请稍后重试":"确认邮件已重新发送，请使用最新邮件中的链接";
+  resend.disabled=false;
+};
+confirmSignup.onclick=async()=>{
+  confirmSignup.disabled=true;status.textContent="正在确认邮箱…";
+  const {data,error}=await c.auth.verifyOtp({token_hash:signupToken,type:"signup"});
+  if(error||!data.session){status.textContent="确认链接已失效或已过期，请重新发送确认邮件。";confirmSignup.disabled=false;return}
+  const result=await finishFlow("auth-registration-confirm",data.session.access_token);
+  hint.textContent=result.message;status.textContent="";
+  if(!result.ok) confirmSignup.disabled=false;
+};
+save.onclick=async()=>{
+  if(pw.value.length<8){status.textContent="密码至少 8 位";return}
+  if(pw.value!==confirm.value){status.textContent="两次输入的密码不一致";confirm.focus();return}
+  const{error}=await c.auth.updateUser({password:pw.value});
+  if(error){status.textContent="设置失败，请重新申请找回密码。";return}
+  const result=await finishFlow("auth-recovery-complete",window.__edwardRecoveryToken||"");
+  status.textContent=result.message;
+  if(result.ok){save.disabled=true;pw.disabled=true;confirm.disabled=true}
+};
+</script>`;
+
+Deno.serve(() => new Response(html, { headers: htmlHeaders }));

@@ -1,9 +1,0 @@
-{
-  "pluginId": "edward.hyperframes",
-  "version": "0.3.0",
-  "entry": "host.mjs",
-  "runtime": "node",
-  "capabilities": ["describe", "renderFrame", "renderExport"],
-  "permissions": ["read_input_asset", "write_draft_output"],
-  "editableProps": ["x", "y", "opacity", "title", "fontSize", "borderWidth"]
-}

@@ -1,6 +1,14 @@
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const require = createRequire(import.meta.url);
+const { readZipBuffer } = require("../../third_party/FableCut/zip-extract.js");
+const execFileAsync = promisify(execFile);
+const MAX_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 const TABS = new Set(["media", "text", "audio", "cards", "chart", "background", "annotation", "number"]);
 const RUNTIMES = new Set(["react", "html-css", "gsap", "svg"]);
@@ -54,6 +62,47 @@ export async function sha256File(filePath) {
   return hash.digest("hex");
 }
 
+function sha256(bytes) {
+  return crypto.createHash("sha256").update(bytes).digest("hex");
+}
+
+export function validatePackage(manifest, files, previewBytes) {
+  const errors = [];
+  const runtimeBytes = files.get("edward-runtime.json");
+  if (!runtimeBytes) return ["edward-runtime.json is required"];
+  let runtime;
+  try { runtime = JSON.parse(runtimeBytes.toString("utf8")); } catch { return ["edward-runtime.json is invalid"]; }
+  if (runtime.protocol !== "edward.web-runtime.v1" || runtime.runtime !== manifest.runtime) errors.push("runtime contract is invalid");
+  const runtimeProperties = Array.isArray(runtime.editableProperties) ? runtime.editableProperties : [];
+  const runtimeTracks = Array.isArray(runtime.editableTracks) ? runtime.editableTracks : [];
+  const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((value, index) => value === b[index]);
+  const schemaValid = runtime.propsSchema && runtime.propsSchema.type === "object" && runtime.propsSchema.additionalProperties === false && runtime.propsSchema.properties && typeof runtime.propsSchema.properties === "object";
+  if (runtime.fps !== manifest.timeline?.authoringFps || runtime.durationInFrames !== manifest.timeline?.durationFrames || !sameList(runtimeProperties, manifest.editableProperties) || !sameList(runtimeTracks, manifest.editableTracks) || !schemaValid) errors.push("runtime contract does not match manifest");
+  if (schemaValid && [...runtimeProperties, ...runtimeTracks.map((track) => track.split(".")[0])].some((property) => !Object.hasOwn(runtime.propsSchema.properties, property))) errors.push("runtime properties schema is incomplete");
+  if (!runtime.previewEntry || !runtime.renderEntry || !Array.isArray(runtime.editableProperties) || !Array.isArray(runtime.editableTracks) || !runtime.capabilities?.preview || !runtime.capabilities?.export) errors.push("runtime entries are invalid");
+  for (const entry of [runtime.previewEntry, runtime.renderEntry]) if (typeof entry !== "string" || !files.has(entry)) errors.push("runtime entry is missing");
+  for (const asset of manifest.assets || []) {
+    const bytes = files.get(asset.path);
+    if (!bytes) errors.push(`asset is missing: ${asset.path}`);
+    else if (bytes.byteLength !== asset.bytes || sha256(bytes) !== asset.sha256) errors.push(`asset hash is invalid: ${asset.path}`);
+  }
+  if (!Buffer.isBuffer(previewBytes) || previewBytes.length < 12 || previewBytes.subarray(4, 8).toString("ascii") !== "ftyp") errors.push("preview must be a valid MP4");
+  if (Buffer.isBuffer(previewBytes) && previewBytes.length > MAX_PREVIEW_BYTES) errors.push("preview is too large");
+  return [...new Set(errors)];
+}
+
+export async function validatePreviewFile(previewPath) {
+  const { stdout } = await execFileAsync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height,duration", "-of", "json", previewPath]);
+  const stream = JSON.parse(stdout).streams?.[0];
+  const width = Number(stream?.width), height = Number(stream?.height), duration = Number(stream?.duration);
+  if (stream?.codec_name !== "h264" || !Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0 || Math.max(width, height) > 854 || width % 2 !== 0 || height % 2 !== 0 || !Number.isFinite(duration) || duration <= 0 || duration > 15) throw new Error("preview_contract_invalid");
+  return { codec: stream.codec_name, width, height, duration };
+}
+
+async function deleteObject(url, key, objectPath) {
+  await request(`${url}/storage/v1/object/resource-packages/${objectPath}`, key, { method: "DELETE" });
+}
+
 async function request(url, key, options = {}) {
   const response = await fetch(url, { ...options, headers: { apikey: key, Authorization: `Bearer ${key}`, ...(options.headers || {}) } });
   const text = await response.text();
@@ -74,14 +123,23 @@ export async function publish({ manifestPath, packagePath, previewPath }) {
   const prefix = `${manifest.component_id}/${manifest.version}`;
   const packageBytes = await fs.readFile(packagePath);
   const manifestBytes = Buffer.from(JSON.stringify(manifest, null, 2));
-  const upload = async (filePath, objectPath, contentType) => request(`${url}/storage/v1/object/resource-packages/${objectPath}`, key, { method: "POST", headers: { "Content-Type": contentType, "x-upsert": "false" }, body: filePath });
-  await upload(manifestBytes, `${prefix}/manifest.json`, "application/json");
-  await upload(packageBytes, `${prefix}/package.zip`, "application/zip");
   const previewBytes = await fs.readFile(previewPath);
+  await validatePreviewFile(previewPath);
+  const packageErrors = validatePackage(manifest, new Map(readZipBuffer(packageBytes).map(({ name, bytes }) => [name, bytes])), previewBytes);
+  if (packageErrors.length) throw new Error(`invalid package: ${packageErrors.join(", ")}`);
+  const upload = async (filePath, objectPath, contentType) => request(`${url}/storage/v1/object/resource-packages/${objectPath}`, key, { method: "POST", headers: { "Content-Type": contentType, "x-upsert": "false" }, body: filePath });
+  const uploadedPaths = [];
   const previewObject = `${prefix}/preview.mp4`;
-  await upload(previewBytes, previewObject, "video/mp4");
-  const [resource] = await request(`${url}/rest/v1/resources?on_conflict=component_id`, key, { method: "POST", headers: { "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ component_id: manifest.component_id, target: manifest.target || "web.runtime", tab_key: manifest.tab_key, category_id: manifest.category_id, name: manifest.name, summary: manifest.summary || "", detail_markdown: manifest.detail_markdown || "", status: "published", visibility: "public", published_at: new Date().toISOString() }) });
-  await request(`${url}/rest/v1/resource_versions`, key, { method: "POST", headers: { "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ resource_id: resource.id, version: manifest.version, content_hash: contentHash, manifest_path: `${prefix}/manifest.json`, package_path: `${prefix}/package.zip`, preview_image_path: null, preview_video_path: previewObject, file_size: packageBytes.byteLength, mime_type: "application/zip", published_at: new Date().toISOString(), compatibility: manifest.compatibility || {} }) });
+  try {
+    for (const [bytes, objectPath, contentType] of [[manifestBytes, `${prefix}/manifest.json`, "application/json"], [packageBytes, `${prefix}/package.zip`, "application/zip"], [previewBytes, previewObject, "video/mp4"]]) {
+      await upload(bytes, objectPath, contentType);
+      uploadedPaths.push(objectPath);
+    }
+    await request(`${url}/rest/v1/rpc/publish_resource_version`, key, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_component_id: manifest.component_id, p_target: manifest.target, p_tab_key: manifest.tab_key, p_category_id: manifest.category_id, p_name: manifest.name, p_summary: manifest.summary || "", p_detail_markdown: manifest.detail_markdown || "", p_version: manifest.version, p_content_hash: contentHash, p_manifest_path: `${prefix}/manifest.json`, p_package_path: `${prefix}/package.zip`, p_preview_video_path: previewObject, p_file_size: packageBytes.byteLength, p_mime_type: "application/zip", p_compatibility: manifest.compatibility || {} }) });
+  } catch (error) {
+    await Promise.allSettled(uploadedPaths.map((objectPath) => deleteObject(url, key, objectPath)));
+    throw error;
+  }
   return { component_id: manifest.component_id, version: manifest.version, content_hash: contentHash };
 }
 

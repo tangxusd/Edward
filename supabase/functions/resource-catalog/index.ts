@@ -5,6 +5,12 @@ const cors = { "Access-Control-Allow-Origin": "http://127.0.0.1:7777", "Access-C
 const allowedTabs = new Set(["media", "text", "audio", "cards", "chart", "background", "annotation", "number"]);
 const allowedFilters = new Set(["favorites", "latest", "popular"]);
 const resourceFields = "id,component_id,target,tab_key,category_id,name,favorite_count,view_count,created_at,published_at";
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function boundedInteger(value: string | null, fallback: number, minimum: number, maximum: number) {
+  const parsed = Number(value ?? fallback);
+  return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -19,10 +25,11 @@ Deno.serve(async (req) => {
   const tabKey = url.searchParams.get("tabKey") || "";
   if (!allowedTabs.has(tabKey)) return Response.json({ error: "invalid_tab" }, { status: 400, headers: cors });
   const categoryId = url.searchParams.get("categoryId") || null;
+  if (categoryId && !uuidPattern.test(categoryId)) return Response.json({ error: "invalid_category" }, { status: 400, headers: cors });
   const requestedFilter = url.searchParams.get("filter") || url.searchParams.get("sort") || "latest";
   const filter = allowedFilters.has(requestedFilter) ? requestedFilter : "latest";
-  const limit = Math.min(40, Math.max(1, Number(url.searchParams.get("limit") || 24)));
-  const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
+  const limit = boundedInteger(url.searchParams.get("limit"), 24, 1, 40);
+  const offset = boundedInteger(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
 
   let data: Array<Record<string, unknown>> | null = null;
   let error: { message: string } | null = null;
@@ -57,5 +64,6 @@ Deno.serve(async (req) => {
       if (signed?.signedUrl) item.preview_url = signed.signedUrl;
     }));
   }
-  return Response.json({ items, nextOffset: items.length === limit ? offset + limit : null }, { headers: { ...cors, "Cache-Control": "private, max-age=30" } });
+  const usableItems = items.filter((item) => typeof item.version === "string" && typeof item.content_hash === "string" && typeof item.preview_url === "string");
+  return Response.json({ items: usableItems, nextOffset: items.length === limit ? offset + limit : null }, { headers: { ...cors, "Cache-Control": "private, max-age=30" } });
 });

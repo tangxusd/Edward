@@ -21,9 +21,11 @@ Deno.serve(async (req) => {
   const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
   const { data } = await client.auth.getUser();
   if (!data.user) return Response.json({ error: "authentication_required" }, { status: 401, headers: cors });
+  const accountScope = data.user.id;
   if (req.method === "GET") {
-    const result = await client.from("preference_facts").select("fact").eq("user_id", data.user.id).limit(5000);
+    const result = await client.from("preference_facts").select("fact", { count: "exact" }).eq("user_id", data.user.id).eq("account_scope", accountScope).order("created_at", { ascending: true }).range(0, 4999);
     if (result.error) return Response.json({ error: "preference_read_failed" }, { status: 500, headers: cors });
+    if ((result.count || 0) > 5000) return Response.json({ error: "preference_too_large", count: result.count }, { status: 413, headers: cors });
     return Response.json({ schemaVersion: 1, manifestVersion: 1, facts: result.data.map((row) => row.fact) }, { headers: cors });
   }
   if (req.method !== "POST") return Response.json({ error: "method_not_allowed" }, { status: 405, headers: cors });
@@ -31,7 +33,7 @@ Deno.serve(async (req) => {
   if (body.schemaVersion !== 1 || body.manifestVersion !== 1 || !Array.isArray(body.facts) || body.facts.length > 500) return Response.json({ error: "invalid_payload" }, { status: 400, headers: cors });
   const facts = body.facts.filter((fact: unknown) => validFact(fact)) as Record<string, unknown>[];
   if (facts.length !== body.facts.length) return Response.json({ error: "invalid_fact" }, { status: 400, headers: cors });
-  const result = await client.from("preference_facts").upsert(facts.map((fact) => ({ user_id: data.user.id, event_id: fact.eventId, fact })), { onConflict: "user_id,event_id", ignoreDuplicates: true });
+  const result = await client.from("preference_facts").upsert(facts.map((fact) => ({ user_id: data.user.id, account_scope: accountScope, event_id: fact.eventId, fact })), { onConflict: "user_id,account_scope,event_id", ignoreDuplicates: true });
   if (result.error) return Response.json({ error: "preference_write_failed" }, { status: 500, headers: cors });
   return Response.json({ accepted: facts.length }, { headers: cors });
 });

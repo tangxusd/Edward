@@ -16,18 +16,20 @@ static NSColor *accentColor();
 @implementation EdwardTitlebarTarget
 - (void)clicked:(id)sender {
     if (self.window) {
+        NSString *dispatchedAction = self.action;
         if ([self.action isEqualToString:@"language"]) {
             self.english = !self.english;
             NSButton *button = (NSButton *)sender;
             button.title = self.english ? @"中文" : @"ENG";
             button.attributedTitle = buttonTitle(button.title, [NSColor whiteColor]);
+            dispatchedAction = self.english ? @"language-en" : @"language-zh";
         }
         if ([self.action isEqualToString:@"S"] || [self.action isEqualToString:@"M"] || [self.action isEqualToString:@"L"]) {
             NSView *container = ((NSButton *)sender).superview;
             for (NSView *view in container.subviews) {
                 if (![view isKindOfClass:[NSButton class]]) continue;
                 NSButton *button = (NSButton *)view;
-                if ([button.title isEqualToString:@"导出"]) continue;
+                if (!([button.title isEqualToString:@"S"] || [button.title isEqualToString:@"M"] || [button.title isEqualToString:@"L"])) continue;
                 BOOL selected = [button.title isEqualToString:self.action];
                 button.state = selected ? NSControlStateValueOn : NSControlStateValueOff;
                 button.layer.borderWidth = 1.0;
@@ -38,12 +40,13 @@ static NSColor *accentColor();
         }
         QMetaObject::invokeMethod(self.window, "handleNativeTitlebarAction",
                                   Qt::QueuedConnection,
-                                  Q_ARG(QVariant, QVariant(self.action.UTF8String)));
+                                  Q_ARG(QVariant, QVariant(dispatchedAction.UTF8String)));
     }
 }
 @end
 
 static char kEdwardTitlebarTargets;
+static char kEdwardAuthButton;
 
 static NSView *titlebarHost(NSWindow *window) {
     NSView *host = [window standardWindowButton:NSWindowCloseButton].superview;
@@ -98,6 +101,7 @@ void installEdwardTitlebar(QWindow *window, bool localServiceStarted) {
     NSColor *stateColor = localServiceStarted ? [NSColor systemGreenColor] : [NSColor systemOrangeColor];
     NSMutableAttributedString *statusText = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"未命名项目 · ● %@", stateText]];
     [statusText addAttribute:NSForegroundColorAttributeName value:[NSColor whiteColor] range:NSMakeRange(0, statusText.length)];
+    [statusText addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:12.0 weight:NSFontWeightRegular] range:NSMakeRange(0, statusText.length)];
     NSRange dotRange = [[statusText string] rangeOfString:@"●"];
     [statusText addAttribute:NSForegroundColorAttributeName value:stateColor range:dotRange];
     status.attributedStringValue = statusText;
@@ -146,6 +150,9 @@ void installEdwardTitlebar(QWindow *window, bool localServiceStarted) {
             button.attributedTitle = buttonTitle(title, accentColor());
         }
         [buttons addArrangedSubview:button];
+        if ([title isEqualToString:@"登录"]) {
+            objc_setAssociatedObject(host, &kEdwardAuthButton, button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
     }
     objc_setAssociatedObject(host, &kEdwardTitlebarTargets, targets, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
@@ -157,4 +164,18 @@ void installEdwardTitlebar(QWindow *window, bool localServiceStarted) {
         [buttons.centerYAnchor constraintEqualToAnchor:host.centerYAnchor],
         [buttons.leadingAnchor constraintGreaterThanOrEqualToAnchor:status.trailingAnchor constant:24.0]
     ]];
+}
+
+void updateEdwardTitlebarAuthState(QWindow *window, bool authenticated) {
+    if (!window) return;
+    NSView *view = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
+    NSWindow *native = view.window;
+    NSView *host = native ? titlebarHost(native) : nil;
+    NSButton *button = host ? objc_getAssociatedObject(host, &kEdwardAuthButton) : nil;
+    if (!button) return;
+    button.title = authenticated ? @"已登录" : @"登录";
+    button.layer.backgroundColor = authenticated ? [NSColor colorWithCalibratedRed:0.10 green:0.65 blue:0.65 alpha:1.0].CGColor : [NSColor clearColor].CGColor;
+    button.layer.borderColor = authenticated ? [NSColor colorWithCalibratedRed:0.22 green:0.82 blue:0.78 alpha:1.0].CGColor : [NSColor colorWithCalibratedWhite:0.35 alpha:1.0].CGColor;
+    button.layer.borderWidth = 1.0;
+    button.attributedTitle = buttonTitle(button.title, authenticated ? [NSColor colorWithCalibratedRed:0.02 green:0.10 blue:0.10 alpha:1.0] : [NSColor whiteColor]);
 }

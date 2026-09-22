@@ -1,27 +1,79 @@
 {
-  "task": "汇付 Deno 支付适配与连续订阅",
-  "status": "in_progress",
+  "version": "0.7.0",
   "checks": [
-    {"id": "sdk-envelope", "description": "请求使用 {sys_id, product_id, sign, data} 外层结构并按 Go SDK 规则签名", "status": "passed"},
-    {"id": "channel-mapping", "description": "微信 T_NATIVE、支付宝 A_NATIVE 字段映射经过验证", "status": "passed"},
-    {"id": "diagnostics", "description": "HTTP 状态、原始响应、业务码和验签错误可区分", "status": "pending"},
-    {"id": "subscription", "description": "连续订阅授权、续订、通知幂等和退订规则通过测试", "status": "in_progress"},
-    {"id": "security", "description": "密钥仅在 Supabase Secrets，RLS 和日志脱敏检查通过", "status": "pending"},
-    {"id": "resource-target", "description": "资源库组件具有可校验、可查询、可返回的稳定 target 属性", "status": "passed"}
-    ,{"id": "desktop-export-resolution-fps", "description": "Qt 导出界面提供 3840×2160 4K 和最高 60 fps，导出运行时接受 60 fps", "status": "passed"}
-    ,{"id": "desktop-export-path", "description": "选择文件夹后将本地目录传入导出文件路径并持久化；下次打开导出弹窗自动回填，目录不存在时拒绝使用", "status": "passed"}
-    ,{"id": "desktop-export-button", "description": "导出按钮在路径和文件名有效时启用，并按时间线来源调用 Edward 或 FableCut 原生导出", "status": "passed"}
-    ,{"id": "browser-composite-export", "description": "FableCut 组件层与 Canvas 在同一导出帧中合成，显式输出尺寸/FPS且禁用隐式裁切", "status": "in_progress"}
-    ,{"id": "alipay-manual-purchase-design", "description": "支付宝单次购买/手动续费方案、服务端验签通知、幂等权益发放和无独立服务器边界已形成可执行设计", "status": "passed"}
-    ,{"id": "native-annotation-ease", "description": "四种原生标注组件默认 3 秒时长，1 秒内按单方向三次方缓出完成闭合，其余时间保持闭合", "status": "passed"}
-    ,{"id": "native-annotation-center", "description": "四种组件以画布中心为零点的像素 x/y 定位，缩放后包围盒中心仍保持一致", "status": "passed"}
-    ,{"id": "native-annotation-drag-scale", "description": "组件拖拽使用中心零点像素坐标、缩放使用组件尺寸与 scale，变更后立即重绘 DOM 组件层", "status": "passed"}
-    ,{"id": "native-annotation-export-contract", "description": "导出逐帧通过 prepareFrame 使用同一原生组件入口并传入 export 模式和输出视口", "status": "passed"}
-    ,{"id": "native-annotation-drag-drop", "description": "标注组件可从资源库拖入时间线或直接拖入预览画布，并按落点写入中心零点像素坐标", "status": "passed"}
-    ,{"id": "preference-store", "description": "设备级 SQLite 偏好库使用 WAL、事实事件幂等写入，并生成最多 A/B/C 三套合法方案", "status": "passed"}
-    ,{"id": "preference-isolation", "description": "组件身份、语义路径和属性类型隔离，文字颜色与边框颜色不互相污染", "status": "passed"}
-    ,{"id": "preference-triggers", "description": "300 秒闲置、项目切换/关闭、正常退出和导出开始执行批量写入，收敛不阻塞编辑与导出", "status": "passed"}
-    ,{"id": "preference-new-only", "description": "偏好只作用于新建组件/素材，已有片段和 project.json 不被改写", "status": "passed"}
-    ,{"id": "preference-sync", "description": "Supabase 偏好上传/下载必须显式触发，按事实合并并重新校验 manifest", "status": "passed"}
+    {"id": "branch", "description": "工作树位于 codex/edward-0.7.0 分支", "status": "passed"},
+    {"id": "paths", "description": "删除旧组件适配专用源码、测试、脚本和资源目录", "status": "passed"},
+    {"id": "cmake", "description": "CMake 和打包入口不再引用已删除适配器", "status": "passed"},
+    {"id": "refs", "description": "生产源码与构建配置无目标遗留关键词引用", "status": "passed"},
+    {"id": "native-runtime", "description": "React、HTML/CSS、GSAP、SVG 原生运行时目录仍存在", "status": "passed"},
+    {"id": "tests", "description": "完整构建与 CTest 通过", "status": "passed"},
+    {"id": "desktop-auth-settings", "description": "设置页本地化、登录注册找回密码界面与本地认证路由测试通过", "status": "passed"},
+    {"id": "desktop-server-recovery", "description": "同一工作副本遗留 FableCut 服务可按工作目录识别并恢复启动", "status": "passed"},
+    {"id": "auth-email-flow-separation", "description": "注册确认与找回密码使用不同跳转流程；找回密码须两次输入一致", "status": "passed"},
+    {"id": "auth-email-flow-deployment", "description": "认证 Function 与邮件落地页生产部署均指向新版流程", "status": "passed"},
+    {"id": "desktop-settings-restoration", "description": "设置页提供 Edward 大模型、导出路径和本地偏好设置，且不展示快捷键布局和时间线选择联动", "status": "passed"},
+    {"id": "desktop-settings-tabs", "description": "设置页提供路径、大模型、偏好和调试四个 Tab；本地迁移、模型测试、偏好同步和云端合同测试通过", "status": "passed"},
+    {"id": "desktop-settings-cloud-deployment", "description": "Supabase 设置云端迁移与 model-provider-presets、desktop-feedback Function 已部署并处于 ACTIVE", "status": "passed"},
+    {"id": "desktop-settings-webchannel-layout", "description": "实际 Edward.app 启动后，设置页 DOM 保持在弹窗内，Qt WebChannel 可向路径设置提供桌面端对象", "status": "passed"},
+    {"id": "desktop-diagnostic-log-reporting", "description": "日志页可预览并上报已脱敏的桌面诊断日志，且不会包含令牌、密钥或本地路径", "status": "passed"},
+    {"id": "desktop-settings-feedback-tab", "description": "设置页将日志和意见反馈分为独立 Tab，反馈仅收集用户需求而不附带日志", "status": "passed"},
+    {"id": "desktop-preference-package", "description": "偏好存储不暴露数据库路径，导入导出仅接受 Edward 偏好包扩展名", "status": "passed"},
+    {"id": "desktop-settings-provider-cards", "description": "设置弹窗为紧凑的 480 x 548 居中面板；大模型 Tab 先显示活动供应商卡片，按需打开详情表单", "status": "passed"},
+    {"id": "desktop-diagnostics-coverage", "description": "日志页覆盖 Edward 桌面事件、FableCut 运行时异常和本地服务输出，且日志与反馈编辑区占用可用空间", "status": "passed"},
+    {"id": "desktop-settings-field-layout", "description": "路径字段为扁平深灰样式、下拉文字紧凑，意见反馈编辑区不与提交按钮重叠", "status": "passed"},
+    {"id": "model-provider-cloud-presets", "description": "远程 Supabase 供应商预设包含有效的 OpenAI 与 DeepSeek 公共连接信息，且不保存 API Key", "status": "passed"},
+    {"id": "deepseek-default-provider", "description": "未保存供应商配置时，Edward 设置页以 DeepSeek 的公开端点、协议和默认模型预填，且不覆盖用户已有配置", "status": "passed"},
+    {"id": "provider-presets-and-auth-persistence", "description": "供应商预设自动显示为顶部下拉框，预设详情按需折叠；Edward 登录会话跨应用重启保留", "status": "passed"},
+    {"id": "desktop-fablecut-service-origin", "description": "Edward.app 连接当前 0.7.0 工作树的 FableCut 服务，不加载项目根目录中的遗留页面", "status": "passed"},
+    {"id": "model-provider-card-first", "description": "大模型设置首屏显示已添加供应商卡片，仅在添加供应商后请求并展示预设列表", "status": "passed"},
+    {"id": "provider-preset-connectivity", "description": "供应商预设可通过本地代理加载，且 OpenAI 与 DeepSeek 预设使用可直接测试的聊天端点", "status": "passed"},
+    {"id": "provider-quick-actions", "description": "供应商快捷添加页在详情折叠时提供模型目录、测试、拉取模型和保存操作；卡片提供默认与测试操作", "status": "passed"},
+    {"id": "auth-session-and-ai-provider-sync", "description": "会话跨重启恢复并在需授权操作时后台确认；默认供应商以橙色渐变卡片标识并同步到 AI 助理，思考状态保持完整助理区域", "status": "passed"},
+    {"id": "property-contract", "description": "属性检查器以中文属性合同驱动，不显示名称字段，新增属性可同步偏好", "status": "passed"},
+    {"id": "property-preference-profiles", "description": "偏好方案 A、B、C 可独立记录和读取，并应用于新组件", "status": "passed"},
+    {"id": "property-animation-evaluation", "description": "关键帧默认三次贝塞尔缓出，可选预设插值；循环动画和 In/Out 转场在 Canvas、原生组件与导出路径生效", "status": "passed"},
+    {"id": "property-reset", "description": "双击属性标签恢复默认值并删除对应关键帧", "status": "passed"},
+    {"id": "closed-rectangle-component", "description": "闭合圆角矩形注释组件使用连续描边，不存在起止点缺口", "status": "passed"},
+    {"id": "property-inspector-app", "description": "相关测试与构建通过，实际 Edward.app 已重新启动", "status": "passed"},
+    {"id": "property-label-contract-completeness", "description": "检查器字段、关键帧图和转场标签均通过属性合同显示中文", "status": "passed"},
+    {"id": "property-loop-defaults", "description": "新建组件默认循环频率为 0.5 次/秒、幅度为 2", "status": "passed"},
+    {"id": "assistant-idle-collapse", "description": "已选片段无对话时 AI 剪辑助理收缩为紧凑栏", "status": "passed"},
+    {"id": "closed-rectangle-draw-animation", "description": "四个闭合矩形运行时以单一闭合路径绘制，不以底描边掩盖缺口", "status": "passed"},
+    {"id": "property-contract-locales", "description": "属性合同按 locale 读取中文与英文词典，并为后续语言提供统一扩展入口", "status": "passed"},
+    {"id": "export-ui-and-logic", "description": "Edward 原生导出面板提供文件名、分辨率、帧率、格式、质量、目录和取消/进度流程，并将选项传入 FableCut 实际导出", "status": "passed"},
+    {"id": "alipay-payment-redesign", "description": "支付宝异步通知为唯一支付事实源，订单状态读取与支付宝网关查询解耦，网页和原生标题栏共享登录状态入口；相关迁移与 Function 已部署并完成路由健康检查", "status": "passed"},
+    {"id": "auth-billing-entitlement-source", "description": "登录成功后的资源状态与订阅面板统一从 subscriptions/trial 响应读取，授权回调不参与当前支付闭环", "status": "passed"},
+    {"id": "alipay-pending-order-guard", "description": "支付宝订单设置 30 分钟有效期；历史残留已过期；数据库保证同一用户同一方案最多一笔 pending 订单", "status": "passed"},
+    {"id": "alipay-entitlement-consistency", "description": "当前支付入账链路保持订单与订阅权益一致；历史已支付异常不自动重算，避免重复延长订阅", "status": "passed"},
+    {"id": "subscription-renewal-anchor", "description": "未到期续费从原到期时间叠加并保留首次付费起点；已过期续费从本次支付时间重启，月付/季付/年付时长按方案字段计算", "status": "passed"},
+    {"id": "unified-user-entitlement-timeline", "description": "月付、季付、年付共享每用户唯一权益时间线；全部已支付订单按支付顺序形成无断档连续账期，方案仅决定本次叠加的时长", "status": "passed"},
+    {"id": "auth-registration-email-state", "description": "注册不再误删有效用户；邮箱确认状态与发送失败均显示中文，确认关闭时保留 session 并正常登录", "status": "passed"},
+    {"id": "auth-signup-otp-expired-recovery", "description": "注册确认链接失效时，认证落地页以中文提示并允许用户重新发送最新确认邮件", "status": "passed"},
+    {"id": "auth-lifecycle-schema", "description": "注册确认、恢复锁和设备安全审计由受控 RPC 与 RLS 表统一管理", "status": "passed"},
+    {"id": "auth-lifecycle-functions", "description": "认证生命周期 Function 已部署，注册清理由数据库每分钟任务执行，邮件落地页可公开访问", "status": "passed"},
+    {"id": "auth-lifecycle-native-device", "description": "桌面端仅在原生层读取设备序列号和 MAC；旧账户首次成功登录后静默绑定设备", "status": "passed"},
+    {"id": "auth-lifecycle-email-e2e", "description": "使用可访问的测试邮箱完成注册确认、找回锁定、重设密码和重新登录闭环", "status": "pending"},
+    {"id": "auth-signup-explicit-confirmation", "description": "确认邮件只携带 TokenHash；落地页不自动确认，用户点击确认邮箱后才激活注册状态", "status": "passed"},
+    {"id": "auth-one-account-per-device", "description": "同一设备指纹只能保有一个有效账户或未过期待确认注册；过期未确认记录释放后允许重新注册", "status": "passed"},
+    {"id": "auth-recovery-static-landing", "description": "Vercel 直接托管可执行的认证静态页面，不再代理会被 Supabase 网关降级为 text/plain 的 HTML 响应", "status": "passed"},
+    {"id": "resource-fixed-text-favorites", "description": "文本→我的收藏永久前置本地标题和字幕卡片，且不参与 Supabase、缓存或分页", "status": "passed"},
+    {"id": "resource-add-track-placement", "description": "所有资源卡片的＋在播放头插入当前资源的 3 秒片段，并按最低可用视频轨道、向上轨道、新建轨道的顺序放置", "status": "passed"},
+    {"id": "resource-fixed-text-position", "description": "标题位于画布原点；字幕水平居中并在竖屏底部安全区外线之上", "status": "passed"},
+    {"id": "resource-lifecycle-schema", "description": "组件发布清单、Supabase 资源生命周期、收藏计数和分类查询合同通过范围测试", "status": "passed"},
+    {"id": "resource-cache-integrity", "description": "公共组件的清单、包、依赖和预览 MP4 只有哈希一致时才可原子缓存和运行；复用请求按元数据快速路径并在变化时重新校验", "status": "passed"},
+    {"id": "resource-filters", "description": "非导入 Tab 默认我的收藏；固定筛选可与真实二级分类组合；热门按唯一收藏数稳定排序", "status": "passed"},
+    {"id": "resource-instance-version-lock", "description": "时间线实例锁定资源版本、哈希、缓存键和组件身份；属性、关键帧与升级均经原生合同验证", "status": "passed"},
+    {"id": "resource-publish-atomicity", "description": "发布器先验证完整 ZIP/runtime/资产/MP4，再通过数据库事务绑定资源版本，失败清理已上传对象", "status": "passed"},
+    {"id": "resource-insertion-concurrency", "description": "组件缓存完成后重新计算播放头轨道，并以队列串行化资源插入，避免异步竞态", "status": "passed"},
+    {"id": "resource-preview-fallback", "description": "本地缓存预览失效时清理标记并回退远端 MP4", "status": "passed"},
+    {"id": "resource-observability", "description": "资源目录、详情、收藏、缓存和失效日志包含请求 ID、状态、耗时与脱敏错误码", "status": "passed"},
+    {"id": "resource-production-deployment", "description": "生产已应用原子发布迁移，resource-catalog v22 与 resource-favorite v18 为 ACTIVE，未授权请求返回 401", "status": "passed"},
+    {"id": "resource-preview-mp4", "description": "远端、已缓存和本地固定组件都能以对应低分辨率 MP4 预览", "status": "passed"},
+    {"id": "resource-ui-smoke", "description": "Edward.app 中的资源库卡片、收藏、预览、缓存与播放头插入流程可见且可用；当前已完成静态服务与桌面构建验证，真实登录会话验证不写入生产测试数据", "status": "pending"}
+    ,{"id": "resource-library-hardening", "description": "本地资源缓存按账户隔离，缓存预览与运行时入口要求短期本机认证票据；发布器和缓存复核绑定帧、属性、关键帧与低分辨率 H.264 MP4 合同；目录过滤不完整版本", "status": "passed"}
+    ,{"id": "resource-library-hardening-deployment", "description": "resource-catalog v23 已部署，资源版本可见性迁移已应用；生产数据库回读无待执行迁移", "status": "passed"}
+    ,{"id": "auth-billing-hardening-deployment", "description": "认证恢复加固迁移已应用；auth-login v15、auth-recover v2、auth-recovery-complete v3、auth-register v23、alipay-create-order v23 均为 ACTIVE", "status": "passed"}
+    ,{"id": "entitlement-credit-expiry-deployment", "description": "auth-entitlement 与 subscription-create-order v14 已部署，过期额度不会进入授权或订单金额计算", "status": "passed"}
+    ,{"id": "ai-assistant-plan-gateway", "description": "AI 助手读取设置中的模型配置；普通问答与剪辑 ActionPlan 分流，计划经本地校验并由用户确认后才应用且可撤销；API Key 仅保存为本机明文文件", "status": "passed"}
   ]
 }

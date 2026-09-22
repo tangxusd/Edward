@@ -15,7 +15,7 @@ test("native runtimes are local files and four component contracts are explicit"
 
 test("component runtime keeps direct native mount contract", () => {
   const runtime = fs.readFileSync(path.join(root, "component-runtime.js"), "utf8");
-  assert.match(runtime, /mount\(\{ host, props, time, mode(?:, viewport)? \}\)/);
+  assert.match(runtime, /mod\.mount\(\{ host, props, time: frame \/ manifest\.fps, mode, viewport: \{ \.\.\.viewport, frame \} \}\)/);
   assert.match(runtime, /update\?\./);
   assert.match(runtime, /destroy\?\./);
   assert.match(runtime, /syncDirectComponents\(clips, time, viewport, "export"\)/);

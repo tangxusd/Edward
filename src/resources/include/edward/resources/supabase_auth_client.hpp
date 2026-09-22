@@ -1,6 +1,7 @@
 #pragma once
 
 #include "edward/resources/auth_session_store.hpp"
+#include "edward/resources/device_identity.hpp"
 
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -33,6 +34,12 @@ class SupabaseAuthClient final : public QObject {
                           const QString& password, AuthSessionStore* sessions);
   bool signUpWithPassword(const SupabaseAuthConfig& config, const QString& email,
                           const QString& password);
+  bool signUpWithDevice(const SupabaseAuthConfig& config, const QString& email, const QString& password,
+                        const QString& username, const DeviceIdentity& device);
+  bool beginPasswordRecovery(const SupabaseAuthConfig& config, const QString& email,
+                             const DeviceIdentity& device);
+  bool enrollDevice(const SupabaseAuthConfig& config, const QString& accessToken,
+                    const DeviceIdentity& device);
   bool sendPasswordReset(const SupabaseAuthConfig& config, const QString& email);
   bool refreshSession(const SupabaseAuthConfig& config, AuthSessionStore* sessions);
   bool fetchEntitlement(const SupabaseAuthConfig& config, const AuthSession& session);

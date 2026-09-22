@@ -7,8 +7,10 @@ export async function rateCheck(identifier: string, type: string, limit = 10) {
   const admin = adminClient();
   const hash = hashIdentifier(identifier);
   const since = new Date(Date.now() - 15 * 60_000).toISOString();
-  const { count } = await admin.from("risk_events").select("id", { count: "exact", head: true }).eq("event_type", type).eq("identifier_hash", hash).gte("occurred_at", since);
+  const { count, error: countError } = await admin.from("risk_events").select("id", { count: "exact", head: true }).eq("event_type", type).eq("identifier_hash", hash).gte("occurred_at", since);
+  if (countError) return { allowed: false, hash };
   if ((count || 0) >= limit) return { allowed: false, hash };
-  await admin.from("risk_events").insert({ event_type: type, identifier_hash: hash });
+  const { error: insertError } = await admin.from("risk_events").insert({ event_type: type, identifier_hash: hash });
+  if (insertError) return { allowed: false, hash };
   return { allowed: true, hash };
 }

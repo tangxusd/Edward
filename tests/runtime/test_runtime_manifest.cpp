@@ -44,14 +44,14 @@ void test_rejectsMissingEntryAndNonPositiveMetadata() {
   }
 }
 
-void test_rejectsComponentIrAndArbitraryPathFields() {
+void testRejectsUnexpectedFields() {
   QString error;
   const auto withField = [](const char* key, const QJsonValue& value) {
     auto object = validManifest();
     object.insert(QString::fromLatin1(key), value);
     return object;
   };
-  for (const QJsonObject& invalid : {withField("componentIr", QJsonObject{}),
+  for (const QJsonObject& invalid : {withField("unexpectedPayload", QJsonObject{}),
                                      withField("command", "node host.js"),
                                      withField("previewEntry", "/tmp/preview.html"),
                                      withField("renderEntry", "../render/index.html"),
@@ -65,6 +65,6 @@ void test_rejectsComponentIrAndArbitraryPathFields() {
 int main() {
   test_acceptsSupportedRuntimeManifest();
   test_rejectsMissingEntryAndNonPositiveMetadata();
-  test_rejectsComponentIrAndArbitraryPathFields();
+  testRejectsUnexpectedFields();
   return 0;
 }

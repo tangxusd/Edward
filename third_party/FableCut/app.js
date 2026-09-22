@@ -70,11 +70,14 @@ const DEFAULT_PROPS = {
   boxW: 0, boxH: 0,                            // text box (px); 0 = hug content. Resize handles edit these.
   boxFit: false,                               // false = wrap at fixed fontSize; true = scale font to fit box
   vAlign: "middle",                            // top | middle | bottom — vertical align of the text block in the box
+  loopAnimation: "none", loopFrequency: 0.5, loopAmplitude: 2,
 };
+const PROPERTY_CONTRACT = window.fablecutPropertyContract || { label: (key) => key, option: (value) => value, animatable: new Set() };
 const ANIMATABLE = ["x", "y", "scale", "rotation", "opacity", "volume", "pan", "speed",
   "brightness", "contrast", "saturation", "hue", "blur", "grayscale", "sepia", "invert",
   "temperature", "tint", "vignette", "cornerRadius", "shake", "rgbSplit", "grain",
-  "fontSize", "letterSpacing", "glow"];
+  "fontSize", "letterSpacing", "glow", "loopFrequency", "loopAmplitude",
+  "width", "height", "borderWidth", "radius", "progress"];
 const TRANSITIONS = ["none", "fade", "slide-left", "slide-right", "slide-up", "slide-down",
   "zoom", "wipe", "wipe-right", "wipe-up", "wipe-down", "iris", "spin", "blur", "whip",
   "glitch", "pop"];
@@ -211,13 +214,14 @@ function nextTrackId(kind) {
   }
   return prefix + (max + 1);
 }
-function addTimelineTrack(kind) {
+function addTimelineTrack(kind, requestedId = null) {
   const existing = TRACKS.filter((t) => t.kind === kind).length;
   if (existing >= MAX_TRACKS_PER_KIND) {
     toast(`Maximum ${MAX_TRACKS_PER_KIND} ${kind} tracks`);
     return null;
   }
-  const id = nextTrackId(kind);
+  const id = requestedId || nextTrackId(kind);
+  if (TRACK_IDS.has(id)) return TRACKS.find((track) => track.id === id) || null;
   const t = makeTrack(id, kind);
   TRACKS.push(t);
   sortTracksInPlace();
@@ -487,7 +491,7 @@ const runtime = {
   library: {},          // dir -> [{name, rel, src, size}] cached /api/library results
   customFonts: [],      // family names loaded from /library/fonts
   googleLoaded: new Set(),
-  undo: [], redo: [],
+  undo: [], redo: [], aiUndo: [],
   audio: null,          // {ctx, master, recDest, meter?, meterReady?}
   saveTimer: null, pendingSync: false,
   sfxPreview: null,     // <audio> element for library sound previews
@@ -496,6 +500,10 @@ const runtime = {
   binDragFolderId: null, // folder id currently being dragged (cycle checks)
   binCtxMenu: null,     // Project-tab context menu element
   nextPreferenceRank: 0, // A/B/C profile used only for the next new component
+  diagnostics: {
+    events: [], exportRuns: [], keyframeEvaluations: 0, keyframeEvaluationMs: 0,
+    preferenceReads: 0, preferenceWrites: 0,
+  },
 };
 
 function preferenceManifestIdentity(manifest, semanticPath, propertyPath, valueType) {
@@ -509,10 +517,18 @@ function preferenceManifestIdentity(manifest, semanticPath, propertyPath, valueT
 }
 
 async function applyCreationPreferences(manifest, props) {
-  const result = { ...props };
+  const result = {
+    loopAnimation: DEFAULT_PROPS.loopAnimation,
+    loopFrequency: DEFAULT_PROPS.loopFrequency,
+    loopAmplitude: DEFAULT_PROPS.loopAmplitude,
+    ...props,
+  };
   const bridge = window.edwardPreferences;
   if (!bridge?.getCreationPreferences) return result;
-  for (const [key, spec] of Object.entries(manifest?.props || {})) {
+  runtime.diagnostics.preferenceReads++;
+  recordFablecutDiagnostic("preference_read", `component=${manifest?.id || "unknown"} profile=${runtime.nextPreferenceRank || 0}`);
+  const preferenceProps = { ...(manifest?.props || {}), loopAnimation: { type: "string" }, loopFrequency: { type: "float" }, loopAmplitude: { type: "float" } };
+  for (const [key, spec] of Object.entries(preferenceProps)) {
     const identity = preferenceManifestIdentity(manifest, "root", key, spec.type || "string");
     const preference = await bridge.getCreationPreferences(identity, runtime.nextPreferenceRank || 0);
     if (preference && preference.value !== undefined && preference.value !== null) result[key] = preference.value;
@@ -523,16 +539,19 @@ async function applyCreationPreferences(manifest, props) {
 function recordPreferenceValue(clip, propertyPath, value) {
   const manifest = clip?.__preferenceManifest;
   if (!manifest || !clip.creationSessionId || !window.edwardPreferences?.recordConfirmedPropertyChange) return;
-  const spec = manifest.props?.[propertyPath];
+  const spec = manifest.props?.[propertyPath] || (propertyPath === "loopAnimation" ? { type: "string" } :
+    ["loopFrequency", "loopAmplitude"].includes(propertyPath) ? { type: "float" } : null);
   if (!spec) return;
   clip.__preferenceRecorded = clip.__preferenceRecorded || {};
   const encoded = JSON.stringify(value);
   if (clip.__preferenceRecorded[propertyPath] === encoded) return;
   clip.__preferenceRecorded[propertyPath] = encoded;
+  runtime.diagnostics.preferenceWrites++;
+  recordFablecutDiagnostic("preference_write", `clip=${clip.id} property=${propertyPath}`);
   window.edwardPreferences.recordConfirmedPropertyChange({
     eventId: `pref_${uid()}_${Date.now()}`,
     ...preferenceManifestIdentity(manifest, "root", propertyPath, spec.type || "string"),
-    value, creationSessionId: clip.creationSessionId, source: "user-confirmed",
+    value, creationSessionId: clip.creationSessionId, profileRank: runtime.nextPreferenceRank || 0, source: "user-confirmed",
   });
 }
 
@@ -566,6 +585,7 @@ const els = {
   exportProfileRow: $("exportProfileRow"),
   exportProfileSel: $("exportProfileSel"), exportProfileNote: $("exportProfileNote"),
   exportProfileHint: $("exportProfileHint"),
+  exportResolutionSel: $("exportResolutionSel"),
   importUrlOverlay: $("importUrlOverlay"), importUrlInput: $("importUrlInput"),
   importUrlStatus: $("importUrlStatus"), importUrlProgress: $("importUrlProgress"),
 };
@@ -618,7 +638,7 @@ function kfChannel(c, key, local, fallback) {
     const a = kfs[i], b = kfs[i + 1];
     if (local >= a.t && local <= b.t) {
       const u = (local - a.t) / Math.max(1e-6, b.t - a.t);
-      const ez = EASE[b.ease || "ease-in-out"] || EASE.linear;
+      const ez = EASE[a.easing || a.ease || "cubic-out"] || EASE["cubic-out"];
       return a.v + (b.v - a.v) * ez(u);
     }
   }
@@ -707,13 +727,13 @@ function renderConnectionStatus(connected) {
   els.projectName.textContent = "";
   const name = document.createElement("span");
   name.textContent = project.name;
-  const sep = document.createTextNode("  ·  ");
   const status = document.createElement(connected ? "span" : "button");
   status.className = "connection-status " + (connected ? "connected" : "disconnected");
-  status.textContent = connected ? "connected" : "未连接";
-  status.title = connected ? "Local service connected" : "点击重新连接本地服务";
+  status.textContent = connected ? "" : "未连接";
+  status.title = connected ? "本地服务已连接" : "点击重新连接本地服务";
+  status.setAttribute("aria-label", status.title);
   if (!connected) status.addEventListener("click", (e) => { e.stopPropagation(); connectServer(); });
-  els.projectName.append(name, sep, status);
+  els.projectName.append(name, status);
 }
 /* Main-profile AVC level by canvas height; Annex-B is required so ffmpeg
    can ingest the elementary stream with `-f h264` and no avcC converter. */
@@ -1062,13 +1082,14 @@ function projectJSON() {
     tracks: serializeTracks(),
     media: media.filter((m) => !m.transient).map(({ id, name, kind, src, duration, width, height, folderId }) =>
       ({ id, name, kind, src, duration, width, height, folderId: folderId || null })),
-    clips: clips.map(({ id, mediaId, kind, componentId, runtime: clipRuntime, source, track, start, in: inn, duration, name, props, keyframes, transitionIn, transitionOut, linkedId, linkGroup }) => {
+    clips: clips.map(({ id, mediaId, kind, componentId, runtime: clipRuntime, source, resourceRef, track, start, in: inn, duration, name, props, keyframes, transitionIn, transitionOut, linkedId, linkGroup }) => {
       const clipOut = { id, mediaId, kind, track, start, in: inn, duration, name, props, keyframes, transitionIn, transitionOut };
       if (kind === "component") {
         clipOut.componentId = componentId || "demo";
         if (clipRuntime) clipOut.runtime = clipRuntime;
         if (source) clipOut.source = source;
       }
+      if (resourceRef) clipOut.resourceRef = resourceRef;
       if (linkGroup) clipOut.linkGroup = linkGroup;
       if (linkedId) clipOut.linkedId = linkedId;
       return clipOut;
@@ -1653,7 +1674,13 @@ async function loadNativeAnnotationResources() {
   return cache.loading;
 }
 function nativeAnnotationDefaults(manifest) {
-  return Object.fromEntries(Object.entries(manifest?.props || {}).map(([key, spec]) => [key, spec.default]));
+  const properties = manifest?.props || manifest?.propsSchema?.properties || {};
+  return Object.fromEntries(Object.entries(properties).map(([key, spec]) => [key, spec.default]));
+}
+function nativeComponentProperties(manifest) {
+  const properties = manifest?.props || manifest?.propsSchema?.properties || {};
+  if (manifest?.protocol !== "edward.web-runtime.v1" || !Array.isArray(manifest.editableProperties)) return properties;
+  return Object.fromEntries(manifest.editableProperties.filter((key) => key in properties).map((key) => [key, properties[key]]));
 }
 function renderNativeAnnotationLibrary() {
   const cache = runtime.nativeAnnotationResources;
@@ -1739,7 +1766,7 @@ function renderLibrary() {
 }
 
 const RESOURCE_PAGE_SIZE = 24;
-const resourceBrowserState = { tab: null, categoryId: null, sort: "latest", offset: 0, hasMore: false, categories: [], items: [] };
+const resourceBrowserState = { tab: null, categoryId: null, filter: "favorites", offset: 0, hasMore: false, categories: [], items: [] };
 const DEMO_RESOURCE_CATEGORIES = [
   { id: "demo-all", parent_id: null, name: "全部" },
   { id: "demo-basic", parent_id: null, name: "基础" },
@@ -1752,7 +1779,11 @@ const DEMO_RESOURCE_ITEMS = [
   { id: "demo-3", component_id: "demo.overlay.01", name: "柔光叠加", summary: "", favorite_count: 5 },
 ];
 const isDemoResourceMode = window.location.protocol === "file:" && localStorage.getItem("fablecut-demo-auth") === "1";
-const resourceCacheKey = () => `fablecut-resource-cache:${resourceBrowserState.tab}:${resourceBrowserState.categoryId || "all"}:${resourceBrowserState.sort}`;
+function resourceCacheUserScope() {
+  const session = storedAuthSession();
+  return String(session?.user?.id || session?.user?.sub || "anonymous").replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+const resourceCacheKey = () => `fablecut-resource-cache:${resourceCacheUserScope()}:${resourceBrowserState.tab}:${resourceBrowserState.categoryId || "all"}:${resourceBrowserState.filter}`;
 
 function setResourceState(message, error = false) {
   if (!els.resourceState) return;
@@ -1760,42 +1791,408 @@ function setResourceState(message, error = false) {
   els.resourceState.style.color = error ? "#e39a9a" : "";
 }
 
+function resourceRequestMessage(code, status) {
+  const messages = {
+    authentication_required: "请先登录后查看资源。",
+    entitlement_required: "当前订阅不包含该资源。",
+    invalid_tab: "资源分类无效。",
+    invalid_category: "资源子分类无效。",
+    resource_not_found: "资源不存在或暂不可用。",
+    resource_version_not_found: "该资源版本暂不可用。",
+    resource_download_unavailable: "资源下载暂不可用，请稍后重试。",
+    catalog_unavailable: "资源目录暂时不可用，请稍后重试。",
+    favorite_unavailable: "收藏操作暂时不可用，请稍后重试。",
+    resource_cache_unavailable: "资源缓存失败，请稍后重试。",
+    preference_too_large: "偏好数据过多，请先在设置中清理后再同步。",
+    preference_read_failed: "偏好读取失败，请稍后重试。",
+    preference_write_failed: "偏好保存失败，请稍后重试。",
+  };
+  return messages[code] || `请求失败（${status}）`;
+}
+
 async function fetchResourceApi(path, options = {}) {
   const apiBase = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
-  const session = JSON.parse(localStorage.getItem("fablecut-auth-session") || "null");
+  const session = await restoreAuthSession();
   const auth = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
   const response = await fetch(`${apiBase}${path}`, { credentials: "same-origin", ...options, headers: { Accept: "application/json", ...auth, ...(options.headers || {}) } });
   let value = null;
   try { value = await response.json(); } catch { value = null; }
-  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "登录后查看资源" : (value?.error || `请求失败（${response.status}）`));
+  if (!response.ok) throw new Error(resourceRequestMessage(value?.error, response.status));
   return value;
 }
 
-function openAuth() { $("authOverlay")?.classList.remove("hidden"); $("authEmail")?.focus(); }
+let authMode = "login";
+function storedAuthSession() {
+  try { return JSON.parse(localStorage.getItem("fablecut-auth-session") || "null"); }
+  catch { localStorage.removeItem("fablecut-auth-session"); return null; }
+}
+async function loadPersistedAuthSession() {
+  const local = storedAuthSession();
+  try {
+    const native = await window.edwardSettings?.authSession?.();
+    if (!native?.access_token || !native?.refresh_token) return local;
+    let user = native.user;
+    if (typeof user === "string") { try { user = JSON.parse(user); } catch {} }
+    const session = { ...native, user };
+    localStorage.setItem("fablecut-auth-session", JSON.stringify(session));
+    return session;
+  } catch { return local; }
+}
+function setAuthButton(session) {
+  const button = $("btnAuth");
+  if (!button) return;
+  const signedIn = !!session?.access_token;
+  button.textContent = signedIn ? "已登录" : "登录";
+  button.classList.toggle("authenticated", signedIn);
+  button.dataset.authenticated = signedIn ? "true" : "false";
+  button.title = signedIn ? "已登录，点击打开订阅/续订" : "登录 Supabase";
+  button.style.background = signedIn ? "#1aa6a6" : "";
+  button.style.borderColor = signedIn ? "#39d1c8" : "";
+  button.style.color = signedIn ? "#061818" : "";
+  void window.edwardSettings?.setAuthState?.(signedIn);
+}
+function sessionNeedsRefresh(session) {
+  try {
+    const payload = JSON.parse(atob(String(session?.access_token || "").split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return !payload.exp || payload.exp * 1000 < Date.now() + 60000;
+  } catch { return true; }
+}
+async function restoreAuthSession() {
+  let session = await loadPersistedAuthSession();
+  if (!session?.access_token) { setAuthButton(null); return null; }
+  if (!sessionNeedsRefresh(session)) return session;
+  if (!session.refresh_token) { localStorage.removeItem("fablecut-auth-session"); setAuthButton(null); return null; }
+  try {
+    const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+    const response = await fetch(`${base}/api/auth/refresh`, { method:"POST", headers:{"Content-Type":"application/json", Accept:"application/json"}, body:JSON.stringify({refresh_token:session.refresh_token}) });
+    const value = await response.json();
+    if (!response.ok || !value?.access_token) throw new Error("refresh failed");
+    session = {...session, ...value};
+    localStorage.setItem("fablecut-auth-session", JSON.stringify(session));
+    await window.edwardSettings?.saveAuthSession?.(session);
+    return session;
+  } catch {
+    localStorage.removeItem("fablecut-auth-session");
+    await window.edwardSettings?.clearAuthSession?.();
+    setAuthButton(null);
+    return null;
+  }
+}
+async function confirmAuthSession() {
+  const session = await restoreAuthSession();
+  if (!session) return null;
+  const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+  try {
+    const response = await fetch(`${base}/api/auth/session`, { credentials:"same-origin", headers:{Accept:"application/json", Authorization:`Bearer ${session.access_token}`} });
+    if (!response.ok) throw new Error("session invalid");
+    await fetch(`${base}/api/resources/cache-session`, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", Authorization: `Bearer ${session.access_token}` } });
+    setAuthButton(session);
+    return session;
+  } catch {
+    localStorage.removeItem("fablecut-auth-session");
+    await window.edwardSettings?.clearAuthSession?.();
+    setAuthButton(null);
+    return null;
+  }
+}
+function setAuthMode(mode) {
+  authMode = mode === "register" ? "register" : "login";
+  const registering = authMode === "register";
+  $("authTitle").textContent = registering ? "注册" : "登录";
+  $("authUsernameRow")?.classList.toggle("hidden", !registering);
+  $("authPassword")?.setAttribute("autocomplete", registering ? "new-password" : "current-password");
+  $("btnAuthSubmit").textContent = registering ? "注册" : "登录";
+  $("btnAuthLogin")?.classList.toggle("on", !registering);
+  $("btnAuthRegister")?.classList.toggle("on", registering);
+  $("btnAuthRecover")?.classList.toggle("hidden", registering);
+  $("authStatus").textContent = "";
+}
+function openAuth(mode = authMode) { setAuthMode(mode); $("authOverlay")?.classList.remove("hidden"); $("authEmail")?.focus(); }
 function closeAuth() { $("authOverlay")?.classList.add("hidden"); }
+function closeSubscription() { $("subscriptionOverlay")?.classList.add("hidden"); }
+function formatSubscriptionDate(value) {
+  if (!value) return "未提供时间";
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? String(value) : date.toLocaleString("zh-CN");
+}
+function formatBillingCycle(interval, count = 1) {
+  const n = Math.max(1, Number(count) || 1);
+  if (interval === "day") return n === 1 ? "日付" : `${n} 天`;
+  if (interval === "year") return n === 1 ? "年付" : `${n} 年`;
+  if (interval === "month") {
+    if (n === 1) return "月付";
+    if (n === 3) return "季付";
+    if (n === 6) return "半年付";
+    if (n === 12) return "年付";
+    return `${n} 个月`;
+  }
+  return "订阅方案";
+}
+function activeEntitlement(value) {
+  const subscriptions = Array.isArray(value?.subscriptions) ? value.subscriptions : [];
+  const subscription = subscriptions.find((item) => ["active", "grace", "trialing", "past_due"].includes(item.status));
+  const trial = value?.trial;
+  if (subscription) return subscription;
+  if (trial && ["active", "trialing"].includes(trial.status)) {
+    return { status: "试用中", plan_key: "试用", current_period_start: trial.starts_at, current_period_end: trial.ends_at };
+  }
+  return null;
+}
+async function openSubscriptionPanel() {
+  const session = await confirmAuthSession();
+  if (!session) { openAuth("login"); return; }
+  $("subscriptionOverlay")?.classList.remove("hidden");
+  $("subscriptionMessage").textContent = "";
+  $("subscriptionPlansState").textContent = "正在加载订阅方案…";
+  try {
+    const [catalog, entitlements] = await Promise.all([fetchResourceApi("/api/subscription/catalog"), fetchResourceApi("/api/auth/entitlements")]);
+    const plans = Array.isArray(catalog?.plans) ? catalog.plans : [];
+    $("subscriptionPlansState").textContent = plans.length ? "选择方案进入支付流程" : "当前暂无可购买方案。";
+    $("subscriptionPlans").innerHTML = plans.map((plan) => { const original = Number(plan.unit_amount || 0) / 100; const percent = Math.max(0, Math.min(100, Number(plan.discount_config?.percent || 0))); const discounted = original * (100 - percent) / 100; const cycle = formatBillingCycle(plan.billing_interval, plan.billing_interval_count); return `<article class="subscription-plan"><div><h3>${escapeHtml(plan.name || plan.plan_key)}</h3><p>${escapeHtml(cycle)}${plan.is_recurring ? " · 自动续订" : ""}</p></div><div class="plan-price"><del>${escapeHtml(String(plan.currency || "CNY"))} ${original.toFixed(2)}</del><strong>${escapeHtml(String(plan.currency || "CNY"))} ${discounted.toFixed(2)}</strong>${percent ? `<small>-${percent}%</small>` : ""} <button class="btn tiny primary" data-subscription-plan="${escapeHtml(plan.plan_key)}">选择</button></div></article>`; }).join("");
+    $("subscriptionPlans").querySelectorAll("[data-subscription-plan]").forEach((button) => button.addEventListener("click", () => beginSubscriptionPayment(button.dataset.subscriptionPlan)));
+    const active = activeEntitlement(entitlements);
+    $("subscriptionStatusText").textContent = active ? `状态：已订阅 · ${active.plan_key || "订阅"}` : "状态：未订阅";
+    $("subscriptionPeriodText").textContent = active ? `订阅周期：${formatSubscriptionDate(active.current_period_start || active.starts_at)} 至 ${formatSubscriptionDate(active.current_period_end || active.expires_at)}` : "可从上方选择订阅方案。";
+  } catch (error) {
+    $("subscriptionPlansState").textContent = "订阅方案暂时无法加载。";
+    $("subscriptionMessage").textContent = error.message;
+  }
+  try {
+    const banners = await fetchResourceApi("/api/subscription/banner");
+    const banner = Array.isArray(banners) ? banners[0] : null;
+    if (banner?.image_url) $("subscriptionBanner").style.backgroundImage = `url("${String(banner.image_url).replace(/"/g, "")}")`;
+    if (banner?.title) $("subscriptionBanner").firstElementChild.textContent = banner.title;
+  } catch { /* banner is optional; keep the local placeholder */ }
+}
+async function beginSubscriptionPayment(planKey) {
+  if (!planKey || beginSubscriptionPayment.busy) return;
+  beginSubscriptionPayment.busy = true;
+  const message = $("subscriptionMessage");
+  message.textContent = "正在进入支付流程…";
+  try {
+    const idempotencyKey = beginSubscriptionPayment.keys.get(planKey) || crypto.randomUUID();
+    beginSubscriptionPayment.keys.set(planKey, idempotencyKey);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    let result;
+    try { result = await fetchResourceApi("/api/payment/alipay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planKey, idempotencyKey }), signal: controller.signal }); }
+    finally { clearTimeout(timeout); }
+    if (result?.qrCode && result?.orderId) {
+      const image = document.createElement("img"); image.alt = "支付宝支付二维码"; image.className = "subscription-qr";
+      image.src = /^data:image/i.test(result.qrCode)
+        ? result.qrCode
+        : `https://quickchart.io/qr?text=${encodeURIComponent(result.qrCode)}&size=240`;
+      image.onerror = () => { image.onerror = null; image.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(result.qrCode)}`; };
+      const text = document.createElement("span"); text.className = "subscription-payment-note"; text.textContent = "请使用支付宝扫码支付。";
+      const check = document.createElement("button"); check.type = "button"; check.className = "btn tiny primary subscription-payment-check"; check.textContent = "我已完成支付";
+      check.addEventListener("click", () => checkSubscriptionPaymentNow(result.orderId, message));
+      message.dataset.orderId = result.orderId;
+      message.dataset.planKey = planKey;
+      message.replaceChildren(image, text, check);
+      watchSubscriptionPayment(result.orderId, message);
+    } else {
+      const errorCode = String(result?.error || "");
+      if (errorCode !== "payment_gateway_timeout" && errorCode !== "supabase_timeout" && errorCode !== "payment_order_pending") beginSubscriptionPayment.keys.delete(planKey);
+      message.textContent = paymentErrorMessage(errorCode);
+    }
+  } catch (error) {
+    const errorCode = String(error?.message || "");
+    const recoverable = error?.name === "AbortError" || ["supabase_timeout", "payment_gateway_timeout", "payment_order_pending"].includes(errorCode);
+    if (!recoverable) beginSubscriptionPayment.keys.delete(planKey);
+    message.textContent = error?.name === "AbortError" ? "支付服务响应超时，请稍后重试。" : paymentErrorMessage(errorCode);
+  }
+  finally { beginSubscriptionPayment.busy = false; }
+}
+function paymentErrorMessage(code) {
+  return ({
+    payment_order_pending: "已有一笔支付订单正在创建，请稍后点击方案重试。",
+    payment_order_retryable: "上一笔支付订单已结束，请重新选择方案。",
+    plan_unavailable: "该订阅方案暂不可用。",
+    invalid_plan_amount: "该订阅方案金额无效。",
+    payment_config_error: "支付配置暂不可用，请稍后重试。",
+    payment_gateway_timeout: "支付服务响应超时，请稍后重试。",
+    supabase_timeout: "支付服务响应超时，请稍后重试。",
+    payment_request_build_failed: "支付请求生成失败，请稍后重试。",
+    payment_create_failed: "支付订单创建失败，请稍后重试。",
+    payment_unavailable: "支付服务暂不可用，请稍后重试。",
+    credit_unavailable: "优惠额度暂不可用，请稍后重试。",
+    order_unavailable: "订单服务暂不可用，请稍后重试。",
+    invalid_request: "请求无效，请稍后重试。",
+  }[code] || code || "支付订单创建失败。");
+}
+beginSubscriptionPayment.busy = false;
+beginSubscriptionPayment.keys = new Map();
+const paymentWatchers = new Map();
+function stopSubscriptionPayment(orderId) {
+  const watcher = paymentWatchers.get(orderId);
+  if (!watcher) return;
+  watcher.active = false;
+  clearTimeout(watcher.timer);
+  paymentWatchers.delete(orderId);
+}
+function watchSubscriptionPayment(orderId, message, immediate = false) {
+  let watcher = paymentWatchers.get(orderId);
+  if (!watcher) { watcher = { active: true, delay: 5000, timer: null, busy: false, reconciling: false, startedAt: Date.now() }; paymentWatchers.set(orderId, watcher); }
+  clearTimeout(watcher.timer);
+  watcher.timer = setTimeout(() => querySubscriptionPayment(orderId, message, watcher), immediate ? 0 : watcher.delay);
+}
+async function querySubscriptionPayment(orderId, message, watcher) {
+  if (!watcher?.active || watcher.busy) return;
+  if (Date.now() - watcher.startedAt >= 10 * 60 * 1000) {
+    stopSubscriptionPayment(orderId);
+    beginSubscriptionPayment.keys.delete(message.dataset.planKey || "");
+    message.replaceChildren(document.createTextNode("支付等待已超时，请重新选择订阅方案。"));
+    return;
+  }
+  watcher.busy = true;
+  const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+  try {
+    const session = await restoreAuthSession();
+    if (!session?.access_token) { stopSubscriptionPayment(orderId); return; }
+    const response = await fetch(`${base}/api/payment/alipay/state`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ orderId }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(String(result.error || `支付状态查询失败（${response.status}）`));
+    if (result.status === "paid") { stopSubscriptionPayment(orderId); beginSubscriptionPayment.keys.delete(message.dataset.planKey || ""); message.replaceChildren(); await openSubscriptionPanel(); return; }
+    if (["failed", "expired", "refunded"].includes(result.status)) {
+      stopSubscriptionPayment(orderId);
+      beginSubscriptionPayment.keys.delete(message.dataset.planKey || "");
+      message.replaceChildren(document.createTextNode("该支付订单已关闭，请重新选择订阅方案。"));
+      return;
+    }
+    message.querySelector(".subscription-payment-note")?.replaceChildren(document.createTextNode("请使用支付宝扫码支付。"));
+    reconcileSubscriptionPayment(orderId, message, watcher);
+    watcher.delay = Math.min(15000, Math.round(watcher.delay * 1.5));
+  } catch {
+    message.querySelector(".subscription-payment-note")?.replaceChildren(document.createTextNode("支付状态暂时无法确认，将自动重试。"));
+    watcher.delay = Math.min(15000, Math.round(watcher.delay * 1.5));
+  } finally {
+    watcher.busy = false;
+    if (watcher.active) watchSubscriptionPayment(orderId, message);
+  }
+}
+async function reconcileSubscriptionPayment(orderId, message, watcher) {
+  if (!watcher?.active || watcher.reconciling) return;
+  watcher.reconciling = true;
+  const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+  try {
+    const session = await restoreAuthSession();
+    if (!session?.access_token) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(`${base}/api/payment/alipay/status`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ orderId }), signal: controller.signal });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.status === "paid" && watcher.active) {
+        stopSubscriptionPayment(orderId);
+        beginSubscriptionPayment.keys.delete(message.dataset.planKey || "");
+        message.replaceChildren();
+        await openSubscriptionPanel();
+      }
+      if (response.ok && ["failed", "expired", "refunded"].includes(result.status) && watcher.active) {
+        stopSubscriptionPayment(orderId);
+        beginSubscriptionPayment.keys.delete(message.dataset.planKey || "");
+        message.replaceChildren(document.createTextNode("该支付订单已关闭，请重新选择订阅方案。"));
+      }
+    } finally { clearTimeout(timeout); }
+  } catch { /* 异步通知或下一次状态读取仍可完成订单 */ }
+  finally { watcher.reconciling = false; }
+}
+function checkSubscriptionPaymentNow(orderId, message) {
+  const button = message.querySelector(".subscription-payment-check");
+  button?.setAttribute("disabled", "disabled");
+  const watcher = paymentWatchers.get(orderId);
+  if (watcher) watcher.delay = 5000;
+  if (watcher) reconcileSubscriptionPayment(orderId, message, watcher);
+  else watchSubscriptionPayment(orderId, message, true);
+  setTimeout(() => button?.removeAttribute("disabled"), 1500);
+}
+async function logoutAuth() {
+  const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
+  try { await fetch(`${base}/api/resources/cache`, { method: "DELETE" }); } catch { /* local cache cleanup is best effort */ }
+  localStorage.removeItem("fablecut-auth-session");
+  await window.edwardSettings?.clearAuthSession?.();
+  setAuthButton(null); closeSubscription(); openAuth("login");
+}
 async function submitAuth() {
   const status = $("authStatus"), email = $("authEmail")?.value.trim(), password = $("authPassword")?.value;
   if (!email || !password) { status.textContent = "请输入邮箱和密码"; return; }
-  status.textContent = "登录中…";
+  const username = $("authUsername")?.value.trim();
+  if (authMode === "register" && !username) { status.textContent = "请输入用户名"; return; }
+  status.textContent = authMode === "register" ? "注册中…" : "登录中…";
   try {
+    if (authMode === "register") {
+      if (!window.edwardSettings?.available?.()) {
+        status.textContent = "请在 Edward 桌面应用中完成注册。";
+        return;
+      }
+      const result = await window.edwardSettings.registerAccount(email, password, username);
+      status.textContent = result?.message || "注册暂时无法完成，请稍后重试。";
+      return;
+    }
     const base = window.location.protocol === "file:" ? "http://127.0.0.1:7777" : "";
-    const response = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ email, password }) });
+    const endpoint = authMode === "register" ? "/api/auth/signup" : "/api/auth/login";
+    const payload = authMode === "register" ? { email, password, username } : { email, password };
+    const response = await fetch(`${base}${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
     const value = await response.json();
-    if (!response.ok || !value.access_token) throw new Error(value.error_description || value.msg || "登录失败");
+    if (!response.ok || !value.access_token) throw new Error(value.message || "登录暂时无法完成，请稍后重试。");
+    try { await fetch("/api/resources/cache", { method: "DELETE" }); } catch { /* account switch cleanup is best effort */ }
     localStorage.setItem("fablecut-auth-session", JSON.stringify(value));
-    $("btnAuth").textContent = "已登录"; closeAuth();
+    await window.edwardSettings?.saveAuthSession?.(value);
+    setAuthButton(value); closeAuth();
+    if (window.edwardSettings?.available?.()) void window.edwardSettings.enrollDevice(value.access_token);
     try {
       const entitlements = await fetchResourceApi("/api/auth/entitlements");
-      const active = (entitlements || []).find((item) => item.status === "active" || item.status === "grace");
+      const active = activeEntitlement(entitlements);
       if (active) setResourceState(`已登录 · ${active.plan_key}`);
     } catch { /* resource requests will still enforce authorization */ }
+    await openSubscriptionPanel();
     if (resourceBrowserState.tab) loadResourceBrowser(resourceBrowserState.tab);
   } catch (error) { status.textContent = error.message; }
 }
+async function recoverPassword() {
+  const status = $("authStatus"), email = $("authEmail")?.value.trim();
+  if (!email) { status.textContent = "请输入邮箱后再找回密码"; $("authEmail")?.focus(); return; }
+  status.textContent = "正在发送重置邮件…";
+  try {
+    if (!window.edwardSettings?.available?.()) {
+      status.textContent = "请在 Edward 桌面应用中发起密码找回。";
+      return;
+    }
+    const result = await window.edwardSettings.recoverAccount(email);
+    status.textContent = result?.message || "认证服务暂时不可用，请稍后重试。";
+    return;
+  } catch (error) { status.textContent = error.message; }
+}
 
-$("btnAuth")?.addEventListener("click", openAuth);
+$("btnAuth")?.addEventListener("click", async () => { if (await confirmAuthSession()) await openSubscriptionPanel(); else openAuth("login"); });
 $("btnAuthCancel")?.addEventListener("click", closeAuth);
 $("btnAuthSubmit")?.addEventListener("click", submitAuth);
+$("btnAuthLogin")?.addEventListener("click", () => setAuthMode("login"));
+$("btnAuthRegister")?.addEventListener("click", () => setAuthMode("register"));
+$("btnAuthRecover")?.addEventListener("click", recoverPassword);
+$("btnSubscriptionClose")?.addEventListener("click", closeSubscription);
+$("resourcePreviewClose")?.addEventListener("click", () => {
+  $("resourcePreviewVideo")?.pause();
+  $("resourcePreviewOverlay")?.classList.add("hidden");
+});
+$("btnAuthLogout")?.addEventListener("click", logoutAuth);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    const message = $("subscriptionMessage");
+    const orderId = message?.dataset.orderId;
+    if (orderId && !$("subscriptionOverlay")?.classList.contains("hidden")) watchSubscriptionPayment(orderId, message, true);
+  }
+});
+function bootstrapAuthState(attempt = 0) {
+  void confirmAuthSession().then((session) => {
+    if (!session && attempt < 3) setTimeout(() => bootstrapAuthState(attempt + 1), 500);
+  });
+}
+bootstrapAuthState();
+window.addEventListener("load", () => { setTimeout(() => bootstrapAuthState(), 250); }, { once: true });
+setInterval(async () => {
+  await confirmAuthSession();
+}, 60000);
 
 function renderResourceCategories() {
   if (!els.resourceCategories) return;
@@ -1808,12 +2205,12 @@ function renderResourceCategories() {
     ["latest", "最新"],
     ["popular", "热门"],
   ];
-  for (const [sort, label] of special) {
+  for (const [filter, label] of special) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `resource-category${!resourceBrowserState.categoryId && resourceBrowserState.sort === sort ? " on" : ""}`;
+    button.className = `resource-category${resourceBrowserState.filter === filter ? " on" : ""}`;
     button.textContent = label;
-    button.addEventListener("click", () => { resourceBrowserState.categoryId = null; resourceBrowserState.sort = sort; loadResourcePage(true); renderResourceCategories(); });
+    button.addEventListener("click", () => { resourceBrowserState.filter = filter; loadResourcePage(true); renderResourceCategories(); });
     els.resourceCategories.appendChild(button);
   }
   for (const root of roots) {
@@ -1834,33 +2231,263 @@ function renderResourceCategories() {
   }
 }
 
-function renderResourceCards(items) {
+const RESOURCE_TEXT_DURATION = 3;
+const VERTICAL_BOTTOM_SAFE_AREA_RATIO = 0.34;
+
+function subtitleSafeAreaY(height) {
+  return Number(height) * (VERTICAL_BOTTOM_SAFE_AREA_RATIO - 0.5);
+}
+
+function fixedTextFavoriteCards() {
+  if (resourceBrowserState.tab !== "text" || resourceBrowserState.filter !== "favorites") return [];
+  return [
+    {
+      id: "edward.local.text.title", localFixed: true, target: "web.runtime", runtime: "local-text", version: "1.0.0", content_hash: "edward-local-title-v1", name: "标题",
+      text: "标题", preview_url: "/assets/resource-previews/title.mp4", props: { x: 0, y: 0, align: "center", vAlign: "middle" },
+    },
+    {
+      id: "edward.local.text.subtitle", localFixed: true, target: "web.runtime", runtime: "local-text", version: "1.0.0", content_hash: "edward-local-subtitle-v1", name: "字幕",
+      text: "字幕", preview_url: "/assets/resource-previews/subtitle.mp4", props: { x: 0, y: subtitleSafeAreaY(project.height), align: "center" },
+    },
+  ];
+}
+
+function runtimeDefaults(manifest) {
+  return Object.fromEntries(Object.entries(manifest?.propsSchema?.properties || {}).map(([key, spec]) => [key, spec.default]).filter(([, value]) => value !== undefined));
+}
+
+function cachedResourcePreviewKey(resource) {
+  if (!resource?.component_id || !/^\d+\.\d+\.\d+$/.test(String(resource.version || "")) || !/^[a-f0-9]{64}$/.test(String(resource.content_hash || ""))) return null;
+  return `fablecut-resource-preview:${resource.component_id}@${resource.version}#${resource.content_hash}`;
+}
+
+function cachedResourcePreviewUrl(resource) {
+  const key = cachedResourcePreviewKey(resource);
+  if (!key || localStorage.getItem(key) !== "1") return null;
+  const cacheKey = `${resource.component_id}@${resource.version}#${resource.content_hash}`;
+  return `/api/resources/cache-preview?key=${encodeURIComponent(cacheKey)}`;
+}
+
+function preferredResourcePreviewUrl(resource) {
+  return resource.cache_preview_url || cachedResourcePreviewUrl(resource) || resource.preview_url || "";
+}
+
+function recoverResourcePreview(resource, video) {
+  const localUrl = cachedResourcePreviewUrl(resource);
+  if (!localUrl || video.dataset.resourcePreviewRecovered === "1") return;
+  const previewKey = cachedResourcePreviewKey(resource);
+  if (previewKey) localStorage.removeItem(previewKey);
+  if (resource.cache_preview_url === localUrl) resource.cache_preview_url = null;
+  video.dataset.resourcePreviewRecovered = "1";
+  if (resource.preview_url && video.src !== resource.preview_url) {
+    video.src = resource.preview_url;
+    video.load();
+  }
+  recordFablecutDiagnostic("resource_preview_fallback", `resource=${resource.id || "unknown"} component=${resource.component_id || "unknown"}`);
+}
+
+async function cachePublicResource(resource) {
+  const payload = await fetchResourceApi("/api/resources/cache", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resourceId: resource.id, componentId: resource.component_id, version: resource.version, contentHash: resource.content_hash }),
+  });
+  if (payload?.state !== "ready" || !payload.key || !payload.manifest) throw new Error("组件缓存不完整");
+  resource.cache_preview_url = payload.previewUrl || resource.cache_preview_url;
+  const previewKey = cachedResourcePreviewKey(resource);
+  if (previewKey && resource.cache_preview_url) localStorage.setItem(previewKey, "1");
+  cacheResourceItems([resource]);
+  return payload;
+}
+
+let resourceInsertionQueue = Promise.resolve();
+
+function insertResourceClip(resource) {
+  const requestedStart = Math.max(0, Number(state.time) || 0);
+  resourceInsertionQueue = resourceInsertionQueue.then(
+    () => insertResourceClipNow(resource, requestedStart),
+    () => insertResourceClipNow(resource, requestedStart),
+  );
+  return resourceInsertionQueue;
+}
+
+async function insertResourceClipNow(resource, requestedStart) {
+  const start = Math.max(0, Number(requestedStart) || 0);
+  let cache = null;
+  let manifest = null;
+  try {
+    if (!resource.localFixed) {
+      cache = await cachePublicResource(resource);
+      manifest = cache.manifest;
+      if (manifest.target && manifest.target !== "web.runtime") throw new Error("组件目标不受支持");
+    }
+  } catch (error) {
+    setResourceState(error.message || "组件缓存失败", true);
+    return;
+  }
+  // 缓存是异步操作；完成后按最新时间线重新计算，避免等待期间的编辑造成轨道冲突。
+  const placement = window.fablecutResourceTimeline?.resolveResourceInsertionTrack(
+    TRACKS, project.clips, start, RESOURCE_TEXT_DURATION, MAX_TRACKS_PER_KIND
+  );
+  if (!placement?.trackId) {
+    toast("没有可用的视频轨道可插入资源");
+    return;
+  }
+  if (placement.createdTrack) {
+    const created = addTimelineTrack("video", placement.createdTrack.id);
+    if (!created || created.id !== placement.createdTrack.id) {
+      toast("新建视频轨道失败，无法插入资源");
+      return;
+    }
+  }
+  let clip;
+  try {
+    if (resource.localFixed) {
+      clip = {
+        id: "c_" + uid(), mediaId: null, kind: "text", track: placement.trackId,
+        start, in: 0, duration: RESOURCE_TEXT_DURATION, name: resource.name,
+        resourceRef: { resourceId: resource.id, componentId: resource.id, version: resource.version, contentHash: resource.content_hash, target: resource.target, source: "local" },
+        props: { ...DEFAULT_PROPS, ...(resource.props || {}), text: resource.text || resource.name },
+      };
+    } else {
+      const resourceRef = { resourceId: resource.id, componentId: resource.component_id, version: resource.version, contentHash: resource.content_hash, target: "web.runtime", cacheKey: cache.key, source: "cached" };
+      const props = { ...runtimeDefaults(manifest), ...(resource.props || {}) };
+      const validation = window.fablecutComponentVersioning?.validateComponentInstance(manifest, { resourceRef, props, keyframes: {} });
+      if (validation && !validation.ok) throw new Error(validation.reason);
+      clip = {
+        id: "c_" + uid(), mediaId: null, kind: "component", componentId: resource.component_id, runtime: manifest.runtime,
+        source: "cache", track: placement.trackId, start, in: 0, duration: RESOURCE_TEXT_DURATION, name: resource.name || resource.component_id,
+        resourceRef, props, __preferenceManifest: manifest,
+      };
+    }
+  } catch (error) {
+    setResourceState(error.message || "组件缓存失败", true);
+    return;
+  }
+  pushUndo();
+  project.clips.push(clip);
+  recordFablecutDiagnostic("resource_add", `resource=${resource.id || "local"} component=${clip.resourceRef?.componentId || "local"} version=${clip.resourceRef?.version || "local"} track=${clip.track} start=${clip.start} duration=${clip.duration}`);
+  selectClip(clip.id);
+  rebuildClips();
+  drawFrame(state.time);
+  scheduleSave();
+}
+
+function renderLegacyResourceCards(items) {
   if (!els.resourceGrid) return;
   els.resourceGrid.innerHTML = "";
-  for (const resource of items || []) {
+  const displayItems = [...fixedTextFavoriteCards(), ...(items || [])];
+  for (const resource of displayItems) {
     const card = document.createElement("article");
-    card.className = "resource-card";
+    card.className = `resource-card${resource.localFixed ? " resource-card-local" : ""}`;
     card.draggable = true;
     const preview = resource.preview_url ? `<video class="resource-card-preview" src="${String(resource.preview_url).replace(/"/g, "&quot;")}" muted loop playsinline preload="none"></video>` : `<div class="resource-card-preview"></div>`;
     card.innerHTML = `${preview}<button type="button" class="resource-card-favorite" aria-label="收藏资源" title="收藏"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M536.380952 48.761905c256 0 463.238095 207.238095 463.238096 463.238095s-207.238095 463.238095-463.238096 463.238095h-48.761904C231.619048 975.238095 24.380952 768 24.380952 512S231.619048 48.761905 487.619048 48.761905h48.761904m0-24.380953h-48.761904C219.428571 24.380952 0 243.809524 0 512s219.428571 487.619048 487.619048 487.619048h48.761904c268.190476 0 487.619048-219.428571 487.619048-487.619048S804.571429 24.380952 536.380952 24.380952z"/><path d="M687.542857 828.952381c-12.190476 0-21.942857-2.438095-34.133333-7.314286L512 755.809524l-141.409524 65.828571c-24.380952 12.190476-51.2 9.752381-68.266666-2.438095-17.066667-12.190476-26.819048-36.571429-24.380953-63.390476l17.066667-156.038095-104.838095-114.590477c-17.066667-21.942857-24.380952-46.32381-17.066667-68.266666 7.314286-21.942857 26.819048-36.571429 53.638095-41.447619l153.6-31.695238 75.580953-136.533334C470.552381 185.295238 490.057143 170.666667 512 170.666667c21.942857 0 43.885714 14.628571 56.07619 39.009523l75.580953 136.533334 153.6 31.695238c26.819048 4.87619 46.32381 21.942857 53.638095 41.447619 7.314286 21.942857 0 43.885714-19.504762 65.828571l-104.838095 114.590477 17.066667 156.038095c2.438095 26.819048-4.87619 51.2-24.380953 63.390476-7.314286 7.314286-19.504762 9.752381-31.695238 9.752381zM512 702.171429l160.914286 75.580952c9.752381 2.438095 17.066667 2.438095 19.504762 2.438095 2.438095-2.438095 4.87619-9.752381 2.438095-19.504762l-19.504762-177.980952 119.466667-131.657143c7.314286-7.314286 9.752381-14.628571 7.314285-17.066667 0-2.438095-7.314286-7.314286-17.066666-9.752381L609.52381 390.095238l-87.771429-156.038095c0-9.752381-7.314286-14.628571-9.752381-14.628572-2.438095 0-4.87619 4.87619-14.628571 14.628572L409.6 390.095238l-175.542857 34.133333c-9.752381 2.438095-17.066667 4.87619-17.066667 9.752381 0 2.438095 2.438095 9.752381 7.314286 17.066667l119.466667 131.657143-19.504762 177.980952c-2.438095 9.752381 0 17.066667 2.438095 19.504762 2.438095 2.438095 9.752381 2.438095 19.504762-2.438095l165.790476-75.580952z"/></svg></button><div class="resource-card-name"></div><div class="resource-card-summary"></div><div class="resource-card-meta">收藏 ${Number(resource.favorite_count || 0)}</div><button type="button" class="resource-card-add" aria-label="添加资源" title="添加">+</button>`;
     card.querySelector(".resource-card-name").textContent = resource.name || resource.slug || "未命名资源";
-    card.querySelector(".resource-card-summary").textContent = resource.summary || "";
+    card.querySelector(".resource-card-summary").textContent = "";
+    if (resource.localFixed) card.querySelector(".resource-card-meta").textContent = "本地固定";
     const previewVideo = card.querySelector("video.resource-card-preview");
     if (previewVideo) {
       card.addEventListener("mouseenter", () => { previewVideo.play().catch(() => {}); });
       card.addEventListener("mouseleave", () => { previewVideo.pause(); previewVideo.currentTime = 0; });
     }
-    card.querySelector(".resource-card-favorite").addEventListener("click", (event) => { event.stopPropagation(); setResourceState("收藏操作需要登录"); });
-    card.querySelector(".resource-card-add").addEventListener("click", (event) => { event.stopPropagation(); setResourceState(`${resource.name || "资源"} 已加入时间线`); });
-    card.addEventListener("dblclick", () => fetchResourceApi(`/api/resources/detail?id=${encodeURIComponent(resource.id)}`).catch((error) => setResourceState(error.message, true)));
+    const favorite = card.querySelector(".resource-card-favorite");
+    if (resource.localFixed) favorite.remove();
+    else favorite.addEventListener("click", (event) => { event.stopPropagation(); setResourceState("收藏操作需要登录"); });
+    card.querySelector(".resource-card-add").addEventListener("click", (event) => { event.stopPropagation(); void insertResourceClip(resource); });
+    if (!resource.localFixed)
+      card.addEventListener("dblclick", () => fetchResourceApi(`/api/resources/detail?id=${encodeURIComponent(resource.id)}`).catch((error) => setResourceState(error.message, true)));
+    els.resourceGrid.appendChild(card);
+  }
+}
+
+function createResourceActionButton(resource, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `resource-action resource-action-${action}`;
+  button.textContent = action === "favorite" ? (resource.is_favorite ? "已收藏" : "收藏") : "+";
+  button.title = action === "favorite" ? "收藏" : "在播放头插入";
+  button.setAttribute("aria-label", button.title);
+  return button;
+}
+
+async function toggleResourceFavorite(resource) {
+  if (resource.localFixed) return;
+  recordFablecutDiagnostic("resource_favorite_start", `resource=${resource.id || "unknown"} component=${resource.component_id || "unknown"} favorite=${resource.is_favorite ? "false" : "true"}`);
+  const startedAt = performance.now();
+  try {
+    const payload = await fetchResourceApi("/api/resources/favorite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resourceId: resource.id, favorite: !resource.is_favorite }) });
+    resource.is_favorite = payload.favorite;
+    resource.favorite_count = payload.favoriteCount;
+    renderResourceCards(resourceBrowserState.items);
+    recordFablecutDiagnostic("resource_favorite_end", `resource=${resource.id || "unknown"} component=${resource.component_id || "unknown"} status=success favorite=${resource.is_favorite ? "true" : "false"} count=${Number(resource.favorite_count || 0)} durationMs=${Math.round(performance.now() - startedAt)}`);
+  } catch (error) {
+    recordFablecutDiagnostic("resource_favorite_end", `resource=${resource.id || "unknown"} component=${resource.component_id || "unknown"} status=error reason=${error.message || "unknown"} durationMs=${Math.round(performance.now() - startedAt)}`);
+    setResourceState(error.message || "收藏操作失败", true);
+  }
+}
+
+function openResourcePreview(resource) {
+  const overlay = $("resourcePreviewOverlay");
+  const video = $("resourcePreviewVideo");
+  const title = $("resourcePreviewTitle");
+  if (!overlay || !video || !title) return;
+  title.textContent = resource.name || resource.component_id || "未命名资源";
+  video.src = preferredResourcePreviewUrl(resource);
+  video.dataset.resourcePreviewRecovered = "";
+  video.onerror = () => recoverResourcePreview(resource, video);
+  video.hidden = !video.src;
+  const previousFavorite = $("resourcePreviewFavorite");
+  const favorite = createResourceActionButton(resource, "favorite");
+  favorite.id = "resourcePreviewFavorite";
+  previousFavorite.replaceWith(favorite);
+  favorite.hidden = !!resource.localFixed;
+  favorite.addEventListener("click", () => void toggleResourceFavorite(resource));
+  $("resourcePreviewAdd").onclick = () => void insertResourceClip(resource);
+  overlay.classList.remove("hidden");
+  video.play().catch(() => {});
+}
+
+function renderResourceCards(items) {
+  if (!els.resourceGrid) return;
+  els.resourceGrid.innerHTML = "";
+  const displayItems = [...fixedTextFavoriteCards(), ...(items || [])];
+  for (const resource of displayItems) {
+    const card = document.createElement("article");
+    card.className = `resource-card${resource.localFixed ? " resource-card-local" : ""}`;
+    const previewUrl = preferredResourcePreviewUrl(resource);
+    const preview = document.createElement(previewUrl ? "video" : "div");
+    preview.className = "resource-card-preview";
+    if (preview instanceof HTMLVideoElement) {
+      preview.src = previewUrl;
+      preview.muted = true; preview.loop = true; preview.playsInline = true; preview.preload = "metadata";
+      preview.addEventListener("error", () => recoverResourcePreview(resource, preview));
+      card.addEventListener("mouseenter", () => preview.play().catch(() => {}));
+      card.addEventListener("mouseleave", () => { preview.pause(); preview.currentTime = 0; });
+    }
+    const name = document.createElement("div");
+    name.className = "resource-card-name";
+    name.textContent = resource.name || resource.component_id || "未命名资源";
+    const meta = document.createElement("div");
+    meta.className = "resource-card-meta";
+    meta.textContent = resource.localFixed ? "本地" : `收藏 ${Number(resource.favorite_count || 0)}`;
+    const add = createResourceActionButton(resource, "add");
+    add.addEventListener("click", (event) => { event.stopPropagation(); void insertResourceClip(resource); });
+    card.append(preview, name, meta, add);
+    if (!resource.localFixed) {
+      const favorite = createResourceActionButton(resource, "favorite");
+      favorite.addEventListener("click", (event) => { event.stopPropagation(); void toggleResourceFavorite(resource); });
+      card.appendChild(favorite);
+    }
+    card.addEventListener("click", () => openResourcePreview(resource));
     els.resourceGrid.appendChild(card);
   }
 }
 
 function cacheResourceItems(items) {
+  const userScope = resourceCacheUserScope();
   for (const item of items || []) {
     const key = item.component_id || item.id;
-    if (key) localStorage.setItem(`fablecut-resource-item:${key}`, JSON.stringify({ item, savedAt: Date.now() }));
+    if (key) localStorage.setItem(`fablecut-resource-item:${userScope}:${key}`, JSON.stringify({ item, savedAt: Date.now() }));
   }
 }
 
@@ -1882,21 +2509,24 @@ async function loadResourcePage(reset = false) {
       if (cached?.items) { renderResourceCards(cached.items); setResourceState("已显示本地缓存，正在同步"); }
     } catch { /* ignore malformed local cache */ }
   }
-  const query = new URLSearchParams({ tabKey: resourceBrowserState.tab, sort: resourceBrowserState.sort, limit: String(RESOURCE_PAGE_SIZE), offset: String(resourceBrowserState.offset) });
+  const query = new URLSearchParams({ tabKey: resourceBrowserState.tab, filter: resourceBrowserState.filter, limit: String(RESOURCE_PAGE_SIZE), offset: String(resourceBrowserState.offset) });
   if (resourceBrowserState.categoryId) query.set("categoryId", resourceBrowserState.categoryId);
   try {
+    const startedAt = performance.now();
     const payload = await fetchResourceApi(`/api/resources/catalog?${query}`);
     const items = Array.isArray(payload?.items) ? payload.items : [];
     resourceBrowserState.items = reset ? items : resourceBrowserState.items.concat(items);
     renderResourceCards(resourceBrowserState.items);
-    resourceBrowserState.offset += items.length;
-    resourceBrowserState.hasMore = Boolean(payload?.nextOffset);
+    resourceBrowserState.offset = Number.isInteger(payload?.nextOffset) ? payload.nextOffset : resourceBrowserState.offset + items.length;
+    resourceBrowserState.hasMore = Number.isInteger(payload?.nextOffset);
     if (reset) {
       localStorage.setItem(cacheKey, JSON.stringify({ items, savedAt: Date.now() }));
       cacheResourceItems(items);
     }
-    setResourceState(items.length ? "" : "暂无资源");
+    setResourceState(items.length || fixedTextFavoriteCards().length ? "" : "暂无资源");
+    recordFablecutDiagnostic("resource_catalog", `tab=${resourceBrowserState.tab} filter=${resourceBrowserState.filter} category=${resourceBrowserState.categoryId || "all"} status=success count=${items.length} offset=${resourceBrowserState.offset} durationMs=${Math.round(performance.now() - startedAt)}`);
   } catch (error) {
+    recordFablecutDiagnostic("resource_catalog", `tab=${resourceBrowserState.tab} filter=${resourceBrowserState.filter} category=${resourceBrowserState.categoryId || "all"} status=error reason=${error.message || "unknown"}`);
     setResourceState(error.message || "资源加载失败", true);
     if (!els.resourceGrid.children.length) renderResourceCards([]);
   }
@@ -1907,8 +2537,8 @@ async function loadResourceBrowser(tab) {
   resourceBrowserState.tab = tab;
   resourceBrowserState.categoryId = null;
   resourceBrowserState.items = [];
-  resourceBrowserState.sort = localStorage.getItem(`fablecut-resource-sort:${tab}`) || "latest";
-  els.resourceSort?.querySelectorAll("[data-resource-sort]").forEach((button) => button.classList.toggle("on", button.dataset.resourceSort === resourceBrowserState.sort));
+  resourceBrowserState.filter = "favorites";
+  els.resourceSort?.querySelectorAll("[data-resource-filter]").forEach((button) => button.classList.toggle("on", button.dataset.resourceFilter === resourceBrowserState.filter));
   setResourceState("正在加载资源");
   if (isDemoResourceMode) {
     resourceBrowserState.categories = DEMO_RESOURCE_CATEGORIES;
@@ -1932,11 +2562,10 @@ async function loadResourceBrowser(tab) {
 }
 
 els.resourceSort?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-resource-sort]");
+  const button = event.target.closest("[data-resource-filter]");
   if (!button) return;
-  resourceBrowserState.sort = button.dataset.resourceSort;
-  localStorage.setItem(`fablecut-resource-sort:${resourceBrowserState.tab}`, resourceBrowserState.sort);
-  els.resourceSort.querySelectorAll("[data-resource-sort]").forEach((item) => item.classList.toggle("on", item === button));
+  resourceBrowserState.filter = button.dataset.resourceFilter;
+  els.resourceSort.querySelectorAll("[data-resource-filter]").forEach((item) => item.classList.toggle("on", item === button));
   loadResourcePage(true);
 });
 els.resourceMore?.addEventListener("click", () => loadResourcePage(false));
@@ -1948,10 +2577,9 @@ function setBinTab(tab) {
   if (els.binImportTools) els.binImportTools.hidden = tab !== "import";
   const isImport = tab === "import";
   els.binList.classList.toggle("hidden", !isImport);
-  els.libList.classList.toggle("hidden", tab !== "annotation");
+  els.libList.classList.add("hidden");
   els.resourceBrowser?.classList.toggle("hidden", isImport);
   if (isImport) renderBin();
-  else if (tab === "annotation") { els.resourceBrowser?.classList.add("hidden"); els.libList.classList.remove("hidden"); renderNativeAnnotationLibraryAsync(); }
   else if (RESOURCE_PAGE_SIZE && els.resourceBrowser) loadResourceBrowser(tab);
 }
 
@@ -2009,6 +2637,11 @@ function linkedClip(c) {
   return c?.linkedId ? getClip(c.linkedId) : null;
 }
 function isNativeAnnotation(c) { return c?.kind === "component" && String(c.componentId || "").startsWith("annotation.rect."); }
+// Edward canvas coordinates are centered: right/up are positive, left/down
+// are negative. Keep all screen conversion at this boundary so rulers,
+// rendering, hit-testing and direct manipulation cannot drift apart.
+function worldToCanvas(x, y, W, H) { return { x: W / 2 + Number(x || 0), y: H / 2 - Number(y || 0) }; }
+function canvasToWorld(x, y, W, H) { return { x: Number(x) - W / 2, y: H / 2 - Number(y) }; }
 /* Expand a clip list so each AV-linked partner is included once.
    Supports N-way `linkGroup` (video + per-channel stems) and legacy pairwise `linkedId`. */
 function withLinked(clips) {
@@ -2276,9 +2909,9 @@ function applyTitleStyle(clip, name, { keepTransform = false } = {}) {
     const H = project.height || 720, W = project.width || 1280;
     const place = st.place || "center";
     P.x = 0;
-    P.y = place === "lower" ? Math.round(H * 0.30)
-      : place === "upper" ? -Math.round(H * 0.30)
-        : place === "lower-left" ? Math.round(H * 0.28) : 0;
+    P.y = place === "lower" ? -Math.round(H * 0.30)
+      : place === "upper" ? Math.round(H * 0.30)
+        : place === "lower-left" ? -Math.round(H * 0.28) : 0;
     if (place === "lower-left") { P.x = -Math.round(W * 0.18); P.align = "left"; }
   }
   ensureFont(P.font);
@@ -2463,6 +3096,7 @@ function addTitle() {
   runtime.titleStyleIdx = ((runtime.titleStyleIdx || 0) + 1) % STYLE_CYCLE.length;
   applyTitleStyle(c, STYLE_CYCLE[runtime.titleStyleIdx]);
   project.clips.push(c);
+  recordFablecutDiagnostic("timeline_add", `clip=${c.id} kind=${c.kind} track=${c.track} start=${c.start} duration=${c.duration}`);
   selectClip(c.id); scheduleSave();
 }
 function addComponent() {
@@ -2483,6 +3117,7 @@ async function addBuiltInComponent() {
     props, creationSessionId: `create_${uid()}_${Date.now()}`, __preferenceManifest: manifest,
   };
   project.clips.push(c);
+  recordFablecutDiagnostic("timeline_add", `clip=${c.id} kind=${c.kind} component=${c.componentId} track=${c.track} start=${c.start} duration=${c.duration}`);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
 async function addNativeComponent(componentId, dropTrack = "V2", dropTime = state.time) {
@@ -2498,6 +3133,7 @@ async function addNativeComponent(componentId, dropTrack = "V2", dropTime = stat
   const c = { id: "c_" + uid(), mediaId: null, kind: "component", componentId: manifest.id || componentId, runtime: manifest.runtime, source: manifest.entry, track, start, in: 0, duration, name: manifest.name || componentId, props,
     creationSessionId: `create_${uid()}_${Date.now()}`, __preferenceManifest: manifest };
   project.clips.push(c);
+  recordFablecutDiagnostic("timeline_add", `clip=${c.id} kind=${c.kind} component=${c.componentId} track=${c.track} start=${c.start} duration=${c.duration}`);
   selectClip(c.id); scheduleSave(); renderInspector(); drawFrame(state.time);
 }
 function addAdjust() {
@@ -2508,6 +3144,7 @@ function addAdjust() {
     props: { ...DEFAULT_PROPS },
   };
   project.clips.push(c);
+  recordFablecutDiagnostic("timeline_add", `clip=${c.id} kind=${c.kind} track=${c.track} start=${c.start} duration=${c.duration}`);
   selectClip(c.id); scheduleSave();
 }
 function deleteSelected() {
@@ -2515,6 +3152,7 @@ function deleteSelected() {
   if (!doomed.length) return;
   pushUndo();
   const ids = new Set(doomed.map((c) => c.id));
+  recordFablecutDiagnostic("timeline_delete", `clips=${[...ids].join(",")}`);
   for (const c of doomed) releaseClipEl(c.id);
   project.clips = project.clips.filter((x) => !ids.has(x.id));
   setSelection([]);
@@ -3814,8 +4452,10 @@ const selectedClips = () => project.clips.filter((c) => state.selIds.has(c.id));
 function renderInspector(lite) {
   const c = getClip(state.selId);
   const inspector = document.querySelector(".inspector");
+  const conversationActive = !!c && !!document.querySelector("#inspectorAiMessages .inspector-ai-msg.user");
   inspector?.classList.toggle("no-selection", !c);
-  inspector?.classList.toggle("ai-idle", !!c && !document.querySelector("#inspectorAiMessages .inspector-ai-msg.user"));
+  inspector?.classList.toggle("ai-idle", !!c && !conversationActive);
+  inspector?.classList.toggle("conversation-active", conversationActive);
   if (!c) {
     els.inspector.innerHTML = `<div class="inspector-empty">Select a clip to edit its<br>transform, effects &amp; audio.</div>
       <div class="insp-section creation-preference"><h3>新增偏好</h3><div class="insp-row"><label for="creationPreferenceRank">方案</label><select id="creationPreferenceRank"><option value="0">A · 最高频</option><option value="1">B · 备选</option><option value="2">C · 备选</option></select></div></div>`;
@@ -3836,17 +4476,23 @@ function renderInspector(lite) {
   const p = c.props;
   const kfCount = (k) => (c.keyframes && c.keyframes[k] ? c.keyframes[k].length : 0);
   const kfAtPlayhead = (k) => { const lt = state.time - c.start; return (c.keyframes?.[k] || []).some((kf) => Math.abs(kf.t - lt) < 0.5 / projectFps()); };
-  const kfCtl = (k) => !ANIMATABLE.includes(k) ? "" :
-    `<span class="kf-ctl"><button class="kf-btn${kfAtPlayhead(k) ? " has" : ""}" data-kf="${k}" title="切换关键帧"></button></span>`;
+  const kfCtl = (k) => {
+    if (!ANIMATABLE.includes(k)) return "";
+    const local = state.time - c.start;
+    const frame = (c.keyframes?.[k] || []).find((kf) => Math.abs(kf.t - local) < 0.5 / projectFps());
+    const easing = frame?.easing || frame?.ease || "cubic-out";
+    return `<span class="kf-ctl"><button class="kf-btn${frame ? " has" : ""}" data-kf="${k}" title="切换关键帧"></button>${frame ? `<select data-kf-easing="${k}" title="关键帧插值">${["cubic-out", "linear", "back-out", "ease-out", "ease-in"].map((value) => `<option value="${value}" ${value === easing ? "selected" : ""}>${PROPERTY_CONTRACT.option(value)}</option>`).join("")}</select>` : ""}</span>`;
+  };
   /* Label carries two affordances that key off different click modifiers:
      plain click toggles the keyframe graph (animatable props), Ctrl/Cmd-click
      resets the prop(s). `reset` overrides which keys reset; defaults to k. */
   const propLabel = (label, k = "", reset) => {
     const keys = reset !== undefined ? reset : k;
     const list = (Array.isArray(keys) ? keys : String(keys || "").split(",")).map((s) => s.trim()).filter(Boolean);
-    const canReset = list.some((rk) => Object.hasOwn(DEFAULT_PROPS, rk) || rk === "transIn" || rk === "transOut");
+    const canReset = list.some((rk) => Object.hasOwn(DEFAULT_PROPS, rk) || Object.hasOwn(c.__inspectorDefaults || {}, rk) || rk === "transIn" || rk === "transOut");
     const isGraph = !!k && ANIMATABLE.includes(k);
-    if (!isGraph && !canReset) return `<label>${label}</label>`;
+    const displayLabel = PROPERTY_CONTRACT.label(label);
+    if (!isGraph && !canReset) return `<label>${displayLabel}</label>`;
     const cls = [
       isGraph ? "kf-graph-toggle" : "",
       isGraph && state.kfGraphs.has(k) ? "on" : "",
@@ -3854,45 +4500,63 @@ function renderInspector(lite) {
       canReset ? "insp-reset" : "",
     ].filter(Boolean).join(" ");
     const attrs = (isGraph ? ` data-kfgraph="${k}"` : "") + (canReset ? ` data-reset="${list.join(",")}"` : "");
-    return `<label class="${cls}"${attrs}>${label}</label>`;
+    return `<label class="${cls}"${attrs}>${displayLabel}</label>`;
   };
   const row = (label, inner, k = "", reset) =>
     `<div class="insp-row">${propLabel(label, k, reset)}${inner}${k ? kfCtl(k) : ""}</div>`;
   const slider = (k, min, max, step, val, unit = "") =>
-    row(k[0].toUpperCase() + k.slice(1),
+    row(PROPERTY_CONTRACT.label(k),
       `<input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${val}">
        <span class="val" data-val="${k}">${val}${unit}</span>`, k);
   let html = (state.selIds.size > 1
     ? `<div class="insp-multi">${state.selIds.size} clips selected — drag moves them together, Del deletes all. Fields below edit the primary (white-outlined) clip.</div>`
-    : "") + `<div class="insp-section"><h3>Clip — ${c.kind}</h3>
-    ${row("Preference", `<select data-preference-rank disabled><option value="0">A · 最高频</option><option value="1">B · 备选</option><option value="2">C · 备选</option></select>`)}
-    ${row("Name", `<input type="text" data-k="name" value="${c.name.replace(/"/g, "&quot;")}">`)}
+    : "") + `<div class="insp-section"><h3>片段 — ${c.kind}</h3>
+    ${row("Preference", `<select data-preference-rank><option value="0">方案 A</option><option value="1">方案 B</option><option value="2">方案 C</option></select>`)}
     ${c.mediaId ? row("Source", `<button type="button" class="btn tiny style-picker-btn" data-media-open title="Replace this clip's media — keeps position, trim, keyframes and effects">${escapeHtml((getMedia(c.mediaId) || {}).name || "Missing media")} ▾</button>`) : ""}
     ${row("Start (s)", `<input type="number" data-k="start" step="0.01" value="${c.start.toFixed(2)}">`)}
     ${row("Length (s)", `<input type="number" data-k="duration" step="0.01" value="${c.duration.toFixed(2)}">`)}
   </div>`;
   const sel = (label, k, opts, cur) => row(label,
-    `<select data-k="${k}">${opts.map((o) => `<option value="${o}" ${String(o) === String(cur) ? "selected" : ""}>${o}</option>`).join("")}</select>`, k);
+    `<select data-k="${k}">${opts.map((o) => `<option value="${o}" ${String(o) === String(cur) ? "selected" : ""}>${PROPERTY_CONTRACT.option(o)}</option>`).join("")}</select>`, k);
   const check = (label, k, on) => row(label, `<input type="checkbox" data-k="${k}" ${on ? "checked" : ""}>`, k);
-  const nativeManifest = c.kind === "component" && String(c.componentId || "").startsWith("annotation.rect.")
+  const knownManifest = c.kind === "component"
     ? runtime.nativeAnnotationResources.items.find((item) => item.id === c.componentId) : null;
-  if (c.kind === "component" && String(c.componentId || "").startsWith("annotation.rect.") && !nativeManifest && !runtime.nativeAnnotationResources.inspectorLoading) {
+  if (c.kind === "component" && c.resourceRef?.source === "cached" && !c.__runtimeManifest && !c.__runtimeManifestLoading) {
+    c.__runtimeManifestLoading = true;
+    const query = new URLSearchParams({ key: c.resourceRef.cacheKey, path: "edward-runtime.json" });
+    fetch(`/api/resources/cache-entry?${query}`).then((response) => {
+      if (!response.ok) throw new Error("组件缓存清单不可用");
+      return response.json();
+    }).then((manifest) => { c.__runtimeManifest = manifest; renderInspector(); }).catch((error) => toast(error.message || "组件缓存清单不可用"))
+      .finally(() => { c.__runtimeManifestLoading = false; });
+  }
+  const manifestForInspector = c.__runtimeManifest || knownManifest;
+  const nativeManifest = manifestForInspector && (manifestForInspector.protocol === "edward.web-runtime.v1" ||
+    String(c.componentId || "").startsWith("annotation.rect.")) ? manifestForInspector : null;
+  if (c.kind === "component" && String(c.componentId || "").startsWith("annotation.rect.") && !knownManifest && !runtime.nativeAnnotationResources.inspectorLoading) {
     runtime.nativeAnnotationResources.inspectorLoading = true;
     loadNativeAnnotationResources().then(() => renderInspector()).catch(() => {}).finally(() => { runtime.nativeAnnotationResources.inspectorLoading = false; });
   }
   if (nativeManifest) {
-    const nativeRows = Object.entries(nativeManifest.props || {}).map(([key, spec]) => {
+    c.__inspectorDefaults = Object.fromEntries(Object.entries(nativeComponentProperties(nativeManifest)).map(([key, spec]) => [key, spec.default]));
+    const nativeRows = Object.entries(nativeComponentProperties(nativeManifest)).filter(([key]) => !["x", "y"].includes(key)).map(([key, spec]) => {
       const value = p[key] == null ? spec.default : p[key];
-      if (spec.type === "color") return row(key, `<input type="color" data-k="${key}" value="${value || "#1683ff"}">`);
-      const min = spec.min == null ? "" : ` min="${spec.min}"`;
-      const max = spec.max == null ? "" : ` max="${spec.max}"`;
-      const step = spec.step == null ? "" : ` step="${spec.step}"`;
+      if (spec.type === "color" || spec.format === "color") return row(PROPERTY_CONTRACT.label(key), `<input type="color" data-k="${key}" value="${value || "#1683ff"}">`, key);
+      const min = (spec.min ?? spec.minimum) == null ? "" : ` min="${spec.min ?? spec.minimum}"`;
+      const max = (spec.max ?? spec.maximum) == null ? "" : ` max="${spec.max ?? spec.maximum}"`;
+      const step = (spec.step ?? spec.multipleOf) == null ? "" : ` step="${spec.step ?? spec.multipleOf}"`;
       const display = value == null ? "自动" : String(value);
-      return row(key, `<input type="number" data-k="${key}" value="${value == null ? "" : value}"${min}${max}${step} placeholder="自动"><span class="val" data-val="${key}">${display}</span>`);
+      return row(PROPERTY_CONTRACT.label(key), `<input type="number" data-k="${key}" value="${value == null ? "" : value}"${min}${max}${step} placeholder="自动"><span class="val" data-val="${key}">${display}</span>`, key);
     }).join("");
-    html += `<div class="insp-section"><h3>${escapeHtml(nativeManifest.name || "原生组件")}</h3>${nativeRows}</div>`;
+    html += `<div class="insp-section"><h3>${escapeHtml(nativeManifest.name || "原生组件")}</h3>
+      ${row("Position X", `<input type="number" data-k="x" value="${p.x ?? 0}">`, "x")}
+      ${row("Position Y", `<input type="number" data-k="y" value="${p.y ?? 0}">`, "y")}
+      ${nativeRows}
+    </div>`;
   } else if (c.kind === "component") {
     html += `<div class="insp-section"><h3>Component</h3>` +
+      row("Position X", `<input type="number" data-k="x" value="${p.x ?? 0}">`, "x") +
+      row("Position Y", `<input type="number" data-k="y" value="${p.y ?? 0}">`, "y") +
       row("Title", `<input type="text" data-k="title" value="${String(p.title || "").replace(/"/g, "&quot;")}">`) +
       row("Color", `<input type="color" data-k="color" value="${p.color || "#007bff"}">`) +
       row("Back color", `<input type="color" data-k="backColor" value="${p.backColor || p.color || "#007bff"}">`) +
@@ -3968,15 +4632,20 @@ function renderInspector(lite) {
       ${slider("speed", 0.25, 4, 0.05, p.speed, "×")}
     </div>`;
   }
-  const tsel = (label, key, tr) => {
+  html += `<div class="insp-section"><h3>循环动画</h3>
+    ${sel("循环动画", "loopAnimation", ["none", "gentle-shake", "gentle-bounce", "flicker", "gentle-scale"], p.loopAnimation || "none")}
+    ${slider("loopFrequency", 0.1, 12, 0.1, p.loopFrequency ?? 0.5, " 次/秒")}
+    ${slider("loopAmplitude", 0, 100, 1, p.loopAmplitude ?? 2)}
+  </div>`;
+  const tsel = (labelKey, key, tr) => {
     const active = state.transFocus === (key === "transIn" ? "in" : "out");
-    return `<div class="insp-row${active ? " trans-active" : ""}"><label class="insp-reset" data-reset="${key}">${label}</label>
-      <span class="insp-ctrls"><select data-k="${key}">${TRANSITIONS.map((x) => `<option ${x === (tr?.type || "none") ? "selected" : ""}>${x}</option>`).join("")}</select>
+    return `<div class="insp-row${active ? " trans-active" : ""}"><label class="insp-reset" data-reset="${key}">${PROPERTY_CONTRACT.label(labelKey)}</label>
+      <span class="insp-ctrls"><select data-k="${key}">${TRANSITIONS.map((x) => `<option value="${x}" ${x === (tr?.type || "none") ? "selected" : ""}>${PROPERTY_CONTRACT.option(x)}</option>`).join("")}</select>
        <input type="number" class="insp-dur" data-k="${key}Dur" step="0.1" min="0.1" value="${tr?.duration ?? 1}"></span></div>`;
   };
-  html += `<div class="insp-section"><h3>Transition</h3>
-    ${tsel("In", "transIn", c.transitionIn)}
-    ${tsel("Out", "transOut", c.transitionOut)}
+  html += `<div class="insp-section"><h3>转场</h3>
+    ${tsel("transitionIn", "transIn", c.transitionIn)}
+    ${tsel("transitionOut", "transOut", c.transitionOut)}
   </div>`;
   if (c.kind === "text") {
     const fontGroup = (label, fonts) => fonts.length
@@ -4028,11 +4697,16 @@ function renderInspector(lite) {
     <div class="insp-section"><h3>Title &amp; caption</h3>
       ${row("Title style", `<button type="button" class="btn tiny style-picker-btn" data-style-open title="Pick a style — hover to preview it live">${(TITLE_STYLES[c.styleName] || {}).label || "Choose…"} ▾</button>
         <button class="btn tiny" data-action="title-shuffle" title="Random style">Shuffle</button>`)}
-      ${row("Animation", `<select data-k="textAnim">${TEXT_ANIMS.map((a) => `<option ${a === p.textAnim ? "selected" : ""}>${a}</option>`).join("")}</select>`, "", "textAnim")}
+      ${row("Animation", `<select data-k="textAnim">${TEXT_ANIMS.map((a) => `<option value="${a}" ${a === p.textAnim ? "selected" : ""}>${PROPERTY_CONTRACT.option(a)}</option>`).join("")}</select>`, "", "textAnim")}
       ${slider("wordRate", 0.05, 0.6, 0.01, p.wordRate, "s")}
     </div>`;
   }
   els.inspector.innerHTML = html;
+  const preferenceSelect = els.inspector.querySelector("[data-preference-rank]");
+  if (preferenceSelect) {
+    preferenceSelect.value = String(runtime.nextPreferenceRank || 0);
+    preferenceSelect.addEventListener("change", () => { runtime.nextPreferenceRank = Number(preferenceSelect.value) || 0; });
+  }
   els.inspector.querySelectorAll('input[type="number"]').forEach((input) => {
     const wrap = document.createElement("span"); wrap.className = "num-scrub";
     input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
@@ -4109,8 +4783,9 @@ function renderInspector(lite) {
           state.dirtyTimeline = true;
           continue;
         }
-        if (!Object.hasOwn(DEFAULT_PROPS, k)) continue;
-        c.props[k] = DEFAULT_PROPS[k];
+        const defaultValue = Object.hasOwn(DEFAULT_PROPS, k) ? DEFAULT_PROPS[k] : c.__inspectorDefaults?.[k];
+        if (defaultValue === undefined) continue;
+        c.props[k] = defaultValue;
         if (c.keyframes?.[k]) {
           delete c.keyframes[k];
           if (!Object.keys(c.keyframes).length) c.keyframes = undefined;
@@ -4118,6 +4793,7 @@ function renderInspector(lite) {
         }
         if (k === "text" || k === "font") state.dirtyTimeline = true;
         if (k === "font") ensureFont(String(DEFAULT_PROPS.font));
+        recordPreferenceValue(c, k, c.props[k]);
       }
       scheduleSave();
       renderInspector();
@@ -4157,7 +4833,8 @@ function renderInspector(lite) {
         }
       }
       else { c.props[k] = v; if (k === "text") state.dirtyTimeline = true; }
-      if (c.kind === "component") window.fablecutDirectComponents?.updateDirectComponent?.(c, state.time);
+      recordFablecutDiagnostic("property_edit", `clip=${c.id} property=${k}`);
+      if (c.kind === "component") window.fablecutDirectComponents?.updateDirectComponent?.({ ...c, props: evalProps(c, state.time) }, state.time);
       const valEl = els.inspector.querySelector(`[data-val="${k}"]`);
       if (valEl) valEl.textContent = input.value;
       if (state.audioHold && (k === "volume" || k === "pan")) scheduleAudioHoldRefresh();
@@ -4220,11 +4897,26 @@ function renderInspector(lite) {
       const arr = (c.keyframes[k] = c.keyframes[k] || []);
       const lt = +clamp(state.time - c.start, 0, c.duration).toFixed(3);
       const nearIndex = arr.findIndex((kf) => Math.abs(kf.t - lt) < 0.5 / projectFps());
-      if (nearIndex >= 0) arr.splice(nearIndex, 1); else arr.push({ t: lt, v });
+      if (nearIndex >= 0) arr.splice(nearIndex, 1); else arr.push({ t: lt, v, easing: "cubic-out" });
       arr.sort((a, b) => a.t - b.t);
       if (!arr.length) { delete c.keyframes[k]; if (!Object.keys(c.keyframes).length) c.keyframes = undefined; }
+      recordFablecutDiagnostic("keyframe_edit", `clip=${c.id} property=${k} time=${lt} action=${nearIndex >= 0 ? "remove" : "set"}`);
       state.dirtyTimeline = true;
       scheduleSave(); renderInspector();
+    });
+  });
+  els.inspector.querySelectorAll("[data-kf-easing]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const key = select.dataset.kfEasing;
+      const local = state.time - c.start;
+      const frame = (c.keyframes?.[key] || []).find((kf) => Math.abs(kf.t - local) < 0.5 / projectFps());
+      if (!frame) return;
+      pushUndo();
+      frame.easing = select.value;
+      delete frame.ease;
+      recordFablecutDiagnostic("keyframe_easing", `clip=${c.id} property=${key} time=${frame.t} easing=${select.value}`);
+      state.dirtyTimeline = true;
+      scheduleSave();
     });
   });
   if (state.transFocus) {
@@ -4243,14 +4935,6 @@ function renderInspector(lite) {
 }
 
 /* ── Keyframe graphs (program-monitor left gutter) ── */
-const KF_GRAPH_LABEL = {
-  x: "Pos X", y: "Pos Y", scale: "Scale", rotation: "Rotation", opacity: "Opacity",
-  volume: "Volume", pan: "Pan", speed: "Speed", brightness: "Bright", contrast: "Contrast",
-  saturation: "Sat", hue: "Hue", blur: "Blur", grayscale: "Gray", sepia: "Sepia",
-  invert: "Invert", temperature: "Temp", tint: "Tint", vignette: "Vignette",
-  cornerRadius: "Radius", shake: "Shake", rgbSplit: "RGB", grain: "Grain",
-  fontSize: "Size", letterSpacing: "Track", glow: "Glow",
-};
 function toggleKfGraph(key) {
   if (!ANIMATABLE.includes(key)) return;
   if (state.kfGraphs.has(key)) state.kfGraphs.delete(key);
@@ -4269,7 +4953,7 @@ function renderKfGraphsPanel() {
   }
   root.hidden = false;
   root.innerHTML = keys.map((k) => {
-    const label = KF_GRAPH_LABEL[k] || k;
+    const label = PROPERTY_CONTRACT.label(k);
     return `<div class="kf-graph" data-kfgraph-card="${k}">
       <div class="kf-graph-head"><span>${label}</span>
         <button type="button" data-kfgraph-close="${k}" title="Close graph">✕</button></div>
@@ -5279,6 +5963,11 @@ function seekMediaWhilePaused() {
 /* ── Keyframes & transitions ── */
 const EASE = {
   linear: (u) => u,
+  "cubic-out": (u) => 1 - Math.pow(1 - u, 3),
+  "back-out": (u) => {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
+  },
   "ease-in": (u) => u * u,
   "ease-out": (u) => 1 - (1 - u) * (1 - u),
   "ease-in-out": (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2),
@@ -5286,6 +5975,7 @@ const EASE = {
 /* Effective properties of a clip at timeline time t: static props, overridden by
    keyframe curves, then shaped by in/out transition envelopes. */
 function evalProps(c, t) {
+  const evalStarted = performance.now();
   // c.props is always fully populated with DEFAULT_PROPS's keys already (on
   // load and at every clip-creation site), so a plain shallow clone suffices —
   // merging DEFAULT_PROPS in again here would just double the copy work.
@@ -5301,7 +5991,7 @@ function evalProps(c, t) {
         const a = kfs[i], b = kfs[i + 1];
         if (local >= a.t && local <= b.t) {
           const u = (local - a.t) / Math.max(1e-6, b.t - a.t);
-          const ez = EASE[b.ease || "ease-in-out"] || EASE.linear;
+          const ez = EASE[a.easing || a.ease || "cubic-out"] || EASE["cubic-out"];
           v = a.v + (b.v - a.v) * ez(u);
           break;
         }
@@ -5310,14 +6000,38 @@ function evalProps(c, t) {
     }
   }
   applyFilterPreset(p);
+  applyLoopAnimation(p, local);
   const W = els.preview.width, H = els.preview.height;
   const tin = c.transitionIn, tout = c.transitionOut;
-  if (tin && tin.duration > 0 && local < tin.duration)
-    applyTransition(p, tin.type, 1 - EASE["ease-out"](clamp(local / tin.duration, 0, 1)), W, H, -1);
-  if (tout && tout.duration > 0 && local > c.duration - tout.duration)
+  const inDuration = Math.min(Math.max(0, Number(tin?.duration) || 0), c.duration);
+  const outDuration = Math.min(Math.max(0, Number(tout?.duration) || 0), c.duration);
+  if (tin && inDuration > 0 && local < inDuration)
+    applyTransition(p, tin.type, 1 - EASE["ease-out"](clamp(local / inDuration, 0, 1)), W, H, -1);
+  if (tout && outDuration > 0 && local > c.duration - outDuration)
     applyTransition(p, tout.type,
-      EASE["ease-in"](clamp((local - (c.duration - tout.duration)) / tout.duration, 0, 1)), W, H, 1);
+      EASE["ease-in"](clamp((local - (c.duration - outDuration)) / outDuration, 0, 1)), W, H, 1);
+  if (c.keyframes && Object.keys(c.keyframes).length) {
+    runtime.diagnostics.keyframeEvaluations++;
+    runtime.diagnostics.keyframeEvaluationMs += performance.now() - evalStarted;
+  }
   return p;
+}
+function applyLoopAnimation(p, local) {
+  const type = String(p.loopAnimation || "none");
+  if (type === "none") return;
+  const frequency = clamp(Number(p.loopFrequency) || 0.5, 0.1, 12);
+  const amplitude = clamp(Number(p.loopAmplitude) || 0, 0, 100);
+  const wave = Math.sin(Math.max(0, local) * frequency * Math.PI * 2);
+  if (type === "gentle-shake") {
+    p.x = (Number(p.x) || 0) + wave * amplitude;
+    p.y = (Number(p.y) || 0) + Math.sin(Math.max(0, local) * frequency * Math.PI * 3.4) * amplitude * 0.45;
+  } else if (type === "gentle-bounce") {
+    p.y = (Number(p.y) || 0) + Math.abs(wave) * amplitude;
+  } else if (type === "flicker") {
+    p.opacity = clamp((Number(p.opacity) || 0) * (1 - Math.abs(wave) * amplitude / 100), 0, 1);
+  } else if (type === "gentle-scale") {
+    p.scale = Math.max(0.01, (Number(p.scale) || 1) * (1 + wave * amplitude / 100));
+  }
 }
 /* Merge a named look into evaluated props: % props scale, additive props add. */
 function applyFilterPreset(p) {
@@ -5339,8 +6053,8 @@ function applyTransition(p, type, k, W, H, dir) {
       p.opacity *= 1 - k; p.volume *= 1 - k; break;
     case "slide-left": p.x = (+p.x || 0) - dir * k * W; break;
     case "slide-right": p.x = (+p.x || 0) + dir * k * W; break;
-    case "slide-up": p.y = (+p.y || 0) - dir * k * H; break;
-    case "slide-down": p.y = (+p.y || 0) + dir * k * H; break;
+    case "slide-up": p.y = (+p.y || 0) + dir * k * H; break;
+    case "slide-down": p.y = (+p.y || 0) - dir * k * H; break;
     case "zoom":
       p.scale = (+p.scale || 1) * (1 - 0.6 * k); p.opacity *= 1 - k; break;
     case "wipe": case "wipe-left": p._wipe = k; p._wipeDir = "left"; break;
@@ -5741,7 +6455,8 @@ function drawFrame(t = state.time) {
   });
   // render video tracks bottom-up (V1 under V2)
   for (const c of visible) drawClip(c, W, H, t);
-  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(visible, t, { width: W, height: H });
+  const evaluatedComponents = visible.map((clip) => clip.kind === "component" ? { ...clip, props: evalProps(clip, t) } : clip);
+  const directSync = window.fablecutDirectComponents?.syncDirectComponents?.(evaluatedComponents, t, { width: W, height: H, fps: project.fps });
   directSync?.catch?.(() => {});
   // on-canvas selection handles (never during export or playback)
   if (!state.exporting && !state.playing) drawSelectionOverlay(W, H, t);
@@ -5753,7 +6468,7 @@ function drawFrame(t = state.time) {
 function clipBounds(c, p, W, H) {
   const native = isNativeAnnotation(c);
   const cx = W / 2 + (native ? Number(p.x ?? 0) : (+p.x || 0));
-  const cy = H / 2 + (native ? Number(p.y ?? 0) : (+p.y || 0));
+  const cy = H / 2 - (native ? Number(p.y ?? 0) : (+p.y || 0));
   const rot = (p.rotation || 0) * Math.PI / 180, sc = +p.scale || 1;
   let hw, hh;
   if (c.kind === "text") {
@@ -5849,7 +6564,7 @@ els.preview.addEventListener("drop", async (event) => {
   const inserted = project.clips.find((clip) => !before.has(clip.id));
   if (inserted) {
     inserted.props.x = Math.round(point.x - els.preview.width / 2);
-    inserted.props.y = Math.round(point.y - els.preview.height / 2);
+    inserted.props.y = Math.round(canvasToWorld(point.x, point.y, els.preview.width, els.preview.height).y);
     scheduleSave(); renderInspector(); drawFrame(state.time);
   }
 });
@@ -5936,10 +6651,10 @@ els.preview.addEventListener("pointermove", (e) => {
   if (canvasDrag.mode === "move") {
     if (canvasDrag.native) {
       c.props.x = Math.round(canvasDrag.startX + pt.x - canvasDrag.startPt.x);
-      c.props.y = Math.round(canvasDrag.startY + pt.y - canvasDrag.startPt.y);
+      c.props.y = Math.round(canvasDrag.startY - (pt.y - canvasDrag.startPt.y));
     } else {
       c.props.x = Math.round(canvasDrag.startX + (pt.x - canvasDrag.startPt.x));
-      c.props.y = Math.round(canvasDrag.startY + (pt.y - canvasDrag.startPt.y));
+      c.props.y = Math.round(canvasDrag.startY - (pt.y - canvasDrag.startPt.y));
     }
   } else if (canvasDrag.mode === "box") {
     const aspect = canvasDrag.aspect || 1;
@@ -5985,7 +6700,7 @@ els.preview.addEventListener("pointermove", (e) => {
       const freeX = fix.x + ldx * c2 - ldy * s2;
       const freeY = fix.y + ldx * s2 + ldy * c2;
       c.props.x = Math.round((fix.x + freeX) / 2 - W / 2);
-      c.props.y = Math.round((fix.y + freeY) / 2 - H / 2);
+      c.props.y = Math.round(H / 2 - (fix.y + freeY) / 2);
       c.props.boxW = +Math.abs(ldx).toFixed(1);
       c.props.boxH = +Math.abs(ldy).toFixed(1);
     }
@@ -5994,7 +6709,7 @@ els.preview.addEventListener("pointermove", (e) => {
     c.props.scale = clamp(+(canvasDrag.startScale * (Math.hypot(lp.x, lp.y) / canvasDrag.startDist)).toFixed(3), 0.05, 12);
   } else {
     const cx = W / 2 + (isNativeAnnotation(c) ? Number(c.props.x ?? 0) : (+c.props.x || 0));
-    const cy = H / 2 + (isNativeAnnotation(c) ? Number(c.props.y ?? 0) : (+c.props.y || 0));
+    const cy = H / 2 - (isNativeAnnotation(c) ? Number(c.props.y ?? 0) : (+c.props.y || 0));
     let deg = canvasDrag.startRot + (Math.atan2(pt.y - cy, pt.x - cx) - canvasDrag.startAng) * 180 / Math.PI;
     if (e.shiftKey) deg = Math.round(deg / 15) * 15;
     c.props.rotation = Math.round(deg);
@@ -6034,7 +6749,8 @@ function drawClip(c, W, H, t) {
   ctx2d.globalAlpha = clamp(p.opacity, 0, 1);
   if (p.blend && p.blend !== "normal" && BLEND_MODES.includes(p.blend))
     ctx2d.globalCompositeOperation = p.blend === "normal" ? "source-over" : p.blend;
-  ctx2d.translate(W / 2 + (+p.x || 0), H / 2 + (+p.y || 0));
+  const worldOrigin = worldToCanvas(+p.x || 0, +p.y || 0, W, H);
+  ctx2d.translate(worldOrigin.x, worldOrigin.y);
   ctx2d.rotate((p.rotation || 0) * Math.PI / 180);
   if (p.shake > 0) { // deterministic multi-sine handheld/impact shake
     const a = +p.shake, tt = t * clamp(+p.shakeSpeed || 8, 0.5, 40) * Math.PI * 2;
@@ -6628,7 +7344,7 @@ function loop(ts) {
   if (state.exporting && !state.rendering) {
     const pct = dur ? (state.time / dur) * 100 : 0;
     els.exportProgress.style.width = pct.toFixed(1) + "%";
-    els.exportTitle.textContent = `Exporting… ${pct.toFixed(0)}%`;
+    els.exportTitle.textContent = `正在导出… ${pct.toFixed(0)}%`;
   }
   requestAnimationFrame(loop);
 }
@@ -6683,22 +7399,31 @@ function effectiveEncodeProfileId() {
 function exportProfileMeta(id) {
   return encodeProfiles.profiles[id] || { label: id, summary: id, jpegQuality: 0.95 };
 }
+const EXPORT_PROFILE_ZH = {
+  draft: { label: "草稿 · H.264 快速", description: "快速预览：文件更小，编码更快。" },
+  delivery: { label: "交付 · H.264 均衡", description: "默认导出：兼顾画质与兼容性。" },
+  hq: { label: "高质量 · H.264 慢速", description: "更高质量：编码更慢，文件更大。" },
+  broadcast1080i50: { label: "广播 · 1080i50 MOV", description: "广播格式交付，输出为隔行 MOV。" },
+  prores422: { label: "ProRes 422 HQ · MOV", description: "中间母版格式，适合后续剪辑与调色。" },
+  prores4444: { label: "ProRes 4444 · 透明 MOV", description: "带 Alpha 通道的透明母版格式。" },
+};
+function exportProfileText(id, field) { return EXPORT_PROFILE_ZH[id]?.[field] || exportProfileMeta(id)?.[field] || ""; }
 function updateExportProfileNote(id) {
   const known = Object.hasOwn(encodeProfiles.profiles, id);
   const p = exportProfileMeta(id);
   if (els.exportProfileNote) {
     els.exportProfileNote.textContent = known
-      ? [p.description, p.summary].filter(Boolean).join(" — ")
-      : `"${id}" is not defined in encoding-profiles.json — the export will fail until it is added or another profile is picked.`;
+      ? [exportProfileText(id, "description"), p.summary ? `编码参数：${p.summary}` : ""].filter(Boolean).join(" · ")
+      : `配置“${id}”未在服务器编码配置中定义；请改选其他配置。`;
   }
   if (els.exportProfileHint) {
     if (project.encodeProfile) {
       els.exportProfileHint.textContent =
-        "Project default (encodeProfile in project.json). Pick another profile here for a one-off export.";
+        "项目默认配置（project.json）。如需单次导出，可在此处改选。";
     } else if (getSetting("encodeProfile")) {
-      els.exportProfileHint.textContent = "Browser default — saved when you change this dropdown.";
+      els.exportProfileHint.textContent = "浏览器默认配置；更改下拉选项后会保存。";
     } else {
-      els.exportProfileHint.textContent = "Using server default from encoding-profiles.json.";
+      els.exportProfileHint.textContent = "当前使用服务器 encoding-profiles.json 中的默认配置。";
     }
   }
 }
@@ -6712,7 +7437,7 @@ function populateExportProfileSelect() {
   els.exportProfileSel.innerHTML = ids.map((id) => {
     const p = encodeProfiles.profiles[id];
     const sel = id === cur ? " selected" : "";
-    const label = p ? (p.label || id) : `${id} (not defined on the server)`;
+    const label = p ? (EXPORT_PROFILE_ZH[id]?.label || p.label || id) : `${id}（服务器未定义）`;
     return `<option value="${escapeHtml(id)}"${sel}>${escapeHtml(label)}</option>`;
   }).join("");
   updateExportProfileNote(els.exportProfileSel.value || cur || "delivery");
@@ -6720,6 +7445,39 @@ function populateExportProfileSelect() {
 function syncExportProfileVisibility() {
   const show = els.engineFast.checked && !els.engineFast.disabled;
   els.exportProfileRow?.classList.toggle("hidden", !show);
+}
+
+function exportResolutionOptions() {
+  const pw = Math.max(2, Number(project.width) || els.preview.width || 1280);
+  const ph = Math.max(2, Number(project.height) || els.preview.height || 720);
+  const ratio = pw / ph;
+  const sizes = [
+    ["项目原始", pw, ph],
+    ["720p", ratio >= 1 ? 1280 : Math.round(720 * ratio), ratio >= 1 ? Math.round(1280 / ratio) : 1280],
+    ["1080p", ratio >= 1 ? 1920 : Math.round(1080 * ratio), ratio >= 1 ? Math.round(1920 / ratio) : 1920],
+    ["1440p", ratio >= 1 ? 2560 : Math.round(1440 * ratio), ratio >= 1 ? Math.round(2560 / ratio) : 2560],
+    ["4K", ratio >= 1 ? 3840 : Math.round(2160 * ratio), ratio >= 1 ? Math.round(3840 / ratio) : 3840],
+  ];
+  const seen = new Set();
+  return sizes.filter(([, w, h]) => {
+    const key = `${Math.max(2, Math.round(w))}x${Math.max(2, Math.round(h))}`;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  }).map(([label, w, h]) => ({ label: `${label} · ${Math.round(w)}×${Math.round(h)}`, w: Math.round(w), h: Math.round(h) }));
+}
+function populateExportResolutionSelect() {
+  const sel = els.exportResolutionSel;
+  if (!sel) return;
+  const options = exportResolutionOptions();
+  const current = `${project.width}x${project.height}`;
+  sel.innerHTML = options.map((o) => `<option value="${o.w}x${o.h}"${`${o.w}x${o.h}` === current ? " selected" : ""}>${escapeHtml(o.label)}</option>`).join("");
+}
+function getExportOutputSpec() {
+  const fallback = { width: Number(project.width) || els.preview.width, height: Number(project.height) || els.preview.height, fps: projectFps(), crop: "none", format: "mp4" };
+  const value = els.exportResolutionSel?.value || "";
+  const match = /^(\d+)x(\d+)$/.exec(value);
+  if (!match) return fallback;
+  return { ...fallback, width: Number(match[1]), height: Number(match[2]) };
 }
 
 function syncExportWcOpts() {
@@ -6785,24 +7543,23 @@ async function openExportSetup() {
     els.engineRealtime.checked = false;
   }
   $("engineFastNote").textContent = fastOk
-    ? (ef ? "Exports the " + ef.w + "×" + ef.h + " delivery frame (cropped). Keeps rendering if you switch tabs."
-      : "Frame-accurate. Server encodes H.264 from JPEG frames. Keeps going if you switch tabs.")
-    : (ef
-      ? "Needs the server + ffmpeg on PATH to export a cropped delivery frame."
-      : "Needs the server + ffmpeg on PATH.");
+    ? (ef ? `导出 ${ef.w}×${ef.h} 的裁剪画面；切换页面后仍会继续。`
+      : "按帧渲染，服务器从 JPEG 帧编码 H.264；切换页面后仍会继续。")
+    : (ef ? "导出裁剪画面需要本地服务和 PATH 中的 ffmpeg。" : "需要本地服务和 PATH 中的 ffmpeg。");
   const wcNote = $("engineWebCodecsNote");
   if (wcNote) {
-    if (wcOk) wcNote.textContent = "Frame-accurate. Browser HW-encodes H.264; server muxes with audio. Faster upload than Fast.";
+    if (wcOk) wcNote.textContent = "按帧渲染，浏览器编码 H.264，服务器封装音频；上传量小于快速导出。";
     else if (ef) wcNote.textContent = fastOk
-      ? "Unavailable while an export frame is set — use Fast export."
-      : "Unavailable while an export frame is set. Install ffmpeg, or clear the export frame to use Realtime.";
-    else if (!state.connected || !state.ffmpeg) wcNote.textContent = "Needs the server + ffmpeg. Falling back to in-browser MediaRecorder when selected.";
-    else wcNote.textContent = "This browser does not support VideoEncoder Annex-B H.264. Falling back to MediaRecorder when selected.";
+      ? "设置了导出画面时不可用，请使用快速导出。"
+      : "设置了导出画面时不可用；安装 ffmpeg 或清除导出画面后才能使用实时导出。";
+    else if (!state.connected || !state.ffmpeg) wcNote.textContent = "需要本地服务和 ffmpeg；选择后将回退到浏览器 MediaRecorder。";
+    else wcNote.textContent = "当前浏览器不支持 VideoEncoder Annex-B H.264；选择后将回退到 MediaRecorder。";
   }
   // Relabel the radio when WebCodecs is unavailable but MediaRecorder still works
   const label = els.engineRealtime?.closest("label")?.querySelector("b");
-  if (label) label.textContent = wcOk ? "WebCodecs (HW encode)" : "Realtime (in-browser)";
+  if (label) label.textContent = wcOk ? "实时导出（浏览器编码）" : "实时导出（浏览器录制）";
   fillExportWcOpts();
+  populateExportResolutionSelect();
   syncExportWcOpts();
   const warn = $("exportTrackWarn");
   const disabled = TRACKS.filter((t) =>
@@ -6829,10 +7586,15 @@ async function startChosenExport() {
   window.edwardPreferences?.compilePreferences?.();
   persistExportWcOpts();
   try {
-    const checkName = await fetch(`/api/export/check-name?name=${encodeURIComponent(project.name || "export")}&ext=.mp4`).then((r) => r.json());
+    const selectedProfile = els.exportProfileSel?.value || effectiveEncodeProfileId();
+    const selectedExtension = els.engineFast.checked ? (exportProfileMeta(selectedProfile).extension || ".mp4") : ".mp4";
+    const requestedName = window.fablecutQtExportFileName || project.name || "export";
+    const checkName = await fetch(`/api/export/check-name?name=${encodeURIComponent(requestedName)}&ext=${encodeURIComponent(selectedExtension)}`).then((r) => r.json());
     if (checkName?.name && !checkName.available) {
-      const proceed = confirm(`文件名已存在，将使用新文件名：${checkName.name}`);
-      if (!proceed) return;
+      if (!window.fablecutQtExport) {
+        const proceed = confirm(`文件名已存在，将使用新文件名：${checkName.name}`);
+        if (!proceed) return;
+      }
     }
   } catch (error) {
     alert("无法检查导出文件名：" + (error?.message || error));
@@ -6856,11 +7618,13 @@ async function startChosenExport() {
         state.ffmpeg = !!ffmpeg.available;
       } catch { state.ffmpeg = false; }
       if (state.ffmpeg) {
+        const outputSpec = getExportOutputSpec();
+        window.fablecutQtOutputSpec = outputSpec;
         els.engineFast.disabled = false;
         els.engineFast.checked = true;
         els.engineRealtime.checked = false;
         els.exportSetup.classList.add("hidden");
-        fastExport();
+        fastExport(outputSpec);
         return;
       }
     }
@@ -6873,20 +7637,51 @@ async function startChosenExport() {
     return;
   }
   els.exportSetup.classList.add("hidden");
-  if (useFast) fastExport();
-  else if (useSecond && state.connected && state.ffmpeg && state.webCodecs && !getExportFrame()) webCodecsExport();
-  else startExport();
+  const outputSpec = getExportOutputSpec();
+  window.fablecutQtOutputSpec = outputSpec;
+  if (useFast) fastExport(outputSpec);
+  else if (useSecond && state.connected && state.ffmpeg && state.webCodecs && !getExportFrame()) webCodecsExport(outputSpec);
+  else startExport(outputSpec);
 }
+window.startFablecutExportFromQt = async function (outputSpec, profileId, fileName) {
+  window.fablecutQtExport = true;
+  window.fablecutQtOutputSpec = outputSpec || getExportOutputSpec();
+  window.fablecutQtExportFileName = fileName || project.name || "export";
+  await openExportSetup();
+  if (profileId && els.exportProfileSel && [...els.exportProfileSel.options].some((o) => o.value === profileId)) {
+    els.exportProfileSel.value = profileId;
+  }
+  if (state.connected && state.ffmpeg) {
+    els.engineFast.checked = true;
+    els.engineFast.disabled = false;
+    els.exportSetup.classList.add("hidden");
+    await startChosenExport();
+  } else if (state.webCodecs || window.MediaRecorder) {
+    els.engineFast.checked = false;
+    els.engineRealtime.checked = true;
+    els.exportSetup.classList.add("hidden");
+    await startChosenExport();
+  } else {
+    els.exportSetup.classList.add("hidden");
+    throw new Error("导出引擎尚未就绪，请确认本地服务已启动。");
+  }
+};
 
 /* ── Fast export ── */
 let renderCancelled = false;
 let exportCropCanvas = null;
-async function previewToExportBlob(quality = 0.95, outputSpec = null) {
+async function previewToExportBlob(quality = 0.95, outputSpec = null, transparent = false) {
   if (outputSpec && window.fablecutDirectComponents?.captureCompositeFrame) {
-    const composite = await window.fablecutDirectComponents.captureCompositeFrame(outputSpec);
-    return new Promise((resolve) => composite.toBlob(resolve, "image/jpeg", quality));
+    const composite = await window.fablecutDirectComponents.captureCompositeFrame({ ...outputSpec, transparent });
+    return new Promise((resolve) => composite.toBlob(resolve, transparent ? "image/png" : "image/jpeg", quality));
   }
   const ef = getExportFrame();
+  if (!ef && outputSpec && (outputSpec.width !== els.preview.width || outputSpec.height !== els.preview.height)) {
+    if (!exportCropCanvas) exportCropCanvas = document.createElement("canvas");
+    exportCropCanvas.width = outputSpec.width; exportCropCanvas.height = outputSpec.height;
+    exportCropCanvas.getContext("2d").drawImage(els.preview, 0, 0, outputSpec.width, outputSpec.height);
+    return new Promise((res) => exportCropCanvas.toBlob(res, "image/jpeg", quality));
+  }
   if (!ef) return new Promise((res) => els.preview.toBlob(res, "image/jpeg", quality));
   if (!exportCropCanvas) exportCropCanvas = document.createElement("canvas");
   exportCropCanvas.width = ef.w;
@@ -7173,32 +7968,35 @@ async function prepareFrameAssets(t) {
     }
   }
 }
-async function fastExport() {
+async function fastExport(requestedOutputSpec = null) {
   if (state.exporting) return;
+  const exportStarted = performance.now();
+  const exportRun = { engine: "fast", startedAt: new Date().toISOString(), output: requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec(), frames: 0, status: "running" };
+  runtime.diagnostics.exportRuns.push(exportRun);
+  recordFablecutDiagnostic("export_start", "engine=fast");
   pause();
   state.exporting = true; state.rendering = true; renderCancelled = false;
   els.exportOverlay.classList.remove("hidden");
   els.exportProgress.style.width = "0%";
-  els.exportNote.textContent = "Rendering frames → ffmpeg. You can switch tabs; export continues.";
+  els.exportNote.textContent = "正在渲染画面并编码；切换页面后仍会继续。";
   restoreExportVideoState();
-  const outputSpec = window.fablecutQtOutputSpec || { width: els.preview.width, height: els.preview.height, fps: projectFps(), crop: "none", format: "mp4" };
+  const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
   const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
-  const previousCanvasSize = { width: els.preview.width, height: els.preview.height };
-  els.preview.width = Number(outputSpec.width) || previousCanvasSize.width;
-  els.preview.height = Number(outputSpec.height) || previousCanvasSize.height;
   const frames = Math.max(1, Math.round(dur * fps));
   let sessId = null;
   try {
-    els.exportTitle.textContent = "Mixing audio…";
+    els.exportTitle.textContent = "正在混合音频…";
     const wav = await renderAudioMix(dur);
     if (renderCancelled) throw new Error("cancelled");
     const profileId = els.exportProfileSel?.value || effectiveEncodeProfileId();
-    const jpegQ = exportProfileMeta(profileId).jpegQuality ?? 0.95;
+      const profileMeta = exportProfileMeta(profileId);
+      const jpegQ = profileMeta.jpegQuality ?? 0.95;
+      const transparent = !!profileMeta.transparent;
     const begin = await fetch("/api/export/begin", {
       method: "POST",
       body: JSON.stringify({
         fps,
-        name: project.name.replace(/[^\w\- ]+/g, "") || "export",
+        name: (window.fablecutQtExportFileName || project.name).replace(/[^\w\- .]+/g, "") || "export",
         profile: profileId,
         // lets the server dry-run the profile with the same input count we
         // will actually feed it, so -map based profiles are checked correctly
@@ -7220,33 +8018,36 @@ async function fastExport() {
       await prepareFrameAssets(t);       // exact SVG frames + AI masks
       drawFrame(t);
       await window.fablecutDirectComponents?.prepareFrame?.(visibleClipsAt(t), t, outputSpec);
-      const blob = await previewToExportBlob(jpegQ, outputSpec);
+      const blob = await previewToExportBlob(jpegQ, outputSpec, transparent);
       if (!blob) throw new Error("frame encode failed");
       const r = await fetch("/api/export/frame?id=" + sessId, { method: "POST", body: blob });
       if (!r.ok) throw new Error((await r.json()).error || "frame upload failed");
+      exportRun.frames = f + 1;
       const pct = ((f + 1) / frames) * 100;
       els.exportProgress.style.width = pct.toFixed(1) + "%";
-      els.exportTitle.textContent = `Rendering… ${pct.toFixed(0)}%`;
+      els.exportTitle.textContent = `正在渲染… ${pct.toFixed(0)}%`;
     }
-    els.exportTitle.textContent = "Encoding…";
+    els.exportTitle.textContent = "正在编码…";
     const end = await fetch("/api/export/end?id=" + sessId, { method: "POST" }).then((r) => r.json());
     if (!end.src) throw new Error(end.error || "encode failed");
     const a = document.createElement("a");
     a.href = end.src;
     a.download = decodeURIComponent(end.src.split("/").pop());
     a.click();
+    exportRun.status = "completed";
   } catch (e) {
+    exportRun.status = String(e?.message || e) === "cancelled" ? "cancelled" : "failed";
     if (sessId) fetch("/api/export/end?id=" + sessId + "&discard=1", { method: "POST" }).catch(() => { });
     if (String(e?.message || e) !== "cancelled") alert("Export failed: " + (e?.message || "导出阶段失败，未返回错误详情"));
   } finally {
-    els.preview.width = previousCanvasSize.width;
-    els.preview.height = previousCanvasSize.height;
+    exportRun.durationMs = Math.round(performance.now() - exportStarted);
+    recordFablecutDiagnostic("export_end", `engine=fast status=${exportRun.status} durationMs=${exportRun.durationMs} frames=${exportRun.frames}`);
     updateMonitorRes();
     updateExportFrameOverlay();
     restoreExportVideoState();
     state.exporting = false; state.rendering = false;
     els.exportOverlay.classList.add("hidden");
-    els.exportNote.textContent = "Rendering your sequence in real time. Keep this tab focused.";
+    els.exportNote.textContent = "正在渲染时间线，请保持应用运行。";
     if (runtime.pendingSync) syncFromServer();
   }
 }
@@ -7286,8 +8087,12 @@ function waitEncodeQueue(encoder, max = 2, { signal, getError } = {}) {
     tick();
   });
 }
-async function webCodecsExport() {
+async function webCodecsExport(requestedOutputSpec = null) {
   if (state.exporting) return;
+  const exportStarted = performance.now();
+  const exportRun = { engine: "webcodecs", startedAt: new Date().toISOString(), output: requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec(), frames: 0, status: "running" };
+  runtime.diagnostics.exportRuns.push(exportRun);
+  recordFablecutDiagnostic("export_start", "engine=webcodecs");
   await detectWebCodecs();
   if (!state.webCodecs) {
     if (project.clips.some((clip) => clip.kind === "component") && state.connected && state.ffmpeg) { fastExport(); return; }
@@ -7299,9 +8104,10 @@ async function webCodecsExport() {
   const signal = webCodecsAbort.signal;
   els.exportOverlay.classList.remove("hidden");
   els.exportProgress.style.width = "0%";
-  els.exportNote.textContent = "Encoding with WebCodecs → ffmpeg mux. You can switch tabs; export continues.";
+  els.exportNote.textContent = "正在用浏览器编码并封装音频；切换页面后仍会继续。";
   restoreExportVideoState();
-  const fps = projectFps(), dur = Math.max(1 / fps, projDur());
+  const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
+  const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
   const frames = Math.max(1, Math.round(dur * fps));
   const keyEvery = Math.max(1, Math.round(fps * 2));
   let sessId = null;
@@ -7363,7 +8169,7 @@ async function webCodecsExport() {
     tick();
   });
   try {
-    els.exportTitle.textContent = "Mixing audio…";
+    els.exportTitle.textContent = "正在混合音频…";
     const wav = await renderAudioMix(dur);
     if (renderCancelled) throw new Error("cancelled");
 
@@ -7371,7 +8177,7 @@ async function webCodecsExport() {
       method: "POST",
       body: JSON.stringify({
         fps,
-        name: project.name.replace(/[^\w\- ]+/g, "") || "export",
+        name: (window.fablecutQtExportFileName || project.name).replace(/[^\w\- .]+/g, "") || "export",
         mode: "annexb",
         hasAudio: !!wav,
       }),
@@ -7385,8 +8191,8 @@ async function webCodecsExport() {
     }
 
     // Always encode at project/frame resolution (not display CSS size).
-    const w = Math.max(2, project.width | 0 || 1280);
-    const h = Math.max(2, project.height | 0 || 720);
+    const w = Math.max(2, Number(outputSpec.width) || project.width | 0 || 1280);
+    const h = Math.max(2, Number(outputSpec.height) || project.height | 0 || 720);
     if (els.preview.width !== w || els.preview.height !== h) {
       els.preview.width = w;
       els.preview.height = h;
@@ -7439,11 +8245,12 @@ async function webCodecsExport() {
       } finally {
         frame.close();
       }
+      exportRun.frames = f + 1;
       const pct = ((f + 1) / frames) * 100;
       els.exportProgress.style.width = pct.toFixed(1) + "%";
-      els.exportTitle.textContent = `Encoding… ${pct.toFixed(0)}%`;
+      els.exportTitle.textContent = `正在编码… ${pct.toFixed(0)}%`;
     }
-    els.exportTitle.textContent = "Finishing…";
+    els.exportTitle.textContent = "正在完成封装…";
     await encoder.flush();
     flushBatch(true);
     await uploadTail;
@@ -7456,17 +8263,21 @@ async function webCodecsExport() {
     a.href = end.src;
     a.download = decodeURIComponent(end.src.split("/").pop());
     a.click();
+    exportRun.status = "completed";
   } catch (e) {
     try { encoder?.close(); } catch { }
     if (sessId) fetch("/api/export/end?id=" + sessId + "&discard=1", { method: "POST" }).catch(() => { });
     const msg = e?.name === "AbortError" ? "cancelled" : String(e.message || e);
+    exportRun.status = msg === "cancelled" ? "cancelled" : "failed";
     if (msg !== "cancelled") alert("Export failed: " + msg);
   } finally {
+    exportRun.durationMs = Math.round(performance.now() - exportStarted);
+    recordFablecutDiagnostic("export_end", `engine=webcodecs status=${exportRun.status} durationMs=${exportRun.durationMs} frames=${exportRun.frames}`);
     webCodecsAbort = null;
     restoreExportVideoState();
     state.exporting = false; state.rendering = false;
     els.exportOverlay.classList.add("hidden");
-    els.exportNote.textContent = "Rendering your sequence in real time. Keep this tab focused.";
+    els.exportNote.textContent = "正在渲染时间线，请保持应用运行。";
     if (runtime.pendingSync) syncFromServer();
   }
 }
@@ -7480,17 +8291,24 @@ function pickMime() {
   ];
   return cands.find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
 }
-async function startExport() {
+async function startExport(requestedOutputSpec = null) {
   if (state.exporting) return;
   if (!project.clips.length) { alert("Timeline is empty — add some clips first."); return; }
   await window.edwardPreferences?.flushPendingPreferences?.();
   window.edwardPreferences?.compilePreferences?.();
   const mime = pickMime();
-  if (!mime) { alert("MediaRecorder is not supported in this browser."); return; }
+  if (!mime) { alert("当前浏览器不支持 MediaRecorder。"); return; }
   ensureAudio();
   await runtime.audio.ctx.resume();
   pause();
   state.time = 0;
+  const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
+  runtime.diagnostics.exportRuns.push({ engine: "realtime", startedAt: new Date().toISOString(), output: outputSpec, status: "running" });
+  runtime.diagnostics.exportRuns.at(-1).startedPerf = performance.now();
+  recordFablecutDiagnostic("export_start", "engine=realtime");
+  const previousCanvasSize = { width: els.preview.width, height: els.preview.height };
+  els.preview.width = Number(outputSpec.width) || previousCanvasSize.width;
+  els.preview.height = Number(outputSpec.height) || previousCanvasSize.height;
   seekMediaWhilePaused();
   await new Promise((r) => setTimeout(r, 350)); // let first frames decode
   const stream = els.preview.captureStream(projectFps());
@@ -7499,6 +8317,9 @@ async function startExport() {
   recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10_000_000 });
   recorder.ondataavailable = (e) => { if (e.data.size) recChunks.push(e.data); };
   recorder.onstop = () => {
+    els.preview.width = previousCanvasSize.width;
+    els.preview.height = previousCanvasSize.height;
+    updateMonitorRes();
     els.exportOverlay.classList.add("hidden");
     if (recDiscard || !recChunks.length) return;
     const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
@@ -7522,6 +8343,13 @@ function finishExport(keep) {
   state.exporting = false;
   if (runtime.pendingSync) syncFromServer();
   recDiscard = !keep;
+  const exportRun = [...runtime.diagnostics.exportRuns].reverse().find((run) => run.engine === "realtime" && run.status === "running");
+  if (exportRun) {
+    exportRun.status = keep ? "completed" : "cancelled";
+    exportRun.durationMs = Math.round(performance.now() - exportRun.startedPerf);
+    delete exportRun.startedPerf;
+    recordFablecutDiagnostic("export_end", `engine=realtime status=${exportRun.status} durationMs=${exportRun.durationMs}`);
+  }
   state.playing = false;
   els.btnPlay.textContent = "▶";
   els.btnPlay.classList.remove("on");
@@ -7619,16 +8447,161 @@ function onSettingsTabTrap(e) {
     first.focus();
   }
 }
-function openSettings() {
-  const cb = $("setLinkSelect");
-  if (cb) cb.checked = !!getSetting("linkSelect");
-  const profile = $("setShortcutProfile");
-  if (profile) profile.value = localStorage.getItem("fablecut-shortcut-profile") || "jianying";
+function setSettingsStatus(message) {
+  $("settingsStatus").textContent = window.fablecutI18n?.t(message) || message;
+}
+function recordFablecutDiagnostic(kind, detail = "") {
+  const summary = `${kind}${detail ? ` detail=${String(detail).replace(/[\r\n]/g, " ").slice(0, 360)}` : ""}`;
+  const event = { at: new Date().toISOString(), elapsedMs: Math.round(performance.now()), kind: String(kind), detail: detail ? String(detail).slice(0, 360) : "" };
+  runtime.diagnostics.events.push(event);
+  if (runtime.diagnostics.events.length > 300) runtime.diagnostics.events.splice(0, runtime.diagnostics.events.length - 300);
+  window.edwardSettings?.recordDiagnostic?.(summary);
+}
+window.addEventListener("error", (event) => recordFablecutDiagnostic("script_error", event.message || "unknown"));
+window.addEventListener("unhandledrejection", (event) => recordFablecutDiagnostic("unhandled_rejection", event.reason?.message || String(event.reason || "unknown")));
+let activeProviderSnapshot = null;
+let providerPresets = [];
+const defaultProviderPreset = {
+  provider: "DeepSeek", providerId: "deepseek", endpoint: "https://api.deepseek.com/chat/completions",
+  protocol: "openai-completions", model: "deepseek-chat"
+};
+function setProviderFormValues(provider = defaultProviderPreset, useDefaults = true) {
+  $("setAiProvider").value = provider.provider || (useDefaults ? defaultProviderPreset.provider : "");
+  $("setAiProviderId").value = provider.providerId || (useDefaults ? defaultProviderPreset.providerId : "");
+  $("setAiEndpoint").value = provider.endpoint || (useDefaults ? defaultProviderPreset.endpoint : "");
+  $("setAiProtocol").value = provider.protocol || "openai-completions";
+  $("setAiApiKey").value = "";
+  $("setAiModel").value = provider.model || (useDefaults ? defaultProviderPreset.model : "");
+  const catalog = $("setAiModelCatalog");
+  catalog.replaceChildren();
+  const selected = document.createElement("option"); selected.value = $("setAiModel").value; selected.textContent = selected.value || "先拉取模型列表";
+  catalog.append(selected);
+}
+function setProviderDetailsEditable(editable) {
+  for (const id of ["setAiProviderId", "setAiProvider", "setAiEndpoint", "setAiModel"]) $(id).readOnly = !editable;
+  $("setAiProtocol").disabled = !editable;
+  $("modelProviderDetailTitle").textContent = editable ? "自定义供应商详细信息" : "连接详细信息";
+}
+function applyProviderPreset(preset) {
+  setProviderFormValues({ providerId: preset.id, provider: preset.name, endpoint: preset.endpoint,
+    protocol: preset.protocol || "openai-completions", model: preset.default_model });
+  setProviderDetailsEditable(false);
+  $("providerDetails").open = false;
+}
+function showProviderDetail(provider = null, adding = false) {
+  $("modelProviderList").classList.add("hidden");
+  $("modelProviderDetail").classList.remove("hidden");
+  $("setAiPresetField").classList.toggle("hidden", !adding);
+  $("modelProviderDetailHeading").textContent = adding ? "添加供应商" : "供应商设置";
+  setProviderFormValues(provider || {}, !adding);
+  setProviderDetailsEditable(adding);
+  $("providerDetails").open = adding;
+}
+function showProviderList() {
+  $("modelProviderDetail").classList.add("hidden");
+  $("modelProviderList").classList.remove("hidden");
+}
+function syncAiAssistantProvider(provider) {
+  const label = $("inspectorAiProvider");
+  if (label) label.textContent = provider?.provider || provider?.providerId || "未配置供应商";
+}
+function renderProviderCards(provider) {
+  const root = $("aiProviderCards"); root.replaceChildren();
+  const card = document.createElement("div"); card.className = "provider-card";
+  card.classList.toggle("is-default-provider", !!provider?.providerId && provider.providerId === activeProviderSnapshot?.providerId);
+  const name = document.createElement("strong"); name.textContent = provider?.provider || provider?.providerId || defaultProviderPreset.provider;
+  const actions = document.createElement("div"); actions.className = "provider-card-actions";
+  const makeAction = (text, handler) => { const button = document.createElement("button"); button.type = "button"; button.className = "btn tiny"; button.textContent = text; button.addEventListener("click", (event) => { event.stopPropagation(); handler(); }); return button; };
+  const current = provider || defaultProviderPreset;
+  actions.append(
+    makeAction("设为默认", async () => { const saved = await window.edwardSettings.save(current.providerId, current.provider, current.endpoint, "", current.model, current.protocol, ""); if (!saved) { setSettingsStatus("默认供应商保存失败。"); return; } activeProviderSnapshot = current; syncAiAssistantProvider(current); renderProviderCards(current); setSettingsStatus("已设为 AI 对话默认供应商。"); }),
+    makeAction("测试", async () => { setSettingsStatus("正在测试模型连接…"); const result = await window.edwardSettings.testProvider(current.endpoint, "", current.model, current.protocol); setSettingsStatus(result.success ? "模型连接成功。" : `模型连接失败：${result.message}`); })
+  );
+  card.append(name, actions);
+  card.addEventListener("click", () => showProviderDetail(current));
+  root.append(card);
+}
+async function saveCurrentProvider() {
+  const saved = await window.edwardSettings.save(
+    $("setAiProviderId").value, $("setAiProvider").value, $("setAiEndpoint").value, $("setAiApiKey").value,
+    $("setAiModel").value, $("setAiProtocol").value, "");
+  if (!saved) {
+    setSettingsStatus("供应商保存失败，请检查 HTTPS 端点和模型 ID。");
+    return false;
+  }
+  activeProviderSnapshot = {
+    providerId: $("setAiProviderId").value.trim(), provider: $("setAiProvider").value.trim(),
+    endpoint: $("setAiEndpoint").value.trim(), protocol: $("setAiProtocol").value,
+    model: $("setAiModel").value.trim()
+  };
+  syncAiAssistantProvider(activeProviderSnapshot);
+  renderProviderCards(activeProviderSnapshot);
+  showProviderList();
+  setSettingsStatus("供应商已保存。");
+  return true;
+}
+async function loadProviderPresets() {
+  try {
+    const value = await fetchResourceApi("/api/settings/provider-presets");
+    providerPresets = Array.isArray(value?.presets) && value.presets.length ? value.presets : [defaultProviderPreset];
+  } catch {
+    providerPresets = [defaultProviderPreset];
+    setSettingsStatus("供应商预设暂不可用，已显示 DeepSeek 默认配置。");
+  }
+  const select = $("setAiPreset"); select.replaceChildren();
+  for (const preset of providerPresets) {
+    const option = document.createElement("option"); option.value = preset.id; option.textContent = preset.name;
+    select.append(option);
+  }
+  select.value = providerPresets[0].id;
+  applyProviderPreset(providerPresets[0]);
+}
+async function openSettings() {
   const overlay = $("settingsOverlay");
   overlay.classList.remove("hidden");
   overlay.addEventListener("keydown", onSettingsTabTrap);
-  const dialog = $("settingsDialog");
-  (cb || dialog)?.focus();
+  const status = $("settingsStatus");
+  status.textContent = "";
+  const saved = await window.edwardSettings.load();
+  renderSettingsPaths(saved?.paths || {}, !saved);
+  if (!saved) {
+    setSettingsStatus("Edward desktop settings are unavailable in this browser.");
+    return;
+  }
+  activeProviderSnapshot = saved;
+  syncAiAssistantProvider(saved);
+  renderProviderCards(activeProviderSnapshot);
+  showProviderList();
+  $("setPreferenceStorage").textContent = saved.preferenceStorage || "本地偏好存储已启用";
+  $("setPreferenceStatus").textContent = "待处理偏好变更：" + Number(saved.preferencePending || 0) + " 条";
+  $("settingsTabs [role=tab]")?.focus();
+}
+const SETTINGS_PATH_CATEGORIES = [
+  { title: "项目与输出", hint: "项目文件和导出成品不会被清理。", keys: [["projectRoot", "项目保存位置"], ["exportRoot", "导出位置"]] },
+  { title: "下载与插件", hint: "组件和素材下载可重新获取；插件运行目录只允许迁移。", keys: [["componentDownloadRoot", "组件下载位置"], ["mediaDownloadRoot", "素材下载位置"], ["pluginDownloadRoot", "插件下载位置"], ["pluginRuntimeRoot", "插件运行位置"]] },
+  { title: "缓存与渲染", hint: "这些目录中的派生文件可安全清理。", keys: [["cacheRoot", "缓存位置"], ["proxyRoot", "代理文件位置"], ["prerenderRoot", "预渲染文件位置"]] },
+];
+const DERIVED_SETTINGS_PATHS = new Set(["cacheRoot","componentDownloadRoot","mediaDownloadRoot","proxyRoot","prerenderRoot"]);
+function renderSettingsPaths(paths, unavailable = false) {
+  const root = $("settingsPathList"); root.replaceChildren();
+  for (const category of SETTINGS_PATH_CATEGORIES) {
+    const group = document.createElement("section"); group.className = "settings-path-category";
+    const heading = document.createElement("h3"); heading.textContent = category.title;
+    const hint = document.createElement("p"); hint.textContent = category.hint;
+    group.append(heading, hint);
+    for (const [key, label] of category.keys) {
+    const row = document.createElement("div"); row.className = "settings-path-row";
+    const name = document.createElement("span"); name.className = "settings-path-label"; name.textContent = label;
+    const input = document.createElement("input"); input.value = paths[key] || "等待 Edward 桌面设置连接"; input.readOnly = true; input.disabled = unavailable; input.dataset.settingsPath = key;
+    const choose = document.createElement("button"); choose.className = "btn tiny"; choose.type = "button"; choose.textContent = "迁移";
+    choose.disabled = unavailable; if (unavailable) choose.classList.add("settings-path-unavailable");
+    choose.onclick = async () => { const destination = await window.edwardSettings.chooseExportDirectory(input.value); if (!destination) return; if (!confirm(`迁移${label}到新目录？源文件在校验完成后将删除。`)) return; const ok = await window.edwardSettings.migratePath(key, destination); if (ok) { input.value = destination; setSettingsStatus("迁移完成，重启 Edward 后生效。"); } else setSettingsStatus("迁移失败，原目录未切换。"); };
+    row.append(name,input,choose);
+    if (DERIVED_SETTINGS_PATHS.has(key)) { const clear = document.createElement("button"); clear.className="btn tiny"; clear.type="button"; clear.textContent="清理"; clear.disabled = unavailable; clear.onclick=async()=>{ if (!confirm(`清理${label}中的可重建文件？此操作不可恢复。`)) return; let remoteOk = true; if (key === "cacheRoot") { try { const response = await fetch("/api/resources/cache", { method: "DELETE" }); remoteOk = response.ok; } catch (_) { remoteOk = false; } } const localOk = await window.edwardSettings.clearDerivedPath(key); setSettingsStatus(!localOk ? "清理失败。" : remoteOk ? "清理完成。" : "本地缓存已清理，资源服务将在重启后完成清理。"); }; row.append(clear); }
+    group.append(row);
+    }
+    root.append(group);
+  }
 }
 function closeSettings() {
   const overlay = $("settingsOverlay");
@@ -7641,18 +8614,154 @@ $("btnCloseSettings").addEventListener("click", closeSettings);
 $("settingsOverlay").addEventListener("click", (e) => {
   if (e.target === $("settingsOverlay")) closeSettings();
 });
-$("setLinkSelect").addEventListener("change", (e) => {
-  setSetting("linkSelect", !!e.target.checked);
-  if (!getSetting("linkSelect")) {
-    clearBinSelectionHighlight();
-    return;
+$("btnSaveSettings").addEventListener("click", async () => {
+  await saveCurrentProvider();
+});
+$("btnTestProvider").addEventListener("click", async () => {
+  setSettingsStatus("正在测试模型连接…");
+  const result = await window.edwardSettings.testProvider($("setAiEndpoint").value, $("setAiApiKey").value, $("setAiModel").value, $("setAiProtocol").value);
+  recordFablecutDiagnostic("model_connection", result.success ? "success" : result.message);
+  setSettingsStatus(result.success ? "模型连接成功。" : `模型连接失败：${result.message}`);
+});
+$("btnFetchModels").addEventListener("click", async () => {
+  setSettingsStatus("正在拉取模型列表…");
+  const result = await window.edwardSettings.fetchModels($("setAiEndpoint").value, $("setAiApiKey").value, $("setAiModel").value, $("setAiProtocol").value);
+  recordFablecutDiagnostic("model_catalog", result.success ? `models=${result.values.length}` : result.message);
+  if (result.success && result.values.length) {
+    $("setAiModel").value = result.values[0];
+    const catalog = $("setAiModelCatalog"); catalog.replaceChildren();
+    for (const model of result.values) { const option = document.createElement("option"); option.value = model; option.textContent = model; catalog.append(option); }
+    setSettingsStatus(`已获取 ${result.values.length} 个模型，已选择第一个。`);
+  } else setSettingsStatus(`模型列表获取失败：${result.message}`);
+});
+$("btnShowProviderForm").addEventListener("click", async () => { showProviderDetail(null, true); await loadProviderPresets(); });
+$("btnBackToProviderList").addEventListener("click", showProviderList);
+$("btnAddProvider").addEventListener("click", saveCurrentProvider);
+$("setAiPreset").addEventListener("change", (event) => {
+  const preset = providerPresets.find((item) => item.id === event.target.value);
+  if (preset) applyProviderPreset(preset);
+  else if (event.target.value === "custom") { setProviderFormValues(activeProviderSnapshot); setProviderDetailsEditable(true); }
+});
+$("setAiModelCatalog").addEventListener("change", (event) => { if (event.target.value) $("setAiModel").value = event.target.value; });
+$("settingsTabs").addEventListener("click", (event) => { const tab=event.target.closest("[data-settings-tab]"); if (!tab) return; const name=tab.dataset.settingsTab; for (const item of $("settingsTabs").querySelectorAll("[role=tab]")) item.setAttribute("aria-selected", String(item===tab)); for (const panel of document.querySelectorAll(".settings-panel")) panel.classList.toggle("hidden", panel.id !== `settings${name[0].toUpperCase()}${name.slice(1)}Panel`); });
+$("btnCompilePreferences").addEventListener("click", async () => {
+  const compiled = await window.edwardSettings.compilePreferences();
+  setSettingsStatus(compiled ? "偏好已保存并编译。" : "偏好编译失败。");
+});
+$("btnExportPreferences").addEventListener("click", async () => {
+  const path = await window.edwardSettings.choosePreferencesExportPath();
+  if (!path) return;
+  setSettingsStatus(await window.edwardSettings.exportPreferences(path) ? "偏好已导出。" : "偏好导出失败。");
+});
+$("btnImportPreferences").addEventListener("click", async () => {
+  const path = await window.edwardSettings.choosePreferencesImportPath();
+  if (!path) return;
+  if (!confirm("导入偏好将合并到本机已有偏好，是否继续？")) return;
+  setSettingsStatus(await window.edwardSettings.importPreferences(path) ? "偏好已导入并编译。" : "偏好文件无效或导入失败。");
+});
+function signedInForSettings() {
+  return !!JSON.parse(localStorage.getItem("fablecut-auth-session") || "null")?.access_token;
+}
+$("btnUploadPreferences").addEventListener("click", async () => {
+  if (!signedInForSettings()) { setSettingsStatus("登录后才能上传偏好。"); return; }
+  try {
+    const facts = await window.edwardSettings.preferenceFacts();
+    const result = await fetchResourceApi("/api/settings/preferences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schemaVersion: 1, manifestVersion: 1, facts }) });
+    setSettingsStatus(`偏好已上传（${Number(result.accepted || 0)} 条）。`);
+  } catch (error) { setSettingsStatus(`偏好上传失败：${error.message}`); }
+});
+$("btnDownloadPreferences").addEventListener("click", async () => {
+  if (!signedInForSettings()) { setSettingsStatus("登录后才能下载偏好。"); return; }
+  try {
+    const result = await fetchResourceApi("/api/settings/preferences");
+    const ok = await window.edwardSettings.importPreferenceFacts(result.facts || []);
+    setSettingsStatus(ok ? `偏好已下载并合并（${(result.facts || []).length} 条）。` : "偏好下载数据无法导入。");
+  } catch (error) { setSettingsStatus(`偏好下载失败：${error.message}`); }
+});
+async function refreshDiagnosticLog() {
+  const diagnostics = await window.edwardSettings.diagnostics();
+  if (!diagnostics || typeof diagnostics.log !== "string") {
+    setSettingsStatus("诊断日志只能在 Edward 桌面版中读取。");
+    return null;
   }
-  if (selectedMediaIds().size && state.binTab !== "import") setBinTab("import");
-  syncBinSelectionFromTimeline();
-});
-$("setShortcutProfile")?.addEventListener("change", (e) => {
-  localStorage.setItem("fablecut-shortcut-profile", e.target.value);
-});
+  const snapshot = collectDiagnosticSnapshot();
+  diagnostics.snapshot = snapshot;
+  $("setDiagnosticLog").value = `${diagnostics.log}\n\n--- 画布与属性快照 ---\n${JSON.stringify(snapshot, null, 2)}`;
+  return diagnostics;
+}
+
+/* Diagnostic snapshots deliberately contain geometry and evaluated values, but
+   never media bytes, source URLs, API keys, tokens, or passwords.  This is the
+   same world-space contract used by preview, inspector, timeline and export:
+   canvas center is (0, 0), right/up are positive, left/down are negative. */
+function collectDiagnosticSnapshot() {
+  const W = Number(project.width) || Number(els.preview?.width) || 0;
+  const H = Number(project.height) || Number(els.preview?.height) || 0;
+  const t = Number(state.time) || 0;
+  const safe = (value, key = "") => {
+    if (/(api.?key|token|password|secret|authorization|credential)/i.test(key)) return "[已隐藏]";
+    if (value == null || typeof value === "number" || typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      if (/\/(?:Users|Volumes|private|var)\/|[A-Za-z]:\\/i.test(value)) return "[本地路径已隐藏]";
+      return value;
+    }
+    if (Array.isArray(value)) return value.map((item) => safe(item, key));
+    if (typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, safe(v, k)]));
+    return String(value);
+  };
+  const clips = (Array.isArray(project.clips) ? project.clips : []).map((clip) => {
+    const evaluated = (() => { try { return evalProps(clip, t); } catch { return null; } })();
+    const bounds = (() => { try { return clipBounds(clip, evaluated || clip.props || {}, W, H); } catch { return null; } })();
+    return {
+      id: clip.id, kind: clip.kind, componentId: clip.componentId || null,
+      track: clip.track, name: clip.name || null, start: Number(clip.start) || 0,
+      in: Number(clip.in) || 0, duration: Number(clip.duration) || 0,
+      props: safe(clip.props || {}), evaluatedProps: safe(evaluated || {}),
+      keyframes: safe(clip.keyframes || {}),
+      transitionIn: safe(clip.transitionIn || null), transitionOut: safe(clip.transitionOut || null),
+      bounds: safe(bounds), visibleAtPlayhead: activeAt(clip, t),
+    };
+  });
+  return {
+    schemaVersion: 2,
+    coordinateContract: { origin: "canvas-center", x: "right-positive-left-negative", y: "up-positive-down-negative", units: "canvas-pixels-or-normalized-component-values" },
+    project: {
+      name: project.name, width: W, height: H, fps: projectFps(), background: project.background,
+      revision: project.revision, exportFrame: safe(getExportFrame()),
+      media: (Array.isArray(project.media) ? project.media : []).map((media) => ({ id: media.id, name: media.name, kind: media.kind, duration: media.duration, width: media.width, height: media.height })),
+    },
+    playhead: { time: t, selectedClipId: state.selId, selectedClipIds: [...(state.selIds || [])], playing: !!state.playing },
+    preview: { elementWidth: Number(els.preview?.width) || 0, elementHeight: Number(els.preview?.height) || 0, zoom: Number(state.viewZoom) || 1 },
+    export: safe(getExportOutputSpec()),
+    timings: {
+      keyframeEvaluations: runtime.diagnostics.keyframeEvaluations,
+      keyframeEvaluationMs: Number(runtime.diagnostics.keyframeEvaluationMs.toFixed(3)),
+      preferenceReads: runtime.diagnostics.preferenceReads,
+      preferenceWrites: runtime.diagnostics.preferenceWrites,
+      exportRuns: safe(runtime.diagnostics.exportRuns),
+      recentEvents: safe(runtime.diagnostics.events),
+    },
+    clips,
+  };
+}
+$("btnRefreshDiagnosticLog").addEventListener("click", refreshDiagnosticLog);
+async function submitSettingsFeedback(kind) {
+  if (!signedInForSettings()) { setSettingsStatus("登录后才能提交反馈。"); return; }
+  const message = $("setFeedbackMessage").value.trim();
+  if (kind === "feedback" && !message) { setSettingsStatus("请输入反馈内容。"); return; }
+  try {
+    const desktopDiagnostics = kind === "error" ? await refreshDiagnosticLog() : null;
+    if (kind === "error" && !desktopDiagnostics) return;
+    const diagnostics = kind === "error"
+      ? { appVersion: desktopDiagnostics.appVersion, platform: desktopDiagnostics.platform, log: desktopDiagnostics.log, snapshot: desktopDiagnostics.snapshot }
+      : { version: "0.7.0", platform: navigator.platform };
+    await fetchResourceApi("/api/settings/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, message: message || "用户提交桌面诊断日志。", diagnostics }) });
+    $("setFeedbackMessage").value = "";
+    setSettingsStatus(kind === "error" ? "诊断日志已上报。" : "意见已提交。");
+  } catch (error) { setSettingsStatus(`反馈提交失败：${error.message}`); }
+}
+$("btnReportError").addEventListener("click", () => submitSettingsFeedback("error"));
+$("btnSendFeedback").addEventListener("click", () => submitSettingsFeedback("feedback"));
 els.btnSnap.addEventListener("click", () => {
   state.snap = !state.snap;
   els.btnSnap.classList.toggle("on", state.snap);
@@ -8391,13 +9500,135 @@ function initPanelSplit() {
 /* ── Boot ── */
 loadSettings();
 initPanelSplit();
-document.querySelector("#inspectorAiForm")?.addEventListener("submit", (e) => {
+function aiProjectSnapshot() {
+  const resources = runtime.nativeAnnotationResources.items.map((item) => ({
+    id: String(item.id), target: item.target || null, runtime: item.runtime || null,
+    entry: item.entry || null, props: item.props || item.propsSchema || {},
+  }));
+  return {
+    schemaVersion: 2,
+    revision: Number(project.revision || 0),
+    project: { name: project.name || "", width: Number(project.width) || 0, height: Number(project.height) || 0, fps: Number(project.fps) || 0, revision: Number(project.revision || 0) },
+    clips: project.clips.map((clip) => ({
+      id: String(clip.id), kind: clip.kind, componentId: clip.componentId || null,
+      track: clip.track, start: Number(clip.start) || 0, in: Number(clip.in) || 0,
+      duration: Number(clip.duration) || 0, props: clip.props || {}, keyframes: clip.keyframes || {},
+    })),
+    resources,
+    playhead: { time: Number(state.time) || 0, selectedClipId: state.selId, selectedClipIds: [...(state.selIds || [])] },
+    knownTargetIds: project.clips.map((clip) => String(clip.id)),
+    verifiedResourceIds: resources.map((resource) => resource.id),
+  };
+}
+function renderEdwardConversation(raw) {
+  const box = document.querySelector("#inspectorAiMessages");
+  if (!box) return;
+  const messages = String(raw || "").split("\n").filter(Boolean).map((line) => ({
+    user: line.startsWith("用户："), text: line.replace(/^(用户|AI)：/, ""),
+  }));
+  box.replaceChildren();
+  for (const message of messages) {
+    const item = document.createElement("div");
+    item.className = `inspector-ai-msg ${message.user ? "user" : "ai"}`;
+    item.textContent = message.text;
+    box.appendChild(item);
+  }
+  box.scrollTop = box.scrollHeight;
+}
+function setAiThinking(thinking) {
+  const inspector = document.querySelector(".inspector");
+  const box = document.querySelector("#inspectorAiMessages");
+  inspector?.classList.toggle("ai-thinking", thinking);
+  let indicator = document.querySelector("#inspectorAiThinking");
+  if (thinking && !indicator && box) {
+    indicator = document.createElement("div");
+    indicator.id = "inspectorAiThinking";
+    indicator.className = "inspector-ai-msg ai thinking";
+    indicator.textContent = "正在思考…";
+    box.appendChild(indicator);
+    box.scrollTop = box.scrollHeight;
+  }
+  if (!thinking) indicator?.remove();
+}
+async function applyEdwardActionPlan(raw, bridge) {
+  let plan;
+  try { plan = JSON.parse(raw); } catch { throw new Error("AI 操作计划格式无效"); }
+  const transaction = window.edwardAiActionPlan.apply(plan, {
+    project, resources: runtime.nativeAnnotationResources.items, tracks: TRACKS, playhead: state.time,
+    maxTracks: MAX_TRACKS_PER_KIND, nextClipId: () => "c_" + uid(),
+  });
+  pushUndo();
+  runtime.aiUndo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
+  if (runtime.aiUndo.length > 5) runtime.aiUndo.shift();
+  project.clips = transaction.clips;
+  for (const track of transaction.tracks) {
+    if (!TRACKS.some((current) => current.id === track.id)) TRACKS.push(makeTrack(track.id, track.kind));
+  }
+  sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks();
+  pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+  bridge.clearPendingAiActionPlan();
+  toast("AI 操作已作为一个可撤销事务应用");
+}
+function undoLastEdwardAiAction() {
+  if (!runtime.aiUndo.length) { toast("没有可撤销的 AI 操作"); return; }
+  pushUndo();
+  const snapshot = JSON.parse(runtime.aiUndo.pop());
+  project.clips = snapshot.clips;
+  project.tracks = snapshot.tracks;
+  applyTracksFromProject(project.tracks);
+  pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+  document.querySelector("#inspectorAiUndo")?.remove();
+  toast("已撤销最近一次 AI 操作");
+}
+async function connectEdwardAi() {
+  const bridge = await window.edwardAi?.connect();
+  if (!bridge) return null;
+    const sync = () => {
+    renderEdwardConversation(bridge.aiConversation);
+    const input = document.querySelector("#inspectorAiInput");
+        if (input) input.disabled = !!bridge.aiRequestBusy;
+        setAiThinking(!!bridge.aiRequestBusy);
+        const pending = bridge.pendingAiActionPlan;
+        let confirm = document.querySelector("#inspectorAiConfirm");
+        let undo = document.querySelector("#inspectorAiUndo");
+        if (!runtime.aiUndo.length) undo?.remove();
+        else if (!undo) {
+          undo = document.createElement("button");
+          undo.id = "inspectorAiUndo"; undo.type = "button"; undo.className = "btn tiny";
+          undo.textContent = "撤销 AI";
+          document.querySelector("#inspectorAiForm")?.prepend(undo);
+        }
+        if (undo) undo.onclick = undoLastEdwardAiAction;
+        if (!pending) { confirm?.remove(); return; }
+    if (!confirm) {
+      confirm = document.createElement("button");
+      confirm.id = "inspectorAiConfirm"; confirm.type = "button"; confirm.className = "btn tiny accent";
+      confirm.textContent = "确认应用";
+      document.querySelector("#inspectorAiForm")?.prepend(confirm);
+        }
+        confirm.onclick = async () => { try { await applyEdwardActionPlan(pending, bridge); } catch (error) { toast(error.message || "AI 操作失败"); } };
+      };
+  bridge.timelineChanged.connect(sync);
+  sync();
+  return bridge;
+}
+let edwardAiBridge = null;
+connectEdwardAi().then((bridge) => { edwardAiBridge = bridge; });
+    document.querySelector("#inspectorAiForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = document.querySelector("#inspectorAiInput"), text = input?.value.trim();
   if (!text) return;
   const box = document.querySelector("#inspectorAiMessages"), msg = document.createElement("div");
   msg.className = "inspector-ai-msg user"; msg.textContent = text; box.appendChild(msg); input.value = ""; box.scrollTop = box.scrollHeight;
-  document.querySelector(".inspector")?.classList.remove("ai-idle");
+  const inspector = document.querySelector(".inspector");
+      inspector?.classList.remove("ai-idle");
+      inspector?.classList.add("conversation-active");
+      if (!edwardAiBridge) { toast("AI 剪辑助理仅在 Edward 桌面应用中可用"); return; }
+      try { await loadNativeAnnotationResources(); }
+      catch { toast("原生组件资源加载失败，未发送 AI 请求"); return; }
+      window.edwardAi.send(aiProjectSnapshot(), text).then((accepted) => {
+    if (!accepted) { setAiThinking(false); toast("AI 请求未发送，请检查模型设置"); }
+  });
 });
 buildTrackDOM();
 rebuildClips();

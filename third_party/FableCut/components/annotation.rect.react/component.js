@@ -16,8 +16,10 @@ export function mount({ host, props, time, viewport }) {
   const render = (next, at, size) => {
     const v = values(next, at, size);
     const sx = v.cssWidth / v.width, sy = v.cssHeight / v.height;
-    const rect = window.React.createElement("rect", { x: 0, y: 0, width: v.boxWidth, height: v.boxHeight, rx: v.radius, fill: "none", stroke: v.color, strokeWidth: v.borderWidth, pathLength: 1, strokeDasharray: 1, strokeDashoffset: 1 - v.progress });
-    root.render(window.React.createElement("svg", { style: { position: "absolute", left: `${(v.width / 2 + v.x - v.boxWidth / 2) * sx}px`, top: `${(v.height / 2 + v.y - v.boxHeight / 2) * sy}px`, width: `${v.boxWidth * sx}px`, height: `${v.boxHeight * sy}px`, overflow: "visible", pointerEvents: "none", opacity: Number(next.opacity ?? 1), transform: `rotate(${Number(next.rotation ?? 0)}deg)`, transformOrigin: "center" }, viewBox: `0 0 ${v.boxWidth} ${v.boxHeight}` }, rect));
+    const dashLength = Math.max(v.progress, 0.0001);
+    const drawRect = window.React.createElement("rect", { x: 0, y: 0, width: v.boxWidth, height: v.boxHeight, rx: v.radius, fill: "none", stroke: v.color, strokeWidth: v.borderWidth, pathLength: 1, strokeDasharray: `${dashLength} 1`, strokeDashoffset: 0 });
+    const rotation = Number(next.rotation ?? 0);
+    root.render(window.React.createElement("svg", { "data-edward-x": v.x, "data-edward-y": v.y, "data-edward-width": v.boxWidth, "data-edward-height": v.boxHeight, "data-edward-viewport-width": v.width, "data-edward-viewport-height": v.height, "data-edward-rotation": rotation, style: { position: "absolute", left: `${(v.width / 2 + v.x - v.boxWidth / 2) * sx}px`, top: `${(v.height / 2 - v.y - v.boxHeight / 2) * sy}px`, width: `${v.boxWidth * sx}px`, height: `${v.boxHeight * sy}px`, overflow: "visible", pointerEvents: "none", opacity: Number(next.opacity ?? 1), transform: `rotate(${rotation}deg)`, transformOrigin: "center" }, viewBox: `0 0 ${v.boxWidth} ${v.boxHeight}` }, drawRect));
   };
   render(props, time, viewport);
   return { update(next, at, size) { render(next, at, size); }, destroy() { root.unmount(); } };

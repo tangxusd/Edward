@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
+get_filename_component(EDWARD_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+
 if(NOT DEFINED APP_BUNDLE OR NOT IS_DIRECTORY "${APP_BUNDLE}")
   message(FATAL_ERROR "APP_BUNDLE must point to an existing .app directory")
 endif()
@@ -27,10 +29,9 @@ endif()
 if(NOT DEFINED FONT_MANIFEST OR NOT EXISTS "${FONT_MANIFEST}")
   message(FATAL_ERROR "FONT_MANIFEST is required; refusing to package without font provenance")
 endif()
-if(DEFINED DEVELOPMENT_ONLY AND DEVELOPMENT_ONLY)
-  if(NOT DEFINED DEVELOPMENT_MARKER OR NOT EXISTS "${DEVELOPMENT_MARKER}")
-    message(FATAL_ERROR "DEVELOPMENT_MARKER is required for development-only packaging")
-  endif()
+if(DEFINED DEVELOPMENT_ONLY AND DEVELOPMENT_ONLY AND
+   (NOT DEFINED DEVELOPMENT_MARKER OR NOT EXISTS "${DEVELOPMENT_MARKER}"))
+  message(FATAL_ERROR "DEVELOPMENT_MARKER is required for development-only packaging")
 endif()
 
 function(require_non_empty_directory directory label)
@@ -54,7 +55,6 @@ require_non_empty_directory("${MLT_DATA_DIR}" "MLT_DATA_DIR")
 require_non_empty_directory("${FONT_DIR}" "FONT_DIR")
 require_non_empty_file("${THIRD_PARTY_NOTICES}" "THIRD_PARTY_NOTICES")
 require_non_empty_file("${FONT_MANIFEST}" "FONT_MANIFEST")
-
 find_program(MACDEPLOYQT_EXECUTABLE macdeployqt REQUIRED)
 file(MAKE_DIRECTORY "${OUTPUT_DIR}")
 get_filename_component(APP_NAME "${APP_BUNDLE}" NAME)

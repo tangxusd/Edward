@@ -13,13 +13,20 @@ Deno.serve(async (req) => {
   if (!user.user || typeof body.resourceId !== "string" || typeof body.favorite !== "boolean") return Response.json({ error: "invalid_request" }, { status: 400, headers: cors });
   if (!await hasActiveEntitlement(client, user.user.id)) return Response.json({ error: "entitlement_required" }, { status: 403, headers: cors });
 
+  const { data: readableResource, error: readableResourceError } = await client.from("resources")
+    .select("id").eq("id", body.resourceId).eq("status", "published").in("visibility", ["public", "unlisted"]).maybeSingle();
+  if (readableResourceError) return Response.json({ error: "resource_unavailable" }, { status: 502, headers: cors });
+  if (!readableResource) return Response.json({ error: "resource_not_found" }, { status: 404, headers: cors });
+
   const table = client.from("resource_favorites");
   const { error } = body.favorite
     ? await table.upsert({ user_id: user.user.id, resource_id: body.resourceId }, { onConflict: "user_id,resource_id", ignoreDuplicates: true })
     : await table.delete().eq("user_id", user.user.id).eq("resource_id", body.resourceId);
   if (error) return Response.json({ error: "favorite_unavailable" }, { status: 502, headers: cors });
 
-  const { data: resource, error: resourceError } = await client.from("resources").select("favorite_count").eq("id", body.resourceId).maybeSingle();
-  if (resourceError || !resource) return Response.json({ error: "resource_not_found" }, { status: 404, headers: cors });
+  const { data: resource, error: resourceError } = await client.from("resources")
+    .select("favorite_count").eq("id", body.resourceId).eq("status", "published").in("visibility", ["public", "unlisted"]).maybeSingle();
+  if (resourceError) return Response.json({ error: "resource_unavailable" }, { status: 502, headers: cors });
+  if (!resource) return Response.json({ error: "resource_not_found" }, { status: 404, headers: cors });
   return Response.json({ resourceId: body.resourceId, favorite: body.favorite, favoriteCount: resource.favorite_count }, { headers: cors });
 });

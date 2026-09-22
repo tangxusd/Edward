@@ -31,6 +31,7 @@
 - `supabase/tests/component-library-contract.test.ts`：迁移、函数和版本合同测试。
 - `tools/resource-publisher/publish.mjs`：验证清单、上传 `preview.mp4`、写入正确版本字段。
 - `third_party/FableCut/resource-cache.js`：资源来源选择与缓存索引纯函数。
+- `third_party/FableCut/zip-extract.js`：仅接受安全相对路径的 ZIP 解包器，供本机缓存运行入口使用。
 - `third_party/FableCut/resource-timeline.js`：通用三秒资源插入轨道计算。
 - `third_party/FableCut/server.js`：完整包/MP4 缓存、缓存预览文件服务与脱敏日志。
 - `third_party/FableCut/app.js`：资源浏览器、统一动作按钮、插入实例、缓存调用和预览窗口。
@@ -117,7 +118,7 @@ Expected: FAIL，迁移和目录合同尚不存在。
 
 - [ ] **Step 3: 编写迁移**
 
-增加 `resources.lifecycle_status`，其值只能为 `published|archived|withdrawn`；创建覆盖 `tab_key, category_id, favorite_count desc, published_at desc, id desc` 的热门索引。为 `resource_favorites` 的插入和删除创建触发器，原子递增/递减 `resources.favorite_count`。创建仅 service-role 能调用的计数重算函数。已发布资源与版本不得物理删除。
+扩展现有 `resources.status` 约束为 `draft|published|archived|withdrawn`，不得新增并行生命周期字段；创建覆盖 `tab_key, category_id, favorite_count desc, published_at desc, id desc` 的热门索引。为 `resource_favorites` 的插入和删除创建触发器，原子递增/递减 `resources.favorite_count`。创建仅 service-role 能调用的计数重算函数。已发布资源与版本不得物理删除。
 
 - [ ] **Step 4: 修改函数**
 
@@ -138,6 +139,7 @@ Expected: PASS。
 
 **Files:**
 - Create: `third_party/FableCut/resource-cache.js`
+- Create: `third_party/FableCut/zip-extract.js`
 - Modify: `third_party/FableCut/server.js`
 - Create: `third_party/FableCut/test/resource-cache.test.js`
 
@@ -146,6 +148,7 @@ Expected: PASS。
 - `validateCacheIndex(index): {ok:boolean, reason?:string}`
 - `POST /api/resources/cache` 输入 `{resourceId, componentId, version, contentHash}`，输出 `{state:"ready", previewUrl, manifest}`。
 - `GET /api/resources/cache-preview?key=...` 仅服务已校验本机 MP4。
+- `GET /api/resources/cache-entry?key=...&path=...` 仅服务已校验包中登记的原生运行文件。
 
 - [ ] **Step 1: 写失败的缓存状态机测试**
 
@@ -160,23 +163,23 @@ Run: `node --test third_party/FableCut/test/resource-cache.test.js`
 
 Expected: FAIL，模块不存在。
 
-- [ ] **Step 3: 实现缓存索引纯函数**
+- [ ] **Step 3: 实现缓存索引和安全解包纯函数**
 
-缓存键固定为 `componentId@version#contentHash`。浏览器只保存元数据和来源，绝不把短期签名 URL 作为缓存身份。
+缓存键固定为 `componentId@version#contentHash`。浏览器只保存元数据和来源，绝不把短期签名 URL 作为缓存身份。`zip-extract.js` 只接受 stored/deflate ZIP 条目；拒绝绝对路径、`..`、符号链接、重复路径和超过清单声明大小的文件。
 
 - [ ] **Step 4: 实现本机原子缓存**
 
-缓存目录固定为 `DATA_DIR/resource-cache/{encoded-component}/{version-hash}/`。服务通过详情接口取得受控签名 URL，下载 `manifest.json/package.zip/preview.mp4` 到临时目录；校验资源 ID、版本、哈希、资产清单和三项必需文件后才原子重命名。失败删除临时目录并记录脱敏原因；禁止浏览器传入任意 URL 或文件路径。
+缓存目录固定为 `DATA_DIR/resource-cache/{encoded-component}/{version-hash}/`。服务通过详情接口取得受控签名 URL，下载 `manifest.json/package.zip/preview.mp4` 到临时目录；校验资源 ID、版本、哈希、资产清单和三项必需文件后，安全解包到 `runtime/` 并原子重命名。`cache-entry` 只能读取清单登记的 `previewEntry/renderEntry` 或资产路径。失败删除临时目录并记录脱敏原因；禁止浏览器传入任意 URL 或文件路径。
 
 - [ ] **Step 5: 验证**
 
-Run: `node --test third_party/FableCut/test/resource-cache.test.js && node --check third_party/FableCut/server.js && node --check third_party/FableCut/resource-cache.js`
+Run: `node --test third_party/FableCut/test/resource-cache.test.js && node --check third_party/FableCut/server.js && node --check third_party/FableCut/resource-cache.js && node --check third_party/FableCut/zip-extract.js`
 
 Expected: PASS。
 
 - [ ] **Step 6: 提交**
 
-    git add third_party/FableCut/resource-cache.js third_party/FableCut/server.js third_party/FableCut/test/resource-cache.test.js
+    git add third_party/FableCut/resource-cache.js third_party/FableCut/zip-extract.js third_party/FableCut/server.js third_party/FableCut/test/resource-cache.test.js
     git commit -m "feat: cache verified component packages locally"
 
 ### Task 4: 改造资源目录筛选、卡片、预览与收藏
@@ -210,7 +213,7 @@ Expected: FAIL，固定筛选和统一动作接口尚未存在。
 
 - [ ] **Step 3: 重构浏览器状态与查询**
 
-`loadResourceBrowser(tab)` 设置 `filter = "favorites"`、`categoryId = null`。固定筛选只修改 filter，二级分类只修改 categoryId。本地缓存键包含 tab/filter/categoryId；导入页保留 renderBin，不触发资源目录请求。
+`loadResourceBrowser(tab)` 设置 `filter = "favorites"`、`categoryId = null`。固定筛选只修改 filter，二级分类只修改 categoryId。标注 Tab 删除绕过目录的专用分支，与媒体、文本、音频和卡片一样进入 `loadResourceBrowser("annotation")`；本地缓存键包含 tab/filter/categoryId；导入页保留 renderBin，不触发资源目录请求。
 
 - [ ] **Step 4: 统一卡片和预览动作**
 
