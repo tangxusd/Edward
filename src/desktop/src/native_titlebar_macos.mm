@@ -97,13 +97,15 @@ void installEdwardTitlebar(QWindow *window, bool localServiceStarted) {
     }];
 
     NSTextField *status = [NSTextField labelWithString:@""];
-    NSString *stateText = localServiceStarted ? @"connected" : @"未连接";
+    NSString *stateText = localServiceStarted ? @"·" : @"未连接";
     NSColor *stateColor = localServiceStarted ? [NSColor systemGreenColor] : [NSColor systemOrangeColor];
-    NSMutableAttributedString *statusText = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"未命名项目 · ● %@", stateText]];
+    NSMutableAttributedString *statusText = [[NSMutableAttributedString alloc] initWithString:[NSString stringWithFormat:@"未命名项目 %@", stateText]];
     [statusText addAttribute:NSForegroundColorAttributeName value:[NSColor whiteColor] range:NSMakeRange(0, statusText.length)];
     [statusText addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:12.0 weight:NSFontWeightRegular] range:NSMakeRange(0, statusText.length)];
-    NSRange dotRange = [[statusText string] rangeOfString:@"●"];
-    [statusText addAttribute:NSForegroundColorAttributeName value:stateColor range:dotRange];
+    NSRange dotRange = [[statusText string] rangeOfString:@"·" options:NSBackwardsSearch];
+    if (dotRange.location != NSNotFound) {
+        [statusText addAttribute:NSForegroundColorAttributeName value:stateColor range:dotRange];
+    }
     status.attributedStringValue = statusText;
     status.alignment = NSTextAlignmentCenter;
     status.textColor = [NSColor whiteColor];

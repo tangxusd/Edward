@@ -491,7 +491,7 @@ const runtime = {
   library: {},          // dir -> [{name, rel, src, size}] cached /api/library results
   customFonts: [],      // family names loaded from /library/fonts
   googleLoaded: new Set(),
-  undo: [], redo: [], aiUndo: [],
+  undo: [], redo: [], aiUndo: [], aiCandidatePreview: null, aiLocalMessages: [],
   audio: null,          // {ctx, master, recDest, meter?, meterReady?}
   saveTimer: null, pendingSync: false,
   sfxPreview: null,     // <audio> element for library sound previews
@@ -983,7 +983,7 @@ function applyProject(data) {
     folders: normalizeFolders(data.folders),
     media: (data.media || []).map(normalizeMediaEntry),
     clips: data.clips || [],
-    markers: (data.markers || []).filter((m) => m && isFinite(m.t)).sort((a, b) => a.t - b.t),
+    markers: (data.markers || []).filter((m) => m && isFinite(m.t)).sort((a, b) => a.t - b.t).map((m, i) => ({ ...m, label: i + 1 })),
     inPoint: wa.inPoint,
     outPoint: wa.outPoint,
     exportFrame: normalizeExportFrame(data.exportFrame, data.width || 1280, data.height || 720),
@@ -1885,7 +1885,8 @@ async function confirmAuthSession() {
   try {
     const response = await fetch(`${base}/api/auth/session`, { credentials:"same-origin", headers:{Accept:"application/json", Authorization:`Bearer ${session.access_token}`} });
     if (!response.ok) throw new Error("session invalid");
-    await fetch(`${base}/api/resources/cache-session`, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", Authorization: `Bearer ${session.access_token}` } });
+    // 缓存会话同步是可选副作用，失败不能把有效登录会话判定为失效。
+    try { await fetch(`${base}/api/resources/cache-session`, { method: "POST", credentials: "same-origin", headers: { Accept: "application/json", Authorization: `Bearer ${session.access_token}` } }); } catch { }
     setAuthButton(session);
     return session;
   } catch {
@@ -2585,23 +2586,29 @@ function setBinTab(tab) {
 
 /* ═══════════════════════════ EDIT OPERATIONS ═══════════════════════════ */
 function pushUndo() {
-  runtime.undo.push(JSON.stringify(project.clips));
+  runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
   if (runtime.undo.length > 100) runtime.undo.shift();
   runtime.redo.length = 0;
 }
+function timelineSnapshot(raw) {
+  const value = typeof raw === "string" ? JSON.parse(raw) : raw;
+  return Array.isArray(value) ? { clips: value, tracks: serializeTracks() } : value;
+}
+function restoreTimelineSnapshot(snapshot) {
+  project.clips = snapshot.clips || [];
+  if (snapshot.tracks) applyTracksFromProject(snapshot.tracks);
+  project.tracks = serializeTracks();
+  pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+}
 function undo() {
   if (!runtime.undo.length) return;
-  runtime.redo.push(JSON.stringify(project.clips));
-  project.clips = JSON.parse(runtime.undo.pop());
-  pruneSelection();
-  scheduleSave(); renderInspector();
+  runtime.redo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
+  restoreTimelineSnapshot(timelineSnapshot(runtime.undo.pop()));
 }
 function redo() {
   if (!runtime.redo.length) return;
-  runtime.undo.push(JSON.stringify(project.clips));
-  project.clips = JSON.parse(runtime.redo.pop());
-  pruneSelection();
-  scheduleSave(); renderInspector();
+  runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
+  restoreTimelineSnapshot(timelineSnapshot(runtime.redo.pop()));
 }
 
 function defaultTrackFor(kind) {
@@ -3829,8 +3836,11 @@ function drawRulerMainThread(w, h, dpr) {
     if (x < -6 || x > w + 6) continue;
     g.fillStyle = "#4f8cff";
     g.beginPath();
-    g.moveTo(x, h - 9); g.lineTo(x + 4, h - 5); g.lineTo(x, h - 1); g.lineTo(x - 4, h - 5);
+    g.moveTo(x, h - 13); g.lineTo(x + 8, h - 5); g.lineTo(x, h + 3); g.lineTo(x - 8, h - 5);
     g.closePath(); g.fill();
+    g.fillStyle = "#fff"; g.font = "bold 12px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(Number(mk.label) > 9 ? "*" : String(mk.label || "*"), x, h - 5);
+    g.textAlign = "start"; g.textBaseline = "alphabetic";
   }
   // IN / OUT — bottom-aligned; `difference` keeps time glyphs readable where they overlap
   // (true `xor` would punch transparent holes instead of showing the digits)
@@ -4143,7 +4153,7 @@ function startMarquee(e) {
 function startScrub(e) {
   e.preventDefault();
   state.gesture = true;
-  const seek = (ev) => setTime(timeAtEvent(ev));
+  const seek = (ev) => setTime(snapTime(timeAtEvent(ev), null));
   seek(e);
   const onUp = () => {
     window.removeEventListener("pointermove", seek);
@@ -4212,7 +4222,9 @@ function toggleMarker() {
   const near = project.markers.findIndex((m) => Math.abs(m.t - t) < tol);
   if (near >= 0 && !state.playing) project.markers.splice(near, 1);
   else { project.markers.push({ t }); project.markers.sort((a, b) => a.t - b.t); }
+  project.markers.forEach((marker, index) => { marker.label = index + 1; });
   scheduleSave();
+  drawRuler();
 }
 /* Work-area IN/OUT markers (I / O). Shift+I / Shift+O clear them. */
 function workAreaTime() {
@@ -8504,6 +8516,20 @@ function showProviderList() {
 function syncAiAssistantProvider(provider) {
   const label = $("inspectorAiProvider");
   if (label) label.textContent = provider?.provider || provider?.providerId || "未配置供应商";
+  const select = $("inspectorAiModel");
+  if (!select) return;
+  let savedModels = [];
+  try { savedModels = JSON.parse(localStorage.getItem("fablecut-ai-model-catalog") || "[]"); } catch { savedModels = []; }
+  const providerModels = Array.isArray(provider?.models) ? provider.models
+    : typeof provider?.models === "string" ? provider.models.split(/[\n,;]/).map((model) => model.trim()) : [];
+  const models = [...new Set([...providerModels, ...savedModels].filter(Boolean))];
+  if (provider?.model && !models.includes(provider.model)) models.unshift(provider.model);
+  select.replaceChildren();
+  if (!models.length) {
+    const option = document.createElement("option"); option.textContent = "未配置模型"; option.value = ""; select.append(option); return;
+  }
+  for (const model of models) { const option = document.createElement("option"); option.value = model; option.textContent = model; select.append(option); }
+  select.value = provider?.model || models[0];
 }
 function renderProviderCards(provider) {
   const root = $("aiProviderCards"); root.replaceChildren();
@@ -8628,6 +8654,7 @@ $("btnFetchModels").addEventListener("click", async () => {
   const result = await window.edwardSettings.fetchModels($("setAiEndpoint").value, $("setAiApiKey").value, $("setAiModel").value, $("setAiProtocol").value);
   recordFablecutDiagnostic("model_catalog", result.success ? `models=${result.values.length}` : result.message);
   if (result.success && result.values.length) {
+    localStorage.setItem("fablecut-ai-model-catalog", JSON.stringify(result.values));
     $("setAiModel").value = result.values[0];
     const catalog = $("setAiModelCatalog"); catalog.replaceChildren();
     for (const model of result.values) { const option = document.createElement("option"); option.value = model; option.textContent = model; catalog.append(option); }
@@ -8636,7 +8663,7 @@ $("btnFetchModels").addEventListener("click", async () => {
         $("setAiEndpoint").value, $("setAiApiKey").value, result.values[0], $("setAiProtocol").value, "");
       if (saved) {
         activeProviderSnapshot = { providerId: $("setAiProviderId").value.trim(), provider: $("setAiProvider").value.trim(),
-          endpoint: $("setAiEndpoint").value.trim(), protocol: $("setAiProtocol").value, model: result.values[0] };
+          endpoint: $("setAiEndpoint").value.trim(), protocol: $("setAiProtocol").value, model: result.values[0], models: result.values };
         syncAiAssistantProvider(activeProviderSnapshot);
         renderProviderCards(activeProviderSnapshot);
         setSettingsStatus("仅检测到一个模型，已自动设为默认模型并保存。");
@@ -9263,6 +9290,11 @@ els.exportFrameOverlay?.querySelector(".ef-handle")?.addEventListener("keydown",
 
 window.addEventListener("keydown", (e) => {
   const k = e.key;
+  if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")) {
+    e.preventDefault();
+    e.shiftKey ? redo() : undo();
+    return;
+  }
   if (k === "Delete" || k === "Backspace") {
     if (!isTypingTarget(document.activeElement) && clearFocusedTransition()) {
       e.preventDefault();
@@ -9354,10 +9386,6 @@ window.addEventListener("keydown", (e) => {
     if (e.altKey) zoomToWorkArea();
     else if (e.shiftKey) zoomToFit();
     else zoomToSelection();
-  }
-  else if ((e.ctrlKey || e.metaKey) && (k === "z" || k === "Z")) {
-    e.preventDefault();
-    e.shiftKey ? redo() : undo();
   }
   else if ((e.ctrlKey || e.metaKey) && (k === "y" || k === "Y")) { e.preventDefault(); redo(); }
 });
@@ -9511,6 +9539,16 @@ function initPanelSplit() {
 loadSettings();
 initPanelSplit();
 function aiProjectSnapshot() {
+  const capabilities = [
+    { type: "insert_native_component", target: "playhead", fields: ["resourceId"] },
+    { type: "set_component_props", target: "selected_component", fields: ["targetId", "props"] },
+    { type: "move_clip", target: "selected_clip", fields: ["targetId", "timelineStart"] },
+    { type: "resize_clip", target: "selected_clip", fields: ["targetId", "durationFrames"] },
+    { type: "remove_clip", target: "selected_clip", fields: ["targetId"] },
+  ];
+  const selectedClipIds = state.selIds.size
+    ? [...state.selIds].map(String)
+    : project.clips.filter((clip) => state.time >= Number(clip.start || 0) && state.time < Number(clip.start || 0) + Number(clip.duration || 0)).map((clip) => String(clip.id));
   const resources = runtime.nativeAnnotationResources.items.map((item) => ({
     id: String(item.id), target: item.target || null, runtime: item.runtime || null,
     entry: item.entry || null, props: item.props || item.propsSchema || {},
@@ -9524,10 +9562,14 @@ function aiProjectSnapshot() {
       track: clip.track, start: Number(clip.start) || 0, in: Number(clip.in) || 0,
       duration: Number(clip.duration) || 0, props: clip.props || {}, keyframes: clip.keyframes || {},
     })),
+    tracks: serializeTracks(),
+    markers: (project.markers || []).map((marker) => ({ t: Number(marker.t) || 0, label: marker.label || null })),
     resources,
-    playhead: { time: Number(state.time) || 0, selectedClipId: state.selId, selectedClipIds: [...(state.selIds || [])] },
+    playhead: { time: Number(state.time) || 0, selectedClipId: state.selId, selectedClipIds },
     knownTargetIds: project.clips.map((clip) => String(clip.id)),
     verifiedResourceIds: resources.map((resource) => resource.id),
+    capabilities,
+    attachments: (window.edwardAiAttachments || []).map(({ name, type, size, text }) => ({ name, type, size, text })),
   };
 }
 function renderEdwardConversation(raw) {
@@ -9543,6 +9585,60 @@ function renderEdwardConversation(raw) {
     item.textContent = message.text;
     box.appendChild(item);
   }
+  for (const message of runtime.aiLocalMessages || []) {
+    const item = document.createElement("div");
+    item.className = `inspector-ai-msg ${message.user ? "user" : "ai"}`;
+    item.textContent = message.text;
+    box.appendChild(item);
+  }
+  box.scrollTop = box.scrollHeight;
+}
+function countConversationLine(raw, line) {
+  const text = String(raw || "");
+  if (!line) return 0;
+  return text.split(line).length - 1;
+}
+function isAiConfirmationText(text) {
+  return /^(确认|确定|执行|应用|确认执行|确认应用)(以上方案|该方案|候选方案)?[。！! ]*$/.test(String(text || "").trim());
+}
+function renderAiPlanPreview(rawPlan) {
+  const box = document.querySelector("#inspectorAiMessages");
+  if (!box) return;
+  let plan;
+  try { plan = JSON.parse(String(rawPlan || "")); } catch { return; }
+  if (!plan || !Array.isArray(plan.operations)) return;
+  let preview = document.querySelector("#inspectorAiPlanPreview");
+  if (!preview) {
+    preview = document.createElement("div");
+    preview.id = "inspectorAiPlanPreview";
+    preview.className = "inspector-ai-plan-preview";
+    box.appendChild(preview);
+  }
+  const fps = projectFps();
+  const lines = plan.operations.map((operation) => {
+    const type = operation.type || operation.op;
+    const target = project.clips.find((clip) => clip.id === operation.targetId);
+    if (type === "resize_clip" && target) {
+      const duration = Number(operation.durationFrames) / fps;
+      const end = Number(target.start) + duration;
+      const marker = (project.markers || []).find((item) => Math.abs(Number(item.t) - end) < 0.06);
+      return `将${target.track || "当前轨道"}上的“${target.name || target.componentId || target.id}”从 ${Number(target.duration).toFixed(2)} 秒调整为 ${duration.toFixed(2)} 秒，结束于 ${marker ? `M${marker.label || ""}（${Number(marker.t).toFixed(2)} 秒）` : `${end.toFixed(2)} 秒`}`;
+    }
+    if (type === "remove_clip" && target) return `删除片段“${target.name || target.componentId || target.id}”（${target.track || "当前轨道"}）`;
+    if (type === "move_clip" && target) return `将片段“${target.name || target.componentId || target.id}”移动到 ${ (Number(operation.timelineStart) / fps).toFixed(2)} 秒`;
+    if (type === "set_component_props" && target) return `修改组件“${target.name || target.componentId || target.id}”的 ${Object.keys(operation.props || {}).join("、") || "属性"}`;
+    if (type === "insert_native_component") return `在当前播放头插入组件“${operation.resourceId}”`;
+    return "执行一项已选中的时间线修改";
+  });
+  preview.replaceChildren();
+  const title = document.createElement("strong");
+  title.textContent = "待确认的具体修改：";
+  preview.appendChild(title);
+  for (const line of lines) {
+    const item = document.createElement("div");
+    item.textContent = `· ${line}`;
+    preview.appendChild(item);
+  }
   box.scrollTop = box.scrollHeight;
 }
 function setAiThinking(thinking) {
@@ -9550,19 +9646,43 @@ function setAiThinking(thinking) {
   const box = document.querySelector("#inspectorAiMessages");
   inspector?.classList.toggle("ai-thinking", thinking);
   let indicator = document.querySelector("#inspectorAiThinking");
+  if (!thinking) {
+    if (window.aiThinkingTimer) { clearInterval(window.aiThinkingTimer); window.aiThinkingTimer = null; }
+    indicator?.remove();
+    return;
+  }
   if (thinking && !indicator && box) {
     indicator = document.createElement("div");
     indicator.id = "inspectorAiThinking";
     indicator.className = "inspector-ai-msg ai thinking";
-    indicator.textContent = "正在思考…";
+    window.aiThinkingDots = window.aiThinkingDots || 1;
+    indicator.textContent = `正在思考${".".repeat(window.aiThinkingDots)}`;
     box.appendChild(indicator);
     box.scrollTop = box.scrollHeight;
   }
-  if (!thinking) indicator?.remove();
+  if (!window.aiThinkingTimer) {
+    window.aiThinkingTimer = setInterval(() => {
+      window.aiThinkingDots = (window.aiThinkingDots || 1) % 5 + 1;
+      const current = document.querySelector("#inspectorAiThinking");
+      if (current) current.textContent = `正在思考${".".repeat(window.aiThinkingDots)}`;
+    }, 260);
+  }
 }
 async function applyEdwardActionPlan(raw, bridge) {
   let plan;
   try { plan = JSON.parse(raw); } catch { throw new Error("AI 操作计划格式无效"); }
+  const candidate = runtime.aiCandidatePreview;
+  if (candidate && candidate.raw === raw) {
+    runtime.undo.push(JSON.stringify(candidate.before));
+    if (runtime.undo.length > 100) runtime.undo.shift();
+    runtime.aiUndo.push(JSON.stringify(candidate.before));
+    if (runtime.aiUndo.length > 5) runtime.aiUndo.shift();
+    runtime.aiCandidatePreview = null;
+    scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+    bridge.clearPendingAiActionPlan();
+    toast("已确认并写入时间线");
+    return;
+  }
   const transaction = window.edwardAiActionPlan.apply(plan, {
     project, resources: runtime.nativeAnnotationResources.items, tracks: TRACKS, playhead: state.time,
     maxTracks: MAX_TRACKS_PER_KIND, nextClipId: () => "c_" + uid(),
@@ -9579,6 +9699,35 @@ async function applyEdwardActionPlan(raw, bridge) {
   bridge.clearPendingAiActionPlan();
   toast("AI 操作已作为一个可撤销事务应用");
 }
+function previewEdwardActionPlan(raw) {
+  if (runtime.aiCandidatePreview?.raw === raw) return;
+  if (runtime.aiCandidatePreview) {
+    project.clips = runtime.aiCandidatePreview.before.clips;
+    applyTracksFromProject(runtime.aiCandidatePreview.before.tracks);
+  }
+  const plan = JSON.parse(raw);
+  const before = { clips: JSON.parse(JSON.stringify(project.clips)), tracks: serializeTracks() };
+  const transaction = window.edwardAiActionPlan.apply(plan, {
+    project, resources: runtime.nativeAnnotationResources.items, tracks: TRACKS, playhead: state.time,
+    maxTracks: MAX_TRACKS_PER_KIND, nextClipId: () => "c_" + uid(),
+  });
+  project.clips = transaction.clips;
+  for (const track of transaction.tracks) {
+    if (!TRACKS.some((current) => current.id === track.id)) TRACKS.push(makeTrack(track.id, track.kind));
+  }
+  sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks();
+  runtime.aiCandidatePreview = { raw, before };
+  pruneSelection(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+  toast("已将候选方案临时应用到时间线，确认后才会写入项目");
+}
+function discardAiCandidatePreview() {
+  const candidate = runtime.aiCandidatePreview;
+  if (!candidate) return;
+  project.clips = candidate.before.clips;
+  applyTracksFromProject(candidate.before.tracks);
+  runtime.aiCandidatePreview = null;
+  pruneSelection(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+}
 function undoLastEdwardAiAction() {
   if (!runtime.aiUndo.length) { toast("没有可撤销的 AI 操作"); return; }
   pushUndo();
@@ -9593,12 +9742,14 @@ function undoLastEdwardAiAction() {
 async function connectEdwardAi() {
   const bridge = await window.edwardAi?.connect();
   if (!bridge) return null;
-    const sync = () => {
-    renderEdwardConversation(bridge.aiConversation);
+    const sync = async () => {
+    const conversationReady = !aiPendingUserText || countConversationLine(bridge.aiConversation, `用户：${aiPendingUserText}`) >= aiPendingUserCount;
+    if (conversationReady) renderEdwardConversation(bridge.aiConversation);
     const input = document.querySelector("#inspectorAiInput");
         if (input) input.disabled = !!bridge.aiRequestBusy;
-        setAiThinking(!!bridge.aiRequestBusy);
-        const pending = bridge.pendingAiActionPlan;
+      setAiThinking(!!bridge.aiRequestBusy);
+      if (conversationReady && !bridge.aiRequestBusy) aiPendingUserText = "";
+        const pending = bridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
         let confirm = document.querySelector("#inspectorAiConfirm");
         let undo = document.querySelector("#inspectorAiUndo");
         if (!runtime.aiUndo.length) undo?.remove();
@@ -9609,35 +9760,119 @@ async function connectEdwardAi() {
           document.querySelector("#inspectorAiForm")?.prepend(undo);
         }
         if (undo) undo.onclick = undoLastEdwardAiAction;
-        if (!pending) { confirm?.remove(); return; }
+        let cancel = document.querySelector("#inspectorAiCancel");
+        if (!pending) { discardAiCandidatePreview(); confirm?.remove(); cancel?.remove(); document.querySelector("#inspectorAiPlanPreview")?.remove(); return; }
+        try { previewEdwardActionPlan(pending); } catch (error) { toast(error.message || "候选方案无法预览"); return; }
+        renderAiPlanPreview(pending);
     if (!confirm) {
       confirm = document.createElement("button");
       confirm.id = "inspectorAiConfirm"; confirm.type = "button"; confirm.className = "btn tiny accent";
-      confirm.textContent = "确认应用";
+        confirm.textContent = "确认应用以上方案";
       document.querySelector("#inspectorAiForm")?.prepend(confirm);
         }
+        if (!cancel) {
+          cancel = document.createElement("button");
+          cancel.id = "inspectorAiCancel"; cancel.type = "button"; cancel.className = "btn tiny";
+          cancel.textContent = "取消方案";
+          document.querySelector("#inspectorAiForm")?.prepend(cancel);
+        }
         confirm.onclick = async () => { try { await applyEdwardActionPlan(pending, bridge); } catch (error) { toast(error.message || "AI 操作失败"); } };
+        cancel.onclick = () => bridge.clearPendingAiActionPlan();
       };
   bridge.timelineChanged.connect(sync);
   sync();
   return bridge;
 }
 let edwardAiBridge = null;
+let aiPendingUserText = "";
+let aiPendingUserCount = 0;
 connectEdwardAi().then((bridge) => { edwardAiBridge = bridge; });
+Promise.resolve(window.edwardSettings?.load?.()).then((saved) => {
+  if (!saved) return;
+  activeProviderSnapshot = saved;
+  syncAiAssistantProvider(saved);
+}).catch(() => {});
+window.edwardAiAttachments = [];
+function addAiAttachment(file) {
+  if (!file) return;
+  const entry = { name: file.name || "剪贴板截图", type: file.type || "application/octet-stream", size: file.size || 0 };
+  if (entry.type.startsWith("text/") || /\.(txt|md|json)$/i.test(entry.name)) {
+    const reader = new FileReader();
+    reader.onload = () => { entry.text = String(reader.result || "").slice(0, 256 * 1024); window.edwardAiAttachments.push(entry); toast(`已添加附件：${entry.name}`); };
+    reader.readAsText(file);
+  } else { window.edwardAiAttachments.push(entry); toast(`已添加附件：${entry.name}`); }
+}
+$("aiAttachmentInput")?.addEventListener("change", (event) => {
+  for (const file of event.target.files || []) addAiAttachment(file);
+  event.target.value = "";
+});
+$("inspectorAiForm")?.querySelector(".ai-add")?.addEventListener("click", () => $("aiAttachmentInput")?.click());
+$("inspectorAiInput")?.addEventListener("paste", (event) => {
+  const items = [...(event.clipboardData?.items || [])];
+  const image = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+  if (!image) return;
+  event.preventDefault();
+  addAiAttachment(image.getAsFile());
+});
+$("inspectorAiInput")?.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    $("inspectorAiForm")?.requestSubmit();
+  }
+});
+$("inspectorAiModel")?.addEventListener("change", async (event) => {
+  const model = event.target.value;
+  if (!model || !activeProviderSnapshot || !window.edwardSettings?.save) return;
+  const saved = await window.edwardSettings.save(activeProviderSnapshot.providerId, activeProviderSnapshot.provider,
+    activeProviderSnapshot.endpoint, "", model, activeProviderSnapshot.protocol, "");
+  if (saved) { activeProviderSnapshot = { ...activeProviderSnapshot, model }; syncAiAssistantProvider(activeProviderSnapshot); }
+});
     document.querySelector("#inspectorAiForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = document.querySelector("#inspectorAiInput"), text = input?.value.trim();
   if (!text) return;
+  if (runtime.aiCandidatePreview) { toast("请先确认或取消当前候选方案"); return; }
   const box = document.querySelector("#inspectorAiMessages"), msg = document.createElement("div");
   msg.className = "inspector-ai-msg user"; msg.textContent = text; box.appendChild(msg); input.value = ""; box.scrollTop = box.scrollHeight;
+  aiPendingUserText = text;
+  aiPendingUserCount = countConversationLine(edwardAiBridge?.aiConversation, `用户：${text}`) + 1;
   const inspector = document.querySelector(".inspector");
       inspector?.classList.remove("ai-idle");
       inspector?.classList.add("conversation-active");
+      if (!edwardAiBridge) edwardAiBridge = await window.edwardAi?.connect?.();
       if (!edwardAiBridge) { toast("AI 剪辑助理仅在 Edward 桌面应用中可用"); return; }
+      if (isAiConfirmationText(text)) {
+        const pending = edwardAiBridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
+        if (!pending) { toast("当前没有可确认的候选方案"); return; }
+        try {
+          if (!runtime.aiCandidatePreview) previewEdwardActionPlan(pending);
+          runtime.aiLocalMessages.push({ user: true, text });
+          renderEdwardConversation(edwardAiBridge.aiConversation);
+          await applyEdwardActionPlan(pending, edwardAiBridge);
+          runtime.aiLocalMessages.push({ user: false, text: "已确认并写入时间线，当前预览已成为项目结果。" });
+          renderEdwardConversation(edwardAiBridge.aiConversation);
+        } catch (error) { toast(error.message || "候选方案确认失败"); }
+        aiPendingUserText = "";
+        return;
+      }
+      setAiThinking(true);
       try { await loadNativeAnnotationResources(); }
-      catch { toast("原生组件资源加载失败，未发送 AI 请求"); return; }
+      catch { setAiThinking(false); toast("原生组件资源加载失败，未发送 AI 请求"); return; }
       window.edwardAi.send(aiProjectSnapshot(), text).then((accepted) => {
-    if (!accepted) { setAiThinking(false); toast("AI 请求未发送，请检查模型设置"); }
+    if (!accepted) { setAiThinking(false); toast("AI 请求未发送，请检查模型设置"); return; }
+    const refresh = async () => {
+      const conversation = String(edwardAiBridge.aiConversation || "");
+      const conversationReady = !aiPendingUserText || countConversationLine(conversation, `用户：${aiPendingUserText}`) >= aiPendingUserCount;
+      if (conversationReady) renderEdwardConversation(conversation);
+      setAiThinking(!!edwardAiBridge.aiRequestBusy);
+      if (conversationReady && !edwardAiBridge.aiRequestBusy) { aiPendingUserText = ""; clearInterval(refresh.timer); }
+      const pending = edwardAiBridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
+      if (pending) {
+        try { previewEdwardActionPlan(pending); renderAiPlanPreview(pending); } catch (error) { toast(error.message || "候选方案无法预览"); }
+      }
+    };
+    refresh.timer = setInterval(refresh, 180);
+    refresh();
   });
 });
 buildTrackDOM();

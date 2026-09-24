@@ -40,10 +40,13 @@ class ModelChatClient final : public QObject {
   static QStringList extractModelIds(const QJsonObject& response, QString* error = nullptr);
   bool request(const ModelChatConfig& config, const QString& systemPrompt,
                const QString& userPrompt);
+  bool requestStreaming(const ModelChatConfig& config, const QString& systemPrompt,
+                        const QString& userPrompt);
   bool requestModels(const ModelChatConfig& config);
 
  signals:
   void completed(bool success, QString text);
+  void chunk(QString text);
   void modelsCompleted(bool success, QStringList modelIds, QString message);
 
  private:

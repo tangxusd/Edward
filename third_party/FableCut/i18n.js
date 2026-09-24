@@ -33,8 +33,19 @@
   const en = Object.fromEntries(Object.entries(zh).map(([k,v]) => [v,k]));
   const dicts = {"zh-CN":zh,"en-US":en}; let language = localStorage.getItem("fablecut-language") || "zh-CN";
   const t = (value) => { let out = String(value ?? ""); for (const [from, to] of Object.entries(dicts[language]).sort((a,b) => b[0].length - a[0].length)) out = out.split(from).join(to); return out; };
-  function translate(root=document.body) { const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), a=[]; let n; while((n=w.nextNode())) a.push(n); for(const x of a){const raw=x.nodeValue, s=raw.trim(); if(!s||x.parentElement?.closest("script,style,textarea,[data-i18n-ignore]")) continue; const v=t(s); if(v!==s)x.nodeValue=raw.replace(s,v);} root.querySelectorAll("[title],[aria-label]").forEach(e=>["title","aria-label"].forEach(k=>{const v=e.getAttribute(k), n=t(v); if(n!==v)e.setAttribute(k,n);})); document.documentElement.lang=language; }
+  let translating = false;
+  function translate(root=document.body) {
+    if (translating || !root) return;
+    translating = true;
+    try {
+      const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), a=[]; let n;
+      while((n=w.nextNode())) a.push(n);
+      for(const x of a){const raw=x.nodeValue, s=raw.trim(); if(!s||x.parentElement?.closest("script,style,textarea,[data-i18n-ignore]")) continue; const v=t(s); if(v!==s)x.nodeValue=raw.replace(s,v);}
+      root.querySelectorAll("[title],[aria-label]").forEach(e=>["title","aria-label"].forEach(k=>{const v=e.getAttribute(k), n=t(v); if(n!==v)e.setAttribute(k,n);}));
+      document.documentElement.lang=language;
+    } finally { translating = false; }
+  }
   function setLanguage(next){ language=dicts[next]?next:"zh-CN"; localStorage.setItem("fablecut-language",language); translate(); window.dispatchEvent(new CustomEvent("fablecut-language-change",{detail:language})); }
   window.fablecutI18n={t,translate,setLanguage,getLanguage:()=>language};
-  document.addEventListener("DOMContentLoaded",()=>{translate();new MutationObserver(()=>translate()).observe(document.body,{childList:true,subtree:true});});
+  document.addEventListener("DOMContentLoaded",()=>{translate();new MutationObserver(()=>{if(!translating) translate();}).observe(document.body,{childList:true,subtree:true});});
 })();

@@ -156,12 +156,21 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenc
                 aiConversation_.append(QStringLiteral("AI：请求失败：%1\n").arg(message));
               } else {
                 const auto result = aiOrchestrator_.handle(message, pendingAiProject_);
+                const auto marker = aiConversation_.lastIndexOf(QStringLiteral("AI："));
                 if (result.kind == edward::ai::AiResult::Kind::ActionPlan) {
-                  pendingAiActionPlan_ = message.trimmed();
-                  aiConversation_.append(QStringLiteral("AI：已生成剪辑操作方案，请确认后应用。\n"));
+                  QJsonObject normalizedPlan{
+                      {QStringLiteral("schemaVersion"), result.plan->schemaVersion},
+                      {QStringLiteral("requestId"), result.plan->requestId},
+                      {QStringLiteral("baseProjectRevision"), static_cast<double>(result.plan->baseProjectRevision)},
+                      {QStringLiteral("operations"), result.plan->operations}};
+                  pendingAiActionPlan_ = QString::fromUtf8(QJsonDocument(normalizedPlan).toJson(QJsonDocument::Compact));
+                  if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, QStringLiteral("已生成剪辑操作方案，请确认后应用。\n"));
+                  else aiConversation_.append(QStringLiteral("AI：已生成剪辑操作方案，请确认后应用。\n"));
                 } else {
                   pendingAiActionPlan_.clear();
-                  aiConversation_.append(QStringLiteral("AI：%1\n").arg(result.text.trimmed().isEmpty() ? message.trimmed() : result.text.trimmed()));
+                  const auto finalText = result.text.trimmed().isEmpty() ? message.trimmed() : result.text.trimmed();
+                  if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, finalText + QStringLiteral("\n"));
+                  else aiConversation_.append(QStringLiteral("AI：%1\n").arg(finalText));
                 }
               }
               appendDiagnosticLog(QStringLiteral("desktop_ai_assistant success=%1 message=%2")
@@ -173,9 +182,22 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenc
                                     .arg(success ? QStringLiteral("true") : QStringLiteral("false"), message));
             emit settingsOperationCompleted(QStringLiteral("testProvider"), success,
                                             success ? QStringLiteral("模型连接成功") : message);
+  });
+  connect(&modelChatClient_, &edward::resources::ModelChatClient::chunk, this,
+          [this](const QString& text) {
+            if (!aiChatRequestActive_) return;
+            aiStreamingText_.append(text);
+            const auto marker = aiConversation_.lastIndexOf(QStringLiteral("AI："));
+            if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, aiStreamingText_);
+            emit timelineChanged();
           });
   connect(&modelChatClient_, &edward::resources::ModelChatClient::modelsCompleted, this,
           [this](bool success, const QStringList& models, const QString& message) {
+            if (success && !models.isEmpty()) {
+              auto settings = desktopSettings();
+              settings.setValue(QStringLiteral("ai/modelCatalog"), models);
+              settings.sync();
+            }
             appendDiagnosticLog(QStringLiteral("desktop_model_catalog success=%1 models=%2 message=%3")
                                     .arg(success ? QStringLiteral("true") : QStringLiteral("false"))
                                     .arg(models.size())
@@ -281,6 +303,7 @@ QVariantMap WorkbenchRuntime::fablecutSettings() const {
           {QStringLiteral("protocol"), settings.value(QStringLiteral("ai/protocol"), QStringLiteral("openai-completions")).toString()},
           {QStringLiteral("endpoint"), endpoint},
           {QStringLiteral("model"), settings.value(QStringLiteral("ai/model"), QStringLiteral("deepseek-chat")).toString()},
+          {QStringLiteral("models"), settings.value(QStringLiteral("ai/modelCatalog")).toStringList()},
           {QStringLiteral("exportDirectory"), settings.value(QStringLiteral("paths/exportRoot"), defaultFablecutPath(QStringLiteral("exportRoot"))).toString()},
           {QStringLiteral("paths"), fablecutPaths(settings)},
           {QStringLiteral("preferenceStorage"), QStringLiteral("本地偏好存储已启用")},
@@ -531,6 +554,7 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
   }
   pendingAiProject_ = snapshot;
   pendingAiActionPlan_.clear();
+  aiStreamingText_.clear();
   const auto settings = desktopSettings();
   const edward::resources::ModelChatConfig config{
       settings.value(QStringLiteral("ai/endpoint")).toString(),
@@ -540,10 +564,23 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
   aiRequestBusy_ = true;
   aiChatRequestActive_ = true;
   aiConversation_.append(QStringLiteral("用户：%1\n").arg(prompt.trimmed()));
+  aiConversation_.append(QStringLiteral("AI："));
+  QJsonObject context;
+  context.insert(QStringLiteral("project"), projectObject.value(QStringLiteral("project")));
+  context.insert(QStringLiteral("fps"), projectObject.value(QStringLiteral("fps")));
+  context.insert(QStringLiteral("revision"), projectObject.value(QStringLiteral("revision")));
+  context.insert(QStringLiteral("playhead"), projectObject.value(QStringLiteral("playhead")));
+  context.insert(QStringLiteral("selectedClipIds"), projectObject.value(QStringLiteral("playhead")).toObject().value(QStringLiteral("selectedClipIds")));
+  context.insert(QStringLiteral("markers"), projectObject.value(QStringLiteral("markers")));
+  context.insert(QStringLiteral("clips"), clips);
+  context.insert(QStringLiteral("tracks"), projectObject.value(QStringLiteral("tracks")));
+  context.insert(QStringLiteral("capabilities"), projectObject.value(QStringLiteral("capabilities")));
+  const auto contextualPrompt = prompt.trimmed() + QStringLiteral("\n\n[Edward 当前编辑上下文，请严格以此为准]\n")
+      + QString::fromUtf8(QJsonDocument(context).toJson(QJsonDocument::Compact));
   emit timelineChanged();
-  const auto accepted = modelChatClient_.request(
-      config, QStringLiteral("You are Edward, a video editing assistant. Answer in concise Chinese. For ordinary questions, reply with text only. For a requested project edit, return only one JSON object matching edward.action-plan.v1 with schemaVersion, requestId, baseProjectRevision and operations. Allowed operations are insert_native_component(resourceId), set_component_props(targetId, props), move_clip(targetId, timelineStart), resize_clip(targetId, durationFrames), remove_clip(targetId). Never include shell commands, file paths, export actions, credentials, or undeclared properties. Do not claim a change was applied; the desktop user must confirm first."),
-      prompt.trimmed());
+  const auto accepted = modelChatClient_.requestStreaming(
+      config, QStringLiteral("You are Edward, a video editing assistant. Answer in concise Chinese. Treat the supplied Edward editing context and its capabilities list as the program contract, not as an example of one conversation. Translate any visible user editing intent into one or more declared capability operations; do not invent a conversation-specific business rule or a special case for a marker number, phrase, clip name, or previous request. Never ask the user for internal IDs, baseProjectRevision, fps, source code, or project files. Resolve visible references such as the selected clip/component, playhead, timeline position, marker label, track, duration, color, or other declared property from the supplied context. If selectedClipIds is non-empty, selected/current clip references target those clips; otherwise use the playhead target only when unambiguous. For ordinary questions, reply with text only. For a requested project edit, return only one JSON object matching edward.action-plan.v1 with schemaVersion, requestId, baseProjectRevision and operations. Use only the operation types and fields in capabilities; copy the supplied revision value, but if omitted the desktop runtime will bind the current revision. Convert user-facing seconds to the required frame fields using the supplied project fps. Never ask the user to calculate frames or provide internal metadata. Never include shell commands, file paths, export actions, credentials, or undeclared properties. Do not claim a change was applied; the desktop runtime previews the plan and waits for confirmation."),
+      contextualPrompt);
   if (!accepted) {
     aiChatRequestActive_ = false;
     aiRequestBusy_ = false;

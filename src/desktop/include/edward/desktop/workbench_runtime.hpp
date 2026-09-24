@@ -84,6 +84,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool fetchFablecutAiModels(const QString& endpoint, const QString& apiKey,
                                          const QString& model, const QString& protocol);
   Q_INVOKABLE bool requestAiFablecutPlan(const QString& projectSnapshot, const QString& prompt);
+  Q_INVOKABLE QString currentPendingAiActionPlan() const { return pendingAiActionPlan_; }
   Q_INVOKABLE void clearPendingAiActionPlan();
   Q_INVOKABLE void setPendingFablecutExportPath(const QString& path);
   Q_INVOKABLE bool exportFileExists(const QString& path) const;
@@ -113,6 +114,7 @@ class WorkbenchRuntime final : public QObject {
   bool aiRequestBusy_ = false;
   bool aiChatRequestActive_ = false;
   QString pendingAiActionPlan_;
+  QString aiStreamingText_;
   edward::ai::ProjectSnapshot pendingAiProject_;
   qlonglong clipId_ = 0;
 };

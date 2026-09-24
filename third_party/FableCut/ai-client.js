@@ -4,14 +4,15 @@
   let bridgePromise = null;
   function connect() {
     if (bridgePromise) return bridgePromise;
+    if (window.__edwardWorkbenchRuntime) return Promise.resolve(window.__edwardWorkbenchRuntime);
     bridgePromise = new Promise((resolve) => {
-      const deadline = Date.now() + 500;
+      const deadline = Date.now() + 5000;
       const start = () => {
         if (!window.qt || !window.qt.webChannelTransport) {
           if (Date.now() < deadline) return setTimeout(start, 25);
           return resolve(null);
         }
-        if (!window.QWebChannel) return setTimeout(start, 25);
+        if (!window.QWebChannel) return Date.now() < deadline ? setTimeout(start, 25) : resolve(null);
         new window.QWebChannel(window.qt.webChannelTransport, (channel) => resolve(channel.objects.workbenchRuntime || null));
       };
       start();
@@ -36,5 +37,6 @@
         return result;
       });
     },
+    pendingPlan: () => call("currentPendingAiActionPlan"),
   };
 })();

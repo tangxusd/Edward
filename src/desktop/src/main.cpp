@@ -1,6 +1,7 @@
 #include "edward/desktop/workbench_runtime.hpp"
 
 #include <QApplication>
+#include <QDateTime>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickImageProvider>
@@ -238,8 +239,11 @@ int main(int argc, char** argv) {
     runtime.setPendingFablecutExportPath({});
   });
   engine.addImageProvider(QStringLiteral("edward"), new EdwardFrameProvider(runtime));
+  const auto fablecutUrl = QUrl(QStringLiteral("http://127.0.0.1:%1/?build=%2")
+      .arg(fablecutPort)
+      .arg(QDateTime::currentMSecsSinceEpoch()));
   engine.rootContext()->setContextProperty(
-      QStringLiteral("fablecutServerUrl"), QUrl(QStringLiteral("http://127.0.0.1:%1/").arg(fablecutPort)));
+      QStringLiteral("fablecutServerUrl"), fablecutUrl);
   engine.rootContext()->setContextProperty(QStringLiteral("preferenceStore"), runtime.preferenceStore());
   engine.rootContext()->setContextProperty(QStringLiteral("workbenchRuntime"), &runtime);
   engine.load(QUrl(QStringLiteral("qrc:/qml/Workbench.qml")));

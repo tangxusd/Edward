@@ -11,6 +11,7 @@
         if (!window.QWebChannel) return resolve(null);
         new QWebChannel(window.qt.webChannelTransport, (channel) => {
           const bridge = channel.objects.workbenchRuntime || null;
+          window.__edwardWorkbenchRuntime = bridge;
           bridge?.settingsOperationCompleted?.connect((operation, success, message, values) => {
             for (const listener of operationListeners) listener({ operation, success, message, values: values || [] });
           });

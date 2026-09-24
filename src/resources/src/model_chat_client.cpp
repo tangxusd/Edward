@@ -152,6 +152,53 @@ bool ModelChatClient::request(const ModelChatConfig& config, const QString& syst
   return true;
 }
 
+bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QString& systemPrompt,
+                                       const QString& userPrompt) {
+  QString error;
+  auto requestData = buildRequest(config, systemPrompt, userPrompt, &error);
+  if (!requestData) { emit completed(false, error); return false; }
+  if (config.protocol != QStringLiteral("openai-completions"))
+    return request(config, systemPrompt, userPrompt);
+  auto body = requestData->body;
+  body.insert(QStringLiteral("stream"), true);
+  QNetworkRequest request{QUrl(requestData->endpoint)};
+  request.setTransferTimeout(180000);
+  request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+  for (auto it = requestData->headers.cbegin(); it != requestData->headers.cend(); ++it)
+    request.setRawHeader(it.key(), it.value());
+  auto* reply = network_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+  auto* buffer = new QByteArray;
+  auto* aggregate = new QString;
+  connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, aggregate] {
+    *buffer += reply->readAll();
+    while (true) {
+      const auto end = buffer->indexOf('\n');
+      if (end < 0) break;
+      auto line = buffer->left(end).trimmed();
+      buffer->remove(0, end + 1);
+      if (!line.startsWith("data:")) continue;
+      line = line.mid(5).trimmed();
+      if (line == "[DONE]") continue;
+      QJsonParseError parseError;
+      const auto document = QJsonDocument::fromJson(line, &parseError);
+      if (parseError.error != QJsonParseError::NoError || !document.isObject()) continue;
+      const auto delta = document.object().value("choices").toArray().at(0).toObject()
+                           .value("delta").toObject().value("content").toString();
+      if (delta.isEmpty()) continue;
+      aggregate->append(delta);
+      emit chunk(delta);
+    }
+  });
+  connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, aggregate] {
+    const auto errorString = reply->error() == QNetworkReply::NoError ? QString{} : reply->errorString();
+    if (!errorString.isEmpty()) emit completed(false, errorString);
+    else if (aggregate->isEmpty()) emit completed(false, QStringLiteral("AI 流式响应为空"));
+    else emit completed(true, *aggregate);
+    delete buffer; delete aggregate; reply->deleteLater();
+  });
+  return true;
+}
+
 bool ModelChatClient::requestModels(const ModelChatConfig& config) {
   const QUrl endpoint(modelsEndpoint(config.endpoint));
   if (!endpoint.isValid() || endpoint.scheme() != QStringLiteral("https") || endpoint.host().isEmpty() || config.apiKey.isEmpty()) {
