@@ -8,7 +8,7 @@ export const authCors = {
 };
 
 export const emailLandingCors = {
-  "Access-Control-Allow-Origin": "https://auth-recovery.vercel.app",
+  "Access-Control-Allow-Origin": "https://edward.uno",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Content-Type": "application/json; charset=utf-8",
 };
@@ -71,7 +71,7 @@ export async function encryptDeviceValue(value: string): Promise<string> {
 }
 
 const usernameRe = /^[\p{L}\p{N}_-]{3,32}$/u;
-const signupRedirect = "https://auth-recovery.vercel.app/?flow=signup";
+const signupRedirect = "https://edward.uno/?flow=signup";
 
 export async function cleanupExpiredRegistrations(now = new Date()): Promise<number> {
   const admin = adminClient();

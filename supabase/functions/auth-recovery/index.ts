@@ -57,7 +57,7 @@ resend.onclick=async()=>{
   const email=resendEmail.value.trim();
   if(!email){status.textContent="请输入注册邮箱";resendEmail.focus();return}
   resend.disabled=true;status.textContent="正在发送确认邮件…";
-  const {error}=await c.auth.resend({type:"signup",email,options:{emailRedirectTo:"https://auth-recovery.vercel.app/?flow=signup"}});
+  const {error}=await c.auth.resend({type:"signup",email,options:{emailRedirectTo:"https://edward.uno/?flow=signup"}});
   status.textContent=error?"发送失败，请稍后重试":"确认邮件已重新发送，请使用最新邮件中的链接";
   resend.disabled=false;
 };

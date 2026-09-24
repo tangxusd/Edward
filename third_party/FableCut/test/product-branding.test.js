@@ -33,7 +33,7 @@ test("all maintained user-visible surfaces identify the product as Orbit", () =>
     "third_party/FableCut/server.js",
     "supabase/config.toml",
     "supabase/templates/confirmation.html",
-    "supabase/auth-recovery-site/index.html",
+    "supabase/auth-recovery-site/public/index.html",
     "supabase/functions/auth-registration-confirm/index.ts",
     "supabase/functions/auth-recovery/index.ts",
     "supabase/functions/auth-recovery-complete/index.ts",

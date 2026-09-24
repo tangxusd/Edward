@@ -1,0 +1,14 @@
+{
+  "name": "orbit-auth",
+  "account_id": "e832b045b240d292f3a8c0c4fd364d78",
+  "compatibility_date": "2026-09-24",
+  "assets": {
+    "directory": "./public"
+  },
+  "routes": [
+    {
+      "pattern": "edward.uno",
+      "custom_domain": true
+    }
+  ]
+}

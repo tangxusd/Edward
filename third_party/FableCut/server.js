@@ -686,7 +686,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse((await readBody(req)).toString("utf8"));
       const pathName = p === "/api/auth/login" ? "/functions/v1/auth-login" : p === "/api/auth/signup" ? "/functions/v1/auth-register" : p === "/api/auth/recover" ? "/auth/v1/recover" : "/auth/v1/token?grant_type=refresh_token";
-      if (p === "/api/auth/recover") body.redirect_to = "https://auth-recovery.vercel.app/?flow=recovery";
+      if (p === "/api/auth/recover") body.redirect_to = "https://edward.uno/?flow=recovery";
       const result = await supabaseAuth(pathName, body);
       sendJSON(res, result.status, result.value);
     } catch (e) { sendJSON(res, 400, { error: String(e.message || e) }); }

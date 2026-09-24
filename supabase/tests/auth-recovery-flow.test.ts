@@ -4,7 +4,7 @@ const registerSource = await Deno.readTextFile(new URL("../functions/auth-regist
 const recoverySource = await Deno.readTextFile(new URL("../functions/auth-recovery/index.ts", import.meta.url));
 const localProxySource = await Deno.readTextFile(new URL("../../third_party/FableCut/server.js", import.meta.url));
 const desktopAuthSource = await Deno.readTextFile(new URL("../../src/resources/src/supabase_auth_client.cpp", import.meta.url));
-const vercelRouteSource = await Deno.readTextFile(new URL("../auth-recovery-site/vercel.json", import.meta.url));
+const cloudflareConfigSource = await Deno.readTextFile(new URL("../auth-recovery-site/wrangler.jsonc", import.meta.url));
 const readSource = async (path: string) => {
   try {
     return await Deno.readTextFile(new URL(path, import.meta.url));
@@ -12,7 +12,7 @@ const readSource = async (path: string) => {
     return "";
   }
 };
-const vercelPageSource = await readSource("../auth-recovery-site/index.html");
+const cloudflarePageSource = await readSource("../auth-recovery-site/public/index.html");
 const loginSource = await readSource("../functions/auth-login/index.ts");
 const recoverSource = await readSource("../functions/auth-recover/index.ts");
 const completeSource = await readSource("../functions/auth-recovery-complete/index.ts");
@@ -32,8 +32,8 @@ const hardeningMigration = await readSource("../migrations/202609220002_auth_bil
 const preferenceSyncSource = await readSource("../functions/preference-sync/index.ts");
 
 Deno.test("registration confirmation uses its own email return flow", () => {
-  assertStringIncludes(lifecycleSource, "https://auth-recovery.vercel.app/?flow=signup");
-  assert(!lifecycleSource.includes("emailRedirectTo: \"https://auth-recovery.vercel.app/\""));
+  assertStringIncludes(lifecycleSource, "https://edward.uno/?flow=signup");
+  assert(!lifecycleSource.includes("emailRedirectTo: \"https://edward.uno/\""));
 });
 
 Deno.test("registration landing page does not auto-confirm email links", () => {
@@ -51,9 +51,9 @@ Deno.test("confirmation email uses TokenHash and requires an explicit page actio
 });
 
 Deno.test("password recovery uses its own email return flow", () => {
-  assertStringIncludes(localProxySource, "https://auth-recovery.vercel.app/?flow=recovery");
-  assertStringIncludes(desktopAuthSource, "https://auth-recovery.vercel.app/?flow=recovery");
-  assert(!localProxySource.includes("body.redirect_to = \"https://auth-recovery.vercel.app/\""));
+  assertStringIncludes(localProxySource, "https://edward.uno/?flow=recovery");
+  assertStringIncludes(desktopAuthSource, "https://edward.uno/?flow=recovery");
+  assert(!localProxySource.includes("body.redirect_to = \"https://edward.uno/\""));
 });
 
 Deno.test("recovery landing page requires matching password confirmation", () => {
@@ -66,12 +66,14 @@ Deno.test("recovery landing page requires matching password confirmation", () =>
   assertStringIncludes(recoverySource, "确认邮件已重新发送，请使用最新邮件中的链接");
 });
 
-Deno.test("email landing domain serves its own executable HTML page", () => {
-  assertStringIncludes(vercelRouteSource, '"cleanUrls": true');
-  assert(!vercelRouteSource.includes("functions/v1/auth-recovery"));
-  assertStringIncludes(vercelPageSource, "<title>Orbit 账户</title>");
-  assertStringIncludes(vercelPageSource, "verifyOtp");
-  assertStringIncludes(vercelPageSource, "确认邮箱");
+Deno.test("Cloudflare serves the executable email landing page from edward.uno", () => {
+  assertStringIncludes(cloudflareConfigSource, '"name": "orbit-auth"');
+  assertStringIncludes(cloudflareConfigSource, '"account_id": "e832b045b240d292f3a8c0c4fd364d78"');
+  assertStringIncludes(cloudflareConfigSource, '"directory": "./public"');
+  assert(!cloudflareConfigSource.includes("functions/v1/auth-recovery"));
+  assertStringIncludes(cloudflarePageSource, "<title>Orbit 账户</title>");
+  assertStringIncludes(cloudflarePageSource, "verifyOtp");
+  assertStringIncludes(cloudflarePageSource, "确认邮箱");
 });
 
 Deno.test("公开邮件落地页 Function 不要求 JWT", () => {
