@@ -1,4 +1,4 @@
-/* Edward AI bridge. Standalone FableCut intentionally stays local-only. */
+/* Orbit AI bridge. Standalone FableCut intentionally stays local-only. */
 (function () {
   "use strict";
   let bridgePromise = null;

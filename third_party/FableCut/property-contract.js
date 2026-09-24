@@ -1,4 +1,4 @@
-/* Edward 属性合同：内部键保持稳定，检查器与偏好只消费这里的元数据。 */
+/* Orbit 属性合同：内部键保持稳定，检查器与偏好只消费这里的元数据。 */
 (function () {
   "use strict";
   const zhLabels = {

@@ -12,5 +12,5 @@ Deno.serve(async (req) => {
   const { data: completed, error } = await admin.rpc("complete_password_recovery", { p_user_id: data.user.id });
   if (error) return Response.json({ message: "密码已更新，但恢复状态暂时无法确认。" }, { status: 503, headers: emailLandingCors });
   if (!completed) return Response.json({ message: "重置链接已失效，请重新发起找回密码。" }, { status: 401, headers: emailLandingCors });
-  return Response.json({ message: "密码已更新，请返回 Edward 登录。" }, { headers: emailLandingCors });
+  return Response.json({ message: "密码已更新，请返回 Orbit 登录。" }, { headers: emailLandingCors });
 });

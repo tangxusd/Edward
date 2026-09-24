@@ -2123,7 +2123,7 @@ async function submitAuth() {
   try {
     if (authMode === "register") {
       if (!window.edwardSettings?.available?.()) {
-        status.textContent = "请在 Edward 桌面应用中完成注册。";
+        status.textContent = "请在 Orbit 桌面应用中完成注册。";
         return;
       }
       const result = await window.edwardSettings.registerAccount(email, password, username);
@@ -2156,7 +2156,7 @@ async function recoverPassword() {
   status.textContent = "正在发送重置邮件…";
   try {
     if (!window.edwardSettings?.available?.()) {
-      status.textContent = "请在 Edward 桌面应用中发起密码找回。";
+      status.textContent = "请在 Orbit 桌面应用中发起密码找回。";
       return;
     }
     const result = await window.edwardSettings.recoverAccount(email);
@@ -2644,7 +2644,7 @@ function linkedClip(c) {
   return c?.linkedId ? getClip(c.linkedId) : null;
 }
 function isNativeAnnotation(c) { return c?.kind === "component" && String(c.componentId || "").startsWith("annotation.rect."); }
-// Edward canvas coordinates are centered: right/up are positive, left/down
+// Orbit canvas coordinates are centered: right/up are positive, left/down
 // are negative. Keep all screen conversion at this boundary so rulers,
 // rendering, hit-testing and direct manipulation cannot drift apart.
 function worldToCanvas(x, y, W, H) { return { x: W / 2 + Number(x || 0), y: H / 2 - Number(y || 0) }; }
@@ -8591,7 +8591,7 @@ async function openSettings() {
   const saved = await window.edwardSettings.load();
   renderSettingsPaths(saved?.paths || {}, !saved);
   if (!saved) {
-    setSettingsStatus("Edward desktop settings are unavailable in this browser.");
+    setSettingsStatus("Orbit desktop settings are unavailable in this browser.");
     return;
   }
   activeProviderSnapshot = saved;
@@ -8618,10 +8618,10 @@ function renderSettingsPaths(paths, unavailable = false) {
     for (const [key, label] of category.keys) {
     const row = document.createElement("div"); row.className = "settings-path-row";
     const name = document.createElement("span"); name.className = "settings-path-label"; name.textContent = label;
-    const input = document.createElement("input"); input.value = paths[key] || "等待 Edward 桌面设置连接"; input.readOnly = true; input.disabled = unavailable; input.dataset.settingsPath = key;
+    const input = document.createElement("input"); input.value = paths[key] || "等待 Orbit 桌面设置连接"; input.readOnly = true; input.disabled = unavailable; input.dataset.settingsPath = key;
     const choose = document.createElement("button"); choose.className = "btn tiny"; choose.type = "button"; choose.textContent = "迁移";
     choose.disabled = unavailable; if (unavailable) choose.classList.add("settings-path-unavailable");
-    choose.onclick = async () => { const destination = await window.edwardSettings.chooseExportDirectory(input.value); if (!destination) return; if (!confirm(`迁移${label}到新目录？源文件在校验完成后将删除。`)) return; const ok = await window.edwardSettings.migratePath(key, destination); if (ok) { input.value = destination; setSettingsStatus("迁移完成，重启 Edward 后生效。"); } else setSettingsStatus("迁移失败，原目录未切换。"); };
+    choose.onclick = async () => { const destination = await window.edwardSettings.chooseExportDirectory(input.value); if (!destination) return; if (!confirm(`迁移${label}到新目录？源文件在校验完成后将删除。`)) return; const ok = await window.edwardSettings.migratePath(key, destination); if (ok) { input.value = destination; setSettingsStatus("迁移完成，重启 Orbit 后生效。"); } else setSettingsStatus("迁移失败，原目录未切换。"); };
     row.append(name,input,choose);
     if (DERIVED_SETTINGS_PATHS.has(key)) { const clear = document.createElement("button"); clear.className="btn tiny"; clear.type="button"; clear.textContent="清理"; clear.disabled = unavailable; clear.onclick=async()=>{ if (!confirm(`清理${label}中的可重建文件？此操作不可恢复。`)) return; let remoteOk = true; if (key === "cacheRoot") { try { const response = await fetch("/api/resources/cache", { method: "DELETE" }); remoteOk = response.ok; } catch (_) { remoteOk = false; } } const localOk = await window.edwardSettings.clearDerivedPath(key); setSettingsStatus(!localOk ? "清理失败。" : remoteOk ? "清理完成。" : "本地缓存已清理，资源服务将在重启后完成清理。"); }; row.append(clear); }
     group.append(row);
@@ -8718,7 +8718,7 @@ $("btnDownloadPreferences").addEventListener("click", async () => {
 async function refreshDiagnosticLog() {
   const diagnostics = await window.edwardSettings.diagnostics();
   if (!diagnostics || typeof diagnostics.log !== "string") {
-    setSettingsStatus("诊断日志只能在 Edward 桌面版中读取。");
+    setSettingsStatus("诊断日志只能在 Orbit 桌面版中读取。");
     return null;
   }
   const snapshot = collectDiagnosticSnapshot();
@@ -9840,7 +9840,7 @@ $("inspectorAiModel")?.addEventListener("change", async (event) => {
       inspector?.classList.remove("ai-idle");
       inspector?.classList.add("conversation-active");
       if (!edwardAiBridge) edwardAiBridge = await window.edwardAi?.connect?.();
-      if (!edwardAiBridge) { toast("AI 剪辑助理仅在 Edward 桌面应用中可用"); return; }
+      if (!edwardAiBridge) { toast("AI 剪辑助理仅在 Orbit 桌面应用中可用"); return; }
       if (isAiConfirmationText(text)) {
         const pending = edwardAiBridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
         if (!pending) { toast("当前没有可确认的候选方案"); return; }

@@ -14,5 +14,5 @@ Deno.serve(async (req) => {
     p_user_id: data.user.id, p_confirmed_at: confirmedAt,
   });
   if (error || !completed) return Response.json({ message: "确认链接已失效或已过期，请重新发送确认邮件。" }, { status: 401, headers: emailLandingCors });
-  return Response.json({ message: "邮箱已确认，请返回 Edward 登录。" }, { headers: emailLandingCors });
+  return Response.json({ message: "邮箱已确认，请返回 Orbit 登录。" }, { headers: emailLandingCors });
 });

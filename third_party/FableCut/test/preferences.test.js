@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
-test("preference client is a safe no-op outside Edward", async () => {
+test("preference client is a safe no-op outside Orbit", async () => {
   const context = { window: {}, document: { createElement: () => ({}), head: { appendChild() {} } } };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(new URL("../preference-client.js", import.meta.url), "utf8"), context);

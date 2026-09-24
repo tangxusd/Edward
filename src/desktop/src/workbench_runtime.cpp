@@ -484,12 +484,12 @@ bool WorkbenchRuntime::importFablecutPreferences(const QString& path) {
 QString WorkbenchRuntime::chooseFablecutPreferencesExportPath() {
   return QFileDialog::getSaveFileName(nullptr, QStringLiteral("导出偏好包"),
                                       QStringLiteral("edward-preferences.edwardprefs"),
-                                      QStringLiteral("Edward Preferences (*.edwardprefs)"));
+                                      QStringLiteral("Orbit Preferences (*.edwardprefs)"));
 }
 
 QString WorkbenchRuntime::chooseFablecutPreferencesImportPath() {
   return QFileDialog::getOpenFileName(nullptr, QStringLiteral("导入偏好包"), {},
-                                      QStringLiteral("Edward Preferences (*.edwardprefs)"));
+                                      QStringLiteral("Orbit Preferences (*.edwardprefs)"));
 }
 
 QVariantList WorkbenchRuntime::fablecutPreferenceFacts() { return preferenceStore_.exportFacts(); }
@@ -520,7 +520,7 @@ bool WorkbenchRuntime::testFablecutAiProvider(const QString& endpoint, const QSt
   const auto effectiveApiKey = apiKey.trimmed().isEmpty()
       ? desktopSettings().value(QStringLiteral("ai/apiKey")).toString() : apiKey.trimmed();
   return modelChatClient_.request({endpoint.trimmed(), effectiveApiKey, model.trimmed(), protocol.trimmed()},
-                                  QStringLiteral("You are Edward's connection check."),
+                                  QStringLiteral("You are Orbit's connection check."),
                                   QStringLiteral("Reply with OK."));
 }
 
@@ -575,11 +575,11 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
   context.insert(QStringLiteral("clips"), clips);
   context.insert(QStringLiteral("tracks"), projectObject.value(QStringLiteral("tracks")));
   context.insert(QStringLiteral("capabilities"), projectObject.value(QStringLiteral("capabilities")));
-  const auto contextualPrompt = prompt.trimmed() + QStringLiteral("\n\n[Edward 当前编辑上下文，请严格以此为准]\n")
+  const auto contextualPrompt = prompt.trimmed() + QStringLiteral("\n\n[Orbit 当前编辑上下文，请严格以此为准]\n")
       + QString::fromUtf8(QJsonDocument(context).toJson(QJsonDocument::Compact));
   emit timelineChanged();
   const auto accepted = modelChatClient_.requestStreaming(
-      config, QStringLiteral("You are Edward, a video editing assistant. Answer in concise Chinese. Treat the supplied Edward editing context and its capabilities list as the program contract, not as an example of one conversation. Translate any visible user editing intent into one or more declared capability operations; do not invent a conversation-specific business rule or a special case for a marker number, phrase, clip name, or previous request. Never ask the user for internal IDs, baseProjectRevision, fps, source code, or project files. Resolve visible references such as the selected clip/component, playhead, timeline position, marker label, track, duration, color, or other declared property from the supplied context. If selectedClipIds is non-empty, selected/current clip references target those clips; otherwise use the playhead target only when unambiguous. For ordinary questions, reply with text only. For a requested project edit, return only one JSON object matching edward.action-plan.v1 with schemaVersion, requestId, baseProjectRevision and operations. Use only the operation types and fields in capabilities; copy the supplied revision value, but if omitted the desktop runtime will bind the current revision. Convert user-facing seconds to the required frame fields using the supplied project fps. Never ask the user to calculate frames or provide internal metadata. Never include shell commands, file paths, export actions, credentials, or undeclared properties. Do not claim a change was applied; the desktop runtime previews the plan and waits for confirmation."),
+      config, QStringLiteral("You are Orbit, a video editing assistant. Answer in concise Chinese. Treat the supplied Orbit editing context and its capabilities list as the program contract, not as an example of one conversation. Translate any visible user editing intent into one or more declared capability operations; do not invent a conversation-specific business rule or a special case for a marker number, phrase, clip name, or previous request. Never ask the user for internal IDs, baseProjectRevision, fps, source code, or project files. Resolve visible references such as the selected clip/component, playhead, timeline position, marker label, track, duration, color, or other declared property from the supplied context. If selectedClipIds is non-empty, selected/current clip references target those clips; otherwise use the playhead target only when unambiguous. For ordinary questions, reply with text only. For a requested project edit, return only one JSON object matching edward.action-plan.v1 with schemaVersion, requestId, baseProjectRevision and operations. Use only the operation types and fields in capabilities; copy the supplied revision value, but if omitted the desktop runtime will bind the current revision. Convert user-facing seconds to the required frame fields using the supplied project fps. Never ask the user to calculate frames or provide internal metadata. Never include shell commands, file paths, export actions, credentials, or undeclared properties. Do not claim a change was applied; the desktop runtime previews the plan and waits for confirmation."),
       contextualPrompt);
   if (!accepted) {
     aiChatRequestActive_ = false;

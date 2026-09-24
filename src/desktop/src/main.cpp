@@ -48,6 +48,9 @@ class EdwardFrameProvider final : public QQuickImageProvider {
 
 int main(int argc, char** argv) {
   QApplication app(argc, argv);
+  // 保留旧应用数据目录与设置路径，但所有系统可见名称使用 Orbit。
+  app.setApplicationName(QStringLiteral("Edward"));
+  app.setApplicationDisplayName(QStringLiteral("Orbit"));
   QtWebEngineQuick::initialize();
   const auto settingsPath = qEnvironmentVariable("EDWARD_SETTINGS_PATH");
   QString resolvedSettingsPath = settingsPath;

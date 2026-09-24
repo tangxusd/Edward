@@ -10,7 +10,7 @@ pkg_check_modules(EDWARD_SDL3 REQUIRED IMPORTED_TARGET sdl3)
 find_package(Mlt7 7.40 CONFIG REQUIRED)
 
 if(NOT TARGET Mlt7::mlt)
-  message(FATAL_ERROR "Edward requires the Mlt7::mlt target from MLT 7.40.")
+  message(FATAL_ERROR "Orbit requires the Mlt7::mlt target from MLT 7.40.")
 endif()
 
 set(EDWARD_MLT_MODULE_DIR "" CACHE PATH
@@ -29,7 +29,7 @@ target_link_libraries(edward_media_runtime INTERFACE
   PkgConfig::EDWARD_SDL3
 )
 
-message(STATUS "Edward dependency: FFmpeg ${EDWARD_FFMPEG_VERSION}")
-message(STATUS "Edward dependency: MLT ${Mlt7_VERSION}")
-message(STATUS "Edward dependency: MLT modules ${EDWARD_MLT_MODULE_DIR}")
-message(STATUS "Edward dependency: MLT data ${EDWARD_MLT_DATA_DIR}")
+message(STATUS "Orbit dependency: FFmpeg ${EDWARD_FFMPEG_VERSION}")
+message(STATUS "Orbit dependency: MLT ${Mlt7_VERSION}")
+message(STATUS "Orbit dependency: MLT modules ${EDWARD_MLT_MODULE_DIR}")
+message(STATUS "Orbit dependency: MLT data ${EDWARD_MLT_DATA_DIR}")

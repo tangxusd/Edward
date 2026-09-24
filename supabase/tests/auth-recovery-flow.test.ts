@@ -69,7 +69,7 @@ Deno.test("recovery landing page requires matching password confirmation", () =>
 Deno.test("email landing domain serves its own executable HTML page", () => {
   assertStringIncludes(vercelRouteSource, '"cleanUrls": true');
   assert(!vercelRouteSource.includes("functions/v1/auth-recovery"));
-  assertStringIncludes(vercelPageSource, "<title>Edward 账户</title>");
+  assertStringIncludes(vercelPageSource, "<title>Orbit 账户</title>");
   assertStringIncludes(vercelPageSource, "verifyOtp");
   assertStringIncludes(vercelPageSource, "确认邮箱");
 });

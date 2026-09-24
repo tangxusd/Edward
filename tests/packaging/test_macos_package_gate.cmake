@@ -1,4 +1,4 @@
-set(APP_BUNDLE "${BINARY_DIR}/bin/Edward.app")
+set(APP_BUNDLE "${BINARY_DIR}/bin/Orbit.app")
 set(OUTPUT_DIR "${BINARY_DIR}/macos-package")
 set(PACKAGE_SCRIPT "${SOURCE_DIR}/packaging/macos/Package.cmake")
 set(PACKAGING_CMAKELISTS "${SOURCE_DIR}/tests/packaging/CMakeLists.txt")

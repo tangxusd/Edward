@@ -39,7 +39,7 @@ test("four native annotation resources are manifest-driven", () => {
   assert.match(app, /addNativeComponent/);
 });
 
-test("official Edward runtime manifests use distinct native preview and render entries", () => {
+test("official Orbit runtime manifests use distinct native preview and render entries", () => {
   const ids = ["annotation.rect.react", "annotation.rect.gsap", "annotation.rect.html-css", "annotation.rect.svg"];
   for (const id of ids) {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, "components", id, "edward-runtime.json"), "utf8"));

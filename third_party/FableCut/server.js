@@ -638,7 +638,7 @@ const server = http.createServer(async (req, res) => {
   const p = decodeURIComponent(url.pathname);
   if ((p === "/auth/recovery" || p === "/auth/confirmed") && req.method === "GET") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-    res.end("<!doctype html><meta charset=utf-8><title>Edward</title><body style=\"background:#111;color:#eee;font:16px sans-serif;padding:32px\">请返回 Edward 应用完成账户操作。</body>");
+    res.end("<!doctype html><meta charset=utf-8><title>Orbit</title><body style=\"background:#111;color:#eee;font:16px sans-serif;padding:32px\">请返回 Orbit 应用完成账户操作。</body>");
     return;
   }
   // never serve dotfiles/dot-directories (.git, .gitignore, …)

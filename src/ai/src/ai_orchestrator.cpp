@@ -40,7 +40,7 @@ AiResult AiOrchestrator::handle(const QString& output, const ProjectSnapshot& pr
   const auto plan = ActionPlan::parse(actionObject, &error);
   if (!plan) {
     if (document.object().contains("react") || document.object().contains("css") || document.object().contains("root"))
-      return {AiResult::Kind::Unsupported, QStringLiteral("此组件载荷不符合 Edward 原生运行时协议。"), {}};
+      return {AiResult::Kind::Unsupported, QStringLiteral("此组件载荷不符合 Orbit 原生运行时协议。"), {}};
     return {AiResult::Kind::Clarification, QStringLiteral("无法确认该项目修改，请明确目标、资源或位置。"), {}};
   }
   if (!plan->validate(project, &error)) return {AiResult::Kind::Clarification, error, {}};

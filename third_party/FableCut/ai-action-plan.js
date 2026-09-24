@@ -1,4 +1,4 @@
-/* Edward AI ActionPlan executor. It never mutates its input project. */
+/* Orbit AI ActionPlan executor. It never mutates its input project. */
 (function attachEdwardAiActionPlan(root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;

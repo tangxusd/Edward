@@ -1,7 +1,7 @@
 add_test(NAME packaging.macos_app_structure
   COMMAND ${CMAKE_COMMAND}
     -DBUNDLE_DIR=$<TARGET_BUNDLE_DIR:edward_app>
-    -DEXECUTABLE_NAME=Edward
+    -DEXECUTABLE_NAME=Orbit
     -P ${CMAKE_CURRENT_SOURCE_DIR}/check_macos_app_structure.cmake)
 add_test(NAME packaging.macos_dependency_audit
   COMMAND ${CMAKE_COMMAND}
@@ -51,7 +51,7 @@ add_custom_target(package_macos_development
 
 add_custom_target(audit_macos_development_bundle
   COMMAND ${CMAKE_COMMAND}
-    -DBUNDLE_DIR=${CMAKE_BINARY_DIR}/macos-development-package/Edward.app
+    -DBUNDLE_DIR=${CMAKE_BINARY_DIR}/macos-development-package/Orbit.app
     -DREPORT_PATH=${CMAKE_BINARY_DIR}/macos-development-package/bundle-tree-dependency-audit.json
     -P ${CMAKE_CURRENT_SOURCE_DIR}/audit_macos_bundle_tree_dependencies.cmake
   DEPENDS package_macos_development
@@ -59,7 +59,7 @@ add_custom_target(audit_macos_development_bundle
 
 add_custom_target(check_macos_development_bundle_resources
   COMMAND ${CMAKE_COMMAND}
-    -DBUNDLE_DIR=${CMAKE_BINARY_DIR}/macos-development-package/Edward.app
+    -DBUNDLE_DIR=${CMAKE_BINARY_DIR}/macos-development-package/Orbit.app
     -DDEVELOPMENT_ONLY=ON
     -P ${CMAKE_CURRENT_SOURCE_DIR}/check_macos_bundle_runtime_resources.cmake
   DEPENDS audit_macos_development_bundle

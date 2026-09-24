@@ -1,4 +1,4 @@
-/* Edward desktop settings bridge. Standalone FableCut keeps settings unavailable. */
+/* Orbit desktop settings bridge. Standalone FableCut keeps settings unavailable. */
 (function () {
   "use strict";
   let bridgePromise = null;

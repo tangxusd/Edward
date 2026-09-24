@@ -8,7 +8,7 @@ const htmlHeaders = new Headers([
 const html = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Edward 账户</title>
+<title>Orbit 账户</title>
 <style>
 body{margin:0;background:#111;color:#eee;font:16px system-ui;padding:32px}
 main{max-width:420px;margin:10vh auto;background:#202020;border:1px solid #444;border-radius:8px;padding:24px}
@@ -17,7 +17,7 @@ button{background:#ff9500;border-color:#ff9500;color:#111;font-weight:600}
 #status{margin-top:14px;color:#aaa}
 </style>
 <main>
-  <h2>Edward 账户</h2>
+  <h2>Orbit 账户</h2>
   <p id="hint">正在验证链接…</p>
   <input id="password" type="password" autocomplete="new-password" placeholder="新密码（至少 8 位）" hidden>
   <input id="password-confirm" type="password" autocomplete="new-password" placeholder="再次输入新密码" hidden>

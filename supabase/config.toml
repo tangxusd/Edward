@@ -277,7 +277,7 @@ otp_expiry = 600
 
 # Uncomment to customize email template
 [auth.email.template.confirmation]
-subject = "确认你的 Edward 账户"
+subject = "确认你的 Orbit 账户"
 content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize notification email template

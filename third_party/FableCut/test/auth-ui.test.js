@@ -15,15 +15,15 @@ test("auth dialog supports login, registration, and password recovery", () => {
     assert.match(html, new RegExp(`id=\"${id}\"`), `missing ${id}`);
   }
   assert.match(app, /\/api\/auth\/signup/);
-  assert.match(app, /请在 Edward 桌面应用中完成注册。/);
+  assert.match(app, /请在 Orbit 桌面应用中完成注册。/);
   assert.match(app, /registerAccount\(email, password, username\)/);
   assert.match(app, /recoverAccount\(email\)/);
-  assert.match(app, /请在 Edward 桌面应用中发起密码找回。/);
+  assert.match(app, /请在 Orbit 桌面应用中发起密码找回。/);
   assert.match(server, /\/api\/auth\/recover/);
   assert.match(server, /\/auth\/v1\/recover/);
 });
 
-test("settings expose five Edward tabs and their controls", () => {
+test("settings expose five Orbit tabs and their controls", () => {
   const html = read("index.html");
   const app = read("app.js");
   const aiClient = read("ai-client.js");

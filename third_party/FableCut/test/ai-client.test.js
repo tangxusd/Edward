@@ -6,7 +6,7 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "ai-client.js"), "utf8");
 
-test("Edward AI client sends the compact project snapshot through the desktop WebChannel", async () => {
+test("Orbit AI client sends the compact project snapshot through the desktop WebChannel", async () => {
   let call = null;
   const bridge = {
     requestAiFablecutPlan(snapshot, prompt, callback) {
@@ -28,7 +28,7 @@ test("Edward AI client sends the compact project snapshot through the desktop We
   });
 });
 
-test("Edward AI client waits for a late desktop WebChannel injection", async () => {
+test("Orbit AI client waits for a late desktop WebChannel injection", async () => {
   const bridge = {};
   const window = {};
   const QWebChannel = function QWebChannel(_transport, ready) { ready({ objects: { workbenchRuntime: bridge } }); };
@@ -40,7 +40,7 @@ test("Edward AI client waits for a late desktop WebChannel injection", async () 
   assert.equal(await pending, bridge);
 });
 
-test("Edward AI client is a safe no-op outside the desktop WebChannel", async () => {
+test("Orbit AI client is a safe no-op outside the desktop WebChannel", async () => {
   const window = {};
   vm.runInNewContext(source, { window, globalThis: window, Promise, setTimeout, document: {} });
   assert.equal(await window.edwardAi.connect(), null);

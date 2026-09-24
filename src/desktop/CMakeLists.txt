@@ -26,7 +26,10 @@ if(APPLE)
 endif()
 target_compile_definitions(edward_app PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(edward_app PRIVATE edward_desktop Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::Svg Qt6::WebChannel Qt6::Widgets Qt6::WebEngineQuick)
-set_target_properties(edward_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set_target_properties(edward_app PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  OUTPUT_NAME Orbit
+)
 qt_add_resources(edward_app desktop_qml
   PREFIX "/qml"
   BASE "${CMAKE_CURRENT_SOURCE_DIR}/qml"
@@ -103,8 +106,7 @@ if(APPLE)
   endif()
   set_target_properties(edward_app PROPERTIES
     MACOSX_BUNDLE TRUE
-    OUTPUT_NAME Edward
-    MACOSX_BUNDLE_BUNDLE_NAME Edward
+    MACOSX_BUNDLE_BUNDLE_NAME Orbit
     MACOSX_BUNDLE_GUI_IDENTIFIER com.edward.video
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}

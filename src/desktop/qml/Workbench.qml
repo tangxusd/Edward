@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 1280
     height: 800
     color: "#161719"
-    title: "Edward"
+    title: "Orbit"
     property string exportOutputDirectory: ""
     property string exportFileName: "未命名项目.mp4"
     property var pendingExportRequest: null
@@ -56,7 +56,7 @@ ApplicationWindow {
     FileDialog {
         id: packageDialog
         fileMode: FileDialog.OpenFile
-        nameFilters: ["Edward Runtime (edward-runtime.json)"]
+        nameFilters: ["Orbit Runtime (edward-runtime.json)"]
         onAccepted: workbenchRuntime.addNativeRuntimePackage(selectedFile.toString().replace("file://", "").replace(/\/edward-runtime\.json$/, ""))
     }
 
