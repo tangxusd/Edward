@@ -32,8 +32,8 @@ const hardeningMigration = await readSource("../migrations/202609220002_auth_bil
 const preferenceSyncSource = await readSource("../functions/preference-sync/index.ts");
 
 Deno.test("registration confirmation uses its own email return flow", () => {
-  assertStringIncludes(lifecycleSource, "https://edward.uno/?flow=signup");
-  assert(!lifecycleSource.includes("emailRedirectTo: \"https://edward.uno/\""));
+  assertStringIncludes(lifecycleSource, "https://auth.edward.uno/?flow=signup");
+  assert(!lifecycleSource.includes("emailRedirectTo: \"https://auth.edward.uno/\""));
 });
 
 Deno.test("registration landing page does not auto-confirm email links", () => {
@@ -51,9 +51,9 @@ Deno.test("confirmation email uses TokenHash and requires an explicit page actio
 });
 
 Deno.test("password recovery uses its own email return flow", () => {
-  assertStringIncludes(localProxySource, "https://edward.uno/?flow=recovery");
-  assertStringIncludes(desktopAuthSource, "https://edward.uno/?flow=recovery");
-  assert(!localProxySource.includes("body.redirect_to = \"https://edward.uno/\""));
+  assertStringIncludes(localProxySource, "https://auth.edward.uno/?flow=recovery");
+  assertStringIncludes(desktopAuthSource, "https://auth.edward.uno/?flow=recovery");
+  assert(!localProxySource.includes("body.redirect_to = \"https://auth.edward.uno/\""));
 });
 
 Deno.test("recovery landing page requires matching password confirmation", () => {
@@ -66,10 +66,11 @@ Deno.test("recovery landing page requires matching password confirmation", () =>
   assertStringIncludes(recoverySource, "确认邮件已重新发送，请使用最新邮件中的链接");
 });
 
-Deno.test("Cloudflare serves the executable email landing page from edward.uno", () => {
+Deno.test("Cloudflare serves the executable email landing page from auth.edward.uno", () => {
   assertStringIncludes(cloudflareConfigSource, '"name": "orbit-auth"');
   assertStringIncludes(cloudflareConfigSource, '"account_id": "e832b045b240d292f3a8c0c4fd364d78"');
   assertStringIncludes(cloudflareConfigSource, '"directory": "./public"');
+  assertStringIncludes(cloudflareConfigSource, '"pattern": "auth.edward.uno"');
   assert(!cloudflareConfigSource.includes("functions/v1/auth-recovery"));
   assertStringIncludes(cloudflarePageSource, "<title>Orbit 账户</title>");
   assertStringIncludes(cloudflarePageSource, "verifyOtp");

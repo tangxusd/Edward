@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const { error: lockError } = await admin.rpc("begin_password_recovery", { p_user_id: account.user_id });
     if (lockError) return Response.json({ code: "service_unavailable", message: "认证服务暂时不可用，请稍后重试。" }, { status: 503, headers: authCors });
     const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
-    const { error: mailError } = await anon.auth.resetPasswordForEmail(email, { redirectTo: "https://edward.uno/?flow=recovery" });
+    const { error: mailError } = await anon.auth.resetPasswordForEmail(email, { redirectTo: "https://auth.edward.uno/?flow=recovery" });
     if (mailError) {
       await admin.rpc("complete_password_recovery", { p_user_id: account.user_id });
       return Response.json({ code: "mail_unavailable", message: "邮件暂时无法发送，请稍后重试。" }, { status: 503, headers: authCors });

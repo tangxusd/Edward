@@ -71,7 +71,7 @@ bool SupabaseAuthClient::signInWithPassword(const SupabaseAuthConfig& config, co
 
 bool SupabaseAuthClient::sendPasswordReset(const SupabaseAuthConfig& config, const QString& email) {
   if (email.trimmed().isEmpty() || !email.contains(QLatin1Char('@'))) { emit completed(false, QStringLiteral("请输入注册邮箱")); return false; }
-  const QString redirectTo = QStringLiteral("https://edward.uno/?flow=recovery");
+  const QString redirectTo = QStringLiteral("https://auth.edward.uno/?flow=recovery");
   QUrl endpoint(config.projectUrl); endpoint.setPath(QStringLiteral("/auth/v1/recover"));
   QUrlQuery redirectQuery; redirectQuery.addQueryItem(QStringLiteral("redirect_to"), redirectTo); endpoint.setQuery(redirectQuery);
   QNetworkRequest request{endpoint}; request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json")); request.setRawHeader("apikey", config.anonKey.toUtf8());

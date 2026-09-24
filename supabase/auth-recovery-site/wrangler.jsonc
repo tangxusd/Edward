@@ -7,7 +7,7 @@
   },
   "routes": [
     {
-      "pattern": "edward.uno",
+      "pattern": "auth.edward.uno",
       "custom_domain": true
     }
   ]
