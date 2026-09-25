@@ -29,7 +29,10 @@ CapabilityContract contract(QString id, QString executor = QStringLiteral("execu
   value.trackPlacementPolicy = QStringLiteral("specified");
   value.linkedMediaPolicy = QStringLiteral("preserve");
   value.taskPolicy = QJsonObject{{QStringLiteral("mode"), QStringLiteral("synchronous")},
-                                 {QStringLiteral("retryable"), false}, {QStringLiteral("maxDurationMs"), 0}};
+                                 {QStringLiteral("resourceClass"), QStringLiteral("cpu")}, {QStringLiteral("priority"), 50},
+                                 {QStringLiteral("cancellableUntil"), QStringLiteral("commit")}, {QStringLiteral("resumable"), false},
+                                 {QStringLiteral("maxConcurrency"), 1}, {QStringLiteral("diskReservation"), 0},
+                                 {QStringLiteral("progressAdapter"), QStringLiteral("none")}};
   value.executionMode = QStringLiteral("local_transaction");
   value.reversibility = QStringLiteral("undoable");
   value.allowedPolicies = {QStringLiteral("collision")};

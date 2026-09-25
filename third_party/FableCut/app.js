@@ -491,7 +491,7 @@ const runtime = {
   library: {},          // dir -> [{name, rel, src, size}] cached /api/library results
   customFonts: [],      // family names loaded from /library/fonts
   googleLoaded: new Set(),
-  undo: [], redo: [], aiUndo: [], aiCandidatePreview: null, aiLocalMessages: [],
+  undo: [], redo: [], aiLocalMessages: [], aiApplying: false, lastAiUndoAvailable: false, aiAppliedPlanIds: new Set(),
   audio: null,          // {ctx, master, recDest, meter?, meterReady?}
   saveTimer: null, pendingSync: false,
   sfxPreview: null,     // <audio> element for library sound previews
@@ -983,7 +983,7 @@ function applyProject(data) {
     folders: normalizeFolders(data.folders),
     media: (data.media || []).map(normalizeMediaEntry),
     clips: data.clips || [],
-    markers: (data.markers || []).filter((m) => m && isFinite(m.t)).sort((a, b) => a.t - b.t).map((m, i) => ({ ...m, label: i + 1 })),
+    markers: (data.markers || []).filter((m) => m && isFinite(m.t)).sort((a, b) => a.t - b.t).map((m, i) => ({ ...m, markerId: m.markerId || m.id || `m_${uid()}`, color: m.color || "blue", label: i + 1 })),
     inPoint: wa.inPoint,
     outPoint: wa.outPoint,
     exportFrame: normalizeExportFrame(data.exportFrame, data.width || 1280, data.height || 720),
@@ -2586,7 +2586,7 @@ function setBinTab(tab) {
 
 /* ═══════════════════════════ EDIT OPERATIONS ═══════════════════════════ */
 function pushUndo() {
-  runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
+  runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks(), markers: project.markers || [], inPoint: project.inPoint ?? null, outPoint: project.outPoint ?? null }));
   if (runtime.undo.length > 100) runtime.undo.shift();
   runtime.redo.length = 0;
 }
@@ -2597,6 +2597,9 @@ function timelineSnapshot(raw) {
 function restoreTimelineSnapshot(snapshot) {
   project.clips = snapshot.clips || [];
   if (snapshot.tracks) applyTracksFromProject(snapshot.tracks);
+  project.markers = snapshot.markers || [];
+  project.inPoint = snapshot.inPoint ?? null;
+  project.outPoint = snapshot.outPoint ?? null;
   project.tracks = serializeTracks();
   pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
 }
@@ -2604,11 +2607,13 @@ function undo() {
   if (!runtime.undo.length) return;
   runtime.redo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
   restoreTimelineSnapshot(timelineSnapshot(runtime.undo.pop()));
+  runtime.lastAiUndoAvailable = false;
 }
 function redo() {
   if (!runtime.redo.length) return;
   runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
   restoreTimelineSnapshot(timelineSnapshot(runtime.redo.pop()));
+  runtime.lastAiUndoAvailable = false;
 }
 
 function defaultTrackFor(kind) {
@@ -2796,6 +2801,7 @@ function connectIsolatedChannel(ctx, srcNode, gainNode, ch, nCh) {
 
 function addClipFromMedia(m, trackId, at) {
   pushUndo();
+  runtime.lastAiUndoAvailable = true;
   const kind = m.kind;
   trackId = trackId || defaultTrackFor(kind);
   const tr = TRACKS.find((t) => t.id === trackId);
@@ -4219,9 +4225,11 @@ function toggleMarker() {
   const t = +state.time.toFixed(3);
   const tol = Math.max(0.05, SNAP_PX / state.pps);
   project.markers = project.markers || [];
-  const near = project.markers.findIndex((m) => Math.abs(m.t - t) < tol);
+  const selected = state.selIds.size === 1 ? project.clips.find((clip) => state.selIds.has(String(clip.id))) : null;
+  const localFrame = selected ? Math.max(0, Math.round((t - Number(selected.start || 0)) * projectFps() * Number(selected.speed || 1))) : null;
+  const near = project.markers.findIndex((m) => Math.abs(m.t - t) < tol && (!selected ? !m.clipId : m.clipId === selected.id));
   if (near >= 0 && !state.playing) project.markers.splice(near, 1);
-  else { project.markers.push({ t }); project.markers.sort((a, b) => a.t - b.t); }
+  else { project.markers.push({ markerId: `m_${uid()}`, t, color: "blue", ...(selected ? { clipId: selected.id, localFrame } : {}) }); project.markers.sort((a, b) => a.t - b.t); }
   project.markers.forEach((marker, index) => { marker.label = index + 1; });
   scheduleSave();
   drawRuler();
@@ -9539,13 +9547,7 @@ function initPanelSplit() {
 loadSettings();
 initPanelSplit();
 function aiProjectSnapshot() {
-  const capabilities = [
-    { type: "insert_native_component", target: "playhead", fields: ["resourceId"] },
-    { type: "set_component_props", target: "selected_component", fields: ["targetId", "props"] },
-    { type: "move_clip", target: "selected_clip", fields: ["targetId", "timelineStart"] },
-    { type: "resize_clip", target: "selected_clip", fields: ["targetId", "durationFrames"] },
-    { type: "remove_clip", target: "selected_clip", fields: ["targetId"] },
-  ];
+  const capabilities = window.edwardAiActionPlan?.modelView?.(window.edwardAiCapabilitySnapshot) || [];
   const selectedClipIds = state.selIds.size
     ? [...state.selIds].map(String)
     : project.clips.filter((clip) => state.time >= Number(clip.start || 0) && state.time < Number(clip.start || 0) + Number(clip.duration || 0)).map((clip) => String(clip.id));
@@ -9563,7 +9565,8 @@ function aiProjectSnapshot() {
       duration: Number(clip.duration) || 0, props: clip.props || {}, keyframes: clip.keyframes || {},
     })),
     tracks: serializeTracks(),
-    markers: (project.markers || []).map((marker) => ({ t: Number(marker.t) || 0, label: marker.label || null })),
+    markers: (project.markers || []).map((marker) => ({ ...marker, t: Number(marker.t) || 0, label: marker.label || null })),
+    media: (project.media || []).map((item) => ({ id: String(item.id), kind: item.kind, name: item.name, duration: Number(item.duration) || 0 })),
     resources,
     playhead: { time: Number(state.time) || 0, selectedClipId: state.selId, selectedClipIds },
     knownTargetIds: project.clips.map((clip) => String(clip.id)),
@@ -9598,49 +9601,6 @@ function countConversationLine(raw, line) {
   if (!line) return 0;
   return text.split(line).length - 1;
 }
-function isAiConfirmationText(text) {
-  return /^(确认|确定|执行|应用|确认执行|确认应用)(以上方案|该方案|候选方案)?[。！! ]*$/.test(String(text || "").trim());
-}
-function renderAiPlanPreview(rawPlan) {
-  const box = document.querySelector("#inspectorAiMessages");
-  if (!box) return;
-  let plan;
-  try { plan = JSON.parse(String(rawPlan || "")); } catch { return; }
-  if (!plan || !Array.isArray(plan.operations)) return;
-  let preview = document.querySelector("#inspectorAiPlanPreview");
-  if (!preview) {
-    preview = document.createElement("div");
-    preview.id = "inspectorAiPlanPreview";
-    preview.className = "inspector-ai-plan-preview";
-    box.appendChild(preview);
-  }
-  const fps = projectFps();
-  const lines = plan.operations.map((operation) => {
-    const type = operation.type || operation.op;
-    const target = project.clips.find((clip) => clip.id === operation.targetId);
-    if (type === "resize_clip" && target) {
-      const duration = Number(operation.durationFrames) / fps;
-      const end = Number(target.start) + duration;
-      const marker = (project.markers || []).find((item) => Math.abs(Number(item.t) - end) < 0.06);
-      return `将${target.track || "当前轨道"}上的“${target.name || target.componentId || target.id}”从 ${Number(target.duration).toFixed(2)} 秒调整为 ${duration.toFixed(2)} 秒，结束于 ${marker ? `M${marker.label || ""}（${Number(marker.t).toFixed(2)} 秒）` : `${end.toFixed(2)} 秒`}`;
-    }
-    if (type === "remove_clip" && target) return `删除片段“${target.name || target.componentId || target.id}”（${target.track || "当前轨道"}）`;
-    if (type === "move_clip" && target) return `将片段“${target.name || target.componentId || target.id}”移动到 ${ (Number(operation.timelineStart) / fps).toFixed(2)} 秒`;
-    if (type === "set_component_props" && target) return `修改组件“${target.name || target.componentId || target.id}”的 ${Object.keys(operation.props || {}).join("、") || "属性"}`;
-    if (type === "insert_native_component") return `在当前播放头插入组件“${operation.resourceId}”`;
-    return "执行一项已选中的时间线修改";
-  });
-  preview.replaceChildren();
-  const title = document.createElement("strong");
-  title.textContent = "待确认的具体修改：";
-  preview.appendChild(title);
-  for (const line of lines) {
-    const item = document.createElement("div");
-    item.textContent = `· ${line}`;
-    preview.appendChild(item);
-  }
-  box.scrollTop = box.scrollHeight;
-}
 function setAiThinking(thinking) {
   const inspector = document.querySelector(".inspector");
   const box = document.querySelector("#inspectorAiMessages");
@@ -9671,71 +9631,38 @@ function setAiThinking(thinking) {
 async function applyEdwardActionPlan(raw, bridge) {
   let plan;
   try { plan = JSON.parse(raw); } catch { throw new Error("AI 操作计划格式无效"); }
-  const candidate = runtime.aiCandidatePreview;
-  if (candidate && candidate.raw === raw) {
-    runtime.undo.push(JSON.stringify(candidate.before));
-    if (runtime.undo.length > 100) runtime.undo.shift();
-    runtime.aiUndo.push(JSON.stringify(candidate.before));
-    if (runtime.aiUndo.length > 5) runtime.aiUndo.shift();
-    runtime.aiCandidatePreview = null;
-    scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
-    bridge.clearPendingAiActionPlan();
-    toast("已确认并写入时间线");
-    return;
-  }
+  const requestId = String(plan.requestId || "");
+  if (requestId && runtime.aiAppliedPlanIds.has(requestId)) return;
+  if (runtime.aiApplying) return;
+  runtime.aiApplying = true;
+  try {
   const transaction = window.edwardAiActionPlan.apply(plan, {
-    project, resources: runtime.nativeAnnotationResources.items, tracks: TRACKS, playhead: state.time,
+    project, resources: runtime.nativeAnnotationResources.items, media: project.media || [], tracks: TRACKS, playhead: state.time,
+    capabilitySnapshot: window.edwardAiCapabilitySnapshot,
+    nextMarkerId: () => uid(),
     maxTracks: MAX_TRACKS_PER_KIND, nextClipId: () => "c_" + uid(),
   });
+  const receipt = transaction.receipt;
+  if (!receipt || receipt.operationCount !== plan.operations.length || !receipt.reversible) throw new Error("AI 操作回执校验失败");
   pushUndo();
-  runtime.aiUndo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
-  if (runtime.aiUndo.length > 5) runtime.aiUndo.shift();
+  runtime.lastAiUndoAvailable = true;
   project.clips = transaction.clips;
   for (const track of transaction.tracks) {
     if (!TRACKS.some((current) => current.id === track.id)) TRACKS.push(makeTrack(track.id, track.kind));
   }
-  sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks();
+  sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks(); project.markers = transaction.markers || project.markers || [];
+  project.revision = Number(project.revision || 0) + 1;
   pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
   bridge.clearPendingAiActionPlan();
+  if (requestId) runtime.aiAppliedPlanIds.add(requestId);
+  runtime.aiLocalMessages.push({ user: false, text: `已执行 ${receipt.operationCount} 项修改，预览与时间线已更新，可撤销。` });
+  renderEdwardConversation(bridge.aiConversation);
   toast("AI 操作已作为一个可撤销事务应用");
-}
-function previewEdwardActionPlan(raw) {
-  if (runtime.aiCandidatePreview?.raw === raw) return;
-  if (runtime.aiCandidatePreview) {
-    project.clips = runtime.aiCandidatePreview.before.clips;
-    applyTracksFromProject(runtime.aiCandidatePreview.before.tracks);
-  }
-  const plan = JSON.parse(raw);
-  const before = { clips: JSON.parse(JSON.stringify(project.clips)), tracks: serializeTracks() };
-  const transaction = window.edwardAiActionPlan.apply(plan, {
-    project, resources: runtime.nativeAnnotationResources.items, tracks: TRACKS, playhead: state.time,
-    maxTracks: MAX_TRACKS_PER_KIND, nextClipId: () => "c_" + uid(),
-  });
-  project.clips = transaction.clips;
-  for (const track of transaction.tracks) {
-    if (!TRACKS.some((current) => current.id === track.id)) TRACKS.push(makeTrack(track.id, track.kind));
-  }
-  sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks();
-  runtime.aiCandidatePreview = { raw, before };
-  pruneSelection(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
-  toast("已将候选方案临时应用到时间线，确认后才会写入项目");
-}
-function discardAiCandidatePreview() {
-  const candidate = runtime.aiCandidatePreview;
-  if (!candidate) return;
-  project.clips = candidate.before.clips;
-  applyTracksFromProject(candidate.before.tracks);
-  runtime.aiCandidatePreview = null;
-  pruneSelection(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+  } finally { runtime.aiApplying = false; }
 }
 function undoLastEdwardAiAction() {
-  if (!runtime.aiUndo.length) { toast("没有可撤销的 AI 操作"); return; }
-  pushUndo();
-  const snapshot = JSON.parse(runtime.aiUndo.pop());
-  project.clips = snapshot.clips;
-  project.tracks = snapshot.tracks;
-  applyTracksFromProject(project.tracks);
-  pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+  if (!runtime.undo.length || !runtime.lastAiUndoAvailable) { toast("没有可撤销的 AI 操作"); return; }
+  undo();
   document.querySelector("#inspectorAiUndo")?.remove();
   toast("已撤销最近一次 AI 操作");
 }
@@ -9750,9 +9677,8 @@ async function connectEdwardAi() {
       setAiThinking(!!bridge.aiRequestBusy);
       if (conversationReady && !bridge.aiRequestBusy) aiPendingUserText = "";
         const pending = bridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
-        let confirm = document.querySelector("#inspectorAiConfirm");
         let undo = document.querySelector("#inspectorAiUndo");
-        if (!runtime.aiUndo.length) undo?.remove();
+        if (!runtime.lastAiUndoAvailable) undo?.remove();
         else if (!undo) {
           undo = document.createElement("button");
           undo.id = "inspectorAiUndo"; undo.type = "button"; undo.className = "btn tiny";
@@ -9760,24 +9686,8 @@ async function connectEdwardAi() {
           document.querySelector("#inspectorAiForm")?.prepend(undo);
         }
         if (undo) undo.onclick = undoLastEdwardAiAction;
-        let cancel = document.querySelector("#inspectorAiCancel");
-        if (!pending) { discardAiCandidatePreview(); confirm?.remove(); cancel?.remove(); document.querySelector("#inspectorAiPlanPreview")?.remove(); return; }
-        try { previewEdwardActionPlan(pending); } catch (error) { toast(error.message || "候选方案无法预览"); return; }
-        renderAiPlanPreview(pending);
-    if (!confirm) {
-      confirm = document.createElement("button");
-      confirm.id = "inspectorAiConfirm"; confirm.type = "button"; confirm.className = "btn tiny accent";
-        confirm.textContent = "确认应用以上方案";
-      document.querySelector("#inspectorAiForm")?.prepend(confirm);
-        }
-        if (!cancel) {
-          cancel = document.createElement("button");
-          cancel.id = "inspectorAiCancel"; cancel.type = "button"; cancel.className = "btn tiny";
-          cancel.textContent = "取消方案";
-          document.querySelector("#inspectorAiForm")?.prepend(cancel);
-        }
-        confirm.onclick = async () => { try { await applyEdwardActionPlan(pending, bridge); } catch (error) { toast(error.message || "AI 操作失败"); } };
-        cancel.onclick = () => bridge.clearPendingAiActionPlan();
+        if (!pending) return;
+        try { await applyEdwardActionPlan(pending, bridge); } catch (error) { toast(error.message || "AI 操作失败"); }
       };
   bridge.timelineChanged.connect(sync);
   sync();
@@ -9831,7 +9741,6 @@ $("inspectorAiModel")?.addEventListener("change", async (event) => {
   e.preventDefault();
   const input = document.querySelector("#inspectorAiInput"), text = input?.value.trim();
   if (!text) return;
-  if (runtime.aiCandidatePreview) { toast("请先确认或取消当前候选方案"); return; }
   const box = document.querySelector("#inspectorAiMessages"), msg = document.createElement("div");
   msg.className = "inspector-ai-msg user"; msg.textContent = text; box.appendChild(msg); input.value = ""; box.scrollTop = box.scrollHeight;
   aiPendingUserText = text;
@@ -9841,20 +9750,6 @@ $("inspectorAiModel")?.addEventListener("change", async (event) => {
       inspector?.classList.add("conversation-active");
       if (!edwardAiBridge) edwardAiBridge = await window.edwardAi?.connect?.();
       if (!edwardAiBridge) { toast("AI 剪辑助理仅在 Orbit 桌面应用中可用"); return; }
-      if (isAiConfirmationText(text)) {
-        const pending = edwardAiBridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
-        if (!pending) { toast("当前没有可确认的候选方案"); return; }
-        try {
-          if (!runtime.aiCandidatePreview) previewEdwardActionPlan(pending);
-          runtime.aiLocalMessages.push({ user: true, text });
-          renderEdwardConversation(edwardAiBridge.aiConversation);
-          await applyEdwardActionPlan(pending, edwardAiBridge);
-          runtime.aiLocalMessages.push({ user: false, text: "已确认并写入时间线，当前预览已成为项目结果。" });
-          renderEdwardConversation(edwardAiBridge.aiConversation);
-        } catch (error) { toast(error.message || "候选方案确认失败"); }
-        aiPendingUserText = "";
-        return;
-      }
       setAiThinking(true);
       try { await loadNativeAnnotationResources(); }
       catch { setAiThinking(false); toast("原生组件资源加载失败，未发送 AI 请求"); return; }
@@ -9867,9 +9762,6 @@ $("inspectorAiModel")?.addEventListener("change", async (event) => {
       setAiThinking(!!edwardAiBridge.aiRequestBusy);
       if (conversationReady && !edwardAiBridge.aiRequestBusy) { aiPendingUserText = ""; clearInterval(refresh.timer); }
       const pending = edwardAiBridge.pendingAiActionPlan || await window.edwardAi?.pendingPlan?.() || "";
-      if (pending) {
-        try { previewEdwardActionPlan(pending); renderAiPlanPreview(pending); } catch (error) { toast(error.message || "候选方案无法预览"); }
-      }
     };
     refresh.timer = setInterval(refresh, 180);
     refresh();

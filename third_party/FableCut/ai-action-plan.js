@@ -35,6 +35,15 @@
       "undoScope", "collisionPolicy", "trackPlacementPolicy", "linkedMediaPolicy", "executionMode", "reversibility",
       "allowedPolicies", "markerPolicy", "validate", "execute", "postconditions", "preview", "render", "verificationAdapter"];
     for (const item of snapshot.capabilities) for (const key of required) if (!(key in item)) fail(`能力注册表缺少字段: ${key}`);
+    for (const item of snapshot.capabilities) {
+      const task = item.taskPolicy;
+      if (!task || typeof task !== "object" || typeof task.mode !== "string" || typeof task.resourceClass !== "string" ||
+          !Number.isInteger(task.priority) || task.priority < 0 || task.priority > 100 || typeof task.cancellableUntil !== "string" ||
+          typeof task.resumable !== "boolean" || !Number.isInteger(task.maxConcurrency) || task.maxConcurrency < 1 ||
+          !Number.isFinite(task.diskReservation) || task.diskReservation < 0 || typeof task.progressAdapter !== "string") {
+        fail("能力注册表 taskPolicy 无效");
+      }
+    }
     return snapshot.capabilities;
   }
   function modelView(snapshot) {
@@ -115,6 +124,17 @@
       if (!allowedFields(operation, ["type", "track", "startFrame", "endFrame"]) || !text("track") || !Number.isInteger(operation.startFrame) || !Number.isInteger(operation.endFrame) || operation.startFrame < 0 || operation.endFrame <= operation.startFrame) fail("AI 闭合间隙参数无效");
     }
   }
+  function validateTarget(contract, operation, target, context, tracks, markers) {
+    const targets = new Set(contract.targetTypes || []);
+    if ((targets.has("selected_clip") || targets.has("selected_component") || targets.has("selected_audio")) && !target) fail("AI 操作目标已不存在");
+    if (targets.has("selected_clip") && (!target || !["video", "audio", "component", "text", "subtitle"].includes(target.kind))) fail("AI 目标不是可编辑片段");
+    if (targets.has("selected_component") && (!target || target.kind !== "component")) fail("AI 目标不是组件");
+    if (targets.has("selected_audio") && (!target || target.kind !== "audio")) fail("AI 目标不是音频");
+    if (targets.has("marker") && !markers.some((marker) => String(marker.markerId || marker.id || marker.label) === String(operation.markerId))) fail("AI 标记不存在");
+    if (targets.has("track") && !tracks.some((track) => String(track.id) === String(operation.track))) fail("AI 轨道不存在");
+    if (targets.has("playhead") && (!Number.isFinite(Number(context.playhead)) || Number(context.playhead) < 0)) fail("AI 播放头位置无效");
+    if (operation.type === "create_marker" && operation.clipId && !context.project.clips.some((clip) => String(clip.id) === String(operation.clipId))) fail("AI 素材级标记目标不存在");
+  }
   function validateComponentProps(target, resources, props) {
     const manifest = resources.get(target.componentId);
     const declared = manifest?.props || manifest?.propsSchema?.properties || {};
@@ -133,7 +153,8 @@
     if (Number(plan.baseProjectRevision) !== Number(context.project.revision)) fail("AI 操作计划已过期，请重新请求");
     if (!Array.isArray(plan.operations) || !plan.operations.length) fail("AI 操作计划为空");
     const contracts = modelContracts(context.capabilitySnapshot);
-    const allowedTypes = new Set(contracts.map((item) => item.id));
+    const contractMap = new Map(contracts.map((item) => [item.id, item]));
+    const allowedTypes = new Set(contractMap.keys());
     const clips = clone(context.project.clips || []);
     const tracks = clone(context.tracks || []);
     const resources = new Map((context.resources || []).map((item) => [item.id, item]));
@@ -144,6 +165,7 @@
     for (const operation of plan.operations) {
       validateOperation(operation, allowedTypes);
       const target = clips.find((clip) => clip.id === operation.targetId);
+      validateTarget(contractMap.get(operation.type), operation, target, context, tracks, markers);
       if (operation.type === "insert_native_component") {
         const manifest = resources.get(operation.resourceId);
         if (!manifest) fail("AI 选择的组件未验证");

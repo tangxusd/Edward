@@ -29,7 +29,7 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.match(app, /classList\.toggle\("conversation-active"/);
   assert.match(app, /classList\.add\("conversation-active"\)/);
   assert.match(app, /function aiProjectSnapshot\(\)/);
-  assert.match(app, /const capabilities = \[/);
+  assert.match(app, /const capabilities = window\.edwardAiActionPlan\?\.modelView/);
   assert.match(app, /capabilities,\n/);
   assert.match(app, /requestSubmit\(\)/);
   assert.match(app, /clipboardData\?\.items/);
@@ -40,12 +40,13 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.match(fs.readFileSync(path.join(root, "ai-client.js"), "utf8"), /Date\.now\(\) \+ 5000/);
   assert.match(app, /await loadNativeAnnotationResources\(\)/);
   assert.match(app, /function applyEdwardActionPlan/);
-  assert.match(app, /function previewEdwardActionPlan\(raw\)/);
-  assert.match(app, /function discardAiCandidatePreview\(\)/);
+  assert.doesNotMatch(app, /previewEdwardActionPlan|discardAiCandidatePreview|inspectorAiConfirm|inspectorAiCancel/);
+  assert.doesNotMatch(app, /inspectorAiPlanPreview|待确认的具体修改/);
   assert.match(app, /countConversationLine/);
   assert.match(app, /function restoreTimelineSnapshot\(snapshot\)/);
   assert.match(app, /\(e\.ctrlKey \|\| e\.metaKey\) && \(k === "z"/);
-  assert.match(app, /runtime\.aiUndo\.length > 5/);
+  assert.match(app, /runtime\.undo\.length > 100/);
+  assert.doesNotMatch(app, /runtime\.aiUndo/);
   assert.match(app, /function undoLastEdwardAiAction/);
   assert.match(app, /clearPendingAiActionPlan/);
   const client = fs.readFileSync(path.join(root, "ai-client.js"), "utf8");
@@ -56,19 +57,25 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.match(i18n, /if\(!translating\) translate\(\)/);
   assert.match(app, /aiThinkingTimer/);
   const executor = fs.readFileSync(path.join(root, "ai-action-plan.js"), "utf8");
-  assert.match(executor, /edward\.action-plan\.v1/);
+  assert.match(executor, /orbit\.bound-action-plan\.v2/);
+  assert.match(executor, /modelContracts/);
+  assert.match(executor, /orbit\.capability-snapshot\.v1/);
+  assert.match(executor, /operationCount/);
   assert.match(executor, /baseProjectRevision/);
   assert.match(executor, /insert_native_component/);
   assert.match(executor, /没有可用的上层视频轨道/);
 });
 
-test("AI assistant keeps confirmed action plans separate from conversation output", () => {
+test("AI assistant commits validated action plans as one reversible project transaction", () => {
   const runtime = fs.readFileSync(path.join(root, "../..", "src/desktop/src/workbench_runtime.cpp"), "utf8");
   const header = fs.readFileSync(path.join(root, "../..", "src/desktop/include/edward/desktop/workbench_runtime.hpp"), "utf8");
   const main = fs.readFileSync(path.join(root, "../..", "src/desktop/src/main.cpp"), "utf8");
   const sessionStore = fs.readFileSync(path.join(root, "../..", "src/resources/src/auth_session_store.cpp"), "utf8");
   assert.match(runtime, /aiOrchestrator_/);
   assert.match(runtime, /pendingAiActionPlan_/);
+  assert.match(runtime, /已生成剪辑操作方案/);
+  assert.doesNotMatch(runtime, /请确认后应用/);
+  assert.match(runtime, /正在提交并更新预览/);
   assert.match(runtime, /context\.insert\(QStringLiteral\("capabilities"\)/);
   assert.doesNotMatch(runtime, /M3\/M4 means/);
   assert.match(header, /QString pendingAiActionPlan_;/);

@@ -13,8 +13,13 @@ constexpr auto kVerifier = "timeline.visible";
 CapabilityContract makeContract(const QString& id, const QStringList& targets, const QStringList& fields,
                                 QString permission = QStringLiteral("project.write"),
                                 QJsonObject task = QJsonObject{{QStringLiteral("mode"), QStringLiteral("synchronous")},
-                                                                 {QStringLiteral("retryable"), false},
-                                                                 {QStringLiteral("maxDurationMs"), 0}}) {
+                                                                 {QStringLiteral("resourceClass"), QStringLiteral("cpu")},
+                                                                 {QStringLiteral("priority"), 50},
+                                                                 {QStringLiteral("cancellableUntil"), QStringLiteral("commit")},
+                                                                 {QStringLiteral("resumable"), false},
+                                                                 {QStringLiteral("maxConcurrency"), 1},
+                                                                 {QStringLiteral("diskReservation"), 0},
+                                                                 {QStringLiteral("progressAdapter"), QStringLiteral("none")}}) {
   QJsonArray properties;
   Q_UNUSED(properties);
   QJsonObject schema;
@@ -112,6 +117,15 @@ QJsonObject CapabilityContract::toJson() const {
           {QStringLiteral("verificationAdapter"), verificationAdapter}};
 }
 
+QJsonObject CapabilitySnapshot::toJson() const {
+  return {{QStringLiteral("schemaVersion"), schemaVersion},
+          {QStringLiteral("version"), version},
+          {QStringLiteral("contractIds"), QJsonArray::fromStringList(contractIds)},
+          {QStringLiteral("capabilities"), modelCapabilities},
+          {QStringLiteral("canonical"), canonicalJson},
+          {QStringLiteral("hash"), hash}};
+}
+
 CapabilityRegistry::CapabilityRegistry() : CapabilityRegistry(builtIn().contracts_) {}
 
 CapabilityRegistry::CapabilityRegistry(QVector<CapabilityContract> contracts) : contracts_(std::move(contracts)) {
@@ -167,6 +181,20 @@ void CapabilityRegistry::validate() {
     }
     if (contract.inputSchema.isEmpty() || contract.targetTypes.isEmpty()) {
       validationError_ = QStringLiteral("capability %1 has incomplete contract").arg(contract.id);
+      return;
+    }
+    const auto& task = contract.taskPolicy;
+    const auto has = [&](const QString& key) { return task.contains(key); };
+    if (!has(QStringLiteral("mode")) || !task.value(QStringLiteral("mode")).isString() ||
+        !has(QStringLiteral("resourceClass")) || !task.value(QStringLiteral("resourceClass")).isString() ||
+        !has(QStringLiteral("priority")) || !task.value(QStringLiteral("priority")).isDouble() ||
+        task.value(QStringLiteral("priority")).toInt(-1) < 0 || task.value(QStringLiteral("priority")).toInt() > 100 ||
+        !has(QStringLiteral("cancellableUntil")) || !task.value(QStringLiteral("cancellableUntil")).isString() ||
+        !has(QStringLiteral("resumable")) || !task.value(QStringLiteral("resumable")).isBool() ||
+        !has(QStringLiteral("maxConcurrency")) || !task.value(QStringLiteral("maxConcurrency")).isDouble() || task.value(QStringLiteral("maxConcurrency")).toInt(0) < 1 ||
+        !has(QStringLiteral("diskReservation")) || !task.value(QStringLiteral("diskReservation")).isDouble() || task.value(QStringLiteral("diskReservation")).toDouble(-1) < 0 ||
+        !has(QStringLiteral("progressAdapter")) || !task.value(QStringLiteral("progressAdapter")).isString()) {
+      validationError_ = QStringLiteral("capability %1 has invalid task policy").arg(contract.id);
       return;
     }
   }
@@ -237,9 +265,13 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
     ids.push_back(contract.id);
   }
   snapshot.modelCapabilities = view;
-  snapshot.enabledIds = sorted(ids);
-  snapshot.canonicalJson = canonicalSnapshot(view, snapshot.version);
-  snapshot.hash = QStringLiteral("fnv1a64:%1").arg(fnv1a64(snapshot.canonicalJson.toUtf8()));
+  snapshot.contractIds = sorted(ids);
+  snapshot.enabledIds = snapshot.contractIds;
+  const auto canonicalText = QStringLiteral("orbit.capability-snapshot.v1|%1|%2").arg(snapshot.version).arg(snapshot.contractIds.join(QStringLiteral(",")));
+  snapshot.canonicalJson = QJsonObject{{QStringLiteral("schemaVersion"), snapshot.schemaVersion},
+                                       {QStringLiteral("version"), snapshot.version},
+                                       {QStringLiteral("contractIds"), QJsonArray::fromStringList(snapshot.contractIds)}};
+  snapshot.hash = QStringLiteral("fnv1a64:%1").arg(fnv1a64(canonicalText.toUtf8()));
   snapshot.valid = true;
   return snapshot;
 }

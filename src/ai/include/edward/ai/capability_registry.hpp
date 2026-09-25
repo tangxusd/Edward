@@ -55,13 +55,17 @@ struct CapabilityContract final {
 };
 
 struct CapabilitySnapshot final {
+  QString schemaVersion = QStringLiteral("orbit.capability-snapshot.v1");
   qint64 version = 0;
   QString hash;
-  QString canonicalJson;
+  QStringList contractIds;
+  QJsonObject canonicalJson;
   QJsonArray modelCapabilities;
   QStringList enabledIds;
   bool valid = false;
   QString error;
+
+  [[nodiscard]] QJsonObject toJson() const;
 };
 
 class CapabilityRegistry final {
