@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QHash>
+#include <QLockFile>
 #include <QSaveFile>
 #include <QUuid>
 
@@ -52,6 +53,12 @@ LedgerEntry ExecutionLedger::fromJson(const QJsonObject& object) {
 
 QVector<LedgerEntry> ExecutionLedger::readAll(QString* error) const {
   QVector<LedgerEntry> entries;
+  QLockFile lock(path_ + QStringLiteral(".lock"));
+  lock.setStaleLockTime(30000);
+  if (!lock.tryLock(1000)) {
+    if (error) *error = QStringLiteral("execution ledger is locked by another process");
+    return {};
+  }
   QFile file(path_);
   if (!file.exists()) return entries;
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -73,6 +80,12 @@ QVector<LedgerEntry> ExecutionLedger::readAll(QString* error) const {
 }
 
 bool ExecutionLedger::append(const LedgerEntry& entry, QString* error) {
+  QLockFile lock(path_ + QStringLiteral(".lock"));
+  lock.setStaleLockTime(30000);
+  if (!lock.tryLock(1000)) {
+    if (error) *error = QStringLiteral("execution ledger is locked by another process");
+    return false;
+  }
   QFile file(path_);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
     if (error) *error = file.errorString();
