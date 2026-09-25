@@ -25,11 +25,19 @@ struct CapabilityContract final {
   QJsonObject inputSchema;
   QStringList targetTypes;
   QString permissionCategory;
+  bool mutatesProject = true;
+  QStringList externalSideEffects;
+  QString selectionPolicy;
+  QString unitPolicy;
+  QString coalescingPolicy;
+  QString lockPolicy;
+  QString playbackPolicy;
+  QJsonObject limits;
   QString undoScope;
   QString collisionPolicy;
   QString trackPlacementPolicy;
   QString linkedMediaPolicy;
-  QString taskPolicy;
+  QJsonObject taskPolicy;
   QString executionMode;
   QString reversibility;
   QStringList allowedPolicies;
@@ -49,6 +57,7 @@ struct CapabilityContract final {
 struct CapabilitySnapshot final {
   qint64 version = 0;
   QString hash;
+  QString canonicalJson;
   QJsonArray modelCapabilities;
   QStringList enabledIds;
   bool valid = false;

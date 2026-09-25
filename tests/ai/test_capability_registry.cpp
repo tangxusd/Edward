@@ -17,11 +17,19 @@ CapabilityContract contract(QString id, QString executor = QStringLiteral("execu
   value.inputSchema = QJsonObject{{"type", "object"}};
   value.targetTypes = {QStringLiteral("clip")};
   value.permissionCategory = QStringLiteral("project.write");
+  value.mutatesProject = true;
+  value.selectionPolicy = QStringLiteral("explicit_or_resolved");
+  value.unitPolicy = QStringLiteral("frames_at_project_fps");
+  value.coalescingPolicy = QStringLiteral("one_transaction");
+  value.lockPolicy = QStringLiteral("reject_locked");
+  value.playbackPolicy = QStringLiteral("preserve_playhead");
+  value.limits = QJsonObject{{QStringLiteral("maxOperations"), 64}, {QStringLiteral("maxTargets"), 64}};
   value.undoScope = QStringLiteral("transaction");
   value.collisionPolicy = QStringLiteral("fail");
   value.trackPlacementPolicy = QStringLiteral("specified");
   value.linkedMediaPolicy = QStringLiteral("preserve");
-  value.taskPolicy = QStringLiteral("synchronous");
+  value.taskPolicy = QJsonObject{{QStringLiteral("mode"), QStringLiteral("synchronous")},
+                                 {QStringLiteral("retryable"), false}, {QStringLiteral("maxDurationMs"), 0}};
   value.executionMode = QStringLiteral("local_transaction");
   value.reversibility = QStringLiteral("undoable");
   value.allowedPolicies = {QStringLiteral("collision")};
@@ -82,7 +90,8 @@ void testModelViewContainsRequiredContractFields() {
   const auto first = view.at(0).toObject();
   for (const auto key : {"id", "version", "inputSchema", "targetTypes", "permissionCategory",
                          "undoScope", "collisionPolicy", "trackPlacementPolicy", "linkedMediaPolicy",
-                         "taskPolicy", "executionMode", "reversibility", "allowedPolicies", "markerPolicy",
+                         "mutatesProject", "externalSideEffects", "selectionPolicy", "unitPolicy", "coalescingPolicy",
+                         "lockPolicy", "playbackPolicy", "limits", "taskPolicy", "executionMode", "reversibility", "allowedPolicies", "markerPolicy",
                          "validate", "execute", "postconditions", "preview", "render", "verificationAdapter"}) {
     assert(first.contains(QLatin1String(key)));
   }

@@ -4,87 +4,52 @@
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.edwardAiActionPlan = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function createEdwardAiActionPlan() {
-  const CAPABILITY_REGISTRY = Object.freeze({
-    insert_native_component: { target: "playhead", fields: ["resourceId"], reversible: true },
-    insert_media: { target: "playhead", fields: ["mediaId", "kind", "timelineStart", "durationFrames", "track"], reversible: true },
-    insert_text: { target: "playhead", fields: ["text", "props", "timelineStart", "durationFrames", "track"], reversible: true },
-    insert_subtitle: { target: "playhead", fields: ["text", "props", "timelineStart", "durationFrames", "track"], reversible: true },
-    set_component_props: { target: "selected_component", fields: ["targetId", "props"], reversible: true },
-    set_clip_props: { target: "selected_clip", fields: ["targetId", "props"], reversible: true },
-    set_audio_props: { target: "selected_audio", fields: ["targetId", "props"], reversible: true },
-    move_clip: { target: "selected_clip", fields: ["targetId", "timelineStart"], reversible: true },
-    resize_clip: { target: "selected_clip", fields: ["targetId", "durationFrames"], reversible: true },
-    trim_head: { target: "selected_clip", fields: ["targetId", "atFrame"], reversible: true },
-    trim_tail: { target: "selected_clip", fields: ["targetId", "atFrame"], reversible: true },
-    split_clip: { target: "selected_clip", fields: ["targetId", "atFrame"], reversible: true },
-    set_speed: { target: "selected_clip", fields: ["targetId", "speed"], reversible: true },
-    duplicate_clip: { target: "selected_clip", fields: ["targetId", "timelineStart", "track"], reversible: true },
-    replace_source: { target: "selected_clip", fields: ["targetId", "mediaId"], reversible: true },
-    remove_clip: { target: "selected_clip", fields: ["targetId"], reversible: true },
-    create_marker: { target: "timeline", fields: ["timelineFrame", "label", "color", "clipId", "localFrame"], reversible: true },
-    delete_marker: { target: "marker", fields: ["markerId"], reversible: true },
-    set_marker_color: { target: "marker", fields: ["markerId", "color"], reversible: true },
-    close_gap: { target: "track", fields: ["track", "startFrame", "endFrame"], reversible: true },
-  });
-  const ALLOWED_TYPES = new Set(Object.keys(CAPABILITY_REGISTRY));
-  const MODEL_VIEW = Object.freeze(Object.entries(CAPABILITY_REGISTRY).map(([id, contract]) => ({
-    id,
-    version: "1",
-    inputSchema: {
-      type: "object",
-      properties: Object.fromEntries((contract.fields || []).map((field) => [field, { type: "any" }])),
-    },
-    targetTypes: [contract.target],
-    permissionCategory: id.includes("marker") ? "marker.write" : (id === "replace_source" ? "media.write" : "project.write"),
-    undoScope: "project_transaction",
-    collisionPolicy: "fail",
-    trackPlacementPolicy: "specified_or_auto",
-    linkedMediaPolicy: "preserve_linked",
-    taskPolicy: "synchronous",
-    executionMode: "local_transaction",
-    reversibility: "undoable",
-    allowedPolicies: ["collision", "trackPlacement", "linkedMedia", "marker"],
-    markerPolicy: "preserve",
-    validate: "schema_and_target",
-    execute: "timeline_executor",
-    postconditions: ["project_hash_changed", "visible_state_verified"],
-    preview: "timeline_preview",
-    render: "timeline_render",
-    verificationAdapter: "timeline.visible",
-    executor: "timeline.executor",
-  })));
-  const REGISTRY_SNAPSHOT_VERSION = 1;
-  const registrySnapshot = () => ({
-    schemaVersion: "orbit.capability-snapshot.v1",
-    version: REGISTRY_SNAPSHOT_VERSION,
-    contractIds: MODEL_VIEW.map((item) => `${item.id}@${item.version}`),
-    capabilities: MODEL_VIEW.map(clone),
-  });
-  function modelView(snapshot) {
-    const source = snapshot || registrySnapshot();
-    const expected = MODEL_VIEW.map((item) => `${item.id}@${item.version}`);
-    if (source.schemaVersion !== "orbit.capability-snapshot.v1" || source.version !== REGISTRY_SNAPSHOT_VERSION ||
-        JSON.stringify(source.contractIds || []) !== JSON.stringify(expected)) {
-      fail("能力注册表快照与执行器不一致");
+  function fail(message) { throw new Error(message); }
+  function clipEnd(clip) { return Number(clip.start) + Number(clip.duration); }
+  function clone(value) { return JSON.parse(JSON.stringify(value)); }
+  function fnv1a64(value) {
+    let hash = 0xcbf29ce484222325n;
+    for (const byte of new TextEncoder().encode(value)) {
+      hash ^= BigInt(byte);
+      hash = BigInt.asUintN(64, hash * 0x100000001b3n);
     }
-    const capabilities = Array.isArray(source.capabilities) ? source.capabilities : [];
-    if (capabilities.length !== expected.length || capabilities.some((item, index) => `${item.id}@${item.version}` !== expected[index])) {
+    return hash.toString(16).padStart(16, "0");
+  }
+  function modelContracts(snapshot) {
+    if (!snapshot || snapshot.schemaVersion !== "orbit.capability-snapshot.v1" || snapshot.version !== 1 ||
+        !Array.isArray(snapshot.contractIds) || !Array.isArray(snapshot.capabilities) || typeof snapshot.hash !== "string") {
+      fail("缺少宿主能力注册表快照");
+    }
+    const ids = snapshot.contractIds.map(String);
+    const sortedIds = [...ids].sort();
+    if (ids.length === 0 || ids.some((id, index) => id !== sortedIds[index]) || new Set(ids).size !== ids.length) {
+      fail("能力注册表 contractIds 未规范化排序");
+    }
+    const canonical = `orbit.capability-snapshot.v1|${snapshot.version}|${ids.join(",")}`;
+    if (snapshot.hash !== `fnv1a64:${fnv1a64(canonical)}`) fail("能力注册表快照 hash 不一致");
+    if (snapshot.capabilities.length !== ids.length || snapshot.capabilities.some((item, index) => `${item.id}@${item.version}` !== ids[index])) {
       fail("能力注册表合同不一致");
     }
-    return capabilities.map((item) => ({
+    const required = ["inputSchema", "targetTypes", "permissionCategory", "mutatesProject", "externalSideEffects",
+      "selectionPolicy", "unitPolicy", "coalescingPolicy", "lockPolicy", "playbackPolicy", "limits", "taskPolicy",
+      "undoScope", "collisionPolicy", "trackPlacementPolicy", "linkedMediaPolicy", "executionMode", "reversibility",
+      "allowedPolicies", "markerPolicy", "validate", "execute", "postconditions", "preview", "render", "verificationAdapter"];
+    for (const item of snapshot.capabilities) for (const key of required) if (!(key in item)) fail(`能力注册表缺少字段: ${key}`);
+    return snapshot.capabilities;
+  }
+  function modelView(snapshot) {
+    return modelContracts(snapshot).map((item) => ({
       id: item.id, version: item.version, inputSchema: clone(item.inputSchema), targetTypes: [...item.targetTypes],
-      permissionCategory: item.permissionCategory, undoScope: item.undoScope, collisionPolicy: item.collisionPolicy,
+      permissionCategory: item.permissionCategory, mutatesProject: item.mutatesProject, externalSideEffects: [...item.externalSideEffects],
+      selectionPolicy: item.selectionPolicy, unitPolicy: item.unitPolicy, coalescingPolicy: item.coalescingPolicy,
+      lockPolicy: item.lockPolicy, playbackPolicy: item.playbackPolicy, limits: clone(item.limits), undoScope: item.undoScope, collisionPolicy: item.collisionPolicy,
       trackPlacementPolicy: item.trackPlacementPolicy, linkedMediaPolicy: item.linkedMediaPolicy,
-      taskPolicy: item.taskPolicy, executionMode: item.executionMode, reversibility: item.reversibility,
+      taskPolicy: clone(item.taskPolicy), executionMode: item.executionMode, reversibility: item.reversibility,
       allowedPolicies: [...item.allowedPolicies], markerPolicy: item.markerPolicy, validate: item.validate,
       execute: item.execute, postconditions: [...item.postconditions], preview: item.preview, render: item.render,
       verificationAdapter: item.verificationAdapter,
     }));
   }
-
-  function fail(message) { throw new Error(message); }
-  function clipEnd(clip) { return Number(clip.start) + Number(clip.duration); }
-  function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function defaults(manifest) {
     const properties = manifest?.props || manifest?.propsSchema?.properties || {};
     return Object.fromEntries(Object.entries(properties).map(([key, spec]) => [key, spec.default]));
@@ -108,8 +73,8 @@
   }
   function validObject(value) { return value && typeof value === "object" && !Array.isArray(value); }
   function allowedFields(operation, fields) { return Object.keys(operation).every((key) => fields.includes(key)); }
-  function validateOperation(operation) {
-    if (!validObject(operation) || !ALLOWED_TYPES.has(operation.type)) fail("AI 操作不在允许范围内");
+  function validateOperation(operation, allowedTypes) {
+    if (!validObject(operation) || !allowedTypes.has(operation.type)) fail("AI 操作不在允许范围内");
     const text = (key) => typeof operation[key] === "string" && operation[key].length > 0;
     if (operation.type === "insert_native_component") {
       if (!allowedFields(operation, ["type", "resourceId"]) || !text("resourceId")) fail("AI 插入组件参数无效");
@@ -167,6 +132,8 @@
     if (!validObject(plan) || plan.schemaVersion !== "orbit.bound-action-plan.v2") fail("AI 操作计划格式无效");
     if (Number(plan.baseProjectRevision) !== Number(context.project.revision)) fail("AI 操作计划已过期，请重新请求");
     if (!Array.isArray(plan.operations) || !plan.operations.length) fail("AI 操作计划为空");
+    const contracts = modelContracts(context.capabilitySnapshot);
+    const allowedTypes = new Set(contracts.map((item) => item.id));
     const clips = clone(context.project.clips || []);
     const tracks = clone(context.tracks || []);
     const resources = new Map((context.resources || []).map((item) => [item.id, item]));
@@ -175,7 +142,7 @@
     const fps = Number(context.project.fps || 30);
     if (!(fps > 0)) fail("项目帧率无效");
     for (const operation of plan.operations) {
-      validateOperation(operation);
+      validateOperation(operation, allowedTypes);
       const target = clips.find((clip) => clip.id === operation.targetId);
       if (operation.type === "insert_native_component") {
         const manifest = resources.get(operation.resourceId);
@@ -275,5 +242,5 @@
       },
     };
   }
-  return { apply, modelView, registrySnapshot };
+  return { apply, modelView };
 });

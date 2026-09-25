@@ -1,8 +1,5 @@
 #include <edward/ai/capability_registry.hpp>
 
-#include <QCryptographicHash>
-#include <QJsonDocument>
-
 #include <algorithm>
 #include <functional>
 #include <utility>
@@ -15,7 +12,9 @@ constexpr auto kVerifier = "timeline.visible";
 
 CapabilityContract makeContract(const QString& id, const QStringList& targets, const QStringList& fields,
                                 QString permission = QStringLiteral("project.write"),
-                                QString task = QStringLiteral("synchronous")) {
+                                QJsonObject task = QJsonObject{{QStringLiteral("mode"), QStringLiteral("synchronous")},
+                                                                 {QStringLiteral("retryable"), false},
+                                                                 {QStringLiteral("maxDurationMs"), 0}}) {
   QJsonArray properties;
   Q_UNUSED(properties);
   QJsonObject schema;
@@ -28,6 +27,14 @@ CapabilityContract makeContract(const QString& id, const QStringList& targets, c
           schema,
           targets,
           std::move(permission),
+          true,
+          {},
+          QStringLiteral("explicit_or_resolved"),
+          QStringLiteral("frames_at_project_fps"),
+          QStringLiteral("one_transaction"),
+          QStringLiteral("reject_locked"),
+          QStringLiteral("preserve_playhead"),
+          QJsonObject{{QStringLiteral("maxOperations"), 64}, {QStringLiteral("maxTargets"), 64}},
           QStringLiteral("project_transaction"),
           QStringLiteral("fail"),
           QStringLiteral("specified_or_auto"),
@@ -53,14 +60,23 @@ QStringList sorted(QStringList values) {
   return values;
 }
 
-QString canonicalSnapshot(const RuntimeFacts& facts, const QJsonArray& view, qint64 version) {
-  QJsonObject root;
-  root.insert(QStringLiteral("version"), version);
-  root.insert(QStringLiteral("executors"), QJsonArray::fromStringList(sorted(facts.executorIds)));
-  root.insert(QStringLiteral("verificationAdapters"), QJsonArray::fromStringList(sorted(facts.verificationAdapterIds)));
-  root.insert(QStringLiteral("targetTypes"), QJsonArray::fromStringList(sorted(facts.targetTypes)));
-  root.insert(QStringLiteral("capabilities"), view);
-  return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
+QString canonicalSnapshot(const QJsonArray& view, qint64 version) {
+  QStringList ids;
+  for (const auto& entry : view) {
+    const auto object = entry.toObject();
+    ids.push_back(object.value(QStringLiteral("id")).toString() + QStringLiteral("@") + object.value(QStringLiteral("version")).toString());
+  }
+  std::sort(ids.begin(), ids.end());
+  return QStringLiteral("orbit.capability-snapshot.v1|%1|%2").arg(version).arg(ids.join(QStringLiteral(",")));
+}
+
+QString fnv1a64(const QByteArray& value) {
+  quint64 hash = 0xcbf29ce484222325ULL;
+  for (const auto byte : value) {
+    hash ^= static_cast<unsigned char>(byte);
+    hash *= 0x100000001b3ULL;
+  }
+  return QString::number(hash, 16).rightJustified(16, QLatin1Char('0'));
 }
 
 }  // namespace
@@ -71,6 +87,14 @@ QJsonObject CapabilityContract::toJson() const {
           {QStringLiteral("inputSchema"), inputSchema},
           {QStringLiteral("targetTypes"), QJsonArray::fromStringList(targetTypes)},
           {QStringLiteral("permissionCategory"), permissionCategory},
+          {QStringLiteral("mutatesProject"), mutatesProject},
+          {QStringLiteral("externalSideEffects"), QJsonArray::fromStringList(externalSideEffects)},
+          {QStringLiteral("selectionPolicy"), selectionPolicy},
+          {QStringLiteral("unitPolicy"), unitPolicy},
+          {QStringLiteral("coalescingPolicy"), coalescingPolicy},
+          {QStringLiteral("lockPolicy"), lockPolicy},
+          {QStringLiteral("playbackPolicy"), playbackPolicy},
+          {QStringLiteral("limits"), limits},
           {QStringLiteral("undoScope"), undoScope},
           {QStringLiteral("collisionPolicy"), collisionPolicy},
           {QStringLiteral("trackPlacementPolicy"), trackPlacementPolicy},
@@ -214,7 +238,8 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
   }
   snapshot.modelCapabilities = view;
   snapshot.enabledIds = sorted(ids);
-  snapshot.hash = QStringLiteral("sha256:%1").arg(QString::fromLatin1(QCryptographicHash::hash(canonicalSnapshot(facts, view, snapshot.version).toUtf8(), QCryptographicHash::Sha256).toHex()));
+  snapshot.canonicalJson = canonicalSnapshot(view, snapshot.version);
+  snapshot.hash = QStringLiteral("fnv1a64:%1").arg(fnv1a64(snapshot.canonicalJson.toUtf8()));
   snapshot.valid = true;
   return snapshot;
 }
