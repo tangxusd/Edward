@@ -180,6 +180,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
   auto* buffer = new QByteArray;
   auto* aggregate = new QString;
   auto* sequence = new qint64(0);
+  auto* upstreamSequence = new qint64(0);
   auto* terminal = new bool(false);
   auto* eventCount = new int(0);
   auto* firstByte = new bool(false);
@@ -216,7 +217,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
     emit completed(false, QStringLiteral("AI 流式响应空闲超时"));
     reply->abort();
   });
-  connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, aggregate, sequence, terminal,
+  connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, aggregate, sequence, upstreamSequence, terminal,
                                                      eventCount, firstByte, firstByteTimer, idleTimer,
                                                      requestId, protocol = config.protocol] {
     if (*terminal) return;
@@ -253,6 +254,13 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
         reply->abort();
         return;
       }
+      const auto incomingSequence = event.value(QStringLiteral("sequence")).toVariant().toLongLong() > 0
+          ? event.value(QStringLiteral("sequence")).toVariant().toLongLong()
+          : event.value(QStringLiteral("index")).toVariant().toLongLong();
+      if (incomingSequence > 0) {
+        if (incomingSequence <= *upstreamSequence) continue;
+        *upstreamSequence = incomingSequence;
+      }
       QString delta;
       if (protocol == QStringLiteral("anthropic-messages")) {
         if (event.value(QStringLiteral("type")).toString() == QStringLiteral("content_block_delta"))
@@ -278,7 +286,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       emit chunk(delta);
     }
   });
-  connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, aggregate, sequence, terminal,
+  connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, aggregate, sequence, upstreamSequence, terminal,
                                                    eventCount, firstByte, overallTimer, firstByteTimer, idleTimer,
                                                    requestId, protocol = config.protocol] {
     if (!reply->isFinished()) return;
@@ -291,7 +299,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
     }
     if (wasTerminal) {
       overallTimer->stop(); firstByteTimer->stop(); idleTimer->stop();
-      delete buffer; delete aggregate; delete sequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
+      delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
       return;
     }
     if (!buffer->isEmpty()) {
@@ -331,7 +339,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       emit completed(true, *aggregate);
     }
     overallTimer->stop(); firstByteTimer->stop(); idleTimer->stop();
-    delete buffer; delete aggregate; delete sequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
+    delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
   });
   return true;
 }
