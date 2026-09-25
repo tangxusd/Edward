@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSaveFile>
+#include <QStringList>
 
 namespace edward::desktop {
 AiMemoryStore::AiMemoryStore(QString userRoot, QString projectRoot, QString sessionRoot)
@@ -32,4 +33,23 @@ bool AiMemoryStore::append(MemoryScope scope, const QString& text, QString* erro
   if (!file.commit()) { if (error) *error = file.errorString(); return false; } return true;
 }
 bool AiMemoryStore::clear(MemoryScope scope, QString* error) { QFile file(path(scope)); if (!file.exists()) return true; if (!file.remove()) { if (error) *error = file.errorString(); return false; } return true; }
+bool AiMemoryStore::upsert(const MemoryEntry& entry, QString* error) {
+  if (entry.id.isEmpty()) { if (error) *error = "memory id is required"; return false; }
+  return append(entry.scope, QStringLiteral("[%1] %2").arg(entry.id, entry.value), error);
+}
+bool AiMemoryStore::remove(const QString& id, QString* error) {
+  if (id.isEmpty()) { if (error) *error = "memory id is required"; return false; }
+  for (const auto scopeValue : {MemoryScope::User, MemoryScope::Project, MemoryScope::Session}) {
+    const auto content = read(scopeValue, error);
+    if (!error || error->isEmpty()) {
+      QStringList kept;
+      for (const auto& line : content.split('\n')) if (!line.startsWith(QStringLiteral("[%1] ").arg(id))) kept.push_back(line);
+      const auto target = path(scopeValue);
+      if (!QFileInfo::exists(target)) continue;
+      QSaveFile file(target); if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) { if (error) *error = file.errorString(); return false; }
+      file.write(kept.join('\n').toUtf8()); if (!file.commit()) { if (error) *error = file.errorString(); return false; }
+    }
+  }
+  return true;
+}
 }  // namespace edward::desktop
