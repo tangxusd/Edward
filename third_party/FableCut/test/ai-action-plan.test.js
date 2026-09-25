@@ -61,6 +61,7 @@ test("ActionPlan inserts a verified native component onto the first free upper t
   assert.equal(result.clips[1].track, "V3");
   assert.equal(result.clips[1].componentId, resource.id);
   assert.deepEqual(clips, [{ id: "c_existing", kind: "component", track: "V2", start: 2, duration: 3, props: {} }]);
+  assert.ok(result.receipt.affectedIds.includes(result.clips[1].id));
 });
 
 test("ActionPlan adds a new upper video track instead of reporting a collision", () => {

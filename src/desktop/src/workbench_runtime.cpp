@@ -16,6 +16,7 @@
 #include <QSysInfo>
 #include <QUrl>
 #include <QVariantMap>
+#include <QUuid>
 
 namespace edward::desktop {
 
@@ -615,7 +616,8 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
   snapshot.capabilitySetHash = pendingAiCapabilities_.hash;
   const auto snapshotHash = QCryptographicHash::hash(projectSnapshot.toUtf8(), QCryptographicHash::Sha256).toHex();
   snapshot.referenceSnapshotId = QStringLiteral("ref-%1").arg(QString::fromLatin1(snapshotHash.left(24)));
-  pendingAiLedgerEntry_ = executionLedger_.begin({QStringLiteral("orbit-project"), snapshot.referenceSnapshotId,
+  const auto hostRequestId = QStringLiteral("req-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+  pendingAiLedgerEntry_ = executionLedger_.begin({QStringLiteral("orbit-project"), hostRequestId,
                                                    QString::fromLatin1(snapshotHash)}, nullptr);
 
   pendingAiReferences_ = {};
@@ -796,6 +798,12 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
       config, QStringLiteral("You are Orbit, a video editing assistant. Answer in concise Chinese. Treat the supplied Orbit editing context and its capabilities list as the program contract. Translate visible user intent into edward.intent-plan.v1 using only symbolic targetRef values and raw user units in arguments. Never emit targetId, revisions, fps, durationFrames, paths, credentials, network actions, shell commands, or bound action plans. Only the host resolver may bind and execute a plan. For ordinary questions, return concise text only."),
       contextualPrompt);
   if (!accepted) {
+    if (!pendingAiLedgerEntry_.transactionId.isEmpty()) {
+      pendingAiLedgerEntry_.state = edward::desktop::LedgerState::Failed;
+      pendingAiLedgerEntry_.summary = QStringLiteral("stream request was not accepted");
+      executionLedger_.append(pendingAiLedgerEntry_);
+      pendingAiLedgerEntry_ = {};
+    }
     aiChatRequestActive_ = false;
     aiRequestBusy_ = false;
     aiRequestStage_ = QStringLiteral("failed");

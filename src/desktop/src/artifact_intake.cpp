@@ -41,10 +41,14 @@ ArtifactPackage ArtifactIntake::inspect(const QString& root, QString* error) {
   const QFileInfo entryInfo(QDir(result.root).filePath(entry));
   if (!entryInfo.exists() || !entryInfo.isFile() || entryInfo.isSymLink() || entryInfo.canonicalFilePath().startsWith(result.root + "/") == false) { fail(error, "artifact entry is missing or outside root"); return {}; }
   result.entry = entry;
+  constexpr qint64 kMaxFileBytes = 32 * 1024 * 1024;
+  constexpr qint64 kMaxPackageBytes = 256 * 1024 * 1024;
+  qint64 totalBytes = 0;
   QDirIterator it(result.root, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
   while (it.hasNext()) {
     const QFileInfo info(it.next());
     if (info.isSymLink()) { fail(error, "artifact contains a symlink"); return {}; }
+    if (info.size() > kMaxFileBytes || (totalBytes += info.size()) > kMaxPackageBytes) { fail(error, "artifact exceeds size limits"); return {}; }
     QFile file(info.filePath());
     if (!file.open(QIODevice::ReadOnly)) { fail(error, "artifact file cannot be read"); return {}; }
     const auto data = file.readAll();

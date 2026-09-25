@@ -102,8 +102,8 @@
       if (!allowedFields(operation, ["type", "targetId", "timelineStart"]) || !text("targetId") || !Number.isInteger(operation.timelineStart) || operation.timelineStart < 0) fail("AI 移动参数无效");
     } else if (operation.type === "resize_clip") {
       if (!allowedFields(operation, ["type", "targetId", "durationFrames"]) || !text("targetId") || !Number.isInteger(operation.durationFrames) || operation.durationFrames < 1) fail("AI 时长参数无效");
-    } else if (operation.type === "remove_clip" && (!allowedFields(operation, ["type", "targetId"]) || !text("targetId"))) {
-      fail("AI 删除参数无效");
+    } else if (operation.type === "remove_clip") {
+      if (!allowedFields(operation, ["type", "targetId"]) || !text("targetId")) fail("AI 删除参数无效");
     } else if (operation.type === "insert_media") {
       if (!allowedFields(operation, ["type", "mediaId", "kind", "timelineStart", "durationFrames", "track"]) || !text("mediaId") ||
           (operation.timelineStart != null && (!Number.isInteger(operation.timelineStart) || operation.timelineStart < 0)) ||
@@ -131,6 +131,8 @@
       if (!allowedFields(operation, ["type", "markerId", "color"]) || !text("markerId") || (operation.type === "set_marker_color" && !text("color"))) fail("AI 标记参数无效");
     } else if (operation.type === "close_gap") {
       if (!allowedFields(operation, ["type", "track", "startFrame", "endFrame"]) || !text("track") || !Number.isInteger(operation.startFrame) || !Number.isInteger(operation.endFrame) || operation.startFrame < 0 || operation.endFrame <= operation.startFrame) fail("AI 闭合间隙参数无效");
+    } else {
+      fail(`AI 能力 ${operation.type} 尚未接入统一执行器`);
     }
   }
   function validateTarget(contract, operation, target, context, tracks, markers) {
@@ -202,11 +204,14 @@
     const resources = new Map((context.resources || []).map((item) => [item.id, item]));
     const media = new Map((context.media || []).map((item) => [item.id, item]));
     const markers = clone(context.project.markers || []);
+    const affectedIds = new Set();
     const fps = Number(context.project.fps || 30);
     if (!(fps > 0)) fail("项目帧率无效");
     for (const rawOperation of plan.operations) {
       const operation = materializeBoundOperation(rawOperation);
       validateOperation(operation, allowedTypes);
+      if (operation.targetId) affectedIds.add(String(operation.targetId));
+      if (operation.markerId) affectedIds.add(String(operation.markerId));
       const target = clips.find((clip) => clip.id === operation.targetId);
       validateTarget(contractMap.get(operation.type), operation, target, context, tracks, markers);
       if (operation.type === "insert_native_component") {
@@ -216,8 +221,10 @@
         const duration = Number(props.duration || 3);
         const start = Number(context.playhead || 0);
         if (!(duration > 0) || start < 0) fail("组件默认时长无效");
+        const insertedId = context.nextClipId();
+        affectedIds.add(String(insertedId));
         clips.push({
-          id: context.nextClipId(), mediaId: null, kind: "component", componentId: manifest.id,
+          id: insertedId, mediaId: null, kind: "component", componentId: manifest.id,
           runtime: manifest.runtime, source: manifest.entry, track: chooseTrack(clips, tracks, "V2", start, duration, null, context.maxTracks || 16),
           start, in: 0, duration, name: manifest.name || manifest.id, props,
         });
@@ -233,12 +240,16 @@
         if (!track || !canPlace(clips, track, start, duration, null)) {
           track = chooseTrack(clips, tracks, operation.track, start, duration, null, context.maxTracks || 16, trackKind);
         }
-        clips.push({ id: context.nextClipId(), mediaId: source.id, kind, track, start, in: 0, duration, name: source.name || source.id, props: {} });
+        const insertedId = context.nextClipId();
+        affectedIds.add(String(insertedId));
+        clips.push({ id: insertedId, mediaId: source.id, kind, track, start, in: 0, duration, name: source.name || source.id, props: {} });
       } else if (operation.type === "insert_text" || operation.type === "insert_subtitle") {
         const start = (operation.timelineStart ?? Math.round(Number(context.playhead || 0) * fps)) / fps;
         const duration = (operation.durationFrames || Math.round(fps * 3)) / fps;
         const track = operation.track || chooseTrack(clips, tracks, operation.track, start, duration, null, context.maxTracks || 16, "video");
-        clips.push({ id: context.nextClipId(), mediaId: null, kind: operation.type === "insert_subtitle" ? "subtitle" : "text", track, start, in: 0, duration, name: operation.type === "insert_subtitle" ? "字幕" : "文字", text: operation.text, props: clone(operation.props || {}) });
+        const insertedId = context.nextClipId();
+        affectedIds.add(String(insertedId));
+        clips.push({ id: insertedId, mediaId: null, kind: operation.type === "insert_subtitle" ? "subtitle" : "text", track, start, in: 0, duration, name: operation.type === "insert_subtitle" ? "字幕" : "文字", text: operation.text, props: clone(operation.props || {}) });
       } else if (operation.type === "create_marker") {
         const marker = { markerId: `m_${context.nextMarkerId ? context.nextMarkerId() : Date.now()}`, t: operation.timelineFrame / fps, label: operation.label || "", color: operation.color || "blue" };
         if (operation.clipId) { marker.clipId = operation.clipId; marker.localFrame = operation.localFrame ?? operation.timelineFrame; }
@@ -278,13 +289,14 @@
         } else if (operation.type === "duplicate_clip") {
           const copy = clone(target);
           copy.id = context.nextClipId();
+          affectedIds.add(String(copy.id));
           copy.start = operation.timelineStart != null ? operation.timelineStart / fps : Number(target.start) + Number(target.duration);
           if (operation.track) copy.track = operation.track;
           clips.push(copy);
         } else if (operation.type === "split_clip") {
           const at = operation.atFrame / fps;
           if (!(at > Number(target.start) && at < Number(target.start) + Number(target.duration))) fail("AI 分割点不在片段内");
-          const right = clone(target); right.id = context.nextClipId(); right.start = at; right.in = Number(target.in || 0) + (at - Number(target.start)) * Number(target.speed || 1); right.duration = Number(target.start) + Number(target.duration) - at; target.duration = at - Number(target.start); clips.push(right);
+          const right = clone(target); right.id = context.nextClipId(); affectedIds.add(String(right.id)); right.start = at; right.in = Number(target.in || 0) + (at - Number(target.start)) * Number(target.speed || 1); right.duration = Number(target.start) + Number(target.duration) - at; target.duration = at - Number(target.start); clips.push(right);
         } else if (operation.type === "trim_head") {
           const at = operation.atFrame / fps; const end = Number(target.start) + Number(target.duration);
           if (!(at > Number(target.start) && at < end)) fail("AI 头部裁剪点无效");
@@ -302,7 +314,7 @@
       clips, tracks, markers,
       receipt: {
         requestId: String(plan.requestId), schemaVersion: plan.schemaVersion,
-        operationCount: plan.operations.length, affectedClipIds: clips.map((clip) => clip.id),
+        operationCount: plan.operations.length, affectedIds: [...affectedIds],
         markerCount: markers.length, reversible: true,
       },
     };

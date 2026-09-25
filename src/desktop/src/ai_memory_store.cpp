@@ -16,8 +16,10 @@ QString AiMemoryStore::path(MemoryScope scope) const {
 }
 bool AiMemoryStore::safeText(const QString& text) {
   const auto v = text.toLower();
-  return !v.contains("api_key") && !v.contains("access_token") && !v.contains("password") &&
-         !v.contains("authorization") && !v.contains("capability") && !v.contains("permission");
+  return !v.contains("api_key") && !v.contains("api-key") && !v.contains("access_token") &&
+         !v.contains("access-token") && !v.contains("password") && !v.contains("authorization") &&
+         !v.contains("bearer ") && !v.contains("secret") && !v.contains("credential") &&
+         !v.contains("capability") && !v.contains("permission");
 }
 QString AiMemoryStore::read(MemoryScope scope, QString* error) const {
   QFile file(path(scope));
