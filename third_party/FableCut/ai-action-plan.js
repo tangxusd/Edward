@@ -27,12 +27,13 @@
       fail("能力注册表 contractIds 未规范化排序");
     }
     const canonicalObject = { schemaVersion: snapshot.schemaVersion, version: snapshot.version, contractIds: ids, capabilities: snapshot.capabilities };
-    const canonical = JSON.stringify(canonicalObject);
+    const canonical = typeof snapshot.canonicalText === "string" ? snapshot.canonicalText : JSON.stringify(canonicalObject);
     if (snapshot.hash !== `fnv1a64:${fnv1a64(canonical)}`) fail("能力注册表快照 hash 不一致");
     if (!snapshot.canonical || snapshot.canonical.schemaVersion !== snapshot.schemaVersion ||
         snapshot.canonical.version !== snapshot.version ||
         JSON.stringify(snapshot.canonical.contractIds) !== JSON.stringify(ids) ||
-        JSON.stringify(snapshot.canonical.capabilities) !== JSON.stringify(snapshot.capabilities)) {
+        JSON.stringify(snapshot.canonical.capabilities) !== JSON.stringify(snapshot.capabilities) ||
+        (snapshot.canonicalText && snapshot.canonical.canonicalText && snapshot.canonical.canonicalText !== snapshot.canonicalText)) {
       fail("能力注册表 canonical 快照不一致");
     }
     if (snapshot.capabilities.length !== ids.length || snapshot.capabilities.some((item, index) => `${item.id}@${item.version}` !== ids[index])) {
@@ -134,8 +135,9 @@
   }
   function validateTarget(contract, operation, target, context, tracks, markers) {
     const targets = new Set(contract.targetTypes || []);
-    if ((targets.has("selected_clip") || targets.has("selected_component") || targets.has("selected_audio")) && !target) fail("AI 操作目标已不存在");
-    if (targets.has("selected_clip") && (!target || !["video", "audio", "component", "text", "subtitle"].includes(target.kind))) fail("AI 目标不是可编辑片段");
+    const selectedClipOptional = operation.type === "create_marker" && !operation.clipId;
+    if ((targets.has("selected_clip") || targets.has("selected_component") || targets.has("selected_audio")) && !target && !selectedClipOptional) fail("AI 操作目标已不存在");
+    if (targets.has("selected_clip") && !selectedClipOptional && (!target || !["video", "audio", "component", "text", "subtitle"].includes(target.kind))) fail("AI 目标不是可编辑片段");
     if (targets.has("selected_component") && (!target || target.kind !== "component")) fail("AI 目标不是组件");
     if (targets.has("selected_audio") && (!target || target.kind !== "audio")) fail("AI 目标不是音频");
     if (targets.has("marker") && !markers.some((marker) => String(marker.markerId || marker.id || marker.label) === String(operation.markerId))) fail("AI 标记不存在");

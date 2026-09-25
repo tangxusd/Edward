@@ -3,6 +3,7 @@
 #include <QJsonDocument>
 
 #include <cassert>
+#include <iostream>
 
 using edward::ai::CapabilityContract;
 using edward::ai::CapabilityRegistry;
@@ -129,7 +130,13 @@ void testSnapshotJsonIsCanonicalAndVersioned() {
 }
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+  if (argc > 1 && QString::fromLocal8Bit(argv[1]) == QStringLiteral("--dump-capability-snapshot")) {
+    const auto snapshot = CapabilityRegistry::builtIn().snapshot(facts());
+    if (!snapshot.valid) return 2;
+    std::cout << QJsonDocument(snapshot.toJson()).toJson(QJsonDocument::Compact).toStdString() << '\n';
+    return 0;
+  }
   testStableSnapshotHash();
   testRegistryRejectsDuplicateAndMissingRuntimeParts();
   testReplacementCyclesAreRejected();

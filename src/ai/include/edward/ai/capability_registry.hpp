@@ -59,6 +59,7 @@ struct CapabilitySnapshot final {
   qint64 version = 0;
   QString hash;
   QStringList contractIds;
+  QString canonicalText;
   QJsonObject canonicalJson;
   QJsonArray modelCapabilities;
   QStringList enabledIds;

@@ -112,6 +112,7 @@ QJsonObject CapabilitySnapshot::toJson() const {
   return {{QStringLiteral("schemaVersion"), schemaVersion},
           {QStringLiteral("version"), version},
           {QStringLiteral("contractIds"), QJsonArray::fromStringList(contractIds)},
+          {QStringLiteral("canonicalText"), canonicalText},
           {QStringLiteral("capabilities"), modelCapabilities},
           {QStringLiteral("canonical"), canonicalJson},
           {QStringLiteral("hash"), hash}};
@@ -262,7 +263,7 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
   snapshot.modelCapabilities = view;
   snapshot.contractIds = sorted(ids);
   snapshot.enabledIds = snapshot.contractIds;
-  const auto canonicalText = QString::fromUtf8(QJsonDocument(QJsonObject{
+  snapshot.canonicalText = QString::fromUtf8(QJsonDocument(QJsonObject{
       {QStringLiteral("schemaVersion"), snapshot.schemaVersion},
       {QStringLiteral("version"), snapshot.version},
       {QStringLiteral("contractIds"), QJsonArray::fromStringList(snapshot.contractIds)},
@@ -270,8 +271,9 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
   snapshot.canonicalJson = QJsonObject{{QStringLiteral("schemaVersion"), snapshot.schemaVersion},
                                        {QStringLiteral("version"), snapshot.version},
                                        {QStringLiteral("contractIds"), QJsonArray::fromStringList(snapshot.contractIds)},
+                                       {QStringLiteral("canonicalText"), snapshot.canonicalText},
                                        {QStringLiteral("capabilities"), snapshot.modelCapabilities}};
-  snapshot.hash = QStringLiteral("fnv1a64:%1").arg(fnv1a64(canonicalText.toUtf8()));
+  snapshot.hash = QStringLiteral("fnv1a64:%1").arg(fnv1a64(snapshot.canonicalText.toUtf8()));
   snapshot.valid = true;
   return snapshot;
 }
