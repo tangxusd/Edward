@@ -75,7 +75,9 @@ int main() {
                                                {{QStringLiteral("linkedMediaPolicy"), QStringLiteral("ignore")}}),
                                          snapshot, capabilitySnapshot);
     assert(result.succeeded());
-    assert(result.plan->operations.size() == 1);
+    assert(result.plan->operations.size() == 2);
+    assert(result.plan->operations.at(0).toObject().value(QStringLiteral("target")).toObject().value(QStringLiteral("id")).toString() == QStringLiteral("clip-a"));
+    assert(result.plan->operations.at(1).toObject().value(QStringLiteral("target")).toObject().value(QStringLiteral("id")).toString() == QStringLiteral("clip-b"));
     assert(result.readSet.contains(QStringLiteral("clip-a")) && result.readSet.contains(QStringLiteral("clip-b")));
     assert(!result.readSet.contains(QStringLiteral("audio-a")));
   }
