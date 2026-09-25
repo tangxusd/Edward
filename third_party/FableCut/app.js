@@ -9704,8 +9704,19 @@ function verifyAiVisibleState(receipt, revisionBefore) {
   if (!receipt || !Number.isInteger(Number(receipt.operationCount)) || receipt.operationCount < 1) return false;
   if (Number(project.revision || 0) <= Number(revisionBefore || 0)) return false;
   const ids = new Set((project.clips || []).map((clip) => String(clip.id)));
-  if ((receipt.affectedClipIds || []).some((id) => !ids.has(String(id)))) return false;
-  return !!document.querySelector("#preview") && !!document.querySelector(".timeline");
+  const affected = Array.isArray(receipt.affectedIds) ? receipt.affectedIds.map(String) : [];
+  // Removed clips are expected to disappear; surviving targets must remain
+  // addressable. Never validate against a non-existent receipt field.
+  const removed = new Set((receipt.removedIds || []).map(String));
+  if (affected.some((id) => !ids.has(id) && !removed.has(id))) return false;
+  const preview = document.querySelector("#preview");
+  const timeline = document.querySelector(".timeline");
+  if (!preview || !timeline || !(preview instanceof HTMLCanvasElement)) return false;
+  if (!(preview.width > 0 && preview.height > 0)) return false;
+  if (!Number.isFinite(Number(state.time))) return false;
+  // The UI must expose the same revision that the transaction committed.
+  if (Number(receipt.revisionAfter || 0) !== Number(project.revision || 0)) return false;
+  return true;
 }
 function createRenderSnapshot(sourceProject = project, receipt = null) {
   const snapshot = JSON.parse(JSON.stringify(sourceProject));
