@@ -59,16 +59,20 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
     QJsonObject contract;
     for (const auto& candidate : contracts) if (candidate.toObject().value(QStringLiteral("id")).toString() == capability) { contract = candidate.toObject(); break; }
     if (contract.isEmpty()) { fail(result, ResolutionErrorCode::CapabilityUnavailable, QStringLiteral("capability is unavailable"), intentId, selector); return result; }
-    const auto clips = selectClips(selector, ref, references);
+    auto clips = selectClips(selector, ref, references);
+    if (selector == QStringLiteral("playhead_clip") && clips.size() > 1) { fail(result, ResolutionErrorCode::TargetAmbiguous, QStringLiteral("playhead intersects multiple clips"), intentId, selector); return result; }
+    if (selector == QStringLiteral("selected_component")) { clips.clear(); for (const auto& id : references.selectedComponentIds) if (const auto* clip = references.clip(id)) clips.push_back(clip); }
+    if (selector == QStringLiteral("selected_audio")) { clips.clear(); for (const auto& id : references.selectedMediaIds) if (const auto* clip = references.clip(id)) clips.push_back(clip); }
     if ((selector == QStringLiteral("selected_clip") || selector == QStringLiteral("selected_clips")) && clips.size() != 1) { fail(result, clips.isEmpty() ? ResolutionErrorCode::TargetNotFound : ResolutionErrorCode::TargetAmbiguous, QStringLiteral("selection must resolve to one clip"), intentId, selector); return result; }
     QString targetId;
     QString targetKind = selector;
     if (!clips.isEmpty()) { targetId = clips.first()->id; targetKind = QStringLiteral("selected_clip"); if (clips.first()->locked) { fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("target is locked"), intentId, selector); return result; } }
     else if (selector == QStringLiteral("timeline") || selector == QStringLiteral("current_track")) { targetId = selector == QStringLiteral("timeline") ? QStringLiteral("timeline") : references.currentTrackId; targetKind = selector; }
-    else if (selector.startsWith(QStringLiteral("global_marker"))) {
+    else if (selector.startsWith(QStringLiteral("global_marker")) || selector.startsWith(QStringLiteral("clip_marker"))) {
       const auto match = QRegularExpression(QStringLiteral("\\((\\d+)\\)")).match(selector);
       const int number = match.hasMatch() ? match.captured(1).toInt() : ref.value(QStringLiteral("label")).toInt(ref.value(QStringLiteral("index")).toInt(-1));
-      for (const auto& marker : references.markers) if (marker.scope == QStringLiteral("timeline") && marker.displayNumber == number) { targetId = marker.markerId; targetKind = QStringLiteral("marker"); break; }
+      const bool clipMarker = selector.startsWith(QStringLiteral("clip_marker"));
+      for (const auto& marker : references.markers) if (marker.scope == (clipMarker ? QStringLiteral("clip") : QStringLiteral("timeline")) && marker.displayNumber == number) { targetId = marker.markerId; targetKind = QStringLiteral("marker"); break; }
       if (targetId.isEmpty()) { fail(result, ResolutionErrorCode::TargetNotFound, QStringLiteral("marker not found"), intentId, selector); return result; }
     }
     if (targetId.isEmpty()) { fail(result, ResolutionErrorCode::TargetNotFound, QStringLiteral("symbolic target not found"), intentId, selector); return result; }
@@ -79,9 +83,13 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
       if (!(seconds > 0) || !qIsFinite(seconds)) { fail(result, ResolutionErrorCode::FrameInvalid, QStringLiteral("duration must be positive"), intentId, selector); return result; }
       args.remove(QStringLiteral("durationSeconds")); args.insert(QStringLiteral("durationFrames"), qRound64(seconds * references.fps));
     }
+    const auto targetTrack = !clips.isEmpty() ? references.track(clips.first()->trackId) : nullptr;
+    if (targetTrack && targetTrack->locked) { fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("track is locked"), intentId, selector); return result; }
     const auto evidence = QJsonObject{{QStringLiteral("referenceSnapshotId"), references.referenceSnapshotId}, {QStringLiteral("selector"), selector}, {QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("markerId"), targetKind == QStringLiteral("marker") ? targetId : QString()}};
     result.resolutionEvidence.append(evidence);
-    operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), QJsonObject{{QStringLiteral("collisionPolicy"), contract.value(QStringLiteral("collisionPolicy"))}, {QStringLiteral("trackPlacementPolicy"), contract.value(QStringLiteral("trackPlacementPolicy"))}, {QStringLiteral("linkedMediaPolicy"), contract.value(QStringLiteral("linkedMediaPolicy"))}, {QStringLiteral("markerPolicy"), contract.value(QStringLiteral("markerPolicy"))}}}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}}}}, {QStringLiteral("readSet"), QJsonArray{targetId}}, {QStringLiteral("writeSet"), QJsonArray{targetId}}, {QStringLiteral("resolutionEvidence"), evidence}});
+    QJsonArray readSet{targetId}, writeSet{targetId};
+    if (!clips.isEmpty()) for (const auto& linked : clips.first()->linkedClipIds) { readSet.append(linked); writeSet.append(linked); }
+    operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), QJsonObject{{QStringLiteral("collisionPolicy"), contract.value(QStringLiteral("collisionPolicy"))}, {QStringLiteral("trackPlacementPolicy"), contract.value(QStringLiteral("trackPlacementPolicy"))}, {QStringLiteral("linkedMediaPolicy"), contract.value(QStringLiteral("linkedMediaPolicy"))}, {QStringLiteral("markerPolicy"), contract.value(QStringLiteral("markerPolicy"))}}}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("targetVersion"), !clips.isEmpty() ? clips.first()->version : 0}}}}, {QStringLiteral("readSet"), readSet}, {QStringLiteral("writeSet"), writeSet}, {QStringLiteral("resolutionEvidence"), evidence}});
   }
   ActionPlan plan; plan.schemaVersion = QStringLiteral("orbit.bound-action-plan.v2"); plan.requestId = intent.requestId; plan.baseProjectRevision = references.projectRevision; plan.referenceSnapshotId = references.referenceSnapshotId; plan.capabilitySet = {{QStringLiteral("version"), capabilities.version}, {QStringLiteral("hash"), capabilities.hash}}; plan.operations = operations; result.plan = plan; return result;
 }
