@@ -1,5 +1,6 @@
 add_library(edward_ai STATIC
   src/action_plan.cpp
+  src/intent_plan.cpp
   src/ai_transaction.cpp
   src/rule_file_loader.cpp
   src/memory_store.cpp
