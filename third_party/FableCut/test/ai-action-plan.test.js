@@ -14,7 +14,7 @@ const capabilitySnapshot = {
   schemaVersion: "orbit.capability-snapshot.v1", version: 1, contractIds: capabilityIds,
   capabilities: capabilityIds.map((value) => {
     const id = value.slice(0, -2);
-    const target = id === "create_marker" ? "timeline" : (id.includes("marker") ? "marker" : (id.startsWith("insert") ? "playhead" : "selected_clip"));
+    const target = id === "create_marker" ? "timeline" : (id === "close_gap" ? "track" : (id.includes("marker") ? "marker" : (id.startsWith("insert") ? "playhead" : "selected_clip")));
     const fieldNames = id === "create_marker" ? ["timelineFrame", "label", "color", "clipId", "localFrame"] : [];
     return { id, version: "1", inputSchema: { type: "object", properties: Object.fromEntries(fieldNames.map((field) => [field, { type: "any" }])) }, targetTypes: [target], permissionCategory: id.includes("marker") ? "marker.write" : "project.write", mutatesProject: true, externalSideEffects: [], selectionPolicy: "explicit_or_resolved", unitPolicy: "frames_at_project_fps", coalescingPolicy: "one_transaction", lockPolicy: "reject_locked", playbackPolicy: "preserve_playhead", limits: { maxOperations: 64, maxTargets: 64 }, undoScope: "project_transaction", collisionPolicy: "fail", trackPlacementPolicy: "specified_or_auto", linkedMediaPolicy: "preserve_linked", taskPolicy: { mode: "synchronous", resourceClass: "cpu", priority: 50, cancellableUntil: "commit", resumable: false, maxConcurrency: 1, diskReservation: 0, progressAdapter: "none" }, executionMode: "local_transaction", reversibility: "undoable", allowedPolicies: ["collision", "trackPlacement", "linkedMedia", "marker"], markerPolicy: "preserve", validate: "schema_and_target", execute: "timeline_executor", postconditions: ["project_hash_changed", "visible_state_verified"], preview: "timeline_preview", render: "timeline_render", verificationAdapter: "timeline.visible" };
   }),
@@ -121,4 +121,35 @@ test("C++ bound operation shape is materialized by the single frontend executor"
       resolutionEvidence: { referenceSnapshotId: "ref-1" } }],
   }, { ...context(clips), project: { ...context(clips).project, clips } });
   assert.equal(result.clips[0].duration, 2);
+});
+
+test("capability matrix executes subtitle, audio, marker, and gap operations", () => {
+  const clips = [
+    { id: "c_audio", kind: "audio", track: "A1", start: 0, duration: 4, props: {} },
+    { id: "c_later", kind: "video", track: "V1", start: 2, duration: 1, props: {} },
+  ];
+  const result = apply(plan([
+    { type: "insert_subtitle", text: "字幕", timelineStart: 0, durationFrames: 30, track: "V1" },
+    { type: "set_audio_props", targetId: "c_audio", props: { volume: 0.5 } },
+    { type: "create_marker", timelineFrame: 30, label: "beat", color: "blue" },
+    { type: "close_gap", track: "V1", startFrame: 0, endFrame: 30 },
+  ]), { ...context(clips), project: { revision: 7, fps: 30, clips, markers: [] }, media: [] });
+  assert.equal(result.clips.find((clip) => clip.name === "字幕").kind, "subtitle");
+  assert.equal(result.clips[0].props.volume, 0.5);
+  assert.equal(result.clips.find((clip) => clip.id === "c_later").start, 1);
+  assert.equal(result.markers.length, 1);
+
+  const markerId = result.markers[0].markerId;
+  assert.throws(() => apply(plan([
+    { type: "set_marker_color", markerId, color: "purple" },
+    { type: "delete_marker", markerId: "missing" },
+  ]), { ...context(result.clips), project: { revision: 7, fps: 30, clips: result.clips, markers: result.markers } }), /标记不存在/);
+  assert.equal(result.markers[0].color, "blue");
+});
+
+test("locked clips and tracks are rejected before any capability mutates the transaction", () => {
+  const clips = [{ id: "locked", kind: "video", track: "V1", start: 0, duration: 2, locked: true, props: {} }];
+  assert.throws(() => apply(plan([{ type: "resize_clip", targetId: "locked", durationFrames: 30 }]), context(clips)), /已锁定/);
+  const tracksWithLock = [{ id: "V1", kind: "video", locked: true }];
+  assert.throws(() => apply(plan([{ type: "close_gap", track: "V1", startFrame: 0, endFrame: 30 }]), { ...context(clips), tracks: tracksWithLock }), /已锁定/);
 });

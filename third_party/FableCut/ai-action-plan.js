@@ -137,11 +137,16 @@
     const targets = new Set(contract.targetTypes || []);
     const selectedClipOptional = operation.type === "create_marker" && !operation.clipId;
     if ((targets.has("selected_clip") || targets.has("selected_component") || targets.has("selected_audio")) && !target && !selectedClipOptional) fail("AI 操作目标已不存在");
+    if (target?.locked) fail("AI 操作目标已锁定");
     if (targets.has("selected_clip") && !selectedClipOptional && (!target || !["video", "audio", "component", "text", "subtitle"].includes(target.kind))) fail("AI 目标不是可编辑片段");
     if (targets.has("selected_component") && (!target || target.kind !== "component")) fail("AI 目标不是组件");
     if (targets.has("selected_audio") && (!target || target.kind !== "audio")) fail("AI 目标不是音频");
     if (targets.has("marker") && !markers.some((marker) => String(marker.markerId || marker.id || marker.label) === String(operation.markerId))) fail("AI 标记不存在");
-    if (targets.has("track") && !tracks.some((track) => String(track.id) === String(operation.track))) fail("AI 轨道不存在");
+    if (targets.has("track")) {
+      const track = tracks.find((item) => String(item.id) === String(operation.track));
+      if (!track) fail("AI 轨道不存在");
+      if (track.locked) fail("AI 操作轨道已锁定");
+    }
     if (targets.has("playhead") && (!Number.isFinite(Number(context.playhead)) || Number(context.playhead) < 0)) fail("AI 播放头位置无效");
     if (operation.type === "create_marker" && operation.clipId && !context.project.clips.some((clip) => String(clip.id) === String(operation.clipId))) fail("AI 素材级标记目标不存在");
   }
@@ -233,7 +238,7 @@
         const start = (operation.timelineStart ?? Math.round(Number(context.playhead || 0) * fps)) / fps;
         const duration = (operation.durationFrames || Math.round(fps * 3)) / fps;
         const track = operation.track || chooseTrack(clips, tracks, operation.track, start, duration, null, context.maxTracks || 16, "video");
-        clips.push({ id: context.nextClipId(), mediaId: null, kind: "text", track, start, in: 0, duration, name: operation.type === "insert_subtitle" ? "字幕" : "文字", text: operation.text, props: clone(operation.props || {}) });
+        clips.push({ id: context.nextClipId(), mediaId: null, kind: operation.type === "insert_subtitle" ? "subtitle" : "text", track, start, in: 0, duration, name: operation.type === "insert_subtitle" ? "字幕" : "文字", text: operation.text, props: clone(operation.props || {}) });
       } else if (operation.type === "create_marker") {
         const marker = { markerId: `m_${context.nextMarkerId ? context.nextMarkerId() : Date.now()}`, t: operation.timelineFrame / fps, label: operation.label || "", color: operation.color || "blue" };
         if (operation.clipId) { marker.clipId = operation.clipId; marker.localFrame = operation.localFrame ?? operation.timelineFrame; }
