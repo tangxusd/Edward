@@ -9628,6 +9628,13 @@ function setAiThinking(thinking) {
     }, 260);
   }
 }
+function verifyAiVisibleState(receipt, revisionBefore) {
+  if (!receipt || !Number.isInteger(Number(receipt.operationCount)) || receipt.operationCount < 1) return false;
+  if (Number(project.revision || 0) <= Number(revisionBefore || 0)) return false;
+  const ids = new Set((project.clips || []).map((clip) => String(clip.id)));
+  if ((receipt.affectedClipIds || []).some((id) => !ids.has(String(id)))) return false;
+  return !!document.querySelector("#preview") && !!document.querySelector(".timeline");
+}
 async function applyEdwardActionPlan(raw, bridge) {
   let plan;
   try { plan = JSON.parse(raw); } catch { throw new Error("AI 操作计划格式无效"); }
@@ -9636,6 +9643,7 @@ async function applyEdwardActionPlan(raw, bridge) {
   if (runtime.aiApplying) return;
   runtime.aiApplying = true;
   try {
+  const revisionBefore = Number(project.revision || 0);
   const transaction = window.edwardAiActionPlan.apply(plan, {
     project, resources: runtime.nativeAnnotationResources.items, media: project.media || [], tracks: TRACKS, playhead: state.time,
     capabilitySnapshot: window.edwardAiCapabilitySnapshot,
@@ -9653,6 +9661,9 @@ async function applyEdwardActionPlan(raw, bridge) {
   sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks(); project.markers = transaction.markers || project.markers || [];
   project.revision = Number(project.revision || 0) + 1;
   pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
+  receipt.previewVerified = verifyAiVisibleState(receipt, revisionBefore);
+  receipt.exportVerified = false;
+  if (!receipt.previewVerified) { undo(); runtime.lastAiUndoAvailable = false; throw new Error("AI 修改后的预览或时间线状态未验证"); }
   bridge.clearPendingAiActionPlan();
   if (requestId) runtime.aiAppliedPlanIds.add(requestId);
   runtime.aiLocalMessages.push({ user: false, text: `已执行 ${receipt.operationCount} 项修改，预览与时间线已更新，可撤销。` });
