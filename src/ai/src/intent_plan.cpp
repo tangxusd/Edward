@@ -5,6 +5,7 @@
 #include <QJsonValue>
 #include <QRegularExpression>
 #include <QSet>
+#include <cmath>
 
 namespace edward::ai {
 namespace {
@@ -18,6 +19,12 @@ void fail(QString* error, const QString& code, const QString& detail) {
 }
 
 bool nonEmptyString(const QJsonValue& value) { return value.isString() && !value.toString().isEmpty(); }
+
+bool nonNegativeInteger(const QJsonValue& value) {
+  if (!value.isDouble()) return false;
+  const auto number = value.toDouble();
+  return std::isfinite(number) && number >= 0 && std::floor(number) == number;
+}
 
 bool looksLikeLocalPath(const QString& value) {
   return value.startsWith('/') || value.startsWith('~') || value.startsWith(QStringLiteral("\\\\")) ||
@@ -81,7 +88,7 @@ bool validSelector(const QJsonObject& reference) {
   if (selector == QStringLiteral("global_marker")) {
     const auto label = reference.value(QStringLiteral("label"));
     const auto index = reference.value(QStringLiteral("index"));
-    return (label.isDouble() && label.toInteger(-1) >= 0) || (index.isDouble() && index.toInteger(-1) >= 0);
+    return nonNegativeInteger(label) != nonNegativeInteger(index);
   }
   return QRegularExpression(QStringLiteral("^global_marker\\([0-9]+\\)$")).match(selector).hasMatch() ||
          QRegularExpression(QStringLiteral("^clip_marker\\([0-9]+\\)$")).match(selector).hasMatch();
@@ -104,8 +111,13 @@ bool validReference(const QJsonValue& value, QString* detail) {
     if (detail) *detail = QStringLiteral("targetRef selector is not a supported symbolic reference");
     return false;
   }
+  const auto selector = reference.value(QStringLiteral("selector")).toString();
+  if (selector != QStringLiteral("global_marker") && (reference.contains(QStringLiteral("label")) || reference.contains(QStringLiteral("index")))) {
+    if (detail) *detail = QStringLiteral("marker label/index must not accompany an indexed selector");
+    return false;
+  }
   for (const auto& key : {QStringLiteral("label"), QStringLiteral("index")}) {
-    if (reference.contains(key) && (!reference.value(key).isDouble() || reference.value(key).toInteger(-1) < 0)) {
+    if (reference.contains(key) && !nonNegativeInteger(reference.value(key))) {
       if (detail) *detail = QStringLiteral("targetRef.%1 must be a non-negative integer").arg(key);
       return false;
     }
@@ -121,7 +133,7 @@ bool validIntent(const QJsonValue& value, QString* detail) {
   const auto intent = value.toObject();
   static const QSet<QString> allowed = {
       QStringLiteral("intentId"), QStringLiteral("capability"), QStringLiteral("targetRef"),
-      QStringLiteral("params"), QStringLiteral("reason")};
+      QStringLiteral("arguments"), QStringLiteral("reason")};
   for (auto it = intent.begin(); it != intent.end(); ++it) {
     if (!allowed.contains(it.key())) {
       if (detail) *detail = QStringLiteral("intent field '%1' is not allowed").arg(it.key());
@@ -133,8 +145,8 @@ bool validIntent(const QJsonValue& value, QString* detail) {
     return false;
   }
   if (!validReference(intent.value(QStringLiteral("targetRef")), detail)) return false;
-  if (!intent.value(QStringLiteral("params")).isObject()) {
-    if (detail) *detail = QStringLiteral("intent params must be an object");
+  if (!intent.value(QStringLiteral("arguments")).isObject()) {
+    if (detail) *detail = QStringLiteral("intent arguments must be an object");
     return false;
   }
   if (intent.contains(QStringLiteral("intentId")) && !nonEmptyString(intent.value(QStringLiteral("intentId")))) {
@@ -145,7 +157,7 @@ bool validIntent(const QJsonValue& value, QString* detail) {
     if (detail) *detail = QStringLiteral("reason must be a string");
     return false;
   }
-  if (!safeData(intent.value(QStringLiteral("params")), detail, QStringLiteral("params"))) return false;
+  if (!safeData(intent.value(QStringLiteral("arguments")), detail, QStringLiteral("arguments"))) return false;
   return !intent.contains(QStringLiteral("reason")) ||
          safeData(intent.value(QStringLiteral("reason")), detail, QStringLiteral("reason"));
 }
@@ -211,6 +223,11 @@ bool IntentPlan::validate(const CapabilityView& capabilities, QString* error) co
   }
   QSet<QString> intentIds;
   for (const auto& value : intents) {
+    QString detail;
+    if (!validIntent(value, &detail)) {
+      fail(error, QStringLiteral("INTENT_INVALID"), detail);
+      return false;
+    }
     const auto intent = value.toObject();
     const auto capability = intent.value(QStringLiteral("capability")).toString();
     if (!capabilities.contains(capability)) {
