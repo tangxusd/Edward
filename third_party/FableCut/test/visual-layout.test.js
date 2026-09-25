@@ -50,6 +50,9 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.doesNotMatch(app, /inspectorAiPlanPreview|待确认的具体修改/);
   assert.match(app, /countConversationLine/);
   assert.match(app, /function restoreTimelineSnapshot\(snapshot\)/);
+  assert.match(app, /function timelineEditSnapshot\(\)/);
+  assert.match(app, /selection: \[\.\.\.state\.selIds\]/);
+  assert.match(app, /runtime\.redo\.push\(JSON\.stringify\(timelineEditSnapshot\(\)\)\)/);
   assert.match(app, /\(e\.ctrlKey \|\| e\.metaKey\) && \(k === "z"/);
   assert.match(app, /runtime\.undo\.length > 100/);
   assert.doesNotMatch(app, /runtime\.aiUndo/);

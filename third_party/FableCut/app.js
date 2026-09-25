@@ -2627,9 +2627,20 @@ function setBinTab(tab) {
 
 /* ═══════════════════════════ EDIT OPERATIONS ═══════════════════════════ */
 function pushUndo() {
-  runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks(), markers: project.markers || [], inPoint: project.inPoint ?? null, outPoint: project.outPoint ?? null }));
+  runtime.undo.push(JSON.stringify(timelineEditSnapshot()));
   if (runtime.undo.length > 100) runtime.undo.shift();
   runtime.redo.length = 0;
+}
+function timelineEditSnapshot() {
+  return {
+    clips: project.clips,
+    tracks: serializeTracks(),
+    markers: project.markers || [],
+    inPoint: project.inPoint ?? null,
+    outPoint: project.outPoint ?? null,
+    selection: [...state.selIds],
+    time: Number(state.time) || 0,
+  };
 }
 function timelineSnapshot(raw) {
   const value = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -2641,18 +2652,20 @@ function restoreTimelineSnapshot(snapshot) {
   project.markers = snapshot.markers || [];
   project.inPoint = snapshot.inPoint ?? null;
   project.outPoint = snapshot.outPoint ?? null;
+  if (Array.isArray(snapshot.selection)) state.selIds = new Set(snapshot.selection.map(String));
+  if (Number.isFinite(Number(snapshot.time))) state.time = clamp(Number(snapshot.time), 0, Math.max(projDur(), 0));
   project.tracks = serializeTracks();
   pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
 }
 function undo() {
   if (!runtime.undo.length) return;
-  runtime.redo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
+  runtime.redo.push(JSON.stringify(timelineEditSnapshot()));
   restoreTimelineSnapshot(timelineSnapshot(runtime.undo.pop()));
   runtime.lastAiUndoAvailable = false;
 }
 function redo() {
   if (!runtime.redo.length) return;
-  runtime.undo.push(JSON.stringify({ clips: project.clips, tracks: serializeTracks() }));
+  runtime.undo.push(JSON.stringify(timelineEditSnapshot()));
   restoreTimelineSnapshot(timelineSnapshot(runtime.redo.pop()));
   runtime.lastAiUndoAvailable = false;
 }
