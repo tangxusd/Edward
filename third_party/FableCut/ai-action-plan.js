@@ -158,11 +158,38 @@
       if (!spec && !(key in (target.props || {}))) fail("AI 属性未在当前组件中声明");
     }
   }
+  function materializeBoundOperation(operation) {
+    if (operation && operation.type) return operation;
+    if (!operation || typeof operation !== "object") fail("AI 绑定操作无效");
+    const args = operation.args && typeof operation.args === "object" ? operation.args : {};
+    const targetId = operation.target?.id;
+    const type = String(operation.capability || "");
+    const result = { type };
+    if (targetId && !["timeline", "current_track"].includes(targetId)) result.targetId = String(targetId);
+    if (type === "insert_native_component") result.resourceId = String(args.resourceId || "");
+    else if (type === "set_component_props") result.props = clone(args.props || (args.property ? { [args.property]: args.value } : {}));
+    else if (type === "set_clip_props" || type === "set_audio_props") result.props = clone(args.props || {});
+    else if (type === "move_clip" || type === "duplicate_clip") { if (args.timelineStart != null) result.timelineStart = Number(args.timelineStart); if (args.track) result.track = String(args.track); }
+    else if (type === "resize_clip") result.durationFrames = Number(args.durationFrames);
+    else if (["split_clip", "trim_head", "trim_tail"].includes(type)) result.atFrame = Number(args.atFrame);
+    else if (type === "set_speed") result.speed = Number(args.speed);
+    else if (type === "replace_source") result.mediaId = String(args.mediaId || "");
+    else if (type === "insert_media") { Object.assign(result, { mediaId: String(args.mediaId || ""), kind: args.kind, timelineStart: args.timelineStart, durationFrames: args.durationFrames, track: args.track }); }
+    else if (type === "insert_text" || type === "insert_subtitle") Object.assign(result, { text: String(args.text || ""), props: clone(args.props || {}), timelineStart: args.timelineStart, durationFrames: args.durationFrames, track: args.track });
+    else if (type === "create_marker") Object.assign(result, { timelineFrame: Number(args.timelineFrame ?? 0), label: args.label, color: args.color, clipId: args.clipId, localFrame: args.localFrame });
+    else if (type === "delete_marker") result.markerId = String(targetId || args.markerId || "");
+    else if (type === "set_marker_color") Object.assign(result, { markerId: String(targetId || args.markerId || ""), color: String(args.color || "") });
+    else if (type === "close_gap") Object.assign(result, { track: String(targetId || args.track || ""), startFrame: Number(args.startFrame), endFrame: Number(args.endFrame) });
+    else if (type === "remove_clip") return { type, targetId: String(targetId || "") };
+    return result;
+  }
   function apply(plan, context) {
     if (!validObject(plan) || plan.schemaVersion !== "orbit.bound-action-plan.v2") fail("AI 操作计划格式无效");
     if (Number(plan.baseProjectRevision) !== Number(context.project.revision)) fail("AI 操作计划已过期，请重新请求");
     if (!Array.isArray(plan.operations) || !plan.operations.length) fail("AI 操作计划为空");
     const contracts = modelContracts(context.capabilitySnapshot);
+    if (plan.capabilitySet && (Number(plan.capabilitySet.version) !== Number(context.capabilitySnapshot.version) ||
+        String(plan.capabilitySet.hash) !== String(context.capabilitySnapshot.hash))) fail("AI 能力注册表已变化，请重新请求");
     const contractMap = new Map(contracts.map((item) => [item.id, item]));
     const allowedTypes = new Set(contractMap.keys());
     const clips = clone(context.project.clips || []);
@@ -172,7 +199,8 @@
     const markers = clone(context.project.markers || []);
     const fps = Number(context.project.fps || 30);
     if (!(fps > 0)) fail("项目帧率无效");
-    for (const operation of plan.operations) {
+    for (const rawOperation of plan.operations) {
+      const operation = materializeBoundOperation(rawOperation);
       validateOperation(operation, allowedTypes);
       const target = clips.find((clip) => clip.id === operation.targetId);
       validateTarget(contractMap.get(operation.type), operation, target, context, tracks, markers);

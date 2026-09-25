@@ -4,6 +4,7 @@
 #include "edward/ai/ai_orchestrator.hpp"
 #include "edward/ai/capability_registry.hpp"
 #include "edward/desktop/preference_store.hpp"
+#include "edward/desktop/execution_ledger.hpp"
 #include "edward/resources/model_chat_client.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
 #include "edward/runtime/runtime_manifest.hpp"
@@ -29,6 +30,7 @@ class WorkbenchRuntime final : public QObject {
   Q_PROPERTY(QVariantList clips READ clips NOTIFY runtimeChanged)
   Q_PROPERTY(QString aiConversation READ aiConversation NOTIFY timelineChanged)
   Q_PROPERTY(bool aiRequestBusy READ aiRequestBusy NOTIFY timelineChanged)
+  Q_PROPERTY(QString aiRequestStage READ aiRequestStage NOTIFY timelineChanged)
   Q_PROPERTY(QString pendingAiActionPlan READ pendingAiActionPlan NOTIFY timelineChanged)
 
  public:
@@ -42,6 +44,7 @@ class WorkbenchRuntime final : public QObject {
   [[nodiscard]] QVariantList clips() const;
   [[nodiscard]] QString aiConversation() const { return aiConversation_; }
   [[nodiscard]] bool aiRequestBusy() const { return aiRequestBusy_; }
+  [[nodiscard]] QString aiRequestStage() const { return aiRequestStage_; }
   [[nodiscard]] QString pendingAiActionPlan() const { return pendingAiActionPlan_; }
   [[nodiscard]] QImage previewFrame() const { return {}; }
   [[nodiscard]] QImage clipThumbnail(qlonglong) const { return {}; }
@@ -103,6 +106,7 @@ class WorkbenchRuntime final : public QObject {
  private:
   bool mount(const QString& packageRoot, const QJsonObject& props);
   PreferenceStore preferenceStore_;
+  ExecutionLedger executionLedger_;
   edward::resources::ModelChatClient modelChatClient_;
   edward::ai::AiOrchestrator aiOrchestrator_;
   edward::resources::SupabaseAuthClient authClient_;
@@ -114,10 +118,14 @@ class WorkbenchRuntime final : public QObject {
   QString pendingExportPath_;
   QString aiConversation_;
   bool aiRequestBusy_ = false;
+  QString aiRequestStage_ = QStringLiteral("idle");
   bool aiChatRequestActive_ = false;
   QString pendingAiActionPlan_;
   QString aiStreamingText_;
   edward::ai::ProjectSnapshot pendingAiProject_;
+  edward::ai::ReferenceSnapshot pendingAiReferences_;
+  edward::ai::CapabilitySnapshot pendingAiCapabilities_;
+  LedgerEntry pendingAiLedgerEntry_;
   qlonglong clipId_ = 0;
 };
 

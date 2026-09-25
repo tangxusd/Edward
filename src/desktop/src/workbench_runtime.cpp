@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QDateTime>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -35,6 +36,12 @@ QSettings desktopSettings() {
   const auto path = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
   QDir().mkpath(path);
   return QSettings(QDir(path).filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+}
+
+QString executionLedgerPath() {
+  const auto root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+  QDir().mkpath(root);
+  return QDir(root).filePath(QStringLiteral("execution.wal"));
 }
 
 QString defaultFablecutPath(const QString& key) {
@@ -139,7 +146,8 @@ void appendDiagnosticLog(const QString& event) {
 }
 }  // namespace
 
-WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenceStore_(this), modelChatClient_(this) {
+WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
+    : QObject(parent), preferenceStore_(this), executionLedger_(executionLedgerPath()), modelChatClient_(this) {
   appendDiagnosticLog(QStringLiteral("desktop_runtime_initialized"));
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
           [this](bool success, const QString& message) {
@@ -150,28 +158,44 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenc
   connect(&modelChatClient_, &edward::resources::ModelChatClient::completed, this,
           [this](bool success, const QString& message) {
             if (aiChatRequestActive_) {
-              aiChatRequestActive_ = false;
-              aiRequestBusy_ = false;
               if (!success) {
+                if (!pendingAiLedgerEntry_.transactionId.isEmpty()) {
+                  pendingAiLedgerEntry_.state = edward::desktop::LedgerState::Failed;
+                  executionLedger_.append(pendingAiLedgerEntry_);
+                }
+                aiChatRequestActive_ = false;
+                aiRequestBusy_ = false;
+                aiRequestStage_ = QStringLiteral("failed");
                 aiConversation_.append(QStringLiteral("AI：请求失败：%1\n").arg(message));
               } else {
-                const auto result = aiOrchestrator_.handle(message, pendingAiProject_);
+                aiRequestStage_ = QStringLiteral("resolving");
+                const auto result = aiOrchestrator_.handle(message, pendingAiProject_, pendingAiReferences_, pendingAiCapabilities_);
                 const auto marker = aiConversation_.lastIndexOf(QStringLiteral("AI："));
                 if (result.kind == edward::ai::AiResult::Kind::ActionPlan) {
                   QJsonObject normalizedPlan{
                       {QStringLiteral("schemaVersion"), result.plan->schemaVersion},
                       {QStringLiteral("requestId"), result.plan->requestId},
                       {QStringLiteral("baseProjectRevision"), static_cast<double>(result.plan->baseProjectRevision)},
+                      {QStringLiteral("referenceSnapshotId"), result.plan->referenceSnapshotId},
+                      {QStringLiteral("capabilitySet"), result.plan->capabilitySet},
                       {QStringLiteral("operations"), result.plan->operations}};
                   pendingAiActionPlan_ = QString::fromUtf8(QJsonDocument(normalizedPlan).toJson(QJsonDocument::Compact));
+                  if (!pendingAiLedgerEntry_.transactionId.isEmpty()) {
+                    pendingAiLedgerEntry_.state = edward::desktop::LedgerState::Prepared;
+                    executionLedger_.append(pendingAiLedgerEntry_);
+                  }
                   if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, QStringLiteral("已生成剪辑操作方案，正在提交并更新预览。\n"));
                   else aiConversation_.append(QStringLiteral("AI：已生成剪辑操作方案，正在提交并更新预览。\n"));
+                  aiRequestStage_ = QStringLiteral("awaiting_apply");
                 } else {
                   pendingAiActionPlan_.clear();
                   const auto finalText = result.text.trimmed().isEmpty() ? message.trimmed() : result.text.trimmed();
                   if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, finalText + QStringLiteral("\n"));
                   else aiConversation_.append(QStringLiteral("AI：%1\n").arg(finalText));
+                  aiRequestStage_ = QStringLiteral("completed");
                 }
+                aiChatRequestActive_ = false;
+                aiRequestBusy_ = false;
               }
               appendDiagnosticLog(QStringLiteral("desktop_ai_assistant success=%1 message=%2")
                                       .arg(success ? QStringLiteral("true") : QStringLiteral("false"), message));
@@ -189,6 +213,18 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenc
             aiStreamingText_.append(text);
             const auto marker = aiConversation_.lastIndexOf(QStringLiteral("AI："));
             if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, aiStreamingText_);
+            emit timelineChanged();
+          });
+  connect(&modelChatClient_, &edward::resources::ModelChatClient::streamStarted, this,
+          [this](const QString&) {
+            if (!aiChatRequestActive_) return;
+            aiRequestStage_ = QStringLiteral("streaming");
+            emit timelineChanged();
+          });
+  connect(&modelChatClient_, &edward::resources::ModelChatClient::streamError, this,
+          [this](const QString&, const QString&, const QString&) {
+            if (!aiChatRequestActive_) return;
+            aiRequestStage_ = QStringLiteral("failed");
             emit timelineChanged();
           });
   connect(&modelChatClient_, &edward::resources::ModelChatClient::modelsCompleted, this,
@@ -559,6 +595,74 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
     const auto id = value.toObject().value(QStringLiteral("id")).toString();
     if (!id.isEmpty()) snapshot.knownTargetIds.append(id);
   }
+  const auto capabilityObject = fablecutCapabilitySnapshot();
+  pendingAiCapabilities_.schemaVersion = capabilityObject.value(QStringLiteral("schemaVersion")).toString();
+  pendingAiCapabilities_.version = capabilityObject.value(QStringLiteral("version")).toInteger(0);
+  pendingAiCapabilities_.hash = capabilityObject.value(QStringLiteral("hash")).toString();
+  pendingAiCapabilities_.modelCapabilities = capabilityObject.value(QStringLiteral("capabilities")).toArray();
+  pendingAiCapabilities_.valid = !pendingAiCapabilities_.hash.isEmpty() && pendingAiCapabilities_.version > 0;
+  snapshot.capabilitySetVersion = pendingAiCapabilities_.version;
+  snapshot.capabilitySetHash = pendingAiCapabilities_.hash;
+  const auto snapshotHash = QCryptographicHash::hash(projectSnapshot.toUtf8(), QCryptographicHash::Sha256).toHex();
+  snapshot.referenceSnapshotId = QStringLiteral("ref-%1").arg(QString::fromLatin1(snapshotHash.left(24)));
+  pendingAiLedgerEntry_ = executionLedger_.begin({QStringLiteral("orbit-project"), snapshot.referenceSnapshotId,
+                                                   QString::fromLatin1(snapshotHash)}, nullptr);
+
+  pendingAiReferences_ = {};
+  pendingAiReferences_.referenceSnapshotId = snapshot.referenceSnapshotId;
+  pendingAiReferences_.projectRevision = snapshot.revision;
+  pendingAiReferences_.capabilitySetVersion = pendingAiCapabilities_.version;
+  pendingAiReferences_.capabilitySetHash = pendingAiCapabilities_.hash;
+  pendingAiReferences_.fps = projectObject.value(QStringLiteral("fps")).toInt(
+      projectObject.value(QStringLiteral("project")).toObject().value(QStringLiteral("fps")).toInt(30));
+  const auto playhead = projectObject.value(QStringLiteral("playhead")).toObject();
+  pendingAiReferences_.playheadFrame = qRound64(playhead.value(QStringLiteral("time")).toDouble() * pendingAiReferences_.fps);
+  for (const auto& selected : playhead.value(QStringLiteral("selectedClipIds")).toArray())
+    pendingAiReferences_.selectedClipIds.append(selected.toString());
+  pendingAiReferences_.currentTrackId = playhead.value(QStringLiteral("currentTrackId")).toString();
+  for (const auto& value : clips) {
+    const auto object = value.toObject();
+    edward::ai::ClipReference clip;
+    clip.id = object.value(QStringLiteral("id")).toString();
+    clip.trackId = object.value(QStringLiteral("track")).toString();
+    clip.startFrame = qRound64(object.value(QStringLiteral("start")).toDouble() * pendingAiReferences_.fps);
+    clip.durationFrames = qRound64(object.value(QStringLiteral("duration")).toDouble() * pendingAiReferences_.fps);
+    clip.version = object.value(QStringLiteral("version")).toInteger(0);
+    clip.locked = object.value(QStringLiteral("locked")).toBool(false);
+    for (const auto& linked : object.value(QStringLiteral("linkedClipIds")).toArray()) clip.linkedClipIds.append(linked.toString());
+    if (!clip.id.isEmpty()) pendingAiReferences_.clips.append(clip);
+  }
+  const auto tracks = projectObject.value(QStringLiteral("tracks")).toArray();
+  for (const auto& value : tracks) {
+    const auto object = value.toObject();
+    edward::ai::TrackReference track;
+    track.id = object.value(QStringLiteral("id")).toString();
+    track.version = object.value(QStringLiteral("version")).toInteger(0);
+    track.locked = object.value(QStringLiteral("locked")).toBool(false);
+    if (!track.id.isEmpty()) pendingAiReferences_.tracks.append(track);
+    if (!track.id.isEmpty()) snapshot.knownTargetIds.append(track.id);
+  }
+  const auto markers = projectObject.value(QStringLiteral("markers")).toArray();
+  int markerNumber = 1;
+  for (const auto& value : markers) {
+    const auto object = value.toObject();
+    edward::ai::MarkerReference marker;
+    marker.markerId = object.value(QStringLiteral("id")).toString();
+    marker.clipId = object.value(QStringLiteral("clipId")).toString();
+    marker.scope = marker.clipId.isEmpty() ? QStringLiteral("timeline") : QStringLiteral("clip");
+    marker.timelineFrame = qRound64(object.value(QStringLiteral("t")).toDouble() * pendingAiReferences_.fps);
+    marker.localFrame = object.value(QStringLiteral("localFrame")).toInteger(0);
+    marker.displayNumber = object.value(QStringLiteral("displayNumber")).toInt(markerNumber++);
+    marker.color = object.value(QStringLiteral("color")).toString();
+    marker.version = object.value(QStringLiteral("version")).toInteger(0);
+    if (!marker.markerId.isEmpty()) pendingAiReferences_.markers.append(marker);
+    if (!marker.markerId.isEmpty()) snapshot.knownTargetIds.append(marker.markerId);
+  }
+  snapshot.knownTargetIds.append(QStringLiteral("timeline"));
+  for (const auto& selected : playhead.value(QStringLiteral("selectedComponentIds")).toArray())
+    pendingAiReferences_.selectedComponentIds.append(selected.toString());
+  for (const auto& selected : playhead.value(QStringLiteral("selectedMediaIds")).toArray())
+    pendingAiReferences_.selectedMediaIds.append(selected.toString());
   const auto resources = projectObject.value(QStringLiteral("resources")).toArray();
   for (const auto& value : resources) {
     const auto id = value.isString() ? value.toString() : value.toObject().value(QStringLiteral("id")).toString();
@@ -579,6 +683,7 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
       settings.value(QStringLiteral("ai/model")).toString(),
       settings.value(QStringLiteral("ai/protocol")).toString()};
   aiRequestBusy_ = true;
+  aiRequestStage_ = QStringLiteral("requesting");
   aiChatRequestActive_ = true;
   aiConversation_.append(QStringLiteral("用户：%1\n").arg(prompt.trimmed()));
   aiConversation_.append(QStringLiteral("AI："));
@@ -601,6 +706,7 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
   if (!accepted) {
     aiChatRequestActive_ = false;
     aiRequestBusy_ = false;
+    aiRequestStage_ = QStringLiteral("failed");
     aiConversation_.append(QStringLiteral("AI：请求未发送，请检查模型设置。\n"));
     emit timelineChanged();
   }
@@ -610,6 +716,11 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
 void WorkbenchRuntime::clearPendingAiActionPlan() {
   if (pendingAiActionPlan_.isEmpty()) return;
   pendingAiActionPlan_.clear();
+  if (!pendingAiLedgerEntry_.transactionId.isEmpty()) {
+    pendingAiLedgerEntry_.state = edward::desktop::LedgerState::Committed;
+    executionLedger_.append(pendingAiLedgerEntry_);
+    pendingAiLedgerEntry_ = {};
+  }
   emit timelineChanged();
 }
 

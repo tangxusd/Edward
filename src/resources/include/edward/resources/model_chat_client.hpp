@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QObject>
 #include <QHash>
 #include <QString>
@@ -42,15 +43,24 @@ class ModelChatClient final : public QObject {
                const QString& userPrompt);
   bool requestStreaming(const ModelChatConfig& config, const QString& systemPrompt,
                         const QString& userPrompt);
+  void cancelStreaming();
   bool requestModels(const ModelChatConfig& config);
 
  signals:
   void completed(bool success, QString text);
   void chunk(QString text);
+  void streamStarted(QString requestId);
+  void streamDelta(QString requestId, qint64 sequence, QString text);
+  void streamDone(QString requestId, QString fullText);
+  void streamError(QString requestId, QString code, QString message);
+  void streamCancelled(QString requestId);
   void modelsCompleted(bool success, QStringList modelIds, QString message);
 
  private:
   QNetworkAccessManager network_;
+  QNetworkReply* activeStreamingReply_ = nullptr;
+  QString activeStreamingRequestId_;
+  bool activeStreamingCancelled_ = false;
 };
 
 }  // namespace edward::resources

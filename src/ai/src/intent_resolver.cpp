@@ -2,6 +2,8 @@
 
 #include <QJsonDocument>
 #include <QRegularExpression>
+#include <QHash>
+#include <QSet>
 
 namespace edward::ai {
 namespace {
@@ -33,6 +35,16 @@ QList<const ClipReference*> selectClips(const QString& selector, const QJsonObje
   }
   Q_UNUSED(ref);
   return result;
+}
+
+bool validPolicy(const QString& name, const QString& value) {
+  if (value.isEmpty() || value == QStringLiteral("ask")) return false;
+  static const QHash<QString, QSet<QString>> values{
+      {QStringLiteral("collisionPolicy"), {QStringLiteral("fail"), QStringLiteral("overwrite"), QStringLiteral("new_track"), QStringLiteral("auto")}},
+      {QStringLiteral("trackPlacementPolicy"), {QStringLiteral("specified"), QStringLiteral("current"), QStringLiteral("auto"), QStringLiteral("new_track")}},
+      {QStringLiteral("linkedMediaPolicy"), {QStringLiteral("preserve"), QStringLiteral("split"), QStringLiteral("ignore")}},
+      {QStringLiteral("markerPolicy"), {QStringLiteral("preserve"), QStringLiteral("move"), QStringLiteral("drop"), QStringLiteral("rebase")}}};
+  return values.value(name).contains(value);
 }
 } // namespace
 
@@ -90,11 +102,29 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
     qint64 targetVersion = 0;
     if (targetTrack) targetVersion = targetTrack->version;
     for (const auto& marker : references.markers) if (marker.markerId == targetId) targetVersion = marker.version;
+    QJsonObject policies;
+    for (const auto& policy : {QStringLiteral("collisionPolicy"), QStringLiteral("trackPlacementPolicy"),
+                               QStringLiteral("linkedMediaPolicy"), QStringLiteral("markerPolicy")}) {
+      const auto requested = args.value(policy).toString();
+      QString fallback = contract.value(policy).toString();
+      if (fallback.isEmpty()) {
+        fallback = policy == QStringLiteral("collisionPolicy") ? QStringLiteral("fail")
+            : policy == QStringLiteral("trackPlacementPolicy") ? QStringLiteral("auto")
+            : policy == QStringLiteral("linkedMediaPolicy") ? QStringLiteral("preserve")
+            : QStringLiteral("preserve");
+      }
+      const auto value = requested.isEmpty() ? fallback : requested;
+      if (!requested.isEmpty() && !validPolicy(policy, value)) {
+        fail(result, ResolutionErrorCode::PolicyRequired, QStringLiteral("policy '%1' is missing or invalid").arg(policy), intentId, selector);
+        return result;
+      }
+      policies.insert(policy, value);
+    }
     const auto evidence = QJsonObject{{QStringLiteral("referenceSnapshotId"), references.referenceSnapshotId}, {QStringLiteral("selector"), selector}, {QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("markerId"), targetKind == QStringLiteral("marker") ? targetId : QString()}};
     result.resolutionEvidence.append(evidence);
     QJsonArray readSet{targetId}, writeSet{targetId};
     if (!clips.isEmpty()) for (const auto& linked : clips.first()->linkedClipIds) { readSet.append(linked); writeSet.append(linked); }
-    operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), QJsonObject{{QStringLiteral("collisionPolicy"), contract.value(QStringLiteral("collisionPolicy"))}, {QStringLiteral("trackPlacementPolicy"), contract.value(QStringLiteral("trackPlacementPolicy"))}, {QStringLiteral("linkedMediaPolicy"), contract.value(QStringLiteral("linkedMediaPolicy"))}, {QStringLiteral("markerPolicy"), contract.value(QStringLiteral("markerPolicy"))}}}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("targetVersion"), targetVersion}}}}, {QStringLiteral("readSet"), readSet}, {QStringLiteral("writeSet"), writeSet}, {QStringLiteral("resolutionEvidence"), evidence}});
+    operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), policies}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("targetVersion"), targetVersion}}}}, {QStringLiteral("readSet"), readSet}, {QStringLiteral("writeSet"), writeSet}, {QStringLiteral("resolutionEvidence"), evidence}});
   }
   ActionPlan plan; plan.schemaVersion = QStringLiteral("orbit.bound-action-plan.v2"); plan.requestId = intent.requestId; plan.baseProjectRevision = references.projectRevision; plan.referenceSnapshotId = references.referenceSnapshotId; plan.capabilitySet = {{QStringLiteral("version"), capabilities.version}, {QStringLiteral("hash"), capabilities.hash}}; plan.operations = operations; result.plan = plan; return result;
 }

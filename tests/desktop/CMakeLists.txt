@@ -24,3 +24,7 @@ add_executable(test_fablecut_server_recovery test_fablecut_server_recovery.cpp)
 target_compile_definitions(test_fablecut_server_recovery PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(test_fablecut_server_recovery PRIVATE Qt6::Core)
 add_test(NAME desktop.fablecut_server_recovery COMMAND test_fablecut_server_recovery)
+
+add_executable(test_execution_ledger test_execution_ledger.cpp)
+target_link_libraries(test_execution_ledger PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.execution_ledger COMMAND test_execution_ledger)

@@ -107,3 +107,18 @@ test("BoundActionPlan v2 applies markers, split, trim, and media replacement ato
   assert.equal(result.clips[0].mediaId, "media-next");
   assert.equal(result.markers[0].color, "red");
 });
+
+test("C++ bound operation shape is materialized by the single frontend executor", () => {
+  const clips = [{ id: "c_1", kind: "video", track: "V1", start: 0, duration: 4, in: 0, props: {} }];
+  const result = apply({
+    schemaVersion: "orbit.bound-action-plan.v2", requestId: "bound-shape", baseProjectRevision: 7,
+    capabilitySet: { version: 1, hash: capabilitySnapshot.hash },
+    referenceSnapshotId: "ref-1",
+    operations: [{ operationId: "op-1", capability: "resize_clip",
+      target: { kind: "selected_clip", id: "c_1", resolvedFrom: "selected_clip" },
+      args: { durationFrames: 60 }, policies: { collisionPolicy: "fail", trackPlacementPolicy: "auto", linkedMediaPolicy: "preserve", markerPolicy: "preserve" },
+      dependsOn: [], preconditions: [{ projectRevision: 7, targetVersion: 0 }], readSet: ["c_1"], writeSet: ["c_1"],
+      resolutionEvidence: { referenceSnapshotId: "ref-1" } }],
+  }, { ...context(clips), project: { ...context(clips).project, clips } });
+  assert.equal(result.clips[0].duration, 2);
+});
