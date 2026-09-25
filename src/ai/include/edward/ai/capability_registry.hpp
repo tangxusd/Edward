@@ -30,6 +30,15 @@ struct CapabilityContract final {
   QString trackPlacementPolicy;
   QString linkedMediaPolicy;
   QString taskPolicy;
+  QString executionMode;
+  QString reversibility;
+  QStringList allowedPolicies;
+  QString markerPolicy;
+  QString validate;
+  QString execute;
+  QStringList postconditions;
+  QString preview;
+  QString render;
   QString verificationAdapter;
   QString executor;
   QStringList replacementOf;

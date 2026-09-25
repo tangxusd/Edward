@@ -11,14 +11,36 @@ using edward::ai::RuntimeFacts;
 namespace {
 CapabilityContract contract(QString id, QString executor = QStringLiteral("executor"),
                             QString verifier = QStringLiteral("verify")) {
-  return {std::move(id), QStringLiteral("1"), QJsonObject{{"type", "object"}},
-          {QStringLiteral("clip")}, QStringLiteral("project.write"), QStringLiteral("transaction"),
-          QStringLiteral("fail"), QStringLiteral("specified"), QStringLiteral("preserve"),
-          QStringLiteral("synchronous"), std::move(verifier), std::move(executor), {}};
+  CapabilityContract value;
+  value.id = std::move(id);
+  value.version = QStringLiteral("1");
+  value.inputSchema = QJsonObject{{"type", "object"}};
+  value.targetTypes = {QStringLiteral("clip")};
+  value.permissionCategory = QStringLiteral("project.write");
+  value.undoScope = QStringLiteral("transaction");
+  value.collisionPolicy = QStringLiteral("fail");
+  value.trackPlacementPolicy = QStringLiteral("specified");
+  value.linkedMediaPolicy = QStringLiteral("preserve");
+  value.taskPolicy = QStringLiteral("synchronous");
+  value.executionMode = QStringLiteral("local_transaction");
+  value.reversibility = QStringLiteral("undoable");
+  value.allowedPolicies = {QStringLiteral("collision")};
+  value.markerPolicy = QStringLiteral("preserve");
+  value.validate = QStringLiteral("validate");
+  value.execute = QStringLiteral("execute");
+  value.postconditions = {QStringLiteral("verified")};
+  value.preview = QStringLiteral("preview");
+  value.render = QStringLiteral("render");
+  value.verificationAdapter = std::move(verifier);
+  value.executor = std::move(executor);
+  return value;
 }
 
 RuntimeFacts facts() {
-  return {{QStringLiteral("timeline.executor")}, {QStringLiteral("timeline.visible")}, {}, 3};
+  return {{QStringLiteral("timeline.executor")}, {QStringLiteral("timeline.visible")},
+          {QStringLiteral("playhead"), QStringLiteral("selected_component"), QStringLiteral("selected_clip"),
+           QStringLiteral("selected_audio"), QStringLiteral("timeline"), QStringLiteral("selected_clip"),
+           QStringLiteral("marker"), QStringLiteral("track")}, 3};
 }
 
 void testStableSnapshotHash() {
@@ -60,9 +82,18 @@ void testModelViewContainsRequiredContractFields() {
   const auto first = view.at(0).toObject();
   for (const auto key : {"id", "version", "inputSchema", "targetTypes", "permissionCategory",
                          "undoScope", "collisionPolicy", "trackPlacementPolicy", "linkedMediaPolicy",
-                         "taskPolicy", "verificationAdapter"}) {
+                         "taskPolicy", "executionMode", "reversibility", "allowedPolicies", "markerPolicy",
+                         "validate", "execute", "postconditions", "preview", "render", "verificationAdapter"}) {
     assert(first.contains(QLatin1String(key)));
   }
+}
+
+void testRuntimeTargetTypesAreRequired() {
+  auto runtime = facts();
+  runtime.targetTypes = {QStringLiteral("clip")};
+  const auto snapshot = CapabilityRegistry::builtIn().snapshot(runtime);
+  assert(!snapshot.valid);
+  assert(snapshot.error.contains(QStringLiteral("target type"), Qt::CaseInsensitive));
 }
 }  // namespace
 
@@ -71,4 +102,5 @@ int main() {
   testRegistryRejectsDuplicateAndMissingRuntimeParts();
   testReplacementCyclesAreRejected();
   testModelViewContainsRequiredContractFields();
+  testRuntimeTargetTypesAreRequired();
 }

@@ -41,10 +41,46 @@
     trackPlacementPolicy: "specified_or_auto",
     linkedMediaPolicy: "preserve_linked",
     taskPolicy: "synchronous",
+    executionMode: "local_transaction",
+    reversibility: "undoable",
+    allowedPolicies: ["collision", "trackPlacement", "linkedMedia", "marker"],
+    markerPolicy: "preserve",
+    validate: "schema_and_target",
+    execute: "timeline_executor",
+    postconditions: ["project_hash_changed", "visible_state_verified"],
+    preview: "timeline_preview",
+    render: "timeline_render",
     verificationAdapter: "timeline.visible",
     executor: "timeline.executor",
-    ...contract,
   })));
+  const REGISTRY_SNAPSHOT_VERSION = 1;
+  const registrySnapshot = () => ({
+    schemaVersion: "orbit.capability-snapshot.v1",
+    version: REGISTRY_SNAPSHOT_VERSION,
+    contractIds: MODEL_VIEW.map((item) => `${item.id}@${item.version}`),
+    capabilities: MODEL_VIEW.map(clone),
+  });
+  function modelView(snapshot) {
+    const source = snapshot || registrySnapshot();
+    const expected = MODEL_VIEW.map((item) => `${item.id}@${item.version}`);
+    if (source.schemaVersion !== "orbit.capability-snapshot.v1" || source.version !== REGISTRY_SNAPSHOT_VERSION ||
+        JSON.stringify(source.contractIds || []) !== JSON.stringify(expected)) {
+      fail("能力注册表快照与执行器不一致");
+    }
+    const capabilities = Array.isArray(source.capabilities) ? source.capabilities : [];
+    if (capabilities.length !== expected.length || capabilities.some((item, index) => `${item.id}@${item.version}` !== expected[index])) {
+      fail("能力注册表合同不一致");
+    }
+    return capabilities.map((item) => ({
+      id: item.id, version: item.version, inputSchema: clone(item.inputSchema), targetTypes: [...item.targetTypes],
+      permissionCategory: item.permissionCategory, undoScope: item.undoScope, collisionPolicy: item.collisionPolicy,
+      trackPlacementPolicy: item.trackPlacementPolicy, linkedMediaPolicy: item.linkedMediaPolicy,
+      taskPolicy: item.taskPolicy, executionMode: item.executionMode, reversibility: item.reversibility,
+      allowedPolicies: [...item.allowedPolicies], markerPolicy: item.markerPolicy, validate: item.validate,
+      execute: item.execute, postconditions: [...item.postconditions], preview: item.preview, render: item.render,
+      verificationAdapter: item.verificationAdapter,
+    }));
+  }
 
   function fail(message) { throw new Error(message); }
   function clipEnd(clip) { return Number(clip.start) + Number(clip.duration); }
@@ -239,5 +275,5 @@
       },
     };
   }
-  return { apply, modelView: () => MODEL_VIEW.map(clone) };
+  return { apply, modelView, registrySnapshot };
 });

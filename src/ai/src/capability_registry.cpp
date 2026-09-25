@@ -33,6 +33,15 @@ CapabilityContract makeContract(const QString& id, const QStringList& targets, c
           QStringLiteral("specified_or_auto"),
           QStringLiteral("preserve_linked"),
           std::move(task),
+          QStringLiteral("local_transaction"),
+          QStringLiteral("undoable"),
+          {QStringLiteral("collision"), QStringLiteral("trackPlacement"), QStringLiteral("linkedMedia"), QStringLiteral("marker")},
+          QStringLiteral("preserve"),
+          QStringLiteral("schema_and_target"),
+          QStringLiteral("timeline_executor"),
+          {QStringLiteral("project_hash_changed"), QStringLiteral("visible_state_verified")},
+          QStringLiteral("timeline_preview"),
+          QStringLiteral("timeline_render"),
           QString::fromLatin1(kVerifier),
           QString::fromLatin1(kExecutor),
           {}};
@@ -67,6 +76,15 @@ QJsonObject CapabilityContract::toJson() const {
           {QStringLiteral("trackPlacementPolicy"), trackPlacementPolicy},
           {QStringLiteral("linkedMediaPolicy"), linkedMediaPolicy},
           {QStringLiteral("taskPolicy"), taskPolicy},
+          {QStringLiteral("executionMode"), executionMode},
+          {QStringLiteral("reversibility"), reversibility},
+          {QStringLiteral("allowedPolicies"), QJsonArray::fromStringList(allowedPolicies)},
+          {QStringLiteral("markerPolicy"), markerPolicy},
+          {QStringLiteral("validate"), validate},
+          {QStringLiteral("execute"), execute},
+          {QStringLiteral("postconditions"), QJsonArray::fromStringList(postconditions)},
+          {QStringLiteral("preview"), preview},
+          {QStringLiteral("render"), render},
           {QStringLiteral("verificationAdapter"), verificationAdapter}};
 }
 
@@ -165,9 +183,18 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
   }
   const auto executors = sorted(facts.executorIds);
   const auto adapters = sorted(facts.verificationAdapterIds);
+  const auto targetTypes = sorted(facts.targetTypes);
+  if (targetTypes.isEmpty()) {
+    snapshot.error = QStringLiteral("runtime has no target types");
+    return snapshot;
+  }
   QJsonArray view;
   QStringList ids;
-  for (const auto& contract : contracts_) {
+  auto contracts = contracts_;
+  std::sort(contracts.begin(), contracts.end(), [](const auto& left, const auto& right) {
+    return left.id == right.id ? left.version < right.version : left.id < right.id;
+  });
+  for (const auto& contract : contracts) {
     if (!executors.contains(contract.executor)) {
       snapshot.error = QStringLiteral("missing executor: %1").arg(contract.executor);
       return snapshot;
@@ -176,11 +203,17 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
       snapshot.error = QStringLiteral("missing verification adapter: %1").arg(contract.verificationAdapter);
       return snapshot;
     }
+    for (const auto& target : contract.targetTypes) {
+      if (!targetTypes.contains(target)) {
+        snapshot.error = QStringLiteral("missing target type: %1").arg(target);
+        return snapshot;
+      }
+    }
     view.append(contract.toJson());
     ids.push_back(contract.id);
   }
   snapshot.modelCapabilities = view;
-  snapshot.enabledIds = ids;
+  snapshot.enabledIds = sorted(ids);
   snapshot.hash = QStringLiteral("sha256:%1").arg(QString::fromLatin1(QCryptographicHash::hash(canonicalSnapshot(facts, view, snapshot.version).toUtf8(), QCryptographicHash::Sha256).toHex()));
   snapshot.valid = true;
   return snapshot;
