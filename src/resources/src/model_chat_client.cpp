@@ -182,6 +182,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
   auto* sequence = new qint64(0);
   auto* upstreamSequence = new qint64(0);
   auto* terminal = new bool(false);
+  auto* sawDone = new bool(false);
   auto* eventCount = new int(0);
   auto* firstByte = new bool(false);
   auto* overallTimer = new QTimer(reply);
@@ -217,7 +218,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
     emit completed(false, QStringLiteral("AI 流式响应空闲超时"));
     reply->abort();
   });
-  connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, aggregate, sequence, upstreamSequence, terminal,
+  connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, aggregate, sequence, upstreamSequence, terminal, sawDone,
                                                      eventCount, firstByte, firstByteTimer, idleTimer,
                                                      requestId, protocol = config.protocol] {
     if (*terminal) return;
@@ -235,7 +236,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       line = line.trimmed();
       if (!line.startsWith("data:")) continue;
       line = line.mid(5).trimmed();
-      if (line == "[DONE]") continue;
+      if (line == "[DONE]") { *sawDone = true; continue; }
       if (line.startsWith('{') && line.contains("\"error\"")) {
         *terminal = true;
         emit streamError(requestId, QStringLiteral("MODEL_ERROR"), QStringLiteral("AI 流式响应返回错误"));
@@ -247,6 +248,13 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       const auto document = QJsonDocument::fromJson(line, &parseError);
       if (parseError.error != QJsonParseError::NoError || !document.isObject()) continue;
       const auto event = document.object();
+      if (event.contains(QStringLiteral("error")) || event.value(QStringLiteral("type")).toString() == QStringLiteral("error")) {
+        *terminal = true;
+        emit streamError(requestId, QStringLiteral("MODEL_ERROR"), QStringLiteral("AI 流式响应返回错误"));
+        emit completed(false, QStringLiteral("AI 流式响应返回错误"));
+        reply->abort();
+        return;
+      }
       if (++(*eventCount) > 4096) {
         *terminal = true;
         emit streamError(requestId, QStringLiteral("EVENT_LIMIT"), QStringLiteral("AI 流式事件数量超过限制"));
@@ -286,7 +294,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       emit chunk(delta);
     }
   });
-  connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, aggregate, sequence, upstreamSequence, terminal,
+  connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, aggregate, sequence, upstreamSequence, terminal, sawDone,
                                                    eventCount, firstByte, overallTimer, firstByteTimer, idleTimer,
                                                    requestId, protocol = config.protocol] {
     if (!reply->isFinished()) return;
@@ -299,18 +307,28 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
     }
     if (wasTerminal) {
       overallTimer->stop(); firstByteTimer->stop(); idleTimer->stop();
-      delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
+      delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete sawDone; delete eventCount; delete firstByte; reply->deleteLater();
       return;
     }
     if (!buffer->isEmpty()) {
       const auto tail = buffer->trimmed();
       if (tail.startsWith("data:")) {
         const auto payload = tail.mid(5).trimmed();
-        if (payload != "[DONE]") {
+        if (payload == "[DONE]") {
+          *sawDone = true;
+        } else {
           QJsonParseError parseError;
           const auto document = QJsonDocument::fromJson(payload, &parseError);
           if (parseError.error == QJsonParseError::NoError && document.isObject()) {
             const auto event = document.object();
+            if (event.contains(QStringLiteral("error")) || event.value(QStringLiteral("type")).toString() == QStringLiteral("error")) {
+              *terminal = true;
+              emit streamError(requestId, QStringLiteral("MODEL_ERROR"), QStringLiteral("AI 流式响应返回错误"));
+              emit completed(false, QStringLiteral("AI 流式响应返回错误"));
+              reply->abort();
+              delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete sawDone; delete eventCount; delete firstByte; reply->deleteLater();
+              return;
+            }
             QString delta;
             if (event.value(QStringLiteral("type")).toString() == QStringLiteral("content_block_delta"))
               delta = event.value(QStringLiteral("delta")).toObject().value(QStringLiteral("text")).toString();
@@ -330,6 +348,10 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
     if (!errorString.isEmpty()) {
       emit streamError(requestId, QStringLiteral("NETWORK_ERROR"), errorString);
       emit completed(false, errorString);
+    } else if (!*sawDone) {
+      const auto message = QStringLiteral("AI 流式响应缺少结束标记");
+      emit streamError(requestId, QStringLiteral("MISSING_DONE"), message);
+      emit completed(false, message);
     } else if (aggregate->isEmpty()) {
       const auto message = QStringLiteral("AI 流式响应为空");
       emit streamError(requestId, QStringLiteral("EMPTY_RESPONSE"), message);
@@ -339,7 +361,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       emit completed(true, *aggregate);
     }
     overallTimer->stop(); firstByteTimer->stop(); idleTimer->stop();
-    delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
+    delete buffer; delete aggregate; delete sequence; delete upstreamSequence; delete terminal; delete sawDone; delete eventCount; delete firstByte; reply->deleteLater();
   });
   return true;
 }
