@@ -12,6 +12,8 @@ add_library(edward_resources STATIC
   include/edward/resources/resolve_api_manuals.hpp
   include/edward/resources/fusion_artifact_cache.hpp
   include/edward/resources/preference_sync_client.hpp
+  include/edward/resources/catalog_cache.hpp
+  include/edward/resources/font_installer.hpp
   src/component_package.cpp
   src/component_upload.cpp
   src/auth_session_store.cpp
@@ -24,9 +26,11 @@ add_library(edward_resources STATIC
   src/resolve_api_manuals.cpp
   src/fusion_artifact_cache.cpp
   src/preference_sync_client.cpp
+  src/catalog_cache.cpp
+  src/font_installer.cpp
 )
 target_include_directories(edward_resources PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(edward_resources PUBLIC edward_core Qt6::Core Qt6::Network)
+target_link_libraries(edward_resources PUBLIC edward_core Qt6::Core Qt6::Network Qt6::Sql Qt6::Gui)
 target_compile_definitions(edward_resources PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 install(DIRECTORY data/resolve-api DESTINATION share/edward)

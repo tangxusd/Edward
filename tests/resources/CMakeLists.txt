@@ -19,6 +19,12 @@ add_test(NAME resources.supabase_auth_registration COMMAND test_supabase_auth_re
 add_executable(test_preference_sync_client test_preference_sync_client.cpp)
 target_link_libraries(test_preference_sync_client PRIVATE edward_resources Qt6::Core)
 add_test(NAME resources.preference_sync_client COMMAND test_preference_sync_client)
+add_executable(test_catalog_cache test_catalog_cache.cpp)
+target_link_libraries(test_catalog_cache PRIVATE edward_resources Qt6::Core Qt6::Sql)
+add_test(NAME resources.catalog_cache COMMAND test_catalog_cache)
+add_executable(test_font_installer test_font_installer.cpp)
+target_link_libraries(test_font_installer PRIVATE edward_resources Qt6::Core Qt6::Gui)
+add_test(NAME resources.font_installer COMMAND test_font_installer)
 
 add_executable(test_model_chat_client test_model_chat_client.cpp)
 target_link_libraries(test_model_chat_client PRIVATE edward_resources)
