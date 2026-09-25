@@ -21,6 +21,9 @@ QString errorCode(ResolutionErrorCode code) {
     default: return QStringLiteral("NONE");
   }
 }
+void appendUnique(QStringList& values, const QString& value) {
+  if (!value.isEmpty() && !values.contains(value)) values.append(value);
+}
 void fail(ResolveResult& result, ResolutionErrorCode code, const QString& detail, const QString& intentId = {}, const QString& selector = {}) {
   result.error = ResolveError{code, detail, intentId, selector, {}};
 }
@@ -75,7 +78,8 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
     if (selector == QStringLiteral("playhead_clip") && clips.size() > 1) { fail(result, ResolutionErrorCode::TargetAmbiguous, QStringLiteral("playhead intersects multiple clips"), intentId, selector); return result; }
     if (selector == QStringLiteral("selected_component")) { clips.clear(); for (const auto& id : references.selectedComponentIds) if (const auto* clip = references.clip(id)) clips.push_back(clip); }
     if (selector == QStringLiteral("selected_audio")) { clips.clear(); for (const auto& id : references.selectedMediaIds) if (const auto* clip = references.clip(id)) clips.push_back(clip); }
-    if ((selector == QStringLiteral("selected_clip") || selector == QStringLiteral("selected_clips")) && clips.size() != 1) { fail(result, clips.isEmpty() ? ResolutionErrorCode::TargetNotFound : ResolutionErrorCode::TargetAmbiguous, QStringLiteral("selection must resolve to one clip"), intentId, selector); return result; }
+    if (selector == QStringLiteral("selected_clip") && clips.size() != 1) { fail(result, clips.isEmpty() ? ResolutionErrorCode::TargetNotFound : ResolutionErrorCode::TargetAmbiguous, QStringLiteral("selection must resolve to one clip"), intentId, selector); return result; }
+    if (selector == QStringLiteral("selected_clips") && clips.isEmpty()) { fail(result, ResolutionErrorCode::TargetNotFound, QStringLiteral("selection must resolve to at least one clip"), intentId, selector); return result; }
     QString targetId;
     QString targetKind = selector;
     if (!clips.isEmpty()) { targetId = clips.first()->id; targetKind = selector == QStringLiteral("selected_component") ? QStringLiteral("selected_component") : (selector == QStringLiteral("selected_audio") ? QStringLiteral("selected_audio") : QStringLiteral("selected_clip")); if (clips.first()->locked) { fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("target is locked"), intentId, selector); return result; } }
@@ -120,10 +124,47 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
       }
       policies.insert(policy, value);
     }
+    const auto requestedTrackId = args.value(QStringLiteral("trackId")).toString(args.value(QStringLiteral("track")).toString());
+    const auto operationTrack = requestedTrackId.isEmpty() ? targetTrack : references.track(requestedTrackId);
+    if (!requestedTrackId.isEmpty() && !operationTrack) {
+      fail(result, ResolutionErrorCode::TargetNotFound, QStringLiteral("requested track not found"), intentId, selector);
+      return result;
+    }
+    if (operationTrack && operationTrack->locked) {
+      fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("requested track is locked"), intentId, selector);
+      return result;
+    }
+    if (operationTrack && policies.value(QStringLiteral("collisionPolicy")) == QStringLiteral("fail") && !clips.isEmpty()) {
+      const auto start = args.value(QStringLiteral("startFrame")).toInteger(clips.first()->startFrame);
+      const auto duration = args.value(QStringLiteral("durationFrames")).toInteger(clips.first()->durationFrames);
+      const auto end = start + duration;
+      for (const auto& candidate : references.clips) {
+        if (candidate.id == clips.first()->id || candidate.trackId != operationTrack->id) continue;
+        if (start < candidate.startFrame + candidate.durationFrames && candidate.startFrame < end) {
+          fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("requested track has an overlapping clip"), intentId, selector);
+          return result;
+        }
+      }
+    }
     const auto evidence = QJsonObject{{QStringLiteral("referenceSnapshotId"), references.referenceSnapshotId}, {QStringLiteral("selector"), selector}, {QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("markerId"), targetKind == QStringLiteral("marker") ? targetId : QString()}};
     result.resolutionEvidence.append(evidence);
-    QJsonArray readSet{targetId}, writeSet{targetId};
-    if (!clips.isEmpty()) for (const auto& linked : clips.first()->linkedClipIds) { readSet.append(linked); writeSet.append(linked); }
+    QJsonArray readSet;
+    QJsonArray writeSet;
+    QStringList resolvedIds;
+    for (const auto* selected : clips) {
+      appendUnique(resolvedIds, selected->id);
+      const auto linkedPolicy = policies.value(QStringLiteral("linkedMediaPolicy"));
+      if (linkedPolicy == QStringLiteral("preserve") || linkedPolicy == QStringLiteral("split")) {
+        for (const auto& linked : selected->linkedClipIds) {
+          if (!references.clip(linked)) {
+            fail(result, ResolutionErrorCode::ReferenceStale, QStringLiteral("linked clip is missing"), intentId, selector);
+            return result;
+          }
+          appendUnique(resolvedIds, linked);
+        }
+      }
+    }
+    for (const auto& id : resolvedIds) { readSet.append(id); writeSet.append(id); appendUnique(result.readSet, id); appendUnique(result.writeSet, id); }
     operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), policies}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("targetVersion"), targetVersion}}}}, {QStringLiteral("readSet"), readSet}, {QStringLiteral("writeSet"), writeSet}, {QStringLiteral("resolutionEvidence"), evidence}});
   }
   ActionPlan plan; plan.schemaVersion = QStringLiteral("orbit.bound-action-plan.v2"); plan.requestId = intent.requestId; plan.baseProjectRevision = references.projectRevision; plan.referenceSnapshotId = references.referenceSnapshotId; plan.capabilitySet = {{QStringLiteral("version"), capabilities.version}, {QStringLiteral("hash"), capabilities.hash}}; plan.operations = operations; result.plan = plan; return result;

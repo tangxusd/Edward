@@ -68,6 +68,28 @@ int main() {
     assert(result.error && result.error->code == ResolutionErrorCode::TargetAmbiguous);
   }
   {
+    auto snapshot = refs(capabilitySnapshot);
+    snapshot.selectedClipIds = {QStringLiteral("clip-a"), QStringLiteral("clip-b")};
+    snapshot.clips.push_back(ClipReference{QStringLiteral("clip-b"), QStringLiteral("v1"), 90, 90, 5, false, {}});
+    const auto result = resolver.resolve(intent(QStringLiteral("set_clip_props"), {{QStringLiteral("selector"), QStringLiteral("selected_clips")}},
+                                               {{QStringLiteral("linkedMediaPolicy"), QStringLiteral("ignore")}}),
+                                         snapshot, capabilitySnapshot);
+    assert(result.succeeded());
+    assert(result.plan->operations.size() == 1);
+    assert(result.readSet.contains(QStringLiteral("clip-a")) && result.readSet.contains(QStringLiteral("clip-b")));
+    assert(!result.readSet.contains(QStringLiteral("audio-a")));
+  }
+  {
+    auto snapshot = refs(capabilitySnapshot);
+    snapshot.clips.push_back(ClipReference{QStringLiteral("clip-overlap"), QStringLiteral("v1"), 15, 30, 2, false, {}});
+    const auto result = resolver.resolve(intent(QStringLiteral("resize_clip"), {{QStringLiteral("selector"), QStringLiteral("selected_clip")}},
+                                               {{QStringLiteral("durationSeconds"), 1.0},
+                                                {QStringLiteral("trackId"), QStringLiteral("v1")},
+                                                {QStringLiteral("collisionPolicy"), QStringLiteral("fail")}}),
+                                         snapshot, capabilitySnapshot);
+    assert(result.error && result.error->code == ResolutionErrorCode::TrackConflict);
+  }
+  {
     const auto result = resolver.resolve(intent(QStringLiteral("set_marker_color"),
                                                {{QStringLiteral("selector"), QStringLiteral("global_marker")}, {QStringLiteral("label"), 3}}, {}),
                                          refs(capabilitySnapshot), capabilitySnapshot);
