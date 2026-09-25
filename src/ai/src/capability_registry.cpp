@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <QJsonDocument>
 #include <utility>
 
 namespace edward::ai {
@@ -261,10 +262,15 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
   snapshot.modelCapabilities = view;
   snapshot.contractIds = sorted(ids);
   snapshot.enabledIds = snapshot.contractIds;
-  const auto canonicalText = QStringLiteral("orbit.capability-snapshot.v1|%1|%2").arg(snapshot.version).arg(snapshot.contractIds.join(QStringLiteral(",")));
+  const auto canonicalText = QString::fromUtf8(QJsonDocument(QJsonObject{
+      {QStringLiteral("schemaVersion"), snapshot.schemaVersion},
+      {QStringLiteral("version"), snapshot.version},
+      {QStringLiteral("contractIds"), QJsonArray::fromStringList(snapshot.contractIds)},
+      {QStringLiteral("capabilities"), snapshot.modelCapabilities}}).toJson(QJsonDocument::Compact));
   snapshot.canonicalJson = QJsonObject{{QStringLiteral("schemaVersion"), snapshot.schemaVersion},
                                        {QStringLiteral("version"), snapshot.version},
-                                       {QStringLiteral("contractIds"), QJsonArray::fromStringList(snapshot.contractIds)}};
+                                       {QStringLiteral("contractIds"), QJsonArray::fromStringList(snapshot.contractIds)},
+                                       {QStringLiteral("capabilities"), snapshot.modelCapabilities}};
   snapshot.hash = QStringLiteral("fnv1a64:%1").arg(fnv1a64(canonicalText.toUtf8()));
   snapshot.valid = true;
   return snapshot;

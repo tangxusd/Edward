@@ -23,8 +23,9 @@ capabilitySnapshot.canonical = {
   schemaVersion: capabilitySnapshot.schemaVersion,
   version: capabilitySnapshot.version,
   contractIds: [...capabilitySnapshot.contractIds],
+  capabilities: capabilitySnapshot.capabilities,
 };
-capabilitySnapshot.hash = `fnv1a64:${fnv1a64(`orbit.capability-snapshot.v1|1|${capabilityIds.join(",")}`)}`;
+capabilitySnapshot.hash = `fnv1a64:${fnv1a64(JSON.stringify({ schemaVersion: capabilitySnapshot.schemaVersion, version: capabilitySnapshot.version, contractIds: capabilitySnapshot.contractIds, capabilities: capabilitySnapshot.capabilities }))}`;
 function context(clips = []) {
   return { project: { revision: 7, fps: 30, clips }, resources: [resource], tracks, playhead: 2, capabilitySnapshot, nextClipId: () => "c_ai" };
 }

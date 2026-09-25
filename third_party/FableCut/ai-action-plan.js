@@ -17,7 +17,7 @@
   }
   function modelContracts(snapshot) {
     if (!snapshot || snapshot.schemaVersion !== "orbit.capability-snapshot.v1" ||
-        !Number.isInteger(snapshot.version) || snapshot.version < 1 ||
+        snapshot.version !== 1 ||
         !Array.isArray(snapshot.contractIds) || !Array.isArray(snapshot.capabilities) || typeof snapshot.hash !== "string") {
       fail("缺少宿主能力注册表快照");
     }
@@ -26,11 +26,13 @@
     if (ids.length === 0 || ids.some((id, index) => id !== sortedIds[index]) || new Set(ids).size !== ids.length) {
       fail("能力注册表 contractIds 未规范化排序");
     }
-    const canonical = `orbit.capability-snapshot.v1|${snapshot.version}|${ids.join(",")}`;
+    const canonicalObject = { schemaVersion: snapshot.schemaVersion, version: snapshot.version, contractIds: ids, capabilities: snapshot.capabilities };
+    const canonical = JSON.stringify(canonicalObject);
     if (snapshot.hash !== `fnv1a64:${fnv1a64(canonical)}`) fail("能力注册表快照 hash 不一致");
     if (!snapshot.canonical || snapshot.canonical.schemaVersion !== snapshot.schemaVersion ||
         snapshot.canonical.version !== snapshot.version ||
-        JSON.stringify(snapshot.canonical.contractIds) !== JSON.stringify(ids)) {
+        JSON.stringify(snapshot.canonical.contractIds) !== JSON.stringify(ids) ||
+        JSON.stringify(snapshot.canonical.capabilities) !== JSON.stringify(snapshot.capabilities)) {
       fail("能力注册表 canonical 快照不一致");
     }
     if (snapshot.capabilities.length !== ids.length || snapshot.capabilities.some((item, index) => `${item.id}@${item.version}` !== ids[index])) {
