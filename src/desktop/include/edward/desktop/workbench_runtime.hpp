@@ -2,6 +2,7 @@
 
 #include "edward/core/native_runtime_component.hpp"
 #include "edward/ai/ai_orchestrator.hpp"
+#include "edward/ai/capability_registry.hpp"
 #include "edward/desktop/preference_store.hpp"
 #include "edward/resources/model_chat_client.hpp"
 #include "edward/resources/supabase_auth_client.hpp"
@@ -84,6 +85,7 @@ class WorkbenchRuntime final : public QObject {
   Q_INVOKABLE bool fetchFablecutAiModels(const QString& endpoint, const QString& apiKey,
                                          const QString& model, const QString& protocol);
   Q_INVOKABLE bool requestAiFablecutPlan(const QString& projectSnapshot, const QString& prompt);
+  Q_INVOKABLE QJsonObject fablecutCapabilitySnapshot() const;
   Q_INVOKABLE QString currentPendingAiActionPlan() const { return pendingAiActionPlan_; }
   Q_INVOKABLE void clearPendingAiActionPlan();
   Q_INVOKABLE void setPendingFablecutExportPath(const QString& path);

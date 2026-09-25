@@ -19,6 +19,11 @@ const capabilitySnapshot = {
     return { id, version: "1", inputSchema: { type: "object", properties: Object.fromEntries(fieldNames.map((field) => [field, { type: "any" }])) }, targetTypes: [target], permissionCategory: id.includes("marker") ? "marker.write" : "project.write", mutatesProject: true, externalSideEffects: [], selectionPolicy: "explicit_or_resolved", unitPolicy: "frames_at_project_fps", coalescingPolicy: "one_transaction", lockPolicy: "reject_locked", playbackPolicy: "preserve_playhead", limits: { maxOperations: 64, maxTargets: 64 }, undoScope: "project_transaction", collisionPolicy: "fail", trackPlacementPolicy: "specified_or_auto", linkedMediaPolicy: "preserve_linked", taskPolicy: { mode: "synchronous", resourceClass: "cpu", priority: 50, cancellableUntil: "commit", resumable: false, maxConcurrency: 1, diskReservation: 0, progressAdapter: "none" }, executionMode: "local_transaction", reversibility: "undoable", allowedPolicies: ["collision", "trackPlacement", "linkedMedia", "marker"], markerPolicy: "preserve", validate: "schema_and_target", execute: "timeline_executor", postconditions: ["project_hash_changed", "visible_state_verified"], preview: "timeline_preview", render: "timeline_render", verificationAdapter: "timeline.visible" };
   }),
 };
+capabilitySnapshot.canonical = {
+  schemaVersion: capabilitySnapshot.schemaVersion,
+  version: capabilitySnapshot.version,
+  contractIds: [...capabilitySnapshot.contractIds],
+};
 capabilitySnapshot.hash = `fnv1a64:${fnv1a64(`orbit.capability-snapshot.v1|1|${capabilityIds.join(",")}`)}`;
 function context(clips = []) {
   return { project: { revision: 7, fps: 30, clips }, resources: [resource], tracks, playhead: 2, capabilitySnapshot, nextClipId: () => "c_ai" };
@@ -44,6 +49,8 @@ test("model view validates the injected runtime registry snapshot", () => {
   assert.throws(() => modelView(undefined), /缺少宿主/);
   assert.throws(() => modelView({ ...capabilitySnapshot, contractIds: ["wrong@1"] }), /注册表快照/);
   assert.throws(() => modelView({ ...capabilitySnapshot, hash: "fnv1a64:wrong" }), /hash/);
+  assert.throws(() => modelView({ ...capabilitySnapshot, version: 0 }), /缺少宿主/);
+  assert.throws(() => modelView({ ...capabilitySnapshot, canonical: { ...capabilitySnapshot.canonical, contractIds: ["wrong@1"] } }), /canonical/);
 });
 
 test("ActionPlan inserts a verified native component onto the first free upper track", () => {

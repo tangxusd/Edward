@@ -51,7 +51,7 @@ RuntimeFacts facts() {
   return {{QStringLiteral("timeline.executor")}, {QStringLiteral("timeline.visible")},
           {QStringLiteral("playhead"), QStringLiteral("selected_component"), QStringLiteral("selected_clip"),
            QStringLiteral("selected_audio"), QStringLiteral("timeline"), QStringLiteral("selected_clip"),
-           QStringLiteral("marker"), QStringLiteral("track")}, 3};
+           QStringLiteral("marker"), QStringLiteral("track")}, 1};
 }
 
 void testStableSnapshotHash() {
@@ -107,6 +107,26 @@ void testRuntimeTargetTypesAreRequired() {
   assert(!snapshot.valid);
   assert(snapshot.error.contains(QStringLiteral("target type"), Qt::CaseInsensitive));
 }
+
+void testSnapshotJsonIsCanonicalAndVersioned() {
+  const auto snapshot = CapabilityRegistry::builtIn().snapshot(facts());
+  assert(snapshot.valid);
+  const auto json = snapshot.toJson();
+  assert(json.value(QStringLiteral("schemaVersion")) == QStringLiteral("orbit.capability-snapshot.v1"));
+  assert(json.value(QStringLiteral("version")) == 1);
+  const auto ids = json.value(QStringLiteral("contractIds")).toArray();
+  assert(!ids.isEmpty());
+  for (int i = 1; i < ids.size(); ++i) assert(ids.at(i - 1).toString() < ids.at(i).toString());
+  assert(ids.first().toString().contains(QStringLiteral("@1")));
+  assert(json.value(QStringLiteral("canonical")).toObject().value(QStringLiteral("contractIds")).toArray() == ids);
+  assert(json.value(QStringLiteral("hash")).toString().startsWith(QStringLiteral("fnv1a64:")));
+
+  auto unsupported = facts();
+  unsupported.registryVersion = 2;
+  const auto rejected = CapabilityRegistry::builtIn().snapshot(unsupported);
+  assert(!rejected.valid);
+  assert(rejected.error.contains(QStringLiteral("unsupported"), Qt::CaseInsensitive));
+}
 }  // namespace
 
 int main() {
@@ -115,4 +135,5 @@ int main() {
   testReplacementCyclesAreRejected();
   testModelViewContainsRequiredContractFields();
   testRuntimeTargetTypesAreRequired();
+  testSnapshotJsonIsCanonicalAndVersioned();
 }

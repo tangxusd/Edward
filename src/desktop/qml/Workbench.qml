@@ -277,6 +277,8 @@ ApplicationWindow {
             settings.javascriptEnabled: true
             settings.localStorageEnabled: true
             webChannel: preferenceWebChannel
+            onLoadingChanged: if (loadRequest.status === WebEngineView.LoadSucceededStatus)
+                runJavaScript("window.edwardAiCapabilitySnapshot=" + JSON.stringify(workbenchRuntime.fablecutCapabilitySnapshot()) + ";")
         }
     }
 }

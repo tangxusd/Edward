@@ -16,7 +16,8 @@
     return hash.toString(16).padStart(16, "0");
   }
   function modelContracts(snapshot) {
-    if (!snapshot || snapshot.schemaVersion !== "orbit.capability-snapshot.v1" || snapshot.version !== 1 ||
+    if (!snapshot || snapshot.schemaVersion !== "orbit.capability-snapshot.v1" ||
+        !Number.isInteger(snapshot.version) || snapshot.version < 1 ||
         !Array.isArray(snapshot.contractIds) || !Array.isArray(snapshot.capabilities) || typeof snapshot.hash !== "string") {
       fail("缺少宿主能力注册表快照");
     }
@@ -27,6 +28,11 @@
     }
     const canonical = `orbit.capability-snapshot.v1|${snapshot.version}|${ids.join(",")}`;
     if (snapshot.hash !== `fnv1a64:${fnv1a64(canonical)}`) fail("能力注册表快照 hash 不一致");
+    if (!snapshot.canonical || snapshot.canonical.schemaVersion !== snapshot.schemaVersion ||
+        snapshot.canonical.version !== snapshot.version ||
+        JSON.stringify(snapshot.canonical.contractIds) !== JSON.stringify(ids)) {
+      fail("能力注册表 canonical 快照不一致");
+    }
     if (snapshot.capabilities.length !== ids.length || snapshot.capabilities.some((item, index) => `${item.id}@${item.version}` !== ids[index])) {
       fail("能力注册表合同不一致");
     }

@@ -65,16 +65,6 @@ QStringList sorted(QStringList values) {
   return values;
 }
 
-QString canonicalSnapshot(const QJsonArray& view, qint64 version) {
-  QStringList ids;
-  for (const auto& entry : view) {
-    const auto object = entry.toObject();
-    ids.push_back(object.value(QStringLiteral("id")).toString() + QStringLiteral("@") + object.value(QStringLiteral("version")).toString());
-  }
-  std::sort(ids.begin(), ids.end());
-  return QStringLiteral("orbit.capability-snapshot.v1|%1|%2").arg(version).arg(ids.join(QStringLiteral(",")));
-}
-
 QString fnv1a64(const QByteArray& value) {
   quint64 hash = 0xcbf29ce484222325ULL;
   for (const auto byte : value) {
@@ -229,6 +219,10 @@ void CapabilityRegistry::validate() {
 CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const {
   CapabilitySnapshot snapshot;
   snapshot.version = facts.registryVersion;
+  if (facts.registryVersion != 1) {
+    snapshot.error = QStringLiteral("unsupported capability registry version: %1").arg(facts.registryVersion);
+    return snapshot;
+  }
   if (!isValid()) {
     snapshot.error = validationError_;
     return snapshot;
@@ -262,7 +256,7 @@ CapabilitySnapshot CapabilityRegistry::snapshot(const RuntimeFacts& facts) const
       }
     }
     view.append(contract.toJson());
-    ids.push_back(contract.id);
+    ids.push_back(contract.id + QStringLiteral("@") + contract.version);
   }
   snapshot.modelCapabilities = view;
   snapshot.contractIds = sorted(ids);

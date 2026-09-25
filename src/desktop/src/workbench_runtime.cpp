@@ -206,6 +206,18 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenc
           });
 }
 
+QJsonObject WorkbenchRuntime::fablecutCapabilitySnapshot() const {
+  const edward::ai::RuntimeFacts facts{
+      {QStringLiteral("timeline.executor")},
+      {QStringLiteral("timeline.visible")},
+      {QStringLiteral("audio"), QStringLiteral("marker"), QStringLiteral("playhead"),
+       QStringLiteral("selected_audio"), QStringLiteral("selected_clip"), QStringLiteral("selected_component"),
+       QStringLiteral("timeline"), QStringLiteral("track")},
+      1};
+  const auto snapshot = edward::ai::CapabilityRegistry::builtIn().snapshot(facts);
+  return snapshot.valid ? snapshot.toJson() : QJsonObject{};
+}
+
 QJsonObject WorkbenchRuntime::nativeRuntimeProps() const { return component_ ? component_->props : QJsonObject{}; }
 
 QString WorkbenchRuntime::nativeRuntimePreviewEntry() const {

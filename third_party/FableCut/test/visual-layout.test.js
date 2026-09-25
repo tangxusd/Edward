@@ -30,6 +30,7 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.match(app, /classList\.add\("conversation-active"\)/);
   assert.match(app, /function aiProjectSnapshot\(\)/);
   assert.match(app, /const capabilities = window\.edwardAiActionPlan\?\.modelView/);
+  assert.match(fs.readFileSync(path.join(root, "../..", "src/desktop/qml/Workbench.qml"), "utf8"), /edwardAiCapabilitySnapshot/);
   assert.match(app, /capabilities,\n/);
   assert.match(app, /requestSubmit\(\)/);
   assert.match(app, /clipboardData\?\.items/);
