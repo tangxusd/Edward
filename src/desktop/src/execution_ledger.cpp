@@ -86,6 +86,10 @@ bool ExecutionLedger::append(const LedgerEntry& entry, QString* error) {
     if (error) *error = QStringLiteral("execution ledger is locked by another process");
     return false;
   }
+  return appendUnlocked(entry, error);
+}
+
+bool ExecutionLedger::appendUnlocked(const LedgerEntry& entry, QString* error) {
   QFile file(path_);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
     if (error) *error = file.errorString();
@@ -102,7 +106,37 @@ bool ExecutionLedger::append(const LedgerEntry& entry, QString* error) {
 LedgerEntry ExecutionLedger::begin(const RequestIdentity& identity, QString* error) {
   LedgerEntry entry{identity, QStringLiteral("tx-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces)),
                     LedgerState::Begun, {}, QDateTime::currentMSecsSinceEpoch()};
-  if (!append(entry, error)) entry.transactionId.clear();
+  QLockFile lock(path_ + QStringLiteral(".lock"));
+  lock.setStaleLockTime(30000);
+  if (!lock.tryLock(1000)) {
+    if (error) *error = QStringLiteral("execution ledger is locked by another process");
+    entry.transactionId.clear();
+    return entry;
+  }
+  QFile existing(path_);
+  if (existing.exists() && existing.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    while (!existing.atEnd()) {
+      const auto line = existing.readLine().trimmed();
+      if (line.isEmpty()) continue;
+      QJsonParseError parseError;
+      const auto document = QJsonDocument::fromJson(line, &parseError);
+      if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        if (error) *error = QStringLiteral("execution ledger contains invalid JSON");
+        entry.transactionId.clear();
+        return entry;
+      }
+      const auto prior = fromJson(document.object());
+      if (prior.identity.projectId == identity.projectId && prior.identity.requestId == identity.requestId) {
+        if (prior.identity.inputHash != identity.inputHash) {
+          if (error) *error = QStringLiteral("request identity conflicts with existing ledger entry");
+          entry.transactionId.clear();
+          return entry;
+        }
+        return prior;
+      }
+    }
+  }
+  if (!appendUnlocked(entry, error)) entry.transactionId.clear();
   return entry;
 }
 

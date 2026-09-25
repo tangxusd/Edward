@@ -49,6 +49,7 @@ class ExecutionLedger final {
   static QJsonObject toJson(const LedgerEntry& entry);
   static LedgerEntry fromJson(const QJsonObject& object);
   QVector<LedgerEntry> readAll(QString* error = nullptr) const;
+  bool appendUnlocked(const LedgerEntry& entry, QString* error = nullptr);
 };
 
 }  // namespace edward::desktop
