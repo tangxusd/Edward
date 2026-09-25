@@ -27,8 +27,9 @@ test('AI export carries the committed project revision and render snapshot hash'
   const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.match(app, /runtime\.renderSnapshot = createRenderSnapshot\(project, runtime\.lastAiReceipt\)/);
-  assert.match(app, /projectRevision: runtime\.renderSnapshot\.revision/);
-  assert.match(app, /renderSnapshotHash: runtime\.renderSnapshot\.hash/);
+  assert.match(app, /projectRevision: renderSnapshot\.revision/);
+  assert.match(app, /renderSnapshotHash: renderSnapshot\.hash/);
+  assert.match(app, /function assertRenderSnapshotStable\(snapshot\)/);
   assert.match(server, /projectRevision, renderSnapshotHash/);
   assert.match(server, /projectRevision, renderSnapshotHash,/);
 });

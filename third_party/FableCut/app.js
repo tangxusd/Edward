@@ -8062,11 +8062,13 @@ async function fastExport(requestedOutputSpec = null) {
   restoreExportVideoState();
   const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
   runtime.renderSnapshot = createRenderSnapshot(project, runtime.lastAiReceipt);
+  const renderSnapshot = runtime.renderSnapshot;
   const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
   const frames = Math.max(1, Math.round(dur * fps));
   let sessId = null;
   try {
     els.exportTitle.textContent = "正在混合音频…";
+    assertRenderSnapshotStable(renderSnapshot);
     const wav = await renderAudioMix(dur);
     if (renderCancelled) throw new Error("cancelled");
     const profileId = els.exportProfileSel?.value || effectiveEncodeProfileId();
@@ -8082,8 +8084,8 @@ async function fastExport(requestedOutputSpec = null) {
         // lets the server dry-run the profile with the same input count we
         // will actually feed it, so -map based profiles are checked correctly
         hasAudio: !!wav,
-        projectRevision: runtime.renderSnapshot.revision,
-        renderSnapshotHash: runtime.renderSnapshot.hash,
+        projectRevision: renderSnapshot.revision,
+        renderSnapshotHash: renderSnapshot.hash,
       }),
     }).then((r) => r.json());
     if (!begin.id) throw new Error(begin.error || "export begin failed");
@@ -8095,6 +8097,7 @@ async function fastExport(requestedOutputSpec = null) {
     try { await document.fonts.ready; } catch { }
     for (let f = 0; f < frames; f++) {
       if (renderCancelled) throw new Error("cancelled");
+      assertRenderSnapshotStable(renderSnapshot);
       const t = f / fps;
       state.time = t;                    // playhead follows the render
       await seekVideosTo(t);
@@ -8191,6 +8194,7 @@ async function webCodecsExport(requestedOutputSpec = null) {
   restoreExportVideoState();
   const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
   runtime.renderSnapshot = createRenderSnapshot(project, runtime.lastAiReceipt);
+  const renderSnapshot = runtime.renderSnapshot;
   const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
   const frames = Math.max(1, Math.round(dur * fps));
   const keyEvery = Math.max(1, Math.round(fps * 2));
@@ -8253,6 +8257,7 @@ async function webCodecsExport(requestedOutputSpec = null) {
     tick();
   });
   try {
+    assertRenderSnapshotStable(renderSnapshot);
     els.exportTitle.textContent = "正在混合音频…";
     const wav = await renderAudioMix(dur);
     if (renderCancelled) throw new Error("cancelled");
@@ -8264,8 +8269,8 @@ async function webCodecsExport(requestedOutputSpec = null) {
         name: (window.fablecutQtExportFileName || project.name).replace(/[^\w\- .]+/g, "") || "export",
         mode: "annexb",
         hasAudio: !!wav,
-        projectRevision: runtime.renderSnapshot.revision,
-        renderSnapshotHash: runtime.renderSnapshot.hash,
+        projectRevision: renderSnapshot.revision,
+        renderSnapshotHash: renderSnapshot.hash,
       }),
       signal,
     }).then((r) => r.json());
@@ -8304,6 +8309,7 @@ async function webCodecsExport(requestedOutputSpec = null) {
 
     for (let f = 0; f < frames; f++) {
       if (renderCancelled || signal.aborted) throw new Error("cancelled");
+      assertRenderSnapshotStable(renderSnapshot);
       if (uploadError) throw uploadError;
       await waitUploadBackpressure(2);
       await waitEncodeQueue(encoder, 2, { signal, getError: () => uploadError });
@@ -9712,6 +9718,11 @@ function createRenderSnapshot(sourceProject = project, receipt = null) {
     receiptId: receipt?.requestId ? String(receipt.requestId) : "",
     hash: `fnv1a64:${hash.toString(16).padStart(16, "0")}`,
   });
+}
+function assertRenderSnapshotStable(snapshot) {
+  const current = createRenderSnapshot(project, runtime.lastAiReceipt);
+  if (!snapshot || current.hash !== snapshot.hash || current.revision !== snapshot.revision)
+    throw new Error("项目在渲染期间发生变化，已中止导出以保护渲染快照");
 }
 async function applyEdwardActionPlan(raw, bridge) {
   let plan;
