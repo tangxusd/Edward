@@ -34,12 +34,16 @@ bool objectArray(const QJsonValue& value) {
   return true;
 }
 
+bool nonEmptyObjectArray(const QJsonValue& value) { return objectArray(value) && !value.toArray().isEmpty(); }
+
+bool nonEmptyStringArray(const QJsonValue& value) { return stringArray(value) && !value.toArray().isEmpty(); }
+
 bool validCapabilitySet(const QJsonValue& value) {
   if (!value.isObject()) return false;
   const auto capabilitySet = value.toObject();
   if (!onlyFields(capabilitySet, {QStringLiteral("version"), QStringLiteral("hash")})) return false;
   const auto version = capabilitySet.value(QStringLiteral("version"));
-  return version.isDouble() && version.toDouble() >= 0 && version.toDouble() == version.toInteger() &&
+  return version.isDouble() && version.toDouble() > 0 && version.toDouble() == version.toInteger() &&
          nonEmptyString(capabilitySet.value(QStringLiteral("hash")));
 }
 
@@ -56,9 +60,9 @@ bool validBoundOperation(const QJsonValue& value, QString* error) {
       QStringLiteral("resolutionEvidence")};
   if (!onlyFields(operation, allowed) || !nonEmptyString(operation.value(QStringLiteral("operationId"))) ||
       !nonEmptyString(operation.value(QStringLiteral("capability"))) || !operation.value(QStringLiteral("target")).isObject() ||
-      !operation.value(QStringLiteral("args")).isObject() || !operation.value(QStringLiteral("policies")).isObject() ||
-      !stringArray(operation.value(QStringLiteral("dependsOn"))) || !objectArray(operation.value(QStringLiteral("preconditions"))) ||
-      !stringArray(operation.value(QStringLiteral("readSet"))) || !stringArray(operation.value(QStringLiteral("writeSet"))) ||
+      !operation.value(QStringLiteral("args")).isObject() || operation.value(QStringLiteral("policies")).toObject().isEmpty() ||
+      !stringArray(operation.value(QStringLiteral("dependsOn"))) || !nonEmptyObjectArray(operation.value(QStringLiteral("preconditions"))) ||
+      !nonEmptyStringArray(operation.value(QStringLiteral("readSet"))) || !nonEmptyStringArray(operation.value(QStringLiteral("writeSet"))) ||
       !operation.value(QStringLiteral("resolutionEvidence")).isObject()) {
     fail(error, QStringLiteral("BoundActionPlan operation fields are invalid"));
     return false;
@@ -177,7 +181,7 @@ bool ActionPlan::validate(const ProjectSnapshot& project, QString* error) const 
   for (const auto& item : operations) {
     const auto operation = item.toObject();
     const auto targetId = operation.value(QStringLiteral("target")).toObject().value(QStringLiteral("id")).toString();
-    if (!project.knownTargetIds.isEmpty() && !project.knownTargetIds.contains(targetId)) {
+    if (!project.knownTargetIds.contains(targetId)) {
       fail(error, QStringLiteral("ActionPlan target does not exist"));
       return false;
     }
