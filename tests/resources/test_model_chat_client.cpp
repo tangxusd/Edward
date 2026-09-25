@@ -45,5 +45,20 @@ int main() {
   assert(edward::resources::ModelChatClient::modelsEndpoint("https://api.example.com/v1/chat/completions") == "https://api.example.com/v1/models");
   assert(edward::resources::ModelChatClient::modelsEndpoint("https://api.anthropic.com/v1/messages") == "https://api.anthropic.com/v1/models");
   assert(edward::resources::ModelChatClient::extractModelIds(QJsonObject{}, &error).isEmpty());
+  const auto openaiEvent = edward::resources::ModelChatClient::parseStreamingLine(
+      "data: {\"choices\":[{\"delta\":{\"content\":\"片\"}}],\"sequence\":2}", "openai-completions", &error);
+  assert(openaiEvent && openaiEvent->text == "片" && openaiEvent->upstreamSequence == 2);
+  const auto responseEvent = edward::resources::ModelChatClient::parseStreamingLine(
+      "data: {\"type\":\"response.output_text.delta\",\"delta\":\"段\",\"index\":3}", "openai-responses", &error);
+  assert(responseEvent && responseEvent->text == "段" && responseEvent->upstreamSequence == 3);
+  const auto anthropicEvent = edward::resources::ModelChatClient::parseStreamingLine(
+      "data: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"落\"}}", "anthropic-messages", &error);
+  assert(anthropicEvent && anthropicEvent->text == "落");
+  const auto doneEvent = edward::resources::ModelChatClient::parseStreamingLine("data: [DONE]", "openai-completions", &error);
+  assert(doneEvent && doneEvent->done);
+  const auto errorEvent = edward::resources::ModelChatClient::parseStreamingLine(
+      "data: {\"type\":\"error\",\"error\":{\"message\":\"bad\"}}", "openai-completions", &error);
+  assert(errorEvent && errorEvent->error);
+  assert(!edward::resources::ModelChatClient::parseStreamingLine(": heartbeat", "openai-completions", &error));
   return 0;
 }

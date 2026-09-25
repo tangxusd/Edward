@@ -120,6 +120,40 @@ QStringList ModelChatClient::extractModelIds(const QJsonObject& response, QStrin
   return ids;
 }
 
+std::optional<ModelChatStreamEvent> ModelChatClient::parseStreamingLine(const QByteArray& rawLine,
+                                                                         const QString& protocol,
+                                                                         QString* error) {
+  auto line = rawLine.trimmed();
+  if (!line.startsWith("data:")) return std::nullopt;
+  const auto payload = line.mid(5).trimmed();
+  ModelChatStreamEvent result;
+  if (payload == "[DONE]") { result.done = true; return result; }
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(payload, &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    if (error) *error = QStringLiteral("AI 流式事件不是有效 JSON");
+    return std::nullopt;
+  }
+  const auto event = document.object();
+  if (event.contains(QStringLiteral("error")) || event.value(QStringLiteral("type")).toString() == QStringLiteral("error")) {
+    result.error = true;
+    result.errorMessage = QStringLiteral("AI 流式响应返回错误");
+    return result;
+  }
+  result.upstreamSequence = event.value(QStringLiteral("sequence")).toVariant().toLongLong();
+  if (result.upstreamSequence <= 0) result.upstreamSequence = event.value(QStringLiteral("index")).toVariant().toLongLong();
+  if (protocol == QStringLiteral("anthropic-messages")) {
+    if (event.value(QStringLiteral("type")).toString() == QStringLiteral("content_block_delta"))
+      result.text = event.value(QStringLiteral("delta")).toObject().value(QStringLiteral("text")).toString();
+  } else if (protocol == QStringLiteral("openai-responses")) {
+    result.text = event.value(QStringLiteral("delta")).toString();
+  } else {
+    const auto choices = event.value(QStringLiteral("choices")).toArray();
+    if (!choices.isEmpty()) result.text = choices.first().toObject().value(QStringLiteral("delta")).toObject().value(QStringLiteral("content")).toString();
+  }
+  return result;
+}
+
 bool ModelChatClient::request(const ModelChatConfig& config, const QString& systemPrompt,
                              const QString& userPrompt) {
   QString error;
@@ -233,25 +267,14 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       auto line = buffer->left(end);
       buffer->remove(0, end + 1);
       if (line.endsWith('\r')) line.chop(1);
-      line = line.trimmed();
-      if (!line.startsWith("data:")) continue;
-      line = line.mid(5).trimmed();
-      if (line == "[DONE]") { *sawDone = true; continue; }
-      if (line.startsWith('{') && line.contains("\"error\"")) {
+      QString parseError;
+      const auto parsed = parseStreamingLine(line, protocol, &parseError);
+      if (!parsed) continue;
+      if (parsed->done) { *sawDone = true; continue; }
+      if (parsed->error) {
         *terminal = true;
-        emit streamError(requestId, QStringLiteral("MODEL_ERROR"), QStringLiteral("AI 流式响应返回错误"));
-        emit completed(false, QStringLiteral("AI 流式响应返回错误"));
-        reply->abort();
-        return;
-      }
-      QJsonParseError parseError;
-      const auto document = QJsonDocument::fromJson(line, &parseError);
-      if (parseError.error != QJsonParseError::NoError || !document.isObject()) continue;
-      const auto event = document.object();
-      if (event.contains(QStringLiteral("error")) || event.value(QStringLiteral("type")).toString() == QStringLiteral("error")) {
-        *terminal = true;
-        emit streamError(requestId, QStringLiteral("MODEL_ERROR"), QStringLiteral("AI 流式响应返回错误"));
-        emit completed(false, QStringLiteral("AI 流式响应返回错误"));
+        emit streamError(requestId, QStringLiteral("MODEL_ERROR"), parsed->errorMessage);
+        emit completed(false, parsed->errorMessage);
         reply->abort();
         return;
       }
@@ -262,25 +285,12 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
         reply->abort();
         return;
       }
-      const auto incomingSequence = event.value(QStringLiteral("sequence")).toVariant().toLongLong() > 0
-          ? event.value(QStringLiteral("sequence")).toVariant().toLongLong()
-          : event.value(QStringLiteral("index")).toVariant().toLongLong();
+      const auto incomingSequence = parsed->upstreamSequence;
       if (incomingSequence > 0) {
         if (incomingSequence <= *upstreamSequence) continue;
         *upstreamSequence = incomingSequence;
       }
-      QString delta;
-      if (protocol == QStringLiteral("anthropic-messages")) {
-        if (event.value(QStringLiteral("type")).toString() == QStringLiteral("content_block_delta"))
-          delta = event.value(QStringLiteral("delta")).toObject().value(QStringLiteral("text")).toString();
-      } else if (protocol == QStringLiteral("openai-responses")) {
-        delta = event.value(QStringLiteral("delta")).toString();
-        if (delta.isEmpty() && event.value(QStringLiteral("type")).toString() == QStringLiteral("response.output_text.delta"))
-          delta = event.value(QStringLiteral("delta")).toString();
-      } else {
-        const auto choices = event.value(QStringLiteral("choices")).toArray();
-        if (!choices.isEmpty()) delta = choices.first().toObject().value(QStringLiteral("delta")).toObject().value(QStringLiteral("content")).toString();
-      }
+      const auto delta = parsed->text;
       if (delta.isEmpty()) continue;
       if (aggregate->size() + delta.size() > 256 * 1024) {
         *terminal = true;

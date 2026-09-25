@@ -26,6 +26,14 @@ struct ModelChatRequest final {
   QHash<QByteArray, QByteArray> headers;
 };
 
+struct ModelChatStreamEvent final {
+  bool done = false;
+  bool error = false;
+  qint64 upstreamSequence = 0;
+  QString text;
+  QString errorMessage;
+};
+
 class ModelChatClient final : public QObject {
   Q_OBJECT
  public:
@@ -39,6 +47,9 @@ class ModelChatClient final : public QObject {
                                                       QString* error = nullptr);
   static QString modelsEndpoint(const QString& chatEndpoint);
   static QStringList extractModelIds(const QJsonObject& response, QString* error = nullptr);
+  static std::optional<ModelChatStreamEvent> parseStreamingLine(const QByteArray& line,
+                                                                  const QString& protocol,
+                                                                  QString* error = nullptr);
   bool request(const ModelChatConfig& config, const QString& systemPrompt,
                const QString& userPrompt);
   bool requestStreaming(const ModelChatConfig& config, const QString& systemPrompt,
