@@ -46,6 +46,32 @@ bool Timeline::setPlayhead(Frame frame) {
   return true;
 }
 
+MarkerId Timeline::addMarker(Frame frame, MarkerScope scope, ClipId clipId, MarkerColor color) {
+  if (frame < 0 || frame > durationFrames_) return 0;
+  if (scope == MarkerScope::Clip) {
+    const auto target = clip(clipId);
+    if (!target || frame < target->timelineStart || frame > target->timelineStart + target->sourceOut - target->sourceIn) return 0;
+  } else {
+    clipId = 0;
+  }
+  const auto id = nextMarkerId_++;
+  markers_.push_back({id, frame, scope, clipId, color});
+  return id;
+}
+
+bool Timeline::removeMarker(MarkerId id) {
+  const auto before = markers_.size();
+  std::erase_if(markers_, [id](const auto& marker) { return marker.id == id; });
+  return before != markers_.size();
+}
+
+bool Timeline::setMarkerColor(MarkerId id, MarkerColor color) {
+  const auto marker = std::ranges::find_if(markers_, [id](const auto& value) { return value.id == id; });
+  if (marker == markers_.end()) return false;
+  marker->color = color;
+  return true;
+}
+
 std::optional<Transition> Timeline::addTransition(TransitionType type, ClipId leftClipId,
                                                   ClipId rightClipId, Frame requestedDuration) {
   if (requestedDuration <= 0 || leftClipId == rightClipId) return std::nullopt;
@@ -108,7 +134,7 @@ std::vector<TimelineClip> Timeline::clips(TrackId trackId) const {
 }
 
 TimelineSnapshot Timeline::snapshot() const {
-  return {durationFrames_, playheadFrame_, videoTracks_, clips_, transitions_};
+  return {durationFrames_, playheadFrame_, videoTracks_, clips_, transitions_, markers_};
 }
 
 bool Timeline::restore(const TimelineSnapshot& snapshot) {
@@ -140,11 +166,22 @@ bool Timeline::restore(const TimelineSnapshot& snapshot) {
         transition.startFrame != right->timelineStart - transition.durationFrames)
       return false;
   }
+  for (const auto& marker : snapshot.markers) {
+    if (marker.id == 0 || marker.frame < 0 || marker.frame > durationFrames_) return false;
+    if (marker.scope == MarkerScope::Timeline && marker.clipId != 0) return false;
+    if (marker.scope == MarkerScope::Clip) {
+      const auto target = std::ranges::find_if(snapshot.clips, [&](const auto& clip) { return clip.id == marker.clipId; });
+      if (target == snapshot.clips.end() || marker.frame < target->timelineStart || marker.frame > target->timelineStart + target->sourceOut - target->sourceIn) return false;
+    }
+    if (std::ranges::count(snapshot.markers, marker.id, &TimelineMarker::id) != 1) return false;
+  }
   videoTracks_ = snapshot.videoTracks;
   clips_ = snapshot.clips;
   transitions_ = snapshot.transitions;
+  markers_ = snapshot.markers;
   playheadFrame_ = snapshot.playheadFrame;
   nextTrackId_ = videoTracks_.empty() ? 1 : *std::ranges::max_element(videoTracks_) + 1;
+  nextMarkerId_ = markers_.empty() ? 1 : std::ranges::max_element(markers_, {}, &TimelineMarker::id)->id + 1;
   return true;
 }
 

@@ -4,6 +4,7 @@ add_library(edward_media STATIC
   src/media_probe.cpp
   src/mlt_adapter.cpp
   src/render_graph.cpp
+  src/loop_animation_evaluator.cpp
   src/render_storage.cpp
   src/preview_frame_cache.cpp
   src/proxy_manager.cpp

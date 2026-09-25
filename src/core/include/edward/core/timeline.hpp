@@ -11,6 +11,17 @@
 namespace edward::core {
 
 enum class TimelineClipKind { Media, Component };
+using MarkerId = qint64;
+enum class MarkerScope { Timeline, Clip };
+enum class MarkerColor { Orange, Red, Yellow, Green, Blue };
+
+struct TimelineMarker {
+  MarkerId id = 0;
+  Frame frame = 0;
+  MarkerScope scope = MarkerScope::Timeline;
+  ClipId clipId = 0;
+  MarkerColor color = MarkerColor::Orange;
+};
 
 struct TimelineClip {
   ClipId id = 0;
@@ -30,6 +41,7 @@ struct TimelineSnapshot {
   std::vector<TrackId> videoTracks;
   std::vector<TimelineClip> clips;
   std::vector<Transition> transitions;
+  std::vector<TimelineMarker> markers;
 };
 
 class Timeline {
@@ -42,6 +54,11 @@ class Timeline {
   bool replaceClip(ClipId id, TimelineClip replacement);
   bool removeClip(ClipId id);
   bool setPlayhead(Frame frame);
+  MarkerId addMarker(Frame frame, MarkerScope scope = MarkerScope::Timeline, ClipId clipId = 0,
+                     MarkerColor color = MarkerColor::Orange);
+  bool removeMarker(MarkerId id);
+  bool setMarkerColor(MarkerId id, MarkerColor color);
+  std::vector<TimelineMarker> markers() const { return markers_; }
   std::optional<Transition> addTransition(TransitionType type, ClipId leftClipId,
                                           ClipId rightClipId, Frame requestedDuration);
   std::optional<Transition> setTransitionDuration(ClipId leftClipId, ClipId rightClipId,
@@ -64,6 +81,8 @@ class Timeline {
   std::vector<TrackId> videoTracks_;
   std::vector<TimelineClip> clips_;
   std::vector<Transition> transitions_;
+  std::vector<TimelineMarker> markers_;
+  MarkerId nextMarkerId_ = 1;
 };
 
 }  // namespace edward::core

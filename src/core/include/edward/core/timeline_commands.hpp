@@ -20,6 +20,10 @@ class TimelineCommands {
   bool setTransitionDuration(ClipId leftClipId, ClipId rightClipId, Frame duration);
   bool removeTransition(ClipId leftClipId, ClipId rightClipId);
   bool setPlayhead(Frame frame);
+  bool addMarker(Frame frame, MarkerScope scope = MarkerScope::Timeline, ClipId clipId = 0,
+                 MarkerColor color = MarkerColor::Orange);
+  bool removeMarker(MarkerId id);
+  bool setMarkerColor(MarkerId id, MarkerColor color);
   bool undo();
   bool redo();
 

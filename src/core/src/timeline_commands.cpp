@@ -83,6 +83,16 @@ bool TimelineCommands::removeTransition(ClipId leftClipId, ClipId rightClipId) {
 
 bool TimelineCommands::setPlayhead(Frame frame) { return mutate([&] { return timeline_.setPlayhead(frame); }); }
 
+bool TimelineCommands::addMarker(Frame frame, MarkerScope scope, ClipId clipId, MarkerColor color) {
+  return mutate([&] { return timeline_.addMarker(frame, scope, clipId, color) != 0; });
+}
+
+bool TimelineCommands::removeMarker(MarkerId id) { return mutate([&] { return timeline_.removeMarker(id); }); }
+
+bool TimelineCommands::setMarkerColor(MarkerId id, MarkerColor color) {
+  return mutate([&] { return timeline_.setMarkerColor(id, color); });
+}
+
 bool TimelineCommands::undo() {
   if (undo_.empty()) return false;
   const auto current = timeline_.snapshot();
