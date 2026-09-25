@@ -23,6 +23,16 @@ test('server finalizes exports without replacing an existing filename', () => {
   assert.match(server, /if \(e\.code === "EEXIST"\) continue/);
 });
 
+test('AI export carries the committed project revision and render snapshot hash', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.match(app, /runtime\.renderSnapshot = createRenderSnapshot\(project, runtime\.lastAiReceipt\)/);
+  assert.match(app, /projectRevision: runtime\.renderSnapshot\.revision/);
+  assert.match(app, /renderSnapshotHash: runtime\.renderSnapshot\.hash/);
+  assert.match(server, /projectRevision, renderSnapshotHash/);
+  assert.match(server, /projectRevision, renderSnapshotHash,/);
+});
+
 test('legacy component foreignObject clone clears monitor positioning', () => {
   const runtime = fs.readFileSync(path.join(__dirname, '..', 'component-runtime.js'), 'utf8');
   assert.match(runtime, /clone\.style\.position = "relative"/);

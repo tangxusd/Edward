@@ -462,7 +462,7 @@ function attachProc(sess, proc) {
   proc.stdin.on("error", () => {}); // EPIPE if ffmpeg dies mid-stream
   sess.done = new Promise((res) => proc.on("close", res));
 }
-async function beginExport(fps, name, profileId, hasAudio, mode) {
+async function beginExport(fps, name, profileId, hasAudio, mode, projectRevision = null, renderSnapshotHash = "") {
   const m = mode === "annexb" ? "annexb" : "jpeg";
   const rate = Number(fps);
   if (!Number.isFinite(rate) || rate <= 0) {
@@ -476,7 +476,7 @@ async function beginExport(fps, name, profileId, hasAudio, mode) {
   if (m === "annexb") {
     const { outPath, partPath } = reserveExportPaths(EXPORTS_DIR, safe, ".mp4");
     const sess = {
-      mode: m, fps: rate, proc: null, dir,
+      mode: m, fps: rate, proc: null, dir, projectRevision, renderSnapshotHash,
       name: safe, hasAudio: !!hasAudio,
       wav: null, partPath, outPath,
       stderr: "", done: null, lastTouch: Date.now(),
@@ -495,7 +495,7 @@ async function beginExport(fps, name, profileId, hasAudio, mode) {
   // cannot both see the same free path. The empty .part file is overwritten by ffmpeg (-y).
   const { outPath, partPath } = reserveExportPaths(EXPORTS_DIR, safe, profile.extension);
   const sess = {
-    mode: m, proc: null, fps: rate, profile, name: safe, hasAudio: !!hasAudio,
+    mode: m, proc: null, fps: rate, profile, name: safe, hasAudio: !!hasAudio, projectRevision, renderSnapshotHash,
     dir, wav: null, partPath, outPath,
     stderr: "", done: null, lastTouch: Date.now(),
     err: () => sess.stderr.trim().split("\n").filter(Boolean).slice(-3)
@@ -983,7 +983,7 @@ const server = http.createServer(async (req, res) => {
       const mode = opts.mode === "annexb" ? "annexb" : "jpeg";
       if (mode !== "annexb" && opts.profile) resolveProfile(opts.profile); // 400, not 500, on a bad id — even without ffmpeg
       if (!HAS_FFMPEG) { sendJSON(res, 400, { error: "ffmpeg not found on PATH" }); return; }
-      sendJSON(res, 200, await beginExport(opts.fps, opts.name, opts.profile, opts.hasAudio !== false, mode));
+      sendJSON(res, 200, await beginExport(opts.fps, opts.name, opts.profile, opts.hasAudio !== false, mode, opts.projectRevision, opts.renderSnapshotHash));
     } catch (e) {
       // an unusable profile is the caller's problem, not a server fault
       const bad = /^Unknown encoding profile|was rejected by ffmpeg|export fps required/.test(e.message || "");

@@ -38,6 +38,11 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
   assert.match(app, /edwardAiBridge = await window\.edwardAi\?\.connect/);
   assert.match(app, /marker\.label = index \+ 1/);
   assert.match(app, /Number\(mk\.label\) > 9 \? "\*"/);
+  assert.match(app, /els\.ruler\.addEventListener\("contextmenu"/);
+  assert.match(app, /删除标记/);
+  assert.match(app, /marker-color \$\{color\}/);
+  assert.match(app, /function createRenderSnapshot\(sourceProject = project, receipt = null\)/);
+  assert.match(app, /renderSnapshotHash: runtime\.renderSnapshot\.hash/);
   assert.match(fs.readFileSync(path.join(root, "ai-client.js"), "utf8"), /Date\.now\(\) \+ 5000/);
   assert.match(app, /await loadNativeAnnotationResources\(\)/);
   assert.match(app, /function applyEdwardActionPlan/);

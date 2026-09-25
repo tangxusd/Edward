@@ -1887,6 +1887,30 @@ input[type=range]::-webkit-slider-thumb {
   cursor: default;
 }
 
+.ctx-menu .marker-colors {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.marker-color {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #ffffff66;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.marker-color.blue { background: #4f8cff; }
+.marker-color.green { background: #22c55e; }
+.marker-color.yellow { background: #facc15; }
+.marker-color.red { background: #ef4444; }
+.marker-color.purple { background: #a855f7; }
+
 .track-toggle {
   display: inline-flex;
   align-items: center;

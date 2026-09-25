@@ -282,6 +282,7 @@ function removeTimelineTrack(trackId) {
 }
 /* Lightweight right-click menu for track headers. */
 let trackCtxMenu = null;
+let markerCtxMenu = null;
 function hideTrackCtxMenu() {
   if (trackCtxMenu) { trackCtxMenu.remove(); trackCtxMenu = null; }
 }
@@ -318,10 +319,49 @@ function showTrackCtxMenu(clientX, clientY, track) {
 }
 document.addEventListener("pointerdown", (e) => {
   if (trackCtxMenu && !trackCtxMenu.contains(e.target)) hideTrackCtxMenu();
+  if (markerCtxMenu && !markerCtxMenu.contains(e.target)) { markerCtxMenu.remove(); markerCtxMenu = null; }
 }, true);
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") hideTrackCtxMenu();
+  if (e.key === "Escape") { hideTrackCtxMenu(); markerCtxMenu?.remove(); markerCtxMenu = null; }
 }, true);
+
+function markerAtTimelineEvent(event) {
+  const rect = els.ruler.getBoundingClientRect();
+  const t = (event.clientX - rect.left + els.timelineScroll.scrollLeft) / state.pps;
+  const tolerance = Math.max(0.08, 12 / state.pps);
+  let found = null, distance = tolerance;
+  for (const marker of project.markers || []) {
+    const d = Math.abs(Number(marker.t) - t);
+    if (d < distance) { found = marker; distance = d; }
+  }
+  return found;
+}
+function showMarkerContextMenu(event, marker) {
+  markerCtxMenu?.remove();
+  const menu = document.createElement("div");
+  menu.className = "ctx-menu";
+  menu.id = "markerCtxMenu";
+  const remove = document.createElement("button");
+  remove.type = "button"; remove.className = "ctx-item"; remove.textContent = "删除标记";
+  remove.addEventListener("click", () => {
+    pushUndo();
+    project.markers = (project.markers || []).filter((item) => item.markerId !== marker.markerId);
+    project.markers.forEach((item, index) => { item.label = index + 1; });
+    scheduleSave(); drawRuler(); menu.remove(); markerCtxMenu = null;
+  });
+  menu.appendChild(remove);
+  const colors = document.createElement("div"); colors.className = "ctx-item marker-colors";
+  ["blue", "green", "yellow", "red", "purple"].forEach((color) => {
+    const button = document.createElement("button"); button.type = "button"; button.className = `marker-color ${color}`; button.title = color;
+    button.addEventListener("click", () => { pushUndo(); marker.color = color; scheduleSave(); drawRuler(); menu.remove(); markerCtxMenu = null; });
+    colors.appendChild(button);
+  });
+  menu.appendChild(colors);
+  document.body.appendChild(menu); markerCtxMenu = menu;
+  const pad = 6, w = menu.offsetWidth, h = menu.offsetHeight;
+  menu.style.left = `${Math.max(pad, Math.min(event.clientX, window.innerWidth - w - pad))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(event.clientY, window.innerHeight - h - pad))}px`;
+}
 
 /* ── User settings (localStorage; optional behavior toggles) ── */
 const SETTINGS_KEY = "fablecut-settings";
@@ -492,6 +532,7 @@ const runtime = {
   customFonts: [],      // family names loaded from /library/fonts
   googleLoaded: new Set(),
   undo: [], redo: [], aiLocalMessages: [], aiApplying: false, lastAiUndoAvailable: false, aiAppliedPlanIds: new Set(),
+  lastAiReceipt: null, renderSnapshot: null,
   audio: null,          // {ctx, master, recDest, meter?, meterReady?}
   saveTimer: null, pendingSync: false,
   sfxPreview: null,     // <audio> element for library sound previews
@@ -4171,6 +4212,12 @@ function startScrub(e) {
   window.addEventListener("pointerup", onUp);
 }
 els.ruler.addEventListener("pointerdown", startScrub);
+els.ruler.addEventListener("contextmenu", (event) => {
+  const marker = markerAtTimelineEvent(event);
+  if (!marker) return;
+  event.preventDefault();
+  showMarkerContextMenu(event, marker);
+});
 
 function setTime(t) {
   state.time = clamp(t, 0, Math.max(projDur(), 0));
@@ -8001,6 +8048,7 @@ async function fastExport(requestedOutputSpec = null) {
   els.exportNote.textContent = "正在渲染画面并编码；切换页面后仍会继续。";
   restoreExportVideoState();
   const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
+  runtime.renderSnapshot = createRenderSnapshot(project, runtime.lastAiReceipt);
   const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
   const frames = Math.max(1, Math.round(dur * fps));
   let sessId = null;
@@ -8021,6 +8069,8 @@ async function fastExport(requestedOutputSpec = null) {
         // lets the server dry-run the profile with the same input count we
         // will actually feed it, so -map based profiles are checked correctly
         hasAudio: !!wav,
+        projectRevision: runtime.renderSnapshot.revision,
+        renderSnapshotHash: runtime.renderSnapshot.hash,
       }),
     }).then((r) => r.json());
     if (!begin.id) throw new Error(begin.error || "export begin failed");
@@ -8127,6 +8177,7 @@ async function webCodecsExport(requestedOutputSpec = null) {
   els.exportNote.textContent = "正在用浏览器编码并封装音频；切换页面后仍会继续。";
   restoreExportVideoState();
   const outputSpec = requestedOutputSpec || window.fablecutQtOutputSpec || getExportOutputSpec();
+  runtime.renderSnapshot = createRenderSnapshot(project, runtime.lastAiReceipt);
   const fps = Number(outputSpec.fps) || projectFps(), dur = Math.max(1 / fps, projDur());
   const frames = Math.max(1, Math.round(dur * fps));
   const keyEvery = Math.max(1, Math.round(fps * 2));
@@ -8200,6 +8251,8 @@ async function webCodecsExport(requestedOutputSpec = null) {
         name: (window.fablecutQtExportFileName || project.name).replace(/[^\w\- .]+/g, "") || "export",
         mode: "annexb",
         hasAudio: !!wav,
+        projectRevision: runtime.renderSnapshot.revision,
+        renderSnapshotHash: runtime.renderSnapshot.hash,
       }),
       signal,
     }).then((r) => r.json());
@@ -9635,6 +9688,18 @@ function verifyAiVisibleState(receipt, revisionBefore) {
   if ((receipt.affectedClipIds || []).some((id) => !ids.has(String(id)))) return false;
   return !!document.querySelector("#preview") && !!document.querySelector(".timeline");
 }
+function createRenderSnapshot(sourceProject = project, receipt = null) {
+  const snapshot = JSON.parse(JSON.stringify(sourceProject));
+  const canonical = JSON.stringify(snapshot);
+  let hash = 0xcbf29ce484222325n;
+  for (const byte of new TextEncoder().encode(canonical)) { hash ^= BigInt(byte); hash = BigInt.asUintN(64, hash * 0x100000001b3n); }
+  return Object.freeze({
+    project: snapshot,
+    revision: Number(snapshot.revision || 0),
+    receiptId: receipt?.requestId ? String(receipt.requestId) : "",
+    hash: `fnv1a64:${hash.toString(16).padStart(16, "0")}`,
+  });
+}
 async function applyEdwardActionPlan(raw, bridge) {
   let plan;
   try { plan = JSON.parse(raw); } catch { throw new Error("AI 操作计划格式无效"); }
@@ -9664,6 +9729,7 @@ async function applyEdwardActionPlan(raw, bridge) {
   receipt.previewVerified = verifyAiVisibleState(receipt, revisionBefore);
   receipt.exportVerified = false;
   if (!receipt.previewVerified) { undo(); runtime.lastAiUndoAvailable = false; throw new Error("AI 修改后的预览或时间线状态未验证"); }
+  runtime.lastAiReceipt = receipt;
   bridge.clearPendingAiActionPlan();
   if (requestId) runtime.aiAppliedPlanIds.add(requestId);
   runtime.aiLocalMessages.push({ user: false, text: `已执行 ${receipt.operationCount} 项修改，预览与时间线已更新，可撤销。` });

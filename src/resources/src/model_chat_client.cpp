@@ -6,6 +6,7 @@
 #include <QNetworkRequest>
 #include <QUrl>
 #include <QUuid>
+#include <QTimer>
 #include <algorithm>
 
 namespace edward::resources {
@@ -180,10 +181,50 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
   auto* aggregate = new QString;
   auto* sequence = new qint64(0);
   auto* terminal = new bool(false);
+  auto* eventCount = new int(0);
+  auto* firstByte = new bool(false);
+  auto* overallTimer = new QTimer(reply);
+  auto* firstByteTimer = new QTimer(reply);
+  auto* idleTimer = new QTimer(reply);
+  overallTimer->setSingleShot(true);
+  firstByteTimer->setSingleShot(true);
+  idleTimer->setSingleShot(true);
+  overallTimer->setInterval(180000);
+  firstByteTimer->setInterval(15000);
+  idleTimer->setInterval(30000);
+  overallTimer->start();
+  firstByteTimer->start();
+  idleTimer->start();
+  connect(overallTimer, &QTimer::timeout, this, [this, reply, terminal, requestId] {
+    if (*terminal) return;
+    *terminal = true;
+    emit streamError(requestId, QStringLiteral("TOTAL_TIMEOUT"), QStringLiteral("AI 流式请求超过总时限"));
+    emit completed(false, QStringLiteral("AI 流式请求超过总时限"));
+    reply->abort();
+  });
+  connect(firstByteTimer, &QTimer::timeout, this, [this, reply, terminal, requestId] {
+    if (*terminal) return;
+    *terminal = true;
+    emit streamError(requestId, QStringLiteral("FIRST_BYTE_TIMEOUT"), QStringLiteral("AI 模型未在首字节时限内响应"));
+    emit completed(false, QStringLiteral("AI 模型未在首字节时限内响应"));
+    reply->abort();
+  });
+  connect(idleTimer, &QTimer::timeout, this, [this, reply, terminal, requestId] {
+    if (*terminal) return;
+    *terminal = true;
+    emit streamError(requestId, QStringLiteral("IDLE_TIMEOUT"), QStringLiteral("AI 流式响应空闲超时"));
+    emit completed(false, QStringLiteral("AI 流式响应空闲超时"));
+    reply->abort();
+  });
   connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, aggregate, sequence, terminal,
+                                                     eventCount, firstByte, firstByteTimer, idleTimer,
                                                      requestId, protocol = config.protocol] {
     if (*terminal) return;
-    *buffer += reply->readAll();
+    const auto incoming = reply->readAll();
+    if (incoming.isEmpty()) return;
+    if (!*firstByte) { *firstByte = true; firstByteTimer->stop(); }
+    idleTimer->start();
+    *buffer += incoming;
     while (true) {
       const auto end = buffer->indexOf('\n');
       if (end < 0) break;
@@ -205,6 +246,13 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       const auto document = QJsonDocument::fromJson(line, &parseError);
       if (parseError.error != QJsonParseError::NoError || !document.isObject()) continue;
       const auto event = document.object();
+      if (++(*eventCount) > 4096) {
+        *terminal = true;
+        emit streamError(requestId, QStringLiteral("EVENT_LIMIT"), QStringLiteral("AI 流式事件数量超过限制"));
+        emit completed(false, QStringLiteral("AI 流式事件数量超过限制"));
+        reply->abort();
+        return;
+      }
       QString delta;
       if (protocol == QStringLiteral("anthropic-messages")) {
         if (event.value(QStringLiteral("type")).toString() == QStringLiteral("content_block_delta"))
@@ -231,6 +279,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
     }
   });
   connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, aggregate, sequence, terminal,
+                                                   eventCount, firstByte, overallTimer, firstByteTimer, idleTimer,
                                                    requestId, protocol = config.protocol] {
     if (!reply->isFinished()) return;
     const auto superseded = activeStreamingReply_ != reply && activeStreamingRequestId_ != requestId;
@@ -241,7 +290,8 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       activeStreamingCancelled_ = false;
     }
     if (wasTerminal) {
-      delete buffer; delete aggregate; delete sequence; delete terminal; reply->deleteLater();
+      overallTimer->stop(); firstByteTimer->stop(); idleTimer->stop();
+      delete buffer; delete aggregate; delete sequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
       return;
     }
     if (!buffer->isEmpty()) {
@@ -280,7 +330,8 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
       emit streamDone(requestId, *aggregate);
       emit completed(true, *aggregate);
     }
-    delete buffer; delete aggregate; delete sequence; delete terminal; reply->deleteLater();
+    overallTimer->stop(); firstByteTimer->stop(); idleTimer->stop();
+    delete buffer; delete aggregate; delete sequence; delete terminal; delete eventCount; delete firstByte; reply->deleteLater();
   });
   return true;
 }
