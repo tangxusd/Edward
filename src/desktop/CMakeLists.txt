@@ -25,6 +25,11 @@ endforeach()
 
 add_executable(edward_app src/main.cpp)
 if(APPLE)
+  set_source_files_properties(resources/Orbit.icns PROPERTIES
+    MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(edward_app PRIVATE resources/Orbit.icns)
+endif()
+if(APPLE)
   target_sources(edward_app PRIVATE src/native_titlebar_macos.mm)
 endif()
 target_compile_definitions(edward_app PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -125,6 +130,7 @@ if(APPLE)
     MACOSX_BUNDLE TRUE
     OUTPUT_NAME Edward
     MACOSX_BUNDLE_BUNDLE_NAME Edward
+    MACOSX_BUNDLE_ICON_FILE Orbit.icns
     MACOSX_BUNDLE_GUI_IDENTIFIER com.edward.video
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
