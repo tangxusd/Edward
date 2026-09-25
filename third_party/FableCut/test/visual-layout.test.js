@@ -89,6 +89,8 @@ test("AI assistant commits validated action plans as one reversible project tran
   assert.doesNotMatch(runtime, /context\.insert\(QStringLiteral\("fps"\)/);
   assert.doesNotMatch(runtime, /context\.insert\(QStringLiteral\("selectedClipIds"\)/);
   assert.doesNotMatch(runtime, /M3\/M4 means/);
+  assert.match(runtime, /executionLedger_\.recover/);
+  assert.match(runtime, /LedgerState::RolledBack/);
   assert.match(header, /QString pendingAiActionPlan_;/);
   assert.match(header, /clearPendingAiActionPlan\(\)/);
   assert.match(runtime, /settings\.ini/);

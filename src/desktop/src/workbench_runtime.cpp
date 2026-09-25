@@ -149,6 +149,16 @@ void appendDiagnosticLog(const QString& event) {
 WorkbenchRuntime::WorkbenchRuntime(QObject* parent)
     : QObject(parent), preferenceStore_(this), executionLedger_(executionLedgerPath()), modelChatClient_(this) {
   appendDiagnosticLog(QStringLiteral("desktop_runtime_initialized"));
+  const auto recovery = executionLedger_.recover(QStringLiteral("orbit-project"));
+  for (auto entry : recovery.rollback) {
+    entry.state = edward::desktop::LedgerState::RolledBack;
+    entry.summary = QStringLiteral("startup recovery rollback");
+    executionLedger_.append(entry);
+  }
+  if (!recovery.rollback.isEmpty()) {
+    aiRequestStage_ = QStringLiteral("failed");
+    appendDiagnosticLog(QStringLiteral("desktop_ai_recovery rolled_back=%1").arg(recovery.rollback.size()));
+  }
   connect(&authClient_, &edward::resources::SupabaseAuthClient::completed, this,
           [this](bool success, const QString& message) {
             const auto operation = pendingAuthenticationOperation_;
