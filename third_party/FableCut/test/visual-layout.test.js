@@ -82,7 +82,12 @@ test("AI assistant commits validated action plans as one reversible project tran
   assert.match(runtime, /已生成剪辑操作方案/);
   assert.doesNotMatch(runtime, /请确认后应用/);
   assert.match(runtime, /正在提交并更新预览/);
-  assert.match(runtime, /context\.insert\(QStringLiteral\("capabilities"\)/);
+  assert.match(runtime, /visibleCapabilities/);
+  assert.match(runtime, /selectedClipOrdinals/);
+  assert.match(runtime, /timeSeconds/);
+  assert.doesNotMatch(runtime, /context\.insert\(QStringLiteral\("revision"\)/);
+  assert.doesNotMatch(runtime, /context\.insert\(QStringLiteral\("fps"\)/);
+  assert.doesNotMatch(runtime, /context\.insert\(QStringLiteral\("selectedClipIds"\)/);
   assert.doesNotMatch(runtime, /M3\/M4 means/);
   assert.match(header, /QString pendingAiActionPlan_;/);
   assert.match(header, /clearPendingAiActionPlan\(\)/);

@@ -687,16 +687,98 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
   aiChatRequestActive_ = true;
   aiConversation_.append(QStringLiteral("用户：%1\n").arg(prompt.trimmed()));
   aiConversation_.append(QStringLiteral("AI："));
-  QJsonObject context;
-  context.insert(QStringLiteral("project"), projectObject.value(QStringLiteral("project")));
-  context.insert(QStringLiteral("fps"), projectObject.value(QStringLiteral("fps")));
-  context.insert(QStringLiteral("revision"), projectObject.value(QStringLiteral("revision")));
-  context.insert(QStringLiteral("playhead"), projectObject.value(QStringLiteral("playhead")));
-  context.insert(QStringLiteral("selectedClipIds"), projectObject.value(QStringLiteral("playhead")).toObject().value(QStringLiteral("selectedClipIds")));
-  context.insert(QStringLiteral("markers"), projectObject.value(QStringLiteral("markers")));
-  context.insert(QStringLiteral("clips"), clips);
-  context.insert(QStringLiteral("tracks"), projectObject.value(QStringLiteral("tracks")));
-  context.insert(QStringLiteral("capabilities"), projectObject.value(QStringLiteral("capabilities")));
+  // The model receives only a user-facing summary. Internal IDs, revisions,
+  // fps and frame counts stay inside the frozen ReferenceSnapshot and resolver.
+  const auto projectInfo = projectObject.value(QStringLiteral("project")).toObject();
+  QJsonObject visibleProject{{QStringLiteral("name"), projectInfo.value(QStringLiteral("name"))},
+                             {QStringLiteral("width"), projectInfo.value(QStringLiteral("width"))},
+                             {QStringLiteral("height"), projectInfo.value(QStringLiteral("height"))}};
+  const auto durationSeconds = projectObject.value(QStringLiteral("duration")).isDouble()
+      ? projectObject.value(QStringLiteral("duration")) : projectInfo.value(QStringLiteral("duration"));
+  if (!durationSeconds.isUndefined()) visibleProject.insert(QStringLiteral("durationSeconds"), durationSeconds);
+
+  QHash<QString, int> trackOrdinals;
+  QJsonArray visibleTracks;
+  int trackOrdinal = 1;
+  for (const auto& value : projectObject.value(QStringLiteral("tracks")).toArray()) {
+    const auto track = value.toObject();
+    const auto id = track.value(QStringLiteral("id")).toString();
+    if (id.isEmpty()) continue;
+    trackOrdinals.insert(id, trackOrdinal);
+    visibleTracks.append(QJsonObject{{QStringLiteral("ordinal"), trackOrdinal++},
+                                     {QStringLiteral("kind"), track.value(QStringLiteral("kind"))},
+                                     {QStringLiteral("locked"), track.value(QStringLiteral("locked"))}});
+  }
+  QHash<QString, int> clipOrdinals;
+  QJsonArray visibleClips;
+  int clipOrdinal = 1;
+  for (const auto& value : clips) {
+    const auto clip = value.toObject();
+    const auto id = clip.value(QStringLiteral("id")).toString();
+    if (id.isEmpty()) continue;
+    clipOrdinals.insert(id, clipOrdinal);
+    const auto trackId = clip.value(QStringLiteral("track")).toString();
+    visibleClips.append(QJsonObject{{QStringLiteral("ordinal"), clipOrdinal++},
+                                    {QStringLiteral("kind"), clip.value(QStringLiteral("kind"))},
+                                    {QStringLiteral("trackOrdinal"), trackOrdinals.value(trackId, 0)},
+                                    {QStringLiteral("startSeconds"), clip.value(QStringLiteral("start"))},
+                                    {QStringLiteral("durationSeconds"), clip.value(QStringLiteral("duration"))},
+                                    {QStringLiteral("locked"), clip.value(QStringLiteral("locked"))},
+                                    {QStringLiteral("linkedClipCount"), clip.value(QStringLiteral("linkedClipIds")).toArray().size()}});
+  }
+  const auto playheadObject = projectObject.value(QStringLiteral("playhead")).toObject();
+  QJsonArray selectedClipOrdinals;
+  for (const auto& selected : playheadObject.value(QStringLiteral("selectedClipIds")).toArray()) {
+    const auto ordinal = clipOrdinals.value(selected.toString(), 0);
+    if (ordinal > 0) selectedClipOrdinals.append(ordinal);
+  }
+  QJsonObject visiblePlayhead{{QStringLiteral("timeSeconds"), playheadObject.value(QStringLiteral("time"))},
+                             {QStringLiteral("selectedClipOrdinals"), selectedClipOrdinals},
+                             {QStringLiteral("currentTrackOrdinal"), trackOrdinals.value(playheadObject.value(QStringLiteral("currentTrackId")).toString(), 0)}};
+  QJsonArray visibleMarkers;
+  int visibleMarkerNumber = 1;
+  for (const auto& value : projectObject.value(QStringLiteral("markers")).toArray()) {
+    const auto marker = value.toObject();
+    const auto clipId = marker.value(QStringLiteral("clipId")).toString();
+    visibleMarkers.append(QJsonObject{{QStringLiteral("number"), marker.value(QStringLiteral("displayNumber")).toInt(visibleMarkerNumber++)},
+                                      {QStringLiteral("scope"), clipId.isEmpty() ? QStringLiteral("timeline") : QStringLiteral("clip")},
+                                      {QStringLiteral("clipOrdinal"), clipOrdinals.value(clipId, 0)},
+                                      {QStringLiteral("timeSeconds"), marker.value(QStringLiteral("t"))},
+                                      {QStringLiteral("color"), marker.value(QStringLiteral("color"))}});
+  }
+  QJsonArray visibleMedia;
+  for (const auto& value : projectObject.value(QStringLiteral("media")).toArray()) {
+    const auto mediaItem = value.toObject();
+    visibleMedia.append(QJsonObject{{QStringLiteral("kind"), mediaItem.value(QStringLiteral("kind"))},
+                                    {QStringLiteral("name"), mediaItem.value(QStringLiteral("name"))},
+                                    {QStringLiteral("durationSeconds"), mediaItem.value(QStringLiteral("duration"))}});
+  }
+  QJsonArray visibleResources;
+  for (const auto& value : projectObject.value(QStringLiteral("resources")).toArray()) {
+    const auto resource = value.toObject();
+    visibleResources.append(QJsonObject{{QStringLiteral("name"), resource.value(QStringLiteral("name"))},
+                                        {QStringLiteral("runtime"), resource.value(QStringLiteral("runtime"))},
+                                        {QStringLiteral("target"), resource.value(QStringLiteral("target"))}});
+  }
+  QJsonArray visibleCapabilities;
+  for (const auto& value : pendingAiCapabilities_.modelCapabilities) {
+    const auto capability = value.toObject();
+    QJsonObject modelCapability{{QStringLiteral("id"), capability.value(QStringLiteral("id"))},
+                                {QStringLiteral("version"), capability.value(QStringLiteral("version"))},
+                                {QStringLiteral("inputSchema"), capability.value(QStringLiteral("inputSchema"))},
+                                {QStringLiteral("targetTypes"), capability.value(QStringLiteral("targetTypes"))},
+                                {QStringLiteral("permissionCategory"), capability.value(QStringLiteral("permissionCategory"))},
+                                {QStringLiteral("allowedPolicies"), capability.value(QStringLiteral("allowedPolicies"))}};
+    visibleCapabilities.append(modelCapability);
+  }
+  QJsonObject context{{QStringLiteral("project"), visibleProject},
+                      {QStringLiteral("playhead"), visiblePlayhead},
+                      {QStringLiteral("clips"), visibleClips},
+                      {QStringLiteral("tracks"), visibleTracks},
+                      {QStringLiteral("markers"), visibleMarkers},
+                      {QStringLiteral("media"), visibleMedia},
+                      {QStringLiteral("resources"), visibleResources},
+                      {QStringLiteral("capabilities"), visibleCapabilities}};
   const auto contextualPrompt = prompt.trimmed() + QStringLiteral("\n\n[Orbit 当前编辑上下文，请严格以此为准]\n")
       + QString::fromUtf8(QJsonDocument(context).toJson(QJsonDocument::Compact));
   emit timelineChanged();
