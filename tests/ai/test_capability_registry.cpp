@@ -50,7 +50,7 @@ CapabilityContract contract(QString id, QString executor = QStringLiteral("execu
 
 RuntimeFacts facts() {
   return {{QStringLiteral("timeline.executor")}, {QStringLiteral("timeline.visible")},
-          {QStringLiteral("playhead"), QStringLiteral("selected_component"), QStringLiteral("selected_clip"),
+          {QStringLiteral("playhead"), QStringLiteral("project"), QStringLiteral("selected_clips"), QStringLiteral("selected_component"), QStringLiteral("selected_clip"),
            QStringLiteral("selected_audio"), QStringLiteral("timeline"), QStringLiteral("selected_clip"),
            QStringLiteral("marker"), QStringLiteral("track")}, 1};
 }
@@ -62,6 +62,16 @@ void testStableSnapshotHash() {
   assert(first.valid);
   assert(first.hash == second.hash);
   assert(first.modelCapabilities == second.modelCapabilities);
+}
+
+void testEditingSurfaceIsRegistered() {
+  const auto snapshot = CapabilityRegistry::builtIn().snapshot(facts());
+  assert(snapshot.valid);
+  const auto ids = snapshot.contractIds;
+  for (const auto id : {QStringLiteral("batch_set_props@1"), QStringLiteral("add_keyframes@1"),
+                        QStringLiteral("set_audio_mix@1"), QStringLiteral("generate_subtitles@1"),
+                        QStringLiteral("speech_synthesize@1"), QStringLiteral("register_artifact@1")})
+    assert(ids.contains(id));
 }
 
 void testRegistryRejectsDuplicateAndMissingRuntimeParts() {
@@ -138,6 +148,7 @@ int main(int argc, char** argv) {
     return 0;
   }
   testStableSnapshotHash();
+  testEditingSurfaceIsRegistered();
   testRegistryRejectsDuplicateAndMissingRuntimeParts();
   testReplacementCyclesAreRejected();
   testModelViewContainsRequiredContractFields();

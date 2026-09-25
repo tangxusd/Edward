@@ -10,7 +10,7 @@ CapabilitySnapshot caps() {
   RuntimeFacts facts;
   facts.executorIds = {QStringLiteral("timeline.executor")};
   facts.verificationAdapterIds = {QStringLiteral("timeline.visible")};
-  facts.targetTypes = {QStringLiteral("playhead"), QStringLiteral("selected_clip"), QStringLiteral("selected_component"),
+  facts.targetTypes = {QStringLiteral("playhead"), QStringLiteral("project"), QStringLiteral("selected_clips"), QStringLiteral("selected_clip"), QStringLiteral("selected_component"),
                        QStringLiteral("selected_audio"), QStringLiteral("timeline"), QStringLiteral("selected_track"),
                        QStringLiteral("track"), QStringLiteral("marker")};
   return CapabilityRegistry::builtIn().snapshot(facts);

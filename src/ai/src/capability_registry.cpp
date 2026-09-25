@@ -147,6 +147,22 @@ CapabilityRegistry CapabilityRegistry::builtIn() {
   contracts.push_back(makeContract(QStringLiteral("delete_marker"), {QStringLiteral("marker")}, {QStringLiteral("markerId")}, QStringLiteral("marker.write")));
   contracts.push_back(makeContract(QStringLiteral("set_marker_color"), {QStringLiteral("marker")}, {QStringLiteral("markerId"), QStringLiteral("color")}, QStringLiteral("marker.write")));
   contracts.push_back(makeContract(QStringLiteral("close_gap"), {QStringLiteral("track")}, {QStringLiteral("track"), QStringLiteral("startFrame"), QStringLiteral("endFrame")}));
+  // The registry is the stable business surface; UI, AI and API adapters select
+  // these IDs instead of adding conversation-specific branches.
+  contracts.push_back(makeContract(QStringLiteral("batch_set_props"), {QStringLiteral("selected_clips"), QStringLiteral("selected_component")}, {QStringLiteral("targetIds"), QStringLiteral("props")}));
+  contracts.push_back(makeContract(QStringLiteral("add_keyframes"), {QStringLiteral("selected_clip"), QStringLiteral("selected_component")}, {QStringLiteral("property"), QStringLiteral("keyframes")}));
+  contracts.push_back(makeContract(QStringLiteral("set_animation"), {QStringLiteral("selected_clip"), QStringLiteral("selected_component")}, {QStringLiteral("animation"), QStringLiteral("durationFrames")}));
+  contracts.push_back(makeContract(QStringLiteral("set_transition"), {QStringLiteral("selected_clip")}, {QStringLiteral("transition"), QStringLiteral("durationFrames")}));
+  contracts.push_back(makeContract(QStringLiteral("set_audio_mix"), {QStringLiteral("selected_audio")}, {QStringLiteral("volume"), QStringLiteral("pan"), QStringLiteral("mute"), QStringLiteral("solo")}));
+  contracts.push_back(makeContract(QStringLiteral("add_audio"), {QStringLiteral("playhead")}, {QStringLiteral("mediaId"), QStringLiteral("durationFrames"), QStringLiteral("track")} , QStringLiteral("media.write")));
+  contracts.push_back(makeContract(QStringLiteral("speech_synthesize"), {QStringLiteral("playhead")}, {QStringLiteral("text"), QStringLiteral("voice"), QStringLiteral("track")}, QStringLiteral("project.write")));
+  contracts.push_back(makeContract(QStringLiteral("transcribe_audio"), {QStringLiteral("selected_audio")}, {QStringLiteral("language"), QStringLiteral("range")}, QStringLiteral("project.read")));
+  contracts.push_back(makeContract(QStringLiteral("create_subtitle_track"), {QStringLiteral("timeline")}, {QStringLiteral("language"), QStringLiteral("role")}));
+  contracts.push_back(makeContract(QStringLiteral("generate_subtitles"), {QStringLiteral("selected_audio"), QStringLiteral("timeline")}, {QStringLiteral("language"), QStringLiteral("range")}));
+  contracts.push_back(makeContract(QStringLiteral("replace_all_text"), {QStringLiteral("timeline")}, {QStringLiteral("query"), QStringLiteral("replacement")}));
+  contracts.push_back(makeContract(QStringLiteral("remove_range"), {QStringLiteral("timeline"), QStringLiteral("track")}, {QStringLiteral("startFrame"), QStringLiteral("endFrame"), QStringLiteral("ripple")}));
+  contracts.push_back(makeContract(QStringLiteral("import_media"), {QStringLiteral("project")}, {QStringLiteral("attachmentId"), QStringLiteral("kind")}, QStringLiteral("media.write")));
+  contracts.push_back(makeContract(QStringLiteral("register_artifact"), {QStringLiteral("project")}, {QStringLiteral("artifactId"), QStringLiteral("runtime")}, QStringLiteral("project.write")));
   return CapabilityRegistry(std::move(contracts));
 }
 

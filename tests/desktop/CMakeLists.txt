@@ -28,3 +28,11 @@ add_test(NAME desktop.fablecut_server_recovery COMMAND test_fablecut_server_reco
 add_executable(test_execution_ledger test_execution_ledger.cpp)
 target_link_libraries(test_execution_ledger PRIVATE edward_desktop Qt6::Core)
 add_test(NAME desktop.execution_ledger COMMAND test_execution_ledger)
+
+add_executable(test_artifact_intake test_artifact_intake.cpp)
+target_link_libraries(test_artifact_intake PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.artifact_intake COMMAND test_artifact_intake)
+
+add_executable(test_ai_memory_store test_ai_memory_store.cpp)
+target_link_libraries(test_ai_memory_store PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.ai_memory_store COMMAND test_ai_memory_store)

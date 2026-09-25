@@ -256,7 +256,7 @@ QJsonObject WorkbenchRuntime::fablecutCapabilitySnapshot() const {
   const edward::ai::RuntimeFacts facts{
       {QStringLiteral("timeline.executor")},
       {QStringLiteral("timeline.visible")},
-      {QStringLiteral("audio"), QStringLiteral("marker"), QStringLiteral("playhead"),
+      {QStringLiteral("audio"), QStringLiteral("marker"), QStringLiteral("playhead"), QStringLiteral("project"), QStringLiteral("selected_clips"),
        QStringLiteral("selected_audio"), QStringLiteral("selected_clip"), QStringLiteral("selected_component"),
        QStringLiteral("timeline"), QStringLiteral("track")},
       1};

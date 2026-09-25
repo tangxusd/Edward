@@ -3,8 +3,12 @@ add_library(edward_desktop STATIC
   include/edward/desktop/workbench_runtime.hpp
   include/edward/desktop/preference_store.hpp
   include/edward/desktop/execution_ledger.hpp
+  include/edward/desktop/artifact_intake.hpp
+  include/edward/desktop/ai_memory_store.hpp
   src/preference_store.cpp
   src/execution_ledger.cpp
+  src/artifact_intake.cpp
+  src/ai_memory_store.cpp
   src/workbench_runtime.cpp
 )
 target_include_directories(edward_desktop PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
