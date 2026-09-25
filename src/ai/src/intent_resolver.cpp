@@ -66,13 +66,15 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
     if ((selector == QStringLiteral("selected_clip") || selector == QStringLiteral("selected_clips")) && clips.size() != 1) { fail(result, clips.isEmpty() ? ResolutionErrorCode::TargetNotFound : ResolutionErrorCode::TargetAmbiguous, QStringLiteral("selection must resolve to one clip"), intentId, selector); return result; }
     QString targetId;
     QString targetKind = selector;
-    if (!clips.isEmpty()) { targetId = clips.first()->id; targetKind = QStringLiteral("selected_clip"); if (clips.first()->locked) { fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("target is locked"), intentId, selector); return result; } }
+    if (!clips.isEmpty()) { targetId = clips.first()->id; targetKind = selector == QStringLiteral("selected_component") ? QStringLiteral("selected_component") : (selector == QStringLiteral("selected_audio") ? QStringLiteral("selected_audio") : QStringLiteral("selected_clip")); if (clips.first()->locked) { fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("target is locked"), intentId, selector); return result; } }
     else if (selector == QStringLiteral("timeline") || selector == QStringLiteral("current_track")) { targetId = selector == QStringLiteral("timeline") ? QStringLiteral("timeline") : references.currentTrackId; targetKind = selector; }
     else if (selector.startsWith(QStringLiteral("global_marker")) || selector.startsWith(QStringLiteral("clip_marker"))) {
       const auto match = QRegularExpression(QStringLiteral("\\((\\d+)\\)")).match(selector);
       const int number = match.hasMatch() ? match.captured(1).toInt() : ref.value(QStringLiteral("label")).toInt(ref.value(QStringLiteral("index")).toInt(-1));
       const bool clipMarker = selector.startsWith(QStringLiteral("clip_marker"));
-      for (const auto& marker : references.markers) if (marker.scope == (clipMarker ? QStringLiteral("clip") : QStringLiteral("timeline")) && marker.displayNumber == number) { targetId = marker.markerId; targetKind = QStringLiteral("marker"); break; }
+      int markerMatches = 0;
+      for (const auto& marker : references.markers) if (marker.scope == (clipMarker ? QStringLiteral("clip") : QStringLiteral("timeline")) && marker.displayNumber == number) { targetId = marker.markerId; targetKind = QStringLiteral("marker"); markerMatches++; }
+      if (markerMatches > 1) { fail(result, ResolutionErrorCode::TargetAmbiguous, QStringLiteral("marker number is ambiguous"), intentId, selector); return result; }
       if (targetId.isEmpty()) { fail(result, ResolutionErrorCode::TargetNotFound, QStringLiteral("marker not found"), intentId, selector); return result; }
     }
     if (targetId.isEmpty()) { fail(result, ResolutionErrorCode::TargetNotFound, QStringLiteral("symbolic target not found"), intentId, selector); return result; }
@@ -85,11 +87,14 @@ ResolveResult IntentResolver::resolve(const IntentPlan& intent, const ReferenceS
     }
     const auto targetTrack = !clips.isEmpty() ? references.track(clips.first()->trackId) : nullptr;
     if (targetTrack && targetTrack->locked) { fail(result, ResolutionErrorCode::TrackConflict, QStringLiteral("track is locked"), intentId, selector); return result; }
+    qint64 targetVersion = 0;
+    if (targetTrack) targetVersion = targetTrack->version;
+    for (const auto& marker : references.markers) if (marker.markerId == targetId) targetVersion = marker.version;
     const auto evidence = QJsonObject{{QStringLiteral("referenceSnapshotId"), references.referenceSnapshotId}, {QStringLiteral("selector"), selector}, {QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("markerId"), targetKind == QStringLiteral("marker") ? targetId : QString()}};
     result.resolutionEvidence.append(evidence);
     QJsonArray readSet{targetId}, writeSet{targetId};
     if (!clips.isEmpty()) for (const auto& linked : clips.first()->linkedClipIds) { readSet.append(linked); writeSet.append(linked); }
-    operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), QJsonObject{{QStringLiteral("collisionPolicy"), contract.value(QStringLiteral("collisionPolicy"))}, {QStringLiteral("trackPlacementPolicy"), contract.value(QStringLiteral("trackPlacementPolicy"))}, {QStringLiteral("linkedMediaPolicy"), contract.value(QStringLiteral("linkedMediaPolicy"))}, {QStringLiteral("markerPolicy"), contract.value(QStringLiteral("markerPolicy"))}}}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("targetVersion"), !clips.isEmpty() ? clips.first()->version : 0}}}}, {QStringLiteral("readSet"), readSet}, {QStringLiteral("writeSet"), writeSet}, {QStringLiteral("resolutionEvidence"), evidence}});
+    operations.append(QJsonObject{{QStringLiteral("operationId"), operationId}, {QStringLiteral("capability"), capability}, {QStringLiteral("target"), QJsonObject{{QStringLiteral("kind"), targetKind}, {QStringLiteral("id"), targetId}, {QStringLiteral("resolvedFrom"), selector}}}, {QStringLiteral("args"), args}, {QStringLiteral("policies"), QJsonObject{{QStringLiteral("collisionPolicy"), contract.value(QStringLiteral("collisionPolicy"))}, {QStringLiteral("trackPlacementPolicy"), contract.value(QStringLiteral("trackPlacementPolicy"))}, {QStringLiteral("linkedMediaPolicy"), contract.value(QStringLiteral("linkedMediaPolicy"))}, {QStringLiteral("markerPolicy"), contract.value(QStringLiteral("markerPolicy"))}}}, {QStringLiteral("dependsOn"), QJsonArray{}}, {QStringLiteral("preconditions"), QJsonArray{QJsonObject{{QStringLiteral("projectRevision"), references.projectRevision}, {QStringLiteral("targetVersion"), targetVersion}}}}, {QStringLiteral("readSet"), readSet}, {QStringLiteral("writeSet"), writeSet}, {QStringLiteral("resolutionEvidence"), evidence}});
   }
   ActionPlan plan; plan.schemaVersion = QStringLiteral("orbit.bound-action-plan.v2"); plan.requestId = intent.requestId; plan.baseProjectRevision = references.projectRevision; plan.referenceSnapshotId = references.referenceSnapshotId; plan.capabilitySet = {{QStringLiteral("version"), capabilities.version}, {QStringLiteral("hash"), capabilities.hash}}; plan.operations = operations; result.plan = plan; return result;
 }
