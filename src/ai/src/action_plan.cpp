@@ -6,6 +6,26 @@
 #include <functional>
 
 namespace edward::ai {
+
+const ClipReference* ReferenceSnapshot::clip(const QString& id) const {
+  for (const auto& value : clips)
+    if (value.id == id) return &value;
+  return nullptr;
+}
+
+const TrackReference* ReferenceSnapshot::track(const QString& id) const {
+  for (const auto& value : tracks)
+    if (value.id == id) return &value;
+  return nullptr;
+}
+
+QList<const MarkerReference*> ReferenceSnapshot::markersForClip(const QString& clipId) const {
+  QList<const MarkerReference*> result;
+  for (const auto& value : markers)
+    if (value.scope == QStringLiteral("clip") && value.clipId == clipId) result.push_back(&value);
+  return result;
+}
+
 namespace {
 
 void fail(QString* error, const QString& message) {
