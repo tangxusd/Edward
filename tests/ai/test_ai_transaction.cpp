@@ -4,6 +4,7 @@
 
 namespace {
 edward::ai::ActionPlan action(qint64 revision, const QString& capability, const QString& targetId, const QJsonObject& args) {
+  const auto requestId = QStringLiteral("r-%1").arg(args.value(QStringLiteral("props")).toObject().value(QStringLiteral("index")).toInt(-1));
   const QJsonArray boundOperations{QJsonObject{
       {"operationId", "op-1"}, {"capability", capability},
       {"target", QJsonObject{{"kind", "clip"}, {"id", targetId}, {"resolvedFrom", "selected_clip"}}},
@@ -12,7 +13,7 @@ edward::ai::ActionPlan action(qint64 revision, const QString& capability, const 
       {"readSet", QJsonArray{QStringLiteral("clip:%1").arg(targetId)}},
       {"writeSet", QJsonArray{QStringLiteral("clip:%1").arg(targetId)}},
       {"resolutionEvidence", QJsonObject{{"referenceSnapshotId", "ref-1"}}}}};
-  auto parsed = edward::ai::ActionPlan::parse({{"schemaVersion", "orbit.bound-action-plan.v2"}, {"requestId", "r"},
+  auto parsed = edward::ai::ActionPlan::parse({{"schemaVersion", "orbit.bound-action-plan.v2"}, {"requestId", requestId},
                                                 {"baseProjectRevision", revision}, {"referenceSnapshotId", "ref-1"},
                                                 {"capabilitySet", QJsonObject{{"version", 3}, {"hash", "sha256:test"}}},
                                                 {"operations", boundOperations}});
