@@ -76,6 +76,7 @@ test("FableCut keeps the three-column editor regions and timeline anchors", () =
 });
 
 test("AI assistant commits validated action plans as one reversible project transaction", () => {
+  const app = fs.readFileSync(path.join(root, "../..", "third_party/FableCut/app.js"), "utf8");
   const runtime = fs.readFileSync(path.join(root, "../..", "src/desktop/src/workbench_runtime.cpp"), "utf8");
   const header = fs.readFileSync(path.join(root, "../..", "src/desktop/include/edward/desktop/workbench_runtime.hpp"), "utf8");
   const main = fs.readFileSync(path.join(root, "../..", "src/desktop/src/main.cpp"), "utf8");
@@ -85,6 +86,8 @@ test("AI assistant commits validated action plans as one reversible project tran
   assert.match(runtime, /已生成剪辑操作方案/);
   assert.doesNotMatch(runtime, /请确认后应用/);
   assert.match(runtime, /正在提交并更新预览/);
+  assert.match(app, /receipt\.revisionAfter\s*=\s*Number\(project\.revision\s*\|\|\s*0\)/);
+  assert.match(app, /receipt\.previewVerified\s*=\s*verifyAiVisibleState/);
   assert.match(runtime, /visibleCapabilities/);
   assert.match(runtime, /selectedClipOrdinals/);
   assert.match(runtime, /timeSeconds/);
