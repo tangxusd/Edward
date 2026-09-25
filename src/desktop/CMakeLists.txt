@@ -4,6 +4,7 @@ add_library(edward_desktop STATIC
   include/edward/desktop/preference_store.hpp
   include/edward/desktop/diagnostics_reporter.hpp
   src/preference_store.cpp
+  src/style_snapshot.cpp
   src/diagnostics_reporter.cpp
   src/timeline_controller.cpp
   src/workbench_runtime.cpp
