@@ -282,7 +282,7 @@ bool ModelChatClient::requestStreaming(const ModelChatConfig& config, const QStr
                                                    eventCount, firstByte, overallTimer, firstByteTimer, idleTimer,
                                                    requestId, protocol = config.protocol] {
     if (!reply->isFinished()) return;
-    const auto superseded = activeStreamingReply_ != reply && activeStreamingRequestId_ != requestId;
+    const auto superseded = activeStreamingReply_ != reply || activeStreamingRequestId_ != requestId;
     const auto wasTerminal = *terminal || activeStreamingCancelled_ || superseded;
     if (activeStreamingReply_ == reply) {
       activeStreamingReply_ = nullptr;
