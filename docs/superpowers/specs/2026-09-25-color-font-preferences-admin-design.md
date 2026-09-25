@@ -74,6 +74,16 @@ preferenceSubject
 
 增量包必须包含父版本、目标版本、文件哈希和删除列表；增量校验失败时丢弃临时包并重新请求完整目录，不能拼接未经校验的目录。
 
+客户端目录接口固定为：
+
+```text
+getCatalogManifest(catalogType, knownRevision) -> { revision, fullHash, delta, expiresAt }
+downloadCatalogDelta(catalogType, parentRevision, targetRevision) -> verified package
+getFontAsset(fontId, version, contentHash, purpose=preview|install) -> short-lived URL
+```
+
+接口只返回已发布版本；草稿、撤回版本和未通过授权校验的资源不能被客户端读取。Orbit 记录 `lastSyncAttempt`、`lastSyncSuccess` 和错误原因，避免每次进入项目重复重试导致网络请求风暴。
+
 ### 3.3 颜色目录合同
 
 每个颜色目录项至少包含：
@@ -182,6 +192,8 @@ previewSampleText
 
 预览资源与完整安装字体分别校验和缓存；预览资源不能被当作完整字体安装。只有用户确认选择后才下载完整字体文件。需要授权的字体在预览前显示权限状态，未授权用户不能取得完整字体签名地址。
 
+字体安装需要用户明确同意该字体的授权条款；授权状态变化只影响新的下载和安装，不自动删除已安装文件或篡改历史项目。
+
 ## 5. 偏好系统和默认偏好
 
 ### 5.1 会话缓存
@@ -226,6 +238,8 @@ source = user-confirmed | ai-confirmed | default-applied
 
 `default-applied` 永远不参与收敛；颜色事实保存规范化具体色值，字体事实保存 `fontId + version + contentHash`。同一个字体名称或颜色名称在不同版本中不能被模糊合并。
 
+偏好事实仍遵循显式同步规则：本地确认先写入 `PreferenceStore` 和可恢复队列，云端上传只在用户主动同步、登录后合并、切换账号或既定后台同步窗口触发；项目会话内不因颜色/字体选择直接请求 Supabase。上传使用 `eventId` 幂等合并，下载事实必须重新经过目录合同和属性合同校验，失败事实隔离并显示诊断，不影响编辑。
+
 ## 6. 兑换码
 
 ### 6.1 数据和安全
@@ -255,6 +269,8 @@ source = user-confirmed | ai-confirmed | default-applied
 兑换必须在同一数据库事务内完成“锁定代码 → 校验用户 → 创建权益/订阅周期 → 写入兑换记录 → 标记已使用”。任何一步失败都回滚；重复请求只能返回第一次成功结果，不能重复延长权益。
 
 兑换码批次必须保存 `currency`、`entitlementType`、`durationMonths`、`ruleVersion` 和 `effectiveAt` 快照。兑换只能创建服务端支持的月度、季度或年度权益；不能通过代码传入任意天数、价格或套餐字段。
+
+权益生效规则固定为：未过期权益从当前 `current_period_end` 顺延，已过期权益从服务端当前时间开始；兑换不得改变已支付订单金额、退款状态或自动续订绑定。兑换产生的权益周期必须可在订阅面板和后台审计中追溯到兑换记录。
 
 ## 7. 邀请码和邀请奖励
 
@@ -315,6 +331,8 @@ direction + distance/scale + durationFrames + easing + loopMode
 
 超出组件支持范围、属性未声明或关键帧非法时阻断执行并报告原因。
 
+导出前必须对动画合同重新校验：属性映射、关键帧数量、持续帧数、缓动名称和循环边界全部通过后才允许进入渲染队列；预览中可显示但导出不支持的动画不得被标记为成功，必须明确列出阻断字段。
+
 ## 10. 管理后台
 
 ### 10.1 管理范围
@@ -337,6 +355,14 @@ direction + distance/scale + durationFrames + easing + loopMode
 - 邀请规则和奖励金额；
 - 用户状态和人工处理记录；
 - 管理员角色与审计日志。
+
+颜色、字体和默认偏好目录使用统一的发布状态机：
+
+```text
+draft → validated → staged → published → deprecated → rolled_back
+```
+
+每次发布必须生成不可变 `catalogRevision`、完整哈希、父版本、变更摘要和操作者审计。发布前检查资源文件、合同、授权、增量包和回滚包；撤回或回滚只影响后续项目会话，不修改当前会话和历史项目。
 
 统计和处理所需的业务数据必须有明确的服务端合同：
 
@@ -365,6 +391,8 @@ direction + distance/scale + durationFrames + easing + loopMode
 后台部署到 Cloudflare，域名为 `admin.edward.uno`。部署产物只包含公开 Supabase URL、anon key 和前端资源；前端不嵌入 service role。敏感配置只放 Cloudflare/Functions 环境变量。后台每个写操作都经过 Edge Function 的管理员校验、输入合同、幂等处理和审计记录。Cloudflare 部署使用独立的 admin 项目和预览环境，生产发布必须通过构建检查、Supabase migration 检查和域名健康检查。
 
 统计页面读取只读聚合视图或统计 Function，不直接扫描明细表；用户邮箱、支付响应、兑换明文和字体签名地址不得进入浏览器日志或统计结果。管理后台访问失败不能影响 Orbit 桌面端编辑和导出。
+
+后台登录页必须使用 Supabase Auth，登录成功后由服务端查询 `admin_roles`；前端隐藏菜单不构成权限控制。会话过期、角色撤销或账号禁用时，Edge Function 立即拒绝后续请求。Cloudflare 日志和前端埋点不得记录 access token、refresh token、兑换明文或字体签名 URL。
 
 ## 11. 错误、缓存和兼容
 
@@ -404,3 +432,8 @@ direction + distance/scale + durationFrames + easing + loopMode
 21. 播放头空白定位不会抢占片段、标记和轨道控制的点击语义。
 22. 动画方向、坐标、循环边界和缩放基准在预览与导出中一致。
 23. 原始反馈和问题日志有版本化保留与删除规则，管理员明细访问可审计。
+24. 目录接口只返回已发布版本，目录发布、撤回和回滚均生成不可变 revision 和审计记录。
+25. 项目会话内不因颜色/字体选择直接访问 Supabase，偏好事实通过本地可恢复队列显式同步。
+26. 兑换权益对未过期订阅顺延、对已过期订阅从服务端当前时间起算，且不改变支付订单。
+27. 后台角色撤销或会话过期后，Edge Function 立即拒绝管理请求；敏感令牌和签名地址不进入日志。
+28. 导出前重新校验动画合同，任何预览/导出不一致都会阻断导出并报告字段。
