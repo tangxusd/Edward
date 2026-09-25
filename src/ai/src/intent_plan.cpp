@@ -5,6 +5,7 @@
 #include <QJsonValue>
 #include <QRegularExpression>
 #include <QSet>
+#include <algorithm>
 #include <cmath>
 
 namespace edward::ai {
@@ -207,16 +208,20 @@ bool IntentPlan::validate(const CapabilityView& capabilities, QString* error) co
     fail(error, QStringLiteral("INTENT_INVALID"), QStringLiteral("IntentPlan identity or operation list is invalid"));
     return false;
   }
-  const auto maxIntents = capabilities.maxIntents > 0 ? capabilities.maxIntents : kDefaultMaxIntents;
+  const auto requestedMaxIntents = capabilities.maxIntents > 0 ? capabilities.maxIntents : kDefaultMaxIntents;
+  const auto maxIntents = std::min(requestedMaxIntents, kDefaultMaxIntents);
   if (intents.size() > maxIntents) {
     fail(error, QStringLiteral("INTENT_INVALID"), QStringLiteral("IntentPlan operation count exceeds capability limit"));
     return false;
   }
-  if (capabilities.maxPlanBytes > 0) {
+  const auto maxPlanBytes = capabilities.maxPlanBytes > 0
+                                ? std::min(capabilities.maxPlanBytes, kDefaultMaxPlanBytes)
+                                : kDefaultMaxPlanBytes;
+  {
     const QJsonObject serialized{{QStringLiteral("schemaVersion"), schemaVersion},
                                  {QStringLiteral("requestId"), requestId},
                                  {QStringLiteral("intents"), intents}};
-    if (QJsonDocument(serialized).toJson(QJsonDocument::Compact).size() > capabilities.maxPlanBytes) {
+    if (QJsonDocument(serialized).toJson(QJsonDocument::Compact).size() > maxPlanBytes) {
       fail(error, QStringLiteral("INTENT_INVALID"), QStringLiteral("IntentPlan exceeds capability size limit"));
       return false;
     }

@@ -2,7 +2,8 @@
 
 namespace edward::ai {
 TransactionResult AiTransaction::apply(const ActionPlan& plan, ProjectState& state) {
-  ProjectSnapshot snapshot{state.revision, state.objects.keys(), {}};
+  ProjectSnapshot snapshot{state.revision, state.objects.keys(), {}, {}, state.capabilitySetVersion,
+                           state.capabilitySetHash, state.referenceSnapshotId};
   QString error;
   if (!plan.validate(snapshot, &error)) return TransactionResult::failure(error);
   const auto before = state;

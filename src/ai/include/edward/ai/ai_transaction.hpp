@@ -11,6 +11,9 @@ namespace edward::ai {
 struct ProjectState final {
   qint64 revision = 0;
   QJsonObject objects;
+  qint64 capabilitySetVersion = -1;
+  QString capabilitySetHash;
+  QString referenceSnapshotId;
 };
 
 struct TransactionResult final {

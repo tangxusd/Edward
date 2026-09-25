@@ -125,6 +125,12 @@ void testIntentValidateRepeatsSafetyChecks() {
   edward::ai::CapabilityView capabilities{{"clip.set_range"}};
   assert(!forged.validate(capabilities, &error));
   assert(error.startsWith("INTENT_INVALID"));
+  QJsonArray oversized;
+  for (int i = 0; i < 33; ++i) oversized.append(QJsonObject{{"capability", "clip.set_range"},
+      {"targetRef", QJsonObject{{"selector", "selected_clip"}}}, {"arguments", QJsonObject{}}});
+  forged.intents = oversized;
+  capabilities.maxIntents = 100;
+  assert(!forged.validate(capabilities, &error));
 }
 
 void testIntentRejectsNonIntegerMarkerReferences() {
@@ -157,6 +163,16 @@ void testRejectsFlatOrIncompleteBoundPlans() {
   operations[1] = secondWithDependency;
   cyclic["operations"] = operations;
   assert(!edward::ai::ActionPlan::parse(cyclic, &error));
+  auto mismatched = plan(boundOperation());
+  auto mismatchedOperation = mismatched.value("operations").toArray().first().toObject();
+  mismatchedOperation["resolutionEvidence"] = QJsonObject{{"referenceSnapshotId", "ref-other"}};
+  mismatched["operations"] = QJsonArray{mismatchedOperation};
+  assert(!edward::ai::ActionPlan::parse(mismatched, &error));
+
+  const auto parsed = edward::ai::ActionPlan::parse(plan(boundOperation()), &error);
+  assert(parsed);
+  edward::ai::ProjectSnapshot unbound{3, {"clip-1"}, {}};
+  assert(!parsed->validate(unbound, &error));
 }
 }
 int main() {

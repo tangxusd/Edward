@@ -16,6 +16,8 @@ AiResult AiOrchestrator::handle(const QString& output, const ProjectSnapshot& pr
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
   if (!document.isObject()) return {AiResult::Kind::Conversation, trimmed, {}};
   const auto actionObject = document.object();
+  if (actionObject.value(QStringLiteral("schemaVersion")).toString() == QStringLiteral("orbit.bound-action-plan.v2"))
+    return {AiResult::Kind::Clarification, QStringLiteral("BoundActionPlan 只能由解析器绑定后执行。"), {}};
   QString error;
   const auto plan = ActionPlan::parse(actionObject, &error);
   if (!plan) {

@@ -164,8 +164,8 @@ WorkbenchRuntime::WorkbenchRuntime(QObject* parent) : QObject(parent), preferenc
                       {QStringLiteral("baseProjectRevision"), static_cast<double>(result.plan->baseProjectRevision)},
                       {QStringLiteral("operations"), result.plan->operations}};
                   pendingAiActionPlan_ = QString::fromUtf8(QJsonDocument(normalizedPlan).toJson(QJsonDocument::Compact));
-                  if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, QStringLiteral("已生成剪辑操作方案，请确认后应用。\n"));
-                  else aiConversation_.append(QStringLiteral("AI：已生成剪辑操作方案，请确认后应用。\n"));
+                  if (marker >= 0) aiConversation_.replace(marker + 3, aiConversation_.size() - marker - 3, QStringLiteral("已生成剪辑操作方案，正在提交并更新预览。\n"));
+                  else aiConversation_.append(QStringLiteral("AI：已生成剪辑操作方案，正在提交并更新预览。\n"));
                 } else {
                   pendingAiActionPlan_.clear();
                   const auto finalText = result.text.trimmed().isEmpty() ? message.trimmed() : result.text.trimmed();
@@ -552,6 +552,11 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
     const auto id = value.isString() ? value.toString() : value.toObject().value(QStringLiteral("id")).toString();
     if (!id.isEmpty()) snapshot.verifiedResourceIds.append(id);
   }
+  const auto media = projectObject.value(QStringLiteral("media")).toArray();
+  for (const auto& value : media) {
+    const auto id = value.toObject().value(QStringLiteral("id")).toString();
+    if (!id.isEmpty()) snapshot.knownMediaIds.append(id);
+  }
   pendingAiProject_ = snapshot;
   pendingAiActionPlan_.clear();
   aiStreamingText_.clear();
@@ -579,7 +584,7 @@ bool WorkbenchRuntime::requestAiFablecutPlan(const QString& projectSnapshot, con
       + QString::fromUtf8(QJsonDocument(context).toJson(QJsonDocument::Compact));
   emit timelineChanged();
   const auto accepted = modelChatClient_.requestStreaming(
-      config, QStringLiteral("You are Orbit, a video editing assistant. Answer in concise Chinese. Treat the supplied Orbit editing context and its capabilities list as the program contract, not as an example of one conversation. Translate any visible user editing intent into one or more declared capability operations; do not invent a conversation-specific business rule or a special case for a marker number, phrase, clip name, or previous request. Never ask the user for internal IDs, baseProjectRevision, fps, source code, or project files. Resolve visible references such as the selected clip/component, playhead, timeline position, marker label, track, duration, color, or other declared property from the supplied context. If selectedClipIds is non-empty, selected/current clip references target those clips; otherwise use the playhead target only when unambiguous. For ordinary questions, reply with text only. For a requested project edit, return only one JSON object matching edward.action-plan.v1 with schemaVersion, requestId, baseProjectRevision and operations. Use only the operation types and fields in capabilities; copy the supplied revision value, but if omitted the desktop runtime will bind the current revision. Convert user-facing seconds to the required frame fields using the supplied project fps. Never ask the user to calculate frames or provide internal metadata. Never include shell commands, file paths, export actions, credentials, or undeclared properties. Do not claim a change was applied; the desktop runtime previews the plan and waits for confirmation."),
+      config, QStringLiteral("You are Orbit, a video editing assistant. Answer in concise Chinese. Treat the supplied Orbit editing context and its capabilities list as the program contract. Translate visible user intent into edward.intent-plan.v1 using only symbolic targetRef values and raw user units in arguments. Never emit targetId, revisions, fps, durationFrames, paths, credentials, network actions, shell commands, or bound action plans. Only the host resolver may bind and execute a plan. For ordinary questions, return concise text only."),
       contextualPrompt);
   if (!accepted) {
     aiChatRequestActive_ = false;

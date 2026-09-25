@@ -19,7 +19,7 @@ edward::ai::ActionPlan action(qint64 revision, const QString& capability, const 
   assert(parsed); return *parsed;
 }
 void testRollbackAndUndoDepth() {
-  edward::ai::ProjectState state{0, {{"target", QJsonObject{}}}}; edward::ai::AiTransaction transaction;
+  edward::ai::ProjectState state{0, {{"target", QJsonObject{}}}, 3, "sha256:test", "ref-1"}; edward::ai::AiTransaction transaction;
   const auto broken = action(0, "clip.remove", "missing", {});
   assert(!transaction.apply(broken, state).ok && state.objects.contains("target"));
   for (int index = 0; index < 6; ++index) {

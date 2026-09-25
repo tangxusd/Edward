@@ -127,8 +127,14 @@ bool validBoundPlan(const ActionPlan& plan, QString* error) {
     fail(error, QStringLiteral("BoundActionPlan identity or capability set is invalid"));
     return false;
   }
-  for (const auto& value : plan.operations)
+  for (const auto& value : plan.operations) {
     if (!validBoundOperation(value, error)) return false;
+    const auto evidence = value.toObject().value(QStringLiteral("resolutionEvidence")).toObject();
+    if (evidence.value(QStringLiteral("referenceSnapshotId")).toString() != plan.referenceSnapshotId) {
+      fail(error, QStringLiteral("BoundActionPlan resolution snapshot does not match plan"));
+      return false;
+    }
+  }
   return validDependencyGraph(plan.operations, error);
 }
 
@@ -166,15 +172,19 @@ bool ActionPlan::validate(const ProjectSnapshot& project, QString* error) const 
   }
   const auto version = capabilitySet.value(QStringLiteral("version")).toInteger(-1);
   const auto hash = capabilitySet.value(QStringLiteral("hash")).toString();
-  if (project.capabilitySetVersion >= 0 && version != project.capabilitySetVersion) {
+  if (project.capabilitySetVersion < 0 || project.capabilitySetHash.isEmpty() || project.referenceSnapshotId.isEmpty()) {
+    fail(error, QStringLiteral("ActionPlan project snapshot is not capability-bound"));
+    return false;
+  }
+  if (version != project.capabilitySetVersion) {
     fail(error, QStringLiteral("ActionPlan capability set version is stale"));
     return false;
   }
-  if (!project.capabilitySetHash.isEmpty() && hash != project.capabilitySetHash) {
+  if (hash != project.capabilitySetHash) {
     fail(error, QStringLiteral("ActionPlan capability set hash is stale"));
     return false;
   }
-  if (!project.referenceSnapshotId.isEmpty() && referenceSnapshotId != project.referenceSnapshotId) {
+  if (referenceSnapshotId != project.referenceSnapshotId) {
     fail(error, QStringLiteral("ActionPlan reference snapshot is stale"));
     return false;
   }
