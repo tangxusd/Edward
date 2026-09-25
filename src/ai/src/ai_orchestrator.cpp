@@ -15,27 +15,7 @@ AiResult AiOrchestrator::handle(const QString& output, const ProjectSnapshot& pr
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(json.toUtf8(), &parseError);
   if (!document.isObject()) return {AiResult::Kind::Conversation, trimmed, {}};
-  auto actionObject = document.object();
-  // revision 是桌面运行时的内部并发校验值，用户和模型都不需要手工填写。
-  // 模型未返回该字段时，绑定当前已读取的项目 revision；显式返回的旧值仍然拒绝。
-  if (actionObject.value(QStringLiteral("schemaVersion")).toString() == QStringLiteral("edward.action-plan.v1") &&
-      !actionObject.value(QStringLiteral("baseProjectRevision")).isDouble()) {
-    actionObject.insert(QStringLiteral("baseProjectRevision"), static_cast<double>(project.revision));
-  }
-  // 常见模型会把操作字段写成 op；协议内部统一为 type，避免把可执行方案误判成普通对话。
-  if (actionObject.value(QStringLiteral("schemaVersion")).toString() == QStringLiteral("edward.action-plan.v1") &&
-      actionObject.value(QStringLiteral("operations")).isArray()) {
-    QJsonArray normalizedOperations;
-    for (const auto& value : actionObject.value(QStringLiteral("operations")).toArray()) {
-      auto operation = value.toObject();
-      if (!operation.contains(QStringLiteral("type")) && operation.value(QStringLiteral("op")).isString()) {
-        operation.insert(QStringLiteral("type"), operation.value(QStringLiteral("op")));
-        operation.remove(QStringLiteral("op"));
-      }
-      normalizedOperations.append(operation);
-    }
-    actionObject.insert(QStringLiteral("operations"), normalizedOperations);
-  }
+  const auto actionObject = document.object();
   QString error;
   const auto plan = ActionPlan::parse(actionObject, &error);
   if (!plan) {
