@@ -9703,7 +9703,10 @@ function setAiThinking(thinking) {
 function verifyAiVisibleState(receipt, revisionBefore) {
   if (!receipt || !Number.isInteger(Number(receipt.operationCount)) || receipt.operationCount < 1) return false;
   if (Number(project.revision || 0) <= Number(revisionBefore || 0)) return false;
-  const ids = new Set((project.clips || []).map((clip) => String(clip.id)));
+  const ids = new Set([
+    ...(project.clips || []).map((clip) => String(clip.id)),
+    ...(project.markers || []).map((marker) => String(marker.markerId || marker.id || marker.label)),
+  ]);
   const affected = Array.isArray(receipt.affectedIds) ? receipt.affectedIds.map(String) : [];
   // Removed clips are expected to disappear; surviving targets must remain
   // addressable. Never validate against a non-existent receipt field.
@@ -9760,6 +9763,7 @@ async function applyEdwardActionPlan(raw, bridge) {
   }
   sortTracksInPlace(); applyTrackHeights(); project.tracks = serializeTracks(); project.markers = transaction.markers || project.markers || [];
   project.revision = Number(project.revision || 0) + 1;
+  receipt.revisionAfter = Number(project.revision || 0);
   pruneSelection(); scheduleSave(); renderInspector(); buildTrackDOM(); rebuildClips(); drawFrame(state.time);
   receipt.previewVerified = verifyAiVisibleState(receipt, revisionBefore);
   receipt.exportVerified = false;

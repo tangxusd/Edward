@@ -107,6 +107,15 @@ test("BoundActionPlan v2 applies markers, split, trim, and media replacement ato
   assert.equal(result.clips.length, 2);
   assert.equal(result.clips[0].mediaId, "media-next");
   assert.equal(result.markers[0].color, "red");
+  assert.ok(result.receipt.affectedIds.some((id) => String(id) === String(result.markers[0].markerId)));
+});
+
+test("ActionPlan receipt distinguishes removed targets for preview verification", () => {
+  const clips = [{ id: "c_1", kind: "video", track: "V1", start: 0, duration: 2, props: {} }];
+  const result = apply(plan([{ type: "remove_clip", targetId: "c_1" }]), context(clips));
+  assert.deepEqual(result.clips, []);
+  assert.deepEqual(result.receipt.removedIds, ["c_1"]);
+  assert.ok(result.receipt.affectedIds.includes("c_1"));
 });
 
 test("C++ bound operation shape is materialized by the single frontend executor", () => {

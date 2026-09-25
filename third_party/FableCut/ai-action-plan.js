@@ -205,6 +205,7 @@
     const media = new Map((context.media || []).map((item) => [item.id, item]));
     const markers = clone(context.project.markers || []);
     const affectedIds = new Set();
+    const removedIds = new Set();
     const fps = Number(context.project.fps || 30);
     if (!(fps > 0)) fail("项目帧率无效");
     for (const rawOperation of plan.operations) {
@@ -253,6 +254,7 @@
       } else if (operation.type === "create_marker") {
         const marker = { markerId: `m_${context.nextMarkerId ? context.nextMarkerId() : Date.now()}`, t: operation.timelineFrame / fps, label: operation.label || "", color: operation.color || "blue" };
         if (operation.clipId) { marker.clipId = operation.clipId; marker.localFrame = operation.localFrame ?? operation.timelineFrame; }
+        affectedIds.add(String(marker.markerId));
         markers.push(marker);
       } else if (operation.type === "delete_marker") {
         const index = markers.findIndex((marker) => String(marker.markerId || marker.id || marker.label) === operation.markerId);
@@ -280,6 +282,7 @@
           target.duration = operation.durationFrames / fps;
           target.track = chooseTrack(clips, tracks, target.track, target.start, target.duration, target.id, context.maxTracks || 16);
         } else if (operation.type === "remove_clip") {
+          removedIds.add(String(target.id));
           clips.splice(clips.indexOf(target), 1);
         } else if (operation.type === "set_clip_props" || operation.type === "set_audio_props") {
           target.props = { ...(target.props || {}), ...clone(operation.props) };
@@ -315,6 +318,7 @@
       receipt: {
         requestId: String(plan.requestId), schemaVersion: plan.schemaVersion,
         operationCount: plan.operations.length, affectedIds: [...affectedIds],
+        removedIds: [...removedIds],
         markerCount: markers.length, reversible: true,
       },
     };
