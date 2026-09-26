@@ -159,3 +159,87 @@ ProjectSummary {
 - Ant Design Pro 上游当前 README 标注 v6.0.3，最终落地前锁定具体 commit/依赖版本并执行官方 lint、typecheck、unit/e2e 检查。
 - “去除系统标题栏”与项目旧窗口规范冲突，本规格按本次最新明确需求采用无系统标题栏；需在实现计划中补充 macOS/Windows 窗口拖拽、缩放、关闭和无障碍键盘行为测试。
 - 管理后台 API 的 Cloudflare Worker 路由与现有 Supabase Functions 需要在实现计划中逐模块映射，不能先创建无数据源的空页面。
+
+## 8. 业务桥接审查与补充约束
+
+本节是实现前的阻塞审查结果。当前仓库事实表明，不能只把现有管理页面换成 ProLayout：桌面端和后台都需要新增明确的桥接层。
+
+### 8.1 当前事实与缺口
+
+| 业务链路 | 当前已有 | 阻塞缺口 | 实现前必须补齐 |
+| --- | --- | --- | --- |
+| 桌面首页 → 历史项目 | `Workbench.qml` 直接加载 `Workbench.qml`，运行时有项目加载/恢复能力 | 没有 `ProjectSummary` 索引服务、首页路由、卡片右键命令或回收站持久化 | C++ `ProjectHomeStore` + QML 首页模型 + 原子索引/回收站合同 + 单元/启动测试 |
+| 首页账户 → Supabase | `WorkbenchRuntime` 已有登录、entitlement、偏好同步 | 首页没有账户摘要桥接和登录失败/过期状态合同 | 复用 `AuthSessionStore`，新增 `accountSummary` 只读 DTO，禁止首页自行拼接 token |
+| 后台 → Supabase | 仅有 `admin-stats/users/catalog/redemption-batch/preferences` 五个通用只读入口 | 通用 endpoint 没有写操作、分页、趋势、监控或动作 API；当前页面仍使用“目录/兑换码批次/偏好事实”旧命名 | 按模块建立显式 query/mutation 合同，前端只调用白名单路由，不允许以资源名拼接任意写路径 |
+| 后台 → Cloudflare | 仓库只有部署记录，没有 Worker 源码和路由 | 规格要求 Worker 聚合、缓存、监控和资源分发，但没有可部署实现 | 新增 Worker 项目、版本化路由、Supabase service binding/secret 配置、Wrangler 本地测试和部署门禁 |
+| 用户管理 | `profiles`、订阅/订单/审计事实存在 | `auth.users` 详情不能通过普通 PostgREST 关系查询；密码重置、解绑设备、黑名单动作与设备表/接口未形成合同 | 使用受控 Edge Function/GoTrue Admin API；新增 `device_bindings`、黑名单事实和动作审计，禁止客户端直连 service role |
+| 资源库管理 | `resource_categories` 支持 `parent_id`，资源/版本合同已存在 | 数据库没有三级深度约束；现有 `admin-catalog` 只读颜色目录，不是资源分类 CRUD | 用事务函数校验父链深度≤3、循环和删除约束；分类、资源、版本发布分别定义读写 endpoint |
+| 兑换码 | 批次、码摘要、兑换记录和幂等 RPC 存在 | 没有后台创建/生成/撤销/库存聚合 API；默认 7 天不是数据库默认值；明文码只允许一次性返回 | 生成接口一次性返回明文并只持久化 digest；库存/使用记录分页查询；服务端默认 `expires_at = now()+7 days` 并审计 |
+| 默认偏好 | `preference_facts` 是用户事实 | 没有云端默认偏好表、版本、manifest 校验和发布状态 | 新增 `preference_defaults`/版本合同；默认值写入必须过组件 schema 校验，客户端同步按版本和用户事实优先级合并 |
+| 颜色/字体 | `color_catalog_*`、`font_catalog_*` 迁移和发布 manifest RPC 已存在 | 没有后台编辑/上传 endpoint，也没有 Cloudflare object upload/purge 合同 | 草稿→校验→发布事务；上传使用预签名/受控 Worker；对象 key、SHA-256、MIME、授权和 purge 结果写审计 |
+| 大模型模板 | 桌面端有供应商/模型设置读取路径 | 没有模板表、provider 参数 schema、密钥 secret 引用和后台 CRUD | 新增模板/供应商版本表和校验函数；客户端只拿脱敏配置，密钥永不进入响应/备份/日志 |
+| 邀请码 | `profiles.referral_code`、`referral_clicks`、奖励 RPC 存在 | 没有邀请方案版本、抵扣方案、有效期管理和后台查询聚合；当前奖励默认有效期为 365 天，不是规格的 7 天 | 明确“邀请码有效期”和“奖励有效期”两个字段；新增方案版本、邀请查询索引和只读统计 endpoint，不能直接改 credit ledger |
+| 订阅方案 | `subscription_plans`、orders、subscriptions、periods 存在 | 没有宣传图/折扣价版本合同和后台发布接口；历史订单快照边界未落实 | 增加 plan revision/marketing asset 合同；月/季/年作为独立周期快照，发布/停用走事务和审计 |
+| 备份恢复 | 目前只有偏好本地导入/导出 | 没有全局备份格式、加密、差异预览、事务恢复和回滚点 | 定义脱敏备份 schema、版本/哈希、加密封装、导入预检和后台恢复任务；禁止直接覆盖生产表 |
+
+### 8.2 后台 API 分层合同
+
+后台前端统一调用 Cloudflare Worker `/admin/v1/*`，Worker 再调用受控 Supabase Functions/RPC；不允许前端直接访问 service role 或任意 PostgREST 表。
+
+```text
+GET  /admin/v1/home/overview?range=today|7d|30d
+GET  /admin/v1/home/monitoring
+GET  /admin/v1/users?cursor=&limit=50&q=&sort=
+GET  /admin/v1/users/:id
+POST /admin/v1/users/:id/actions/reset-password|unbind-device|issue-code|blacklist
+GET/POST/PATCH /admin/v1/resource-categories
+GET/POST/PATCH /admin/v1/resources
+GET  /admin/v1/redemption-codes?status=&cursor=&limit=50
+POST /admin/v1/redemption-codes/batches
+POST /admin/v1/redemption-codes/:batchId/revoke
+GET/POST/PATCH /admin/v1/preference-defaults
+GET/POST/PATCH /admin/v1/colors
+GET/POST/PATCH /admin/v1/fonts
+GET/POST/PATCH /admin/v1/llm-templates
+GET/POST/PATCH /admin/v1/invitation-rules
+GET/POST/PATCH /admin/v1/subscription-plans
+POST /admin/v1/backups
+POST /admin/v1/backups/validate
+POST /admin/v1/backups/restore
+GET  /admin/v1/audit-events
+```
+
+每个响应必须包含 `requestId`、`schemaVersion`、`data` 或结构化 `error`；列表必须返回 `nextCursor`，不能依赖 offset 在高并发下分页漂移。所有 mutation 必须接收幂等键，返回审计事件 ID。
+
+### 8.3 桌面首页桥接合同
+
+新增 `ProjectHomeStore`，职责只包含摘要索引、回收站和项目动作，不读取或改写编辑器内部时间线状态。
+
+```text
+list(includeDeleted: bool) -> ProjectSummary[]
+open(projectId) -> ProjectOpenResult
+create(request) -> ProjectOpenResult
+duplicate(projectId) -> ProjectSummary
+rename(projectId, name) -> ProjectSummary
+trash(projectId) -> ProjectSummary
+restore(projectId) -> ProjectSummary
+purge(projectId, confirmation) -> void
+```
+
+QML 只消费 `QAbstractListModel` 和上述 invokable 信号；所有路径由 C++ 校验并限制在用户项目根目录。动作失败必须携带稳定错误码，首页不允许通过字符串猜测错误类型。
+
+### 8.4 角色与审计矩阵
+
+- `owner`：角色管理、备份恢复、订阅/奖励规则和所有用户动作。
+- `admin`：用户、资源、兑换码、颜色、字体、模板、邀请和订阅方案管理；不能修改管理员角色或执行恢复。
+- `analyst`：Home 统计、监控、用户/订单/审计只读；不能下载字体安装包、查看兑换码明文或执行 mutation。
+- 每个动作记录 `requestId、actor、role、target、beforeHash、afterHash、result、reason`；敏感值只记录摘要。
+
+### 8.5 桥接验收门
+
+在任何 UI 实现声称完成前，必须先通过以下合同测试：
+
+1. 桌面首页冷启动、空索引、损坏索引、打开/复制/重命名/回收/恢复/彻底删除全链路测试。
+2. Worker → Function/RPC 的认证、角色、CSRF、幂等、分页 cursor 和错误映射测试。
+3. 用户高风险动作、资源三级分类、兑换码一次性明文、默认偏好版本合并、字体对象上传/缓存失效、模板脱敏、邀请/订阅快照、备份预检/回滚测试。
+4. 每个后台导航项至少绑定一个真实 endpoint 和权限断言；禁止只有静态卡片或通用只读表格的“假完成”。
