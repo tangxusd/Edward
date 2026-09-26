@@ -243,3 +243,45 @@ QML 只消费 `QAbstractListModel` 和上述 invokable 信号；所有路径由 
 2. Worker → Function/RPC 的认证、角色、CSRF、幂等、分页 cursor 和错误映射测试。
 3. 用户高风险动作、资源三级分类、兑换码一次性明文、默认偏好版本合并、字体对象上传/缓存失效、模板脱敏、邀请/订阅快照、备份预检/回滚测试。
 4. 每个后台导航项至少绑定一个真实 endpoint 和权限断言；禁止只有静态卡片或通用只读表格的“假完成”。
+
+## 9. Cloudflare 静态资源迁移方案（已确认）
+
+用户已确认采用“Supabase 业务源 + Cloudflare 边缘分发”的混合方案。目标是降低字体、颜色、资源库等高频静态内容的读取延迟；不把认证、权限和交易事实迁出 Supabase。
+
+### 9.1 数据边界
+
+- Supabase 继续作为认证、用户个性化偏好、订阅、兑换码、邀请、设备、黑名单、审计和资源权限的唯一事实源。
+- Cloudflare R2 保存字体安装包、颜色/默认偏好版本化 JSON、资源预览图、资源包和资源库 manifest；Cloudflare CDN 负责边缘缓存。
+- Cloudflare Worker 只做版本化资源读取、权限校验、短期签名 URL、缓存控制和监控聚合，不向客户端暴露 Supabase service role。
+- 公共系统默认偏好可以缓存；用户个性化偏好和授权结果不得进入公共缓存。
+
+### 9.2 免费方案边界
+
+按当前 Cloudflare 官方文档，R2 免费额度为每月 10 GB-month 存储、100 万次 Class A 操作和 1000 万次 Class B 操作，互联网出口流量不收费。Workers 免费方案为每日 100,000 次请求，适合轻量读取和缓存，不承载复杂统计或长任务。管理后台静态站点可继续使用 Cloudflare Pages。
+
+额度和价格以发布时官方文档为准：
+
+- [R2 定价](https://developers.cloudflare.com/r2/pricing/)
+- [Workers 限制](https://developers.cloudflare.com/workers/platform/limits/)
+- [Pages 限制](https://developers.cloudflare.com/pages/platform/limits/)
+
+超出免费额度前必须配置用量监控；不得因额度不足把权限校验改成客户端判断。
+
+### 9.3 版本与缓存合同
+
+- 所有可缓存对象使用包含版本或内容哈希的不可变路径，例如 `/fonts/v2026.09/a.zip`、`/resources/v35/manifest.json`。
+- 对象响应返回 `ETag`、`Cache-Control: public,max-age=31536000,immutable`；可变 manifest 只缓存短时间并使用 `ETag` 条件请求。
+- 发布顺序为：上传并校验 R2 对象 → 校验 SHA-256/MIME/授权 → 写入 Supabase 版本记录 → 发布新 manifest → 记录缓存刷新结果。
+- 缓存未命中时回源 Supabase/受控 Worker；客户端必须校验 `revision`、`fullHash`，不能静默接受旧包。
+- 需要订阅权限的资源使用私有 R2 桶和 Worker 短期签名 URL，不使用可猜测的公开对象地址。
+
+### 9.4 迁移范围
+
+第一阶段迁移字体包、颜色库、资源预览图、资源包、资源库版本化清单和公共默认偏好。用户资料、订阅、兑换、邀请、权限和审计不迁移，只通过受控 API 读取。
+
+### 9.5 性能与正确性验收
+
+- 迁移前后分别记录 Supabase 直连、Cloudflare 缓存命中和缓存未命中的 p50/p95 TTFB，使用真实目标地区请求，不以 DNS/Ping 代替 HTTP 测试。
+- 记录缓存命中率、回源率、R2 操作量和 Worker 请求量；缓存命中率异常下降必须阻断发布。
+- 验证新版本发布、旧版本不可误用、权限资源不泄露、断网重试、回滚和额度接近上限时的降级路径。
+- 只有通过资源哈希、权限隔离、缓存一致性和额度监控测试，才能把模块标记为迁移完成。
