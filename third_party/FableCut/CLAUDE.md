@@ -170,6 +170,35 @@ Skeleton:
 Examples in `library/svg/`: `sparkles.svg` (loop), `lower-third.svg`,
 `confetti-burst.svg`, `underline-swoosh.svg` (draw-on via stroke-dashoffset).
 
+## Edward native runtime components
+
+### Edward canvas coordinate contract
+
+Every coordinate-bearing prop and timeline value uses the Edward canvas contract: `(0, 0)` is the canvas center, right/up are positive, and left/down are negative. Inspector values, insertion defaults, keyframes, preview DOM placement, hit-testing, Canvas rendering, native component rendering, and export compositing must convert at explicit boundaries and preserve that contract across output resolutions. Never store or reinterpret component positions as top-left DOM coordinates.
+
+An installed component directory can contain a strict `edward-runtime.json`
+using protocol `edward.web-runtime.v1`. The manifest selects one of `react`,
+`html-css`, `gsap`, or `svg`, and supplies `previewEntry`, `renderEntry`, and a
+JSON Schema `propsSchema`. Both entries must be browser ES modules exporting
+`mount({host, props, time, mode, viewport})`; an instance may expose
+`update(props, time, viewport, mode)` and `destroy()`. Preview and export load
+their respective native entries without a conversion layer, and editable
+controls consume the declared schema directly.
+
+## Edward desktop AI bridge
+
+When hosted inside Edward Desktop, `ai-client.js` connects to the Qt WebChannel
+object `workbenchRuntime`. The assistant sends a compact snapshot of the open
+FableCut project only: revision, clip ids, and verified native component ids.
+The model may return only `edward.action-plan.v1`, containing the allowed
+operations `insert_native_component`, `set_component_props`, `move_clip`,
+`resize_clip`, or `remove_clip`. `ai-action-plan.js` validates the exact
+operation shape, current revision, target ids, resource ids, frame values, and
+track conflicts before returning a new clip list. The page then commits that
+list as one transaction. The five latest AI transactions have a separate
+**撤销 AI** history. A standalone FableCut browser page does not send model
+requests or expose any desktop bridge.
+
 ## project.json schema
 
 ```jsonc

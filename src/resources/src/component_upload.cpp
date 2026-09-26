@@ -45,8 +45,10 @@ std::optional<ComponentUploadRequest> ComponentUploadClient::buildRequest(const 
       session.accessToken,
       QJsonObject{{"resourceId", package.resourceId}, {"displayName", package.displayName},
                   {"userId", session.userId}, {"username", session.username},
-                  {"component", package.component.toJson()}, {"pluginId", package.pluginId},
-                  {"pluginVersion", package.pluginVersion}, {"thumbnail", package.thumbnail},
+                  {"runtimeManifest", QJsonObject{{"protocol", package.runtimeManifest.protocol},
+                      {"runtime", package.runtimeManifest.runtime}, {"previewEntry", package.runtimeManifest.previewEntry},
+                      {"renderEntry", package.runtimeManifest.renderEntry}}},
+                  {"props", package.nativeRuntime.props}, {"thumbnail", package.thumbnail},
                   {"assets", assets}},
   };
 }

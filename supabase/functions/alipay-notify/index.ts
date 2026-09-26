@@ -17,14 +17,11 @@ Deno.serve(async req => {
     const admin = adminClient();
     const { data: order } = await admin.from("orders").select("id,paid_amount,status").eq("provider_request_id", outTradeNo).maybeSingle();
     if (!order) return new Response("fail", { status: 404 });
-    await admin.from("payment_audit_events").insert({ order_id: order.id, provider: "alipay", phase: "notify", provider_code: body.code || null, provider_status: status, payload: body });
+    const auditPayload = { out_trade_no: outTradeNo, trade_no: body.trade_no || null, trade_status: status, total_amount: body.total_amount || null, app_id: body.app_id || null };
+    await admin.from("payment_audit_events").insert({ order_id: order.id, provider: "alipay", phase: "notify", provider_code: body.code || null, provider_status: status, payload: auditPayload });
     const paidCents = Math.round(Number(body.total_amount || 0) * 100);
     if (!Number.isFinite(paidCents) || paidCents !== Number(order.paid_amount)) return new Response("fail", { status: 400 });
-    if (order.status !== "paid") {
-      const { error: updateError } = await admin.from("orders").update({ status: "paid", provider_order_id: body.trade_no || null, provider_response: body, updated_at: new Date().toISOString() }).eq("id", order.id).eq("status", "pending");
-      if (updateError) return new Response("fail", { status: 503 });
-    }
-    const { error: entitlementError } = await admin.rpc("apply_paid_order", { p_order_id: order.id });
+    const { error: entitlementError } = await admin.rpc("confirm_paid_order", { p_order_id: order.id, p_provider_order_id: body.trade_no || "", p_paid_amount: paidCents, p_provider_response: auditPayload });
     if (entitlementError) return new Response("fail", { status: 503 });
     return new Response("success");
   } catch (error) {

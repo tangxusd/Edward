@@ -1,8 +1,13 @@
 #include <edward/resources/supabase_auth_client.hpp>
 
+#include <QTemporaryDir>
+
 #include <cassert>
 
 int main() {
+  QTemporaryDir settings;
+  assert(settings.isValid());
+  qputenv("EDWARD_SETTINGS_PATH", settings.filePath("settings.ini").toUtf8());
   QString error;
   const edward::resources::SupabaseAuthConfig config{"https://project.supabase.co", "anon-key"};
   const auto request = edward::resources::SupabaseAuthClient::buildPasswordSignInRequest(

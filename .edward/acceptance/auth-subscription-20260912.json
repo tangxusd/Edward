@@ -11,7 +11,8 @@
     {"id": "qt_auth_tests", "status": "passed", "evidence": "auth_session_store、supabase_auth_client、supabase_auth_registration 3/3 通过"},
     {"id": "edge_function_typecheck", "status": "passed", "evidence": "安装 Deno 2.9.6 后，10 个 Edge Function 入口全部通过 deno check；resource-catalog 类型问题已修复并重新部署"},
     {"id": "billing_function_tests", "status": "passed", "evidence": "deno test supabase/tests/billing-functions.test.ts：2/2 通过，覆盖折扣优先、抵扣上限和负数输入"},
-    {"id": "edge_function_tests", "status": "blocked", "evidence": "认证、资源和推荐函数暂无可脱离 Supabase 环境的集成测试；已完成部署、类型检查和匿名 HTTP 烟测"},
+    {"id": "edge_function_tests", "status": "blocked", "evidence": "已完成部署、类型检查、匿名 HTTP 烟测及本地会话代理合同测试；认证、资源和推荐函数的真实 Supabase 集成测试仍需测试账号"},
+    {"id": "authenticated_resource_session_proxy", "status": "passed", "evidence": "third_party/FableCut/test/auth-ui.test.js 与 rest-api.test.js：登录 session 写入后，资源目录请求将 Bearer token 和 anon key 原样转发到受控本地 Supabase 替身"},
     {"id": "payment_webhook", "status": "blocked", "evidence": "用户尚未绑定支付平台，真实扣款、续订和退款回调待接入"}
   ]
 }

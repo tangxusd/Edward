@@ -21,6 +21,7 @@ class PreferenceStore final : public QObject {
   Q_INVOKABLE QVariantList exportFacts();
   Q_INVOKABLE bool importFacts(const QVariantList& facts);
 
+  void setAccountScope(const QString& accountId);
   void setDatabasePathForTests(const QString& path);
 
  private:
@@ -42,6 +43,7 @@ class PreferenceStore final : public QObject {
   mutable QVariantList pendingEvents_;
   mutable bool profileDirty_ = false;
   mutable qlonglong revision_ = 0;
+  mutable QString accountScope_ = QStringLiteral("anonymous");
 };
 
 }  // namespace edward::desktop

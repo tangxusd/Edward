@@ -54,8 +54,11 @@ function draw(msg) {
     if (x < -6 || x > w + 6) continue;
     g.fillStyle = "#4f8cff";
     g.beginPath();
-    g.moveTo(x, h - 9); g.lineTo(x + 4, h - 5); g.lineTo(x, h - 1); g.lineTo(x - 4, h - 5);
+    g.moveTo(x, h - 13); g.lineTo(x + 8, h - 5); g.lineTo(x, h + 3); g.lineTo(x - 8, h - 5);
     g.closePath(); g.fill();
+    g.fillStyle = "#fff"; g.font = "bold 12px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(Number(mk.label) > 9 ? "*" : String(mk.label || "*"), x, h - 5);
+    g.textAlign = "start"; g.textBaseline = "alphabetic";
   }
   // IN / OUT — bottom-aligned; `difference` keeps time glyphs readable where they overlap
   const mkH = (h - 4) * 0.75, bot = h - 1, top = bot - mkH, mid = (top + bot) / 2;

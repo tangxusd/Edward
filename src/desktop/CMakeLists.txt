@@ -2,15 +2,17 @@ set(CMAKE_AUTOMOC ON)
 add_library(edward_desktop STATIC
   include/edward/desktop/workbench_runtime.hpp
   include/edward/desktop/preference_store.hpp
-  include/edward/desktop/diagnostics_reporter.hpp
+  include/edward/desktop/execution_ledger.hpp
+  include/edward/desktop/artifact_intake.hpp
+  include/edward/desktop/ai_memory_store.hpp
   src/preference_store.cpp
-  src/style_snapshot.cpp
-  src/diagnostics_reporter.cpp
-  src/timeline_controller.cpp
+  src/execution_ledger.cpp
+  src/artifact_intake.cpp
+  src/ai_memory_store.cpp
   src/workbench_runtime.cpp
 )
 target_include_directories(edward_desktop PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(edward_desktop PUBLIC edward_core edward_runtime edward_media edward_plugins edward_resources edward_resolve edward_ai Qt6::Core Qt6::Concurrent Qt6::Sql Qt6::WebChannel Qt6::Widgets)
+target_link_libraries(edward_desktop PUBLIC edward_ai edward_core edward_runtime edward_resources Qt6::Core Qt6::Sql Qt6::WebChannel Qt6::Widgets)
 target_compile_definitions(edward_desktop PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
 # Qt SVG Image 不支持 CSS currentColor；为 Rail 选中态生成同源橙色 SVG，
@@ -26,33 +28,14 @@ endforeach()
 
 add_executable(edward_app src/main.cpp)
 if(APPLE)
-  set_source_files_properties(resources/Orbit.icns PROPERTIES
-    MACOSX_PACKAGE_LOCATION Resources)
-  target_sources(edward_app PRIVATE resources/Orbit.icns)
-endif()
-if(APPLE)
   target_sources(edward_app PRIVATE src/native_titlebar_macos.mm)
 endif()
 target_compile_definitions(edward_app PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 target_link_libraries(edward_app PRIVATE edward_desktop Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::Svg Qt6::WebChannel Qt6::Widgets Qt6::WebEngineQuick)
-set_target_properties(edward_app PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-add_custom_command(TARGET edward_app POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-          "${CMAKE_CURRENT_SOURCE_DIR}/../resources/data/resolve-api"
-          "$<TARGET_FILE_DIR:edward_app>/../Resources/resolve-api"
-  VERBATIM)
-add_custom_command(TARGET edward_app POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-          "${CMAKE_CURRENT_SOURCE_DIR}/../resolve/workflow-plugin"
-          "$<TARGET_FILE_DIR:edward_app>/../Resources/workflow-plugin"
-          VERBATIM)
-add_custom_command(TARGET edward_app POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E make_directory
-          "$<TARGET_FILE_DIR:edward_app>/../Resources/resolve-ograf"
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${CMAKE_CURRENT_SOURCE_DIR}/../resolve/ograf/ograf_renderer.js"
-          "$<TARGET_FILE_DIR:edward_app>/../Resources/resolve-ograf/ograf_renderer.js"
-  VERBATIM)
+set_target_properties(edward_app PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+  OUTPUT_NAME Orbit
+)
 qt_add_resources(edward_app desktop_qml
   PREFIX "/qml"
   BASE "${CMAKE_CURRENT_SOURCE_DIR}/qml"
@@ -129,9 +112,7 @@ if(APPLE)
   endif()
   set_target_properties(edward_app PROPERTIES
     MACOSX_BUNDLE TRUE
-    OUTPUT_NAME Edward
-    MACOSX_BUNDLE_BUNDLE_NAME Edward
-    MACOSX_BUNDLE_ICON_FILE Orbit.icns
+    MACOSX_BUNDLE_BUNDLE_NAME Orbit
     MACOSX_BUNDLE_GUI_IDENTIFIER com.edward.video
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}

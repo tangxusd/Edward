@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
   assert(!runtime.addNativeRuntimePackage(package.path()));
   write(package.filePath("preview.html"), "<html></html>");
   write(package.filePath("render.html"), "<html></html>");
-  write(package.filePath("manifest.json"), R"({"protocol":"edward.web-runtime.v1","runtime":"svg","width":400,"height":100,"fps":30,"durationInFrames":90,"previewEntry":"preview.html","renderEntry":"render.html","propsSchema":{"type":"object"},"editableProperties":["color"]})");
+  write(package.filePath("edward-runtime.json"), R"({"protocol":"edward.web-runtime.v1","runtime":"svg","width":400,"height":100,"fps":30,"durationInFrames":90,"previewEntry":"preview.html","renderEntry":"render.html","propsSchema":{"type":"object"},"editableProperties":["color"]})");
   assert(runtime.addNativeRuntimePackage(package.path(), {{"color", "#007aff"}}));
   assert(runtime.nativeRuntimeSelected());
   assert(runtime.nativeRuntimeProps().value("color") == "#007aff");

@@ -1,7 +1,0 @@
-<!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><title>Edward · 预览清晰度</title></head><body><script>
-fetch('edward-workbench-v19-0.2-fixed.html?key=aad9e655bc8d1bbea29d7026292a2652847bb103fb4e071cda96a491abfded2a').then(r=>r.text()).then(html=>{
-  document.open();document.write(html);document.close();
-  const preview=document.querySelector('.preview');const menu=document.createElement('div');menu.className='quality-menu';menu.innerHTML='<button class="active">原画 <i></i></button><button>清晰</button><button>流畅</button>';preview.append(menu);const style=document.createElement('style');style.textContent='.quality-menu{position:absolute;z-index:6;bottom:38px;display:grid;min-width:58px;padding:3px;background:#292c30;border:1px solid #4a4f55;border-radius:4px}.quality-menu button{border:0;background:transparent;color:#bfc5ca;text-align:left;padding:5px 7px;font-size:10px}.quality-menu button.active{color:#e8eeee}.quality-menu i{display:inline-block;width:6px;height:6px;margin-left:5px;border-radius:50%;background:#16c9c0;vertical-align:middle}';document.head.append(style);const align=()=>{const button=preview.querySelector('select[aria-label="预览清晰度"]');const previewBox=preview.getBoundingClientRect();const buttonBox=button.getBoundingClientRect();menu.style.left=`${buttonBox.left-previewBox.left}px`;};align();addEventListener('resize',align);
-});
-</script></body></html>

@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonArray>
@@ -53,7 +54,14 @@ QString PreferenceStore::databasePath() const {
   const auto root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) +
                     QStringLiteral("/preferences");
   QDir().mkpath(root);
-  return root + QStringLiteral("/preferences.sqlite");
+  const auto storagePath = root + QStringLiteral("/preferences.store");
+  const auto legacyPath = root + QStringLiteral("/preferences.sqlite");
+  if (!QFileInfo::exists(storagePath) && QFileInfo::exists(legacyPath)) {
+    QFile::rename(legacyPath, storagePath);
+    for (const auto& suffix : {QStringLiteral("-wal"), QStringLiteral("-shm")})
+      QFile::rename(legacyPath + suffix, storagePath + suffix);
+  }
+  return storagePath;
 }
 
 QString PreferenceStore::installationId() const {
@@ -87,10 +95,10 @@ bool PreferenceStore::ensureSchema() const {
   QSqlQuery query(database);
   const QStringList statements{
       QStringLiteral("CREATE TABLE IF NOT EXISTS preference_events ("
-                     "event_id TEXT PRIMARY KEY, installation_id TEXT NOT NULL, identity_key TEXT NOT NULL, "
+                     "event_id TEXT PRIMARY KEY, account_scope TEXT NOT NULL DEFAULT 'anonymous', installation_id TEXT NOT NULL, identity_key TEXT NOT NULL, "
                      "component_id TEXT NOT NULL, component_family TEXT NOT NULL, component_version TEXT NOT NULL, "
                      "manifest_hash TEXT NOT NULL, semantic_path TEXT NOT NULL, property_path TEXT NOT NULL, "
-                     "value_type TEXT NOT NULL, value_json TEXT NOT NULL, creation_session_id TEXT NOT NULL, "
+                     "value_type TEXT NOT NULL, value_json TEXT NOT NULL, creation_session_id TEXT NOT NULL, profile_rank INTEGER NOT NULL DEFAULT 0, "
                      "source TEXT NOT NULL, created_at INTEGER NOT NULL)"),
       QStringLiteral("CREATE TABLE IF NOT EXISTS preference_profiles ("
                      "identity_key TEXT PRIMARY KEY, profile_json TEXT NOT NULL, revision INTEGER NOT NULL, "
@@ -98,17 +106,43 @@ bool PreferenceStore::ensureSchema() const {
       QStringLiteral("CREATE TABLE IF NOT EXISTS preference_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")};
   for (const auto& statement : statements)
     if (!query.exec(statement)) return false;
+  bool hasProfileRank = false;
+  if (!query.exec(QStringLiteral("PRAGMA table_info(preference_events)"))) return false;
+  while (query.next()) hasProfileRank = hasProfileRank || query.value(1).toString() == QStringLiteral("profile_rank");
+  if (!hasProfileRank && !query.exec(QStringLiteral("ALTER TABLE preference_events ADD COLUMN profile_rank INTEGER NOT NULL DEFAULT 0"))) return false;
+  bool hasAccountScope = false;
+  if (!query.exec(QStringLiteral("PRAGMA table_info(preference_events)"))) return false;
+  while (query.next()) hasAccountScope = hasAccountScope || query.value(1).toString() == QStringLiteral("account_scope");
+  if (!hasAccountScope && !query.exec(QStringLiteral("ALTER TABLE preference_events ADD COLUMN account_scope TEXT NOT NULL DEFAULT 'anonymous'"))) return false;
+  if (!query.exec(QStringLiteral("UPDATE preference_events SET identity_key = 'anonymous' || char(30) || identity_key "
+                                "WHERE account_scope = 'anonymous' AND instr(identity_key, char(30)) = 0"))) return false;
+  if (!query.exec(QStringLiteral("UPDATE preference_events SET event_id = 'anonymous' || char(31) || event_id "
+                                "WHERE account_scope = 'anonymous' AND instr(event_id, char(31)) = 0"))) return false;
+  if (!query.exec(QStringLiteral("UPDATE preference_profiles SET identity_key = 'anonymous' || char(30) || identity_key "
+                                "WHERE instr(identity_key, char(30)) = 0"))) return false;
   return true;
 }
 
 void PreferenceStore::closeDatabase() const {
   if (connectionName_.isEmpty()) return;
-  if (QSqlDatabase::contains(connectionName_)) {
-    auto database = QSqlDatabase::database(connectionName_);
-    if (database.isOpen()) database.close();
-    QSqlDatabase::removeDatabase(connectionName_);
+  const auto connection = connectionName_;
+  if (QSqlDatabase::contains(connection)) {
+    {
+      auto database = QSqlDatabase::database(connection);
+      if (database.isOpen()) database.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
   }
   connectionName_.clear();
+}
+
+void PreferenceStore::setAccountScope(const QString& accountId) {
+  const auto normalized = accountId.trimmed().isEmpty() ? QStringLiteral("anonymous") : accountId.trimmed();
+  if (accountScope_ == normalized) return;
+  flushPendingPreferences();
+  pendingEvents_.clear();
+  profileDirty_ = false;
+  accountScope_ = normalized;
 }
 
 QString PreferenceStore::makeIdentityKey(const QVariantMap& identity) const {
@@ -118,7 +152,7 @@ QString PreferenceStore::makeIdentityKey(const QVariantMap& identity) const {
                          QStringLiteral("valueType")};
   QStringList values;
   for (const auto& key : keys) values.append(identity.value(key).toString().trimmed());
-  return values.join(QLatin1Char('\x1f'));
+  return accountScope_ + QLatin1Char('\x1e') + values.join(QLatin1Char('\x1f'));
 }
 
 bool PreferenceStore::isValidObservation(const QVariantMap& observation, QString* error) const {
@@ -138,6 +172,11 @@ bool PreferenceStore::isValidObservation(const QVariantMap& observation, QString
     if (error) *error = QStringLiteral("source_not_confirmed");
     return false;
   }
+  const auto profileRank = observation.value(QStringLiteral("profileRank"), 0).toInt();
+  if (profileRank < 0 || profileRank > 2) {
+    if (error) *error = QStringLiteral("profile_rank_invalid");
+    return false;
+  }
   if (observation.contains(QStringLiteral("projectId")) || observation.contains(QStringLiteral("projectPath"))) {
     if (error) *error = QStringLiteral("project_data_forbidden");
     return false;
@@ -152,6 +191,7 @@ bool PreferenceStore::recordConfirmedPropertyChange(const QVariantMap& observati
   event.insert(QStringLiteral("installationId"), installationId());
   event.insert(QStringLiteral("createdAt"), QDateTime::currentMSecsSinceEpoch());
   event.insert(QStringLiteral("identityKey"), makeIdentityKey(observation));
+  event.insert(QStringLiteral("profileRank"), observation.value(QStringLiteral("profileRank"), 0).toInt());
   if (pendingEvents_.size() >= kMaxPendingEvents) pendingEvents_.removeFirst();
   pendingEvents_.append(event);
   profileDirty_ = true;
@@ -166,25 +206,27 @@ bool PreferenceStore::flushPendingPreferences() {
   QSqlQuery query(database);
   query.prepare(QStringLiteral(
       "INSERT OR IGNORE INTO preference_events "
-      "(event_id, installation_id, identity_key, component_id, component_family, component_version, "
-      "manifest_hash, semantic_path, property_path, value_type, value_json, creation_session_id, source, created_at) "
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+      "(event_id, account_scope, installation_id, identity_key, component_id, component_family, component_version, "
+      "manifest_hash, semantic_path, property_path, value_type, value_json, creation_session_id, profile_rank, source, created_at) "
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
   for (const auto& value : pendingEvents_) {
     const auto event = value.toMap();
-    query.bindValue(0, event.value(QStringLiteral("eventId")));
-    query.bindValue(1, event.value(QStringLiteral("installationId")));
-    query.bindValue(2, event.value(QStringLiteral("identityKey")));
-    query.bindValue(3, event.value(QStringLiteral("componentId")));
-    query.bindValue(4, event.value(QStringLiteral("componentFamily")));
-    query.bindValue(5, event.value(QStringLiteral("componentVersion")));
-    query.bindValue(6, event.value(QStringLiteral("manifestHash")));
-    query.bindValue(7, event.value(QStringLiteral("semanticPath")));
-    query.bindValue(8, event.value(QStringLiteral("propertyPath")));
-    query.bindValue(9, event.value(QStringLiteral("valueType")));
-    query.bindValue(10, jsonString(event.value(QStringLiteral("value"))));
-    query.bindValue(11, event.value(QStringLiteral("creationSessionId")));
-    query.bindValue(12, event.value(QStringLiteral("source")));
-    query.bindValue(13, event.value(QStringLiteral("createdAt")));
+    query.bindValue(0, accountScope_ + QLatin1Char('\x1f') + event.value(QStringLiteral("eventId")).toString());
+    query.bindValue(1, accountScope_);
+    query.bindValue(2, event.value(QStringLiteral("installationId")));
+    query.bindValue(3, event.value(QStringLiteral("identityKey")));
+    query.bindValue(4, event.value(QStringLiteral("componentId")));
+    query.bindValue(5, event.value(QStringLiteral("componentFamily")));
+    query.bindValue(6, event.value(QStringLiteral("componentVersion")));
+    query.bindValue(7, event.value(QStringLiteral("manifestHash")));
+    query.bindValue(8, event.value(QStringLiteral("semanticPath")));
+    query.bindValue(9, event.value(QStringLiteral("propertyPath")));
+    query.bindValue(10, event.value(QStringLiteral("valueType")));
+    query.bindValue(11, jsonString(event.value(QStringLiteral("value"))));
+    query.bindValue(12, event.value(QStringLiteral("creationSessionId")));
+    query.bindValue(13, event.value(QStringLiteral("profileRank")));
+    query.bindValue(14, event.value(QStringLiteral("source")));
+    query.bindValue(15, event.value(QStringLiteral("createdAt")));
     if (!query.exec()) {
       database.rollback();
       return false;
@@ -201,18 +243,22 @@ QVariantList PreferenceStore::readEvents(const QString& identityKey) const {
   QVariantList events;
   if (!openDatabase()) return events;
   QSqlQuery query(QSqlDatabase::database(connectionName_));
-  query.prepare(QStringLiteral("SELECT event_id, value_json, creation_session_id, created_at "
-                               "FROM preference_events WHERE identity_key = ? "
+  query.prepare(QStringLiteral("SELECT event_id, value_json, creation_session_id, profile_rank, created_at "
+                               "FROM preference_events WHERE account_scope = ? AND identity_key = ? "
                                "ORDER BY created_at DESC LIMIT ?"));
-  query.bindValue(0, identityKey);
-  query.bindValue(1, kMaxEventsPerIdentity);
+  query.bindValue(0, accountScope_);
+  query.bindValue(1, identityKey);
+  query.bindValue(2, kMaxEventsPerIdentity);
   if (!query.exec()) return events;
   while (query.next()) {
     const auto storedValue = fromJsonString(query.value(1).toString()).toList();
-    events.append(QVariantMap{{QStringLiteral("eventId"), query.value(0)},
+    const auto storedEventId = query.value(0).toString();
+    const auto separator = storedEventId.indexOf(QLatin1Char('\x1f'));
+    events.append(QVariantMap{{QStringLiteral("eventId"), separator >= 0 ? storedEventId.mid(separator + 1) : storedEventId},
                               {QStringLiteral("value"), storedValue.isEmpty() ? QVariant{} : storedValue.first()},
                               {QStringLiteral("creationSessionId"), query.value(2)},
-                              {QStringLiteral("createdAt"), query.value(3)}});
+                              {QStringLiteral("profileRank"), query.value(3)},
+                              {QStringLiteral("createdAt"), query.value(4)}});
   }
   return events;
 }
@@ -221,13 +267,17 @@ QVariantList PreferenceStore::readAllEvents() const {
   QVariantList events;
   if (!openDatabase()) return events;
   QSqlQuery query(QSqlDatabase::database(connectionName_));
-  if (!query.exec(QStringLiteral("SELECT event_id, installation_id, component_id, component_family, component_version, "
-                                 "manifest_hash, semantic_path, property_path, value_type, value_json, "
-                                 "creation_session_id, source, created_at FROM preference_events ORDER BY created_at ASC")))
+  query.prepare(QStringLiteral("SELECT event_id, installation_id, component_id, component_family, component_version, "
+                               "manifest_hash, semantic_path, property_path, value_type, value_json, "
+                               "creation_session_id, profile_rank, source, created_at FROM preference_events WHERE account_scope = ? ORDER BY created_at ASC"));
+  query.bindValue(0, accountScope_);
+  if (!query.exec())
     return events;
   while (query.next()) {
     const auto values = fromJsonString(query.value(9).toString()).toList();
-    events.append(QVariantMap{{QStringLiteral("eventId"), query.value(0)},
+    const auto storedEventId = query.value(0).toString();
+    const auto separator = storedEventId.indexOf(QLatin1Char('\x1f'));
+    events.append(QVariantMap{{QStringLiteral("eventId"), separator >= 0 ? storedEventId.mid(separator + 1) : storedEventId},
                               {QStringLiteral("installationId"), query.value(1)},
                               {QStringLiteral("componentId"), query.value(2)},
                               {QStringLiteral("componentFamily"), query.value(3)},
@@ -238,8 +288,9 @@ QVariantList PreferenceStore::readAllEvents() const {
                               {QStringLiteral("valueType"), query.value(8)},
                               {QStringLiteral("value"), values.isEmpty() ? QVariant{} : values.first()},
                               {QStringLiteral("creationSessionId"), query.value(10)},
-                              {QStringLiteral("source"), query.value(11)},
-                              {QStringLiteral("createdAt"), query.value(12)}});
+                              {QStringLiteral("profileRank"), query.value(11)},
+                              {QStringLiteral("source"), query.value(12)},
+                              {QStringLiteral("createdAt"), query.value(13)}});
   }
   return events;
 }
@@ -263,30 +314,27 @@ QVariantList PreferenceStore::compileTopProfiles(const QList<QVariantMap>& event
     QSet<QString> sessions;
     double score = 0;
   };
-  QHash<QString, Candidate> candidates;
   const auto now = QDateTime::currentMSecsSinceEpoch();
-  for (const auto& event : events) {
-    const auto valueKey = jsonString(event.value(QStringLiteral("value")));
-    auto& candidate = candidates[valueKey];
-    candidate.values.insert(QStringLiteral("value"), event.value(QStringLiteral("value")));
-    candidate.sessions.insert(event.value(QStringLiteral("creationSessionId")).toString());
-    candidate.score += scoreEvent(event, now);
-  }
-  QList<Candidate> ranked;
-  for (auto it = candidates.cbegin(); it != candidates.cend(); ++it) {
-    if (it.value().sessions.size() < 2 && events.size() < 3) continue;
-    ranked.append(it.value());
-  }
-  std::sort(ranked.begin(), ranked.end(), [](const Candidate& left, const Candidate& right) {
-    if (left.score != right.score) return left.score > right.score;
-    return left.values.value(QStringLiteral("value")).toString() <
-           right.values.value(QStringLiteral("value")).toString();
-  });
   QVariantList profiles;
-  const auto count = std::min<qsizetype>(3, ranked.size());
-  for (qsizetype index = 0; index < count; ++index) {
-    auto profile = ranked.at(index).values;
-    profile.insert(QStringLiteral("rank"), index);
+  for (int profileRank = 0; profileRank < 3; ++profileRank) {
+    QHash<QString, Candidate> candidates;
+    for (const auto& event : events) {
+      if (event.value(QStringLiteral("profileRank"), 0).toInt() != profileRank) continue;
+      const auto valueKey = jsonString(event.value(QStringLiteral("value")));
+      auto& candidate = candidates[valueKey];
+      candidate.values.insert(QStringLiteral("value"), event.value(QStringLiteral("value")));
+      candidate.sessions.insert(event.value(QStringLiteral("creationSessionId")).toString());
+      candidate.score += scoreEvent(event, now);
+    }
+    if (candidates.isEmpty()) continue;
+    QList<Candidate> ranked;
+    for (auto it = candidates.cbegin(); it != candidates.cend(); ++it) ranked.append(it.value());
+    std::sort(ranked.begin(), ranked.end(), [](const Candidate& left, const Candidate& right) {
+      if (left.score != right.score) return left.score > right.score;
+      return left.values.value(QStringLiteral("value")).toString() < right.values.value(QStringLiteral("value")).toString();
+    });
+    auto profile = ranked.first().values;
+    profile.insert(QStringLiteral("rank"), profileRank);
     profiles.append(profile);
   }
   return profiles;
@@ -323,15 +371,20 @@ QVariantMap PreferenceStore::creationPreferences(const QVariantMap& identity, in
   query.bindValue(0, key);
   if (query.exec() && query.next()) {
     const auto profiles = fromJsonString(query.value(0).toString()).toList();
-    if (rank >= 0 && rank < profiles.size()) return profiles.at(rank).toMap();
+    for (const auto& profile : profiles) {
+      const auto candidate = profile.toMap();
+      if (candidate.value(QStringLiteral("rank")).toInt() == rank) return candidate;
+    }
   }
   const auto events = readEvents(key);
   QList<QVariantMap> maps;
   for (const auto& event : events) maps.append(event.toMap());
   const auto profiles = compileTopProfiles(maps);
-  return profiles.isEmpty() || rank < 0 || rank >= profiles.size()
-             ? systemDefaults(identity)
-             : profiles.at(rank).toMap();
+  for (const auto& profile : profiles) {
+    const auto candidate = profile.toMap();
+    if (candidate.value(QStringLiteral("rank")).toInt() == rank) return candidate;
+  }
+  return systemDefaults(identity);
 }
 
 bool PreferenceStore::compilePreferences() {
@@ -339,7 +392,9 @@ bool PreferenceStore::compilePreferences() {
   if (!profileDirty_) return true;
   if (!openDatabase()) return false;
   QSqlQuery identities(QSqlDatabase::database(connectionName_));
-  if (!identities.exec(QStringLiteral("SELECT DISTINCT identity_key FROM preference_events"))) return false;
+  identities.prepare(QStringLiteral("SELECT DISTINCT identity_key FROM preference_events WHERE account_scope = ?"));
+  identities.bindValue(0, accountScope_);
+  if (!identities.exec()) return false;
   while (identities.next()) {
     const auto key = identities.value(0).toString();
     const auto events = readEvents(key);

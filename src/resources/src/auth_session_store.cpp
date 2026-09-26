@@ -1,11 +1,23 @@
 #include "edward/resources/auth_session_store.hpp"
 
+#include <QDir>
+#include <QStandardPaths>
 #include <QSettings>
 
 namespace edward::resources {
 
+namespace {
+QSettings sessionSettings() {
+  const auto settingsPath = qEnvironmentVariable("EDWARD_SETTINGS_PATH");
+  if (!settingsPath.isEmpty()) return QSettings(settingsPath, QSettings::IniFormat);
+  const auto settingsDirectory = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+  QDir().mkpath(settingsDirectory);
+  return QSettings(QDir(settingsDirectory).filePath(QStringLiteral("settings.ini")), QSettings::IniFormat);
+}
+}  // namespace
+
 AuthSessionStore::AuthSessionStore(QObject* parent) : QObject(parent) {
-  QSettings settings(QStringLiteral("Edward"), QStringLiteral("Edward"));
+  auto settings = sessionSettings();
   session_.userId = settings.value(QStringLiteral("auth/userId")).toString();
   session_.username = settings.value(QStringLiteral("auth/username")).toString();
   session_.accessToken = settings.value(QStringLiteral("auth/accessToken")).toString();
@@ -22,7 +34,7 @@ QString AuthSessionStore::username() const { return session_.username; }
 
 void AuthSessionStore::setSession(AuthSession session) {
   session_ = std::move(session);
-  QSettings settings(QStringLiteral("Edward"), QStringLiteral("Edward"));
+  auto settings = sessionSettings();
   settings.setValue(QStringLiteral("auth/userId"), session_.userId);
   settings.setValue(QStringLiteral("auth/username"), session_.username);
   settings.setValue(QStringLiteral("auth/accessToken"), session_.accessToken);
@@ -32,7 +44,7 @@ void AuthSessionStore::setSession(AuthSession session) {
 
 void AuthSessionStore::clear() {
   session_ = {};
-  QSettings settings(QStringLiteral("Edward"), QStringLiteral("Edward"));
+  auto settings = sessionSettings();
   settings.remove(QStringLiteral("auth"));
   emit changed();
 }

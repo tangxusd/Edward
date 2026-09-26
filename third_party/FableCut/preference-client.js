@@ -1,4 +1,4 @@
-/* Edward host preference bridge. Standalone FableCut keeps working without Qt. */
+/* Orbit host preference bridge. Standalone FableCut keeps working without Qt. */
 (function () {
   "use strict";
   let channelPromise = null;

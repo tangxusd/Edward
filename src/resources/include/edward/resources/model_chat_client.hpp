@@ -2,8 +2,11 @@
 
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QObject>
+#include <QHash>
 #include <QString>
+#include <QStringList>
 
 #include <optional>
 
@@ -13,12 +16,22 @@ struct ModelChatConfig final {
   QString endpoint;
   QString apiKey;
   QString model;
+  QString protocol = QStringLiteral("openai-completions");
 };
 
 struct ModelChatRequest final {
   QString endpoint;
   QString apiKey;
   QJsonObject body;
+  QHash<QByteArray, QByteArray> headers;
+};
+
+struct ModelChatStreamEvent final {
+  bool done = false;
+  bool error = false;
+  qint64 upstreamSequence = 0;
+  QString text;
+  QString errorMessage;
 };
 
 class ModelChatClient final : public QObject {
@@ -30,15 +43,35 @@ class ModelChatClient final : public QObject {
                                                        const QString& userPrompt,
                                                        QString* error = nullptr);
   static std::optional<QString> extractAssistantText(const QJsonObject& response,
+                                                      const QString& protocol = QStringLiteral("openai-completions"),
                                                       QString* error = nullptr);
+  static QString modelsEndpoint(const QString& chatEndpoint);
+  static QStringList extractModelIds(const QJsonObject& response, QString* error = nullptr);
+  static std::optional<ModelChatStreamEvent> parseStreamingLine(const QByteArray& line,
+                                                                  const QString& protocol,
+                                                                  QString* error = nullptr);
   bool request(const ModelChatConfig& config, const QString& systemPrompt,
                const QString& userPrompt);
+  bool requestStreaming(const ModelChatConfig& config, const QString& systemPrompt,
+                        const QString& userPrompt);
+  void cancelStreaming();
+  bool requestModels(const ModelChatConfig& config);
 
  signals:
   void completed(bool success, QString text);
+  void chunk(QString text);
+  void streamStarted(QString requestId);
+  void streamDelta(QString requestId, qint64 sequence, QString text);
+  void streamDone(QString requestId, QString fullText);
+  void streamError(QString requestId, QString code, QString message);
+  void streamCancelled(QString requestId);
+  void modelsCompleted(bool success, QStringList modelIds, QString message);
 
  private:
   QNetworkAccessManager network_;
+  QNetworkReply* activeStreamingReply_ = nullptr;
+  QString activeStreamingRequestId_;
+  bool activeStreamingCancelled_ = false;
 };
 
 }  // namespace edward::resources

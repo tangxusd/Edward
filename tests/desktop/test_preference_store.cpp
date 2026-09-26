@@ -17,12 +17,13 @@ QVariantMap identity(const QString& semanticPath, const QString& propertyPath) {
 }
 
 QVariantMap observation(const QString& eventId, const QVariantMap& key, const QString& value,
-                        const QString& session) {
+                        const QString& session, int profileRank = 0) {
   auto result = key;
   result.insert("eventId", eventId);
   result.insert("value", value);
   result.insert("creationSessionId", session);
   result.insert("source", "user-confirmed");
+  result.insert("profileRank", profileRank);
   return result;
 }
 }  // namespace
@@ -52,6 +53,15 @@ int main(int argc, char** argv) {
   assert(textPreference.value("value").toString() == "#0000ff");
   assert(borderPreference.value("value").toString() == "#00ff00");
 
+  assert(store.recordConfirmedPropertyChange(observation("a1", text, "#111111", "profile-a", 0)));
+  assert(store.recordConfirmedPropertyChange(observation("b1", text, "#222222", "profile-b", 1)));
+  assert(store.recordConfirmedPropertyChange(observation("c1", text, "#333333", "profile-c", 2)));
+  assert(store.flushPendingPreferences());
+  assert(store.compilePreferences());
+  assert(store.creationPreferences(text, 0).value("value").toString() == "#0000ff");
+  assert(store.creationPreferences(text, 1).value("value").toString() == "#222222");
+  assert(store.creationPreferences(text, 2).value("value").toString() == "#333333");
+
   auto duplicate = observation("e1", text, "#ffffff", "s4");
   assert(store.recordConfirmedPropertyChange(duplicate));
   assert(store.flushPendingPreferences());
@@ -62,5 +72,19 @@ int main(int argc, char** argv) {
   forbidden.insert("projectId", "must-not-persist");
   assert(!store.recordConfirmedPropertyChange(forbidden));
   assert(store.status().value("pending").toInt() == 0);
+  auto invalidRank = observation("e7", text, "#ffffff", "s7", 3);
+  assert(!store.recordConfirmedPropertyChange(invalidRank));
+
+  store.setAccountScope("account-a");
+  assert(store.recordConfirmedPropertyChange(observation("same-event", text, "#aaaaaa", "account-a")));
+  assert(store.flushPendingPreferences());
+  store.setAccountScope("account-b");
+  assert(store.recordConfirmedPropertyChange(observation("same-event", text, "#bbbbbb", "account-b")));
+  assert(store.flushPendingPreferences());
+  assert(store.exportFacts().size() == 1);
+  assert(store.creationPreferences(text).value("value").toString() == "#bbbbbb");
+  store.setAccountScope("account-a");
+  assert(store.exportFacts().size() == 1);
+  assert(store.creationPreferences(text).value("value").toString() == "#aaaaaa");
   return 0;
 }

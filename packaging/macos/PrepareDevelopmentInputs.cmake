@@ -17,9 +17,9 @@ file(MAKE_DIRECTORY
   "${FONT_DIR}")
 
 file(WRITE "${OUTPUT_DIR}/NOT_FOR_DISTRIBUTION.txt"
-  "Edward development package inputs only. Replace every placeholder before release.\n")
+  "Orbit development package inputs only. Replace every placeholder before release.\n")
 file(WRITE "${LICENSE_DIR}/LICENSE_PLACEHOLDER.txt"
-  "PLACEHOLDER: add the real Edward license before distribution.\n")
+  "PLACEHOLDER: add the real Orbit license before distribution.\n")
 file(WRITE "${OUTPUT_DIR}/THIRD_PARTY_NOTICES_PLACEHOLDER.md"
   "# PLACEHOLDER\n\nAdd complete third-party notices before distribution.\n")
 file(WRITE "${BASE_RESOURCES_DIR}/BASE_RESOURCES_PLACEHOLDER.txt"

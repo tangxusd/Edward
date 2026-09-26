@@ -2,21 +2,27 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Edward Component Package Manifest",
   "type": "object",
-  "required": ["resourceId", "displayName", "target", "assets"],
+  "required": ["resourceId", "displayName", "runtimeManifest", "props", "assets", "preview"],
   "properties": {
     "resourceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$" },
     "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
-    "target": { "type": "string", "pattern": "^[a-z][a-z0-9._:-]{1,127}$" },
-    "pluginId": { "type": "string", "minLength": 1 },
-    "pluginVersion": { "type": "string", "minLength": 1 },
+    "runtimeManifest": { "type": "string", "const": "edward-runtime.json" },
+    "props": { "type": "string", "const": "props.json" },
+    "preview": { "type": "string", "const": "preview.mp4" },
     "thumbnail": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).*$" },
-    "fusionComp": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[^/].*\\.comp$" },
-    "fusionUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
-    "fusionSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "fusionResolveVersion": { "type": "string", "minLength": 1 },
     "assets": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+$" },
+      "items": {
+        "type": "object",
+        "required": ["path", "mimeType", "bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$)).+$" },
+          "mimeType": { "type": "string", "minLength": 1 },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "additionalProperties": false
+      },
       "uniqueItems": true
     }
   },

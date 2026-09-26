@@ -7,6 +7,7 @@
     {"id": "local_proxy_security", "status": "passed", "evidence": "node --check; missing Supabase env returns 503 supabase_not_configured"},
     {"id": "resource_publisher_tests", "status": "passed", "evidence": "node --test tools/resource-publisher/test/publish.test.mjs"},
     {"id": "browser_ui_wiring", "status": "passed", "evidence": "resource-browser markup and non-import Tab routing implemented"},
-    {"id": "interactive_authenticated_smoke", "status": "blocked", "blockingReasons": ["当前 FableCut 页面没有注入 Supabase 用户 JWT；匿名状态按设计显示登录要求"]}
+    {"id": "authenticated_session_proxy", "status": "passed", "evidence": "FableCut 登录会话保存 access_token；资源请求与本地代理合同测试验证 Authorization: Bearer token 被完整转发"},
+    {"id": "interactive_authenticated_smoke", "status": "blocked", "blockingReasons": ["真实资源目录/RLS 验收仍需要专用 Supabase 测试账号；本地会话与代理链路已完成验证"]}
   ]
 }

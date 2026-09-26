@@ -11,6 +11,9 @@
 <script defer src="/vendor/react/react.production.min.js"></script>
 <script defer src="/vendor/react/react-dom.production.min.js"></script>
 <script defer src="/vendor/gsap/gsap.min.js"></script>
+  <script defer src="ai-action-plan.js"></script>
+  <script defer src="ai-client.js"></script>
+  <script src="settings-client.js"></script>
 </head>
 <body>
 <div class="app" id="app">
@@ -18,7 +21,7 @@
   <!-- ══════════ TOP BAR ══════════ -->
   <header class="topbar">
     <div class="logo"><span class="logo-mark">▶</span> Fable<b>Cut</b></div>
-    <div class="topbar-center" id="projectName"><span>未命名项目</span>  ·  <span class="connection-status connected" title="Local service connected">connected</span></div>
+    <div class="topbar-center" id="projectName"><span>未命名项目</span><span class="connection-status connected" title="本地服务已连接" aria-label="本地服务已连接"></span></div>
     <div class="topbar-right">
       <button class="btn tiny" id="btnAuth" title="登录 Supabase">登录</button>
       <span class="layout-tools">
@@ -63,9 +66,9 @@
         <nav class="resource-categories" id="resourceCategories" aria-label="资源分类"></nav>
         <div class="resource-results">
           <div class="resource-sort" id="resourceSort" role="toolbar" aria-label="资源排序">
-            <button type="button" data-resource-sort="favorites">收藏</button>
-            <button type="button" data-resource-sort="popular">热门</button>
-            <button type="button" data-resource-sort="latest" class="on">最新</button>
+            <button type="button" data-resource-filter="favorites" class="on">收藏</button>
+            <button type="button" data-resource-filter="popular">热门</button>
+            <button type="button" data-resource-filter="latest">最新</button>
           </div>
           <div class="resource-state" id="resourceState" role="status"></div>
           <div class="resource-grid" id="resourceGrid"></div>
@@ -144,9 +147,9 @@
         <div class="inspector-empty">Select a clip to edit its<br>transform, effects &amp; audio.</div>
       </div>
       <section class="inspector-ai" id="inspectorAi" aria-label="AI 对话">
-        <div class="inspector-ai-head">AI 剪辑助理</div>
+        <div class="inspector-ai-head">AI 剪辑助理 <span class="ai-provider-label" id="inspectorAiProvider">未配置供应商</span></div>
         <div class="inspector-ai-messages" id="inspectorAiMessages"><div class="inspector-ai-msg ai">告诉我你想如何编辑当前项目。</div></div>
-        <form class="inspector-ai-form" id="inspectorAiForm"><textarea id="inspectorAiInput" rows="2" placeholder="给 Edward 发消息…"></textarea><div class="inspector-ai-tools"><button type="button" class="ai-add" aria-label="添加">＋</button><select id="inspectorAiModel"><option>GPT-4o</option><option>本地模型</option></select><span class="ai-status" aria-label="已连接"></span><button type="button" class="ai-mic" aria-label="语音输入">♩</button><button type="submit" class="ai-send" aria-label="发送">➤</button></div></form>
+        <form class="inspector-ai-form" id="inspectorAiForm"><textarea id="inspectorAiInput" rows="2" placeholder="给 Orbit 发消息…"></textarea><div class="inspector-ai-tools"><button type="button" class="ai-add" aria-label="添加文件或截图">＋</button><input id="aiAttachmentInput" type="file" multiple accept="image/*,video/*,audio/*,.txt,.md,.json" hidden><select id="inspectorAiModel" class="ai-model-select" aria-label="选择模型"><option>未配置模型</option></select><span class="ai-status" aria-label="模型已连接">·</span><button type="button" class="ai-mic" aria-label="语音输入">♩</button><button type="submit" class="ai-send" aria-label="发送"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M914.6368 136.4992L97.1264 565.9648c-9.728 5.12-9.2672 19.1488 0.7168 23.6544l254.4128 114.176c10.9568 4.9152 23.8592-0.5632 27.8016-12.1856 3.4304-10.1376-2.0992-21.1456-11.8272-25.5488l-189.3376-84.992c-4.9152-2.2016-5.12-9.0624-0.3584-11.5712L808.96 238.2336c1.2288-0.6144 2.4064 0.8704 1.4848 1.8944l-406.9376 464.8448c-0.1536 0.2048-7.3728 8.2944-8.192 13.6704l-22.3232 146.2272c-1.4848 9.6764 3.6864 19.456 12.8 22.8864 12.5952 4.7104 25.6512-3.5328 27.5456-16.0256l19.3536-126.7712c1.024-6.8096 7.68-11.3152 14.3872-9.7792L751.36 819.2c6.656 1.4336 13.3632-2.4576 15.36-8.96L933.2224 152.064c3.5328-11.264-8.2432-21.0432-18.5856-15.5648z" fill="currentColor"/></svg></button></div></form>
       </section>
     </aside>
   </div>
@@ -194,10 +197,35 @@
 <div class="overlay hidden" id="authOverlay">
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <h2 id="authTitle">登录</h2>
+    <div class="auth-mode-actions" role="group" aria-label="账户操作">
+      <button class="btn tiny on" type="button" id="btnAuthLogin">登录</button>
+      <button class="btn tiny register-action" type="button" id="btnAuthRegister">注册</button>
+    </div>
+    <label class="hidden" id="authUsernameRow">用户名<input type="text" id="authUsername" autocomplete="username" minlength="3" maxlength="32"></label>
     <label>邮箱<input type="email" id="authEmail" autocomplete="email"></label>
     <label>密码<input type="password" id="authPassword" autocomplete="current-password"></label>
     <p class="dim" id="authStatus"></p>
+    <div class="auth-recovery"><button class="btn link" type="button" id="btnAuthRecover">找回密码</button></div>
     <div class="dialog-actions"><button class="btn" id="btnAuthCancel">取消</button><button class="btn primary" id="btnAuthSubmit">登录</button></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="subscriptionOverlay">
+  <div class="dialog subscription-dialog" role="dialog" aria-modal="true" aria-labelledby="subscriptionTitle">
+    <h2 id="subscriptionTitle">订阅 / 续订</h2>
+    <div class="subscription-banner" id="subscriptionBanner"><span>会员方案与服务</span></div>
+    <section class="subscription-plans" aria-label="订阅方案"><div class="subscription-state" id="subscriptionPlansState">正在加载订阅方案…</div><div id="subscriptionPlans"></div></section>
+    <section class="subscription-status"><h3>订阅状态</h3><p id="subscriptionStatusText">正在读取订阅状态…</p><p class="dim" id="subscriptionPeriodText"></p></section>
+    <p class="dim" id="subscriptionMessage"></p>
+    <div class="dialog-actions"><button class="btn" id="btnAuthLogout">退出登录</button><button class="btn" id="btnSubscriptionClose">关闭</button></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="resourcePreviewOverlay">
+  <div class="dialog resource-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="resourcePreviewTitle">
+    <h2 id="resourcePreviewTitle">组件预览</h2>
+    <video id="resourcePreviewVideo" class="resource-preview-video" muted loop playsinline controls></video>
+    <div class="dialog-actions"><button type="button" id="resourcePreviewFavorite" class="resource-action resource-action-favorite">收藏</button><button type="button" id="resourcePreviewAdd" class="resource-action resource-action-add">+</button><button type="button" class="btn" id="resourcePreviewClose">关闭</button></div>
   </div>
 </div>
 
@@ -222,25 +250,30 @@
 <!-- ══════════ EXPORT SETUP ══════════ -->
 <div class="overlay hidden" id="exportSetup">
   <div class="dialog">
-    <h2>Export</h2>
+    <h2>导出</h2>
     <label class="engine-opt">
       <input type="radio" name="engine" id="engineFast">
-      <span><b>Fast (ffmpeg)</b><br><span class="dim" id="engineFastNote">Frame-accurate ffmpeg encode. Keeps rendering if you switch tabs.</span></span>
+      <span><b>快速导出（服务器编码）</b><br><span class="dim" id="engineFastNote">按帧渲染并由服务器编码；切换页面后仍会继续。</span></span>
     </label>
     <label class="engine-opt">
       <input type="radio" name="engine" id="engineRealtime">
-      <span><b>WebCodecs (HW encode)</b><br><span class="dim" id="engineWebCodecsNote">Frame-accurate. Browser encodes H.264; server muxes. Needs a modern Chromium and ffmpeg.</span></span>
+      <span><b>实时导出（浏览器编码）</b><br><span class="dim" id="engineWebCodecsNote">浏览器编码 H.264，服务器负责封装音频；需要现代 Chromium 和 ffmpeg。</span></span>
     </label>
     <div class="export-profile-row" id="exportProfileRow">
-      <label class="export-profile-label" for="exportProfileSel">Encoding profile</label>
+      <label class="export-profile-label" for="exportProfileSel">编码配置</label>
       <select class="export-profile-sel" id="exportProfileSel" aria-describedby="exportProfileNote exportProfileHint"></select>
       <p class="dim export-profile-note" id="exportProfileNote"></p>
       <p class="dim export-profile-hint" id="exportProfileHint"></p>
     </div>
+    <div class="export-profile-row" id="exportResolutionRow">
+      <label class="export-profile-label" for="exportResolutionSel">输出分辨率</label>
+      <select class="export-profile-sel" id="exportResolutionSel" aria-describedby="exportResolutionHint"></select>
+      <p class="dim export-profile-hint" id="exportResolutionHint">按当前项目画幅适配，可在导出前单独选择。</p>
+    </div>
     <div class="export-wc-opts hidden" id="exportWcOpts">
-      <label class="export-wc-field" for="exportWcBitrate">Bitrate
+      <label class="export-wc-field" for="exportWcBitrate">码率
         <select id="exportWcBitrate" class="export-wc-sel">
-          <option value="auto">Auto (from resolution)</option>
+          <option value="auto">自动（按分辨率）</option>
           <option value="2">2 Mbps</option>
           <option value="4">4 Mbps</option>
           <option value="6">6 Mbps</option>
@@ -252,18 +285,18 @@
           <option value="50">50 Mbps</option>
         </select>
       </label>
-      <label class="export-wc-field" for="exportWcMode">Rate control
+      <label class="export-wc-field" for="exportWcMode">码率控制
         <select id="exportWcMode" class="export-wc-sel">
-          <option value="variable">VBR (variable)</option>
-          <option value="constant">CBR (constant)</option>
+          <option value="variable">VBR（可变）</option>
+          <option value="constant">CBR（恒定）</option>
         </select>
       </label>
-      <p class="dim export-wc-hint">WebCodecs has no CRF — quality is driven by bitrate. VBR spends bits on hard frames; CBR holds a steady rate.</p>
+      <p class="dim export-wc-hint">浏览器编码不使用 CRF，画质由码率决定。VBR 会为复杂画面分配更多码率，CBR 保持稳定码率。</p>
     </div>
     <div class="export-track-warn hidden" id="exportTrackWarn" role="status"></div>
     <div class="dialog-actions">
-      <button class="btn" id="btnCancelSetup">Cancel</button>
-      <button class="btn primary" id="btnStartExport">Export</button>
+      <button class="btn" id="btnCancelSetup">取消</button>
+      <button class="btn primary" id="btnStartExport">开始导出</button>
     </div>
   </div>
 </div>
@@ -271,8 +304,8 @@
 <!-- ══════════ EXPORT OVERLAY ══════════ -->
 <div class="overlay hidden" id="exportOverlay">
   <div class="dialog">
-    <h2 id="exportTitle">Exporting…</h2>
-    <p class="dim" id="exportNote">Rendering your sequence in real time. Keep this tab focused.</p>
+    <h2 id="exportTitle">正在导出…</h2>
+    <p class="dim" id="exportNote">正在渲染时间线，请保持应用运行。</p>
     <div class="progress"><div class="progress-fill" id="exportProgress"></div></div>
     <div class="dialog-actions"><button class="btn" id="btnCancelExport">Cancel</button></div>
   </div>
@@ -282,25 +315,45 @@
 <div class="overlay hidden" id="settingsOverlay">
   <div class="dialog settings" id="settingsDialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" tabindex="-1">
     <h2 id="settingsTitle">Settings</h2>
-    <p class="dim settings-intro">Preferences are stored in this browser only.</p>
-    <div class="settings-section">
-      <h3>Keyboard shortcuts</h3>
-      <label class="settings-row">
-        <span class="settings-label">Shortcut layout</span>
-        <select id="setShortcutProfile" class="head-select"><option value="edward">Edward</option><option value="jianying">剪映</option></select>
-      </label>
+    <p class="dim settings-intro">Orbit settings are stored on this device.</p>
+    <div class="settings-tabs" id="settingsTabs" role="tablist" aria-label="设置分类">
+      <button role="tab" aria-selected="true" data-settings-tab="paths">路径设置</button><button role="tab" aria-selected="false" data-settings-tab="models">大模型设置</button><button role="tab" aria-selected="false" data-settings-tab="preferences">偏好设置</button><button role="tab" aria-selected="false" data-settings-tab="logs">日志</button><button role="tab" aria-selected="false" data-settings-tab="feedback">意见反馈</button>
     </div>
-    <div class="settings-section">
-      <h3>Selection</h3>
-      <label class="settings-row">
-        <input type="checkbox" id="setLinkSelect">
-        <span>
-          <span class="settings-label">Link timeline and Project bin selection</span>
-          <span class="settings-hint">Selecting a timeline clip highlights its media in Project, and the reverse. Off by default.</span>
-        </span>
-      </label>
+    <section class="settings-panel" id="settingsPathsPanel" role="tabpanel">
+      <p class="settings-hint">选择新目录后会迁移已有项目或文件；缓存、代理和预渲染可安全清理。</p><div id="settingsPathList"></div>
+    </section>
+    <section class="settings-panel hidden" id="settingsModelsPanel" role="tabpanel">
+    <div class="settings-section" id="modelProviderList">
+      <div class="settings-panel-heading"><div><h3>已添加供应商</h3><p class="settings-hint">选择供应商以输入密钥或查看连接详情。</p></div><button class="btn tiny" id="btnShowProviderForm" type="button">添加供应商</button></div>
+      <div class="provider-card-list" id="aiProviderCards"></div>
     </div>
-    <div class="dialog-actions"><button class="btn primary" id="btnCloseSettings">Close</button></div>
+    <div class="settings-section hidden" id="modelProviderDetail">
+      <div class="settings-panel-heading"><h3 id="modelProviderDetailHeading">供应商设置</h3><button class="btn tiny" id="btnBackToProviderList" type="button">返回列表</button></div>
+      <label class="settings-field hidden" id="setAiPresetField"><span>供应商预设</span><select id="setAiPreset" aria-label="供应商预设"><option value="">正在加载供应商预设…</option></select></label>
+      <label class="settings-field" id="setAiApiKeyField"><span>API 密钥</span><input id="setAiApiKey" type="password" autocomplete="new-password" placeholder="输入 API 密钥；留空保留本机已保存的密钥"></label>
+      <label class="settings-field"><span>模型目录</span><select id="setAiModelCatalog" aria-label="模型目录"><option value="">先拉取模型列表</option></select></label>
+      <div class="dialog-actions provider-quick-actions"><button class="btn tiny" id="btnTestProvider" type="button">测试连接</button><button class="btn tiny" id="btnFetchModels" type="button">拉取模型列表</button><button class="btn primary tiny" id="btnAddProvider" type="button">保存供应商</button></div>
+      <details class="provider-details" id="providerDetails"><summary id="modelProviderDetailTitle">连接详细信息</summary><div class="provider-detail-fields">
+      <label class="settings-field"><span>Provider ID</span><input id="setAiProviderId" type="text" autocomplete="off" pattern="[a-z][a-z0-9-]{1,63}" placeholder="acme-gateway"><small>以小写字母开头的唯一标识，用于本机保存该提供方。</small></label>
+      <label class="settings-field"><span>显示名称</span><input id="setAiProvider" type="text" autocomplete="organization" placeholder="显示名称"></label>
+      <label class="settings-field"><span>API 地址</span><input id="setAiEndpoint" type="url" autocomplete="url" placeholder="https://gateway.example/v1/chat/completions"></label>
+      <label class="settings-field"><span>API 协议</span><select id="setAiProtocol"><option value="openai-completions">openai-completions</option><option value="openai-responses">openai-responses</option><option value="anthropic-messages">anthropic-messages</option></select></label>
+      <label class="settings-field"><span>模型 ID</span><input id="setAiModel" type="text" autocomplete="off" placeholder="gpt-4.1"></label>
+      </div></details>
+    </div>
+    </section>
+    <section class="settings-panel hidden" id="settingsPreferencesPanel" role="tabpanel"><div class="settings-section">
+      <h3>Preferences</h3>
+      <p class="settings-hint">偏好保存在本机，不会写入项目文件。</p>
+      <p class="settings-hint" id="setPreferenceStorage"></p>
+      <p class="settings-hint" id="setPreferenceStatus"></p>
+      <button class="btn tiny" id="btnCompilePreferences" type="button">Save and compile preferences</button>
+      <div class="dialog-actions"><button class="btn tiny" id="btnExportPreferences" type="button">导出偏好</button><button class="btn tiny" id="btnImportPreferences" type="button">导入偏好</button><button class="btn tiny" id="btnUploadPreferences" type="button">上传偏好</button><button class="btn tiny" id="btnDownloadPreferences" type="button">下载偏好</button></div>
+    </div></section>
+    <section class="settings-panel hidden" id="settingsLogsPanel" role="tabpanel"><div class="settings-section"><h3>日志</h3><div class="settings-diagnostics"><div><strong>Orbit 与 FableCut 诊断日志</strong><p>记录桌面端事件、模型请求结果及 FableCut 脚本异常。仅在点击上报时上传，日志会过滤密钥、令牌和本地路径。</p></div><button class="btn tiny" id="btnRefreshDiagnosticLog" type="button">刷新日志</button></div><textarea class="diagnostic-log" id="setDiagnosticLog" rows="8" readonly placeholder="打开桌面版 Orbit 后可读取诊断日志。"></textarea><div class="dialog-actions"><button class="btn primary" id="btnReportError" type="button">上报整段日志</button></div></div></section>
+    <section class="settings-panel hidden" id="settingsFeedbackPanel" role="tabpanel"><div class="settings-section"><h3>意见反馈</h3><p class="settings-hint">告诉我们你希望 Orbit 增加或改进什么。提交内容会用于产品需求整理。</p><label class="settings-field feedback-field"><span>需求或建议</span><textarea id="setFeedbackMessage" rows="7" placeholder="描述你的使用场景、期望结果和优先级。不要包含密码、密钥或项目内容。"></textarea></label><div class="dialog-actions"><button class="btn primary" id="btnSendFeedback" type="button">提交意见</button></div></div></section>
+    <p class="settings-status dim" id="settingsStatus" role="status"></p>
+    <div class="dialog-actions"><button class="btn" id="btnSaveSettings" type="button">Save settings</button><button class="btn primary" id="btnCloseSettings">Close</button></div>
   </div>
 </div>
 
@@ -352,6 +405,9 @@
 
 <script src="i18n.js"></script>
 <script src="preference-client.js"></script>
+<script src="property-contract.js"></script>
+<script src="resource-timeline.js"></script>
+<script src="component-versioning.js"></script>
 <script src="app.js"></script>
 <script type="module" src="component-runtime.js"></script>
 </body>

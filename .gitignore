@@ -4,9 +4,7 @@
 build/
 plugins/*/node_modules/
 tools/*/node_modules/
-.edward/playwright-browsers/
 .edward/python-venv/
-.remotion/
 CMakeFiles/
 jiaju/
 .superpowers/brainstorm/

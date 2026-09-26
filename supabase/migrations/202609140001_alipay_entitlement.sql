@@ -1,3 +1,6 @@
+alter table public.subscription_plans add column if not exists billing_interval_count integer not null default 1;
+alter table public.subscription_plans drop constraint if exists subscription_plans_billing_interval_count_check;
+alter table public.subscription_plans add constraint subscription_plans_billing_interval_count_check check (billing_interval_count > 0 and billing_interval_count <= 120);
 alter table public.subscriptions add column if not exists entitlement_order_id uuid;
 create unique index if not exists subscriptions_entitlement_order_idx on public.subscriptions(entitlement_order_id) where entitlement_order_id is not null;
 
@@ -30,9 +33,9 @@ begin
   v_start := greatest(now(), coalesce(v_end, now()));
   if v_plan.billing_interval not in ('day', 'month', 'year') then raise exception 'unsupported_billing_interval'; end if;
   v_end := case v_plan.billing_interval
-    when 'day' then v_start + make_interval(days => 1)
-    when 'month' then v_start + make_interval(months => 1)
-    when 'year' then v_start + make_interval(years => 1)
+    when 'day' then v_start + make_interval(days => v_plan.billing_interval_count)
+    when 'month' then v_start + make_interval(months => v_plan.billing_interval_count)
+    when 'year' then v_start + make_interval(years => v_plan.billing_interval_count)
   end;
   if v_subscription_id is null then
     insert into public.subscriptions(user_id, plan_id, status, current_period_start, current_period_end, provider, entitlement_order_id)
@@ -46,6 +49,17 @@ begin
   return jsonb_build_object('subscription_id', v_subscription_id, 'period_end', v_end);
 end;
 $$;
+
+insert into public.subscription_plans (plan_key, name, currency, unit_amount, billing_interval, billing_interval_count, is_recurring, status)
+values
+  ('edward_test_monthly_001', 'Edward 联调月付', 'CNY', 1, 'month', 1, false, 'active'),
+  ('edward_test_quarterly_001', 'Edward 联调季付', 'CNY', 1, 'month', 3, false, 'active'),
+  ('edward_test_yearly_001', 'Edward 联调年付', 'CNY', 1, 'year', 1, false, 'active')
+on conflict (plan_key) do update set
+  name = excluded.name, currency = excluded.currency, unit_amount = excluded.unit_amount,
+  billing_interval = excluded.billing_interval, billing_interval_count = excluded.billing_interval_count,
+  is_recurring = excluded.is_recurring, status = excluded.status, effective_from = now(), effective_to = null,
+  updated_at = now();
 
 revoke all on function public.apply_paid_order(uuid) from public, anon, authenticated;
 grant execute on function public.apply_paid_order(uuid) to service_role;

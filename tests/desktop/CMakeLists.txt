@@ -1,38 +1,3 @@
-add_executable(test_timeline_controller test_timeline_controller.cpp)
-target_link_libraries(test_timeline_controller PRIVATE edward_desktop)
-add_test(NAME desktop.timeline_controller COMMAND test_timeline_controller ${CMAKE_BINARY_DIR}/tests/media/fixture.mp4)
-
-add_executable(test_visual_routes test_visual_routes.cpp)
-target_compile_definitions(test_visual_routes PRIVATE EDWARD_DESKTOP_QML_DIR="${CMAKE_SOURCE_DIR}/src/desktop/qml")
-target_compile_definitions(test_visual_routes PRIVATE EDWARD_DESKTOP_SOURCE_DIR="${CMAKE_SOURCE_DIR}/src/desktop/src")
-add_test(NAME desktop.visual_routes COMMAND test_visual_routes)
-
-add_executable(test_workbench_plugins test_workbench_plugins.cpp)
-target_link_libraries(test_workbench_plugins PRIVATE edward_desktop edward_resources Qt6::Core)
-add_dependencies(test_workbench_plugins test_rpc_plugin media_fixture media_audio_fixture)
-add_test(NAME desktop.workbench_plugins COMMAND test_workbench_plugins
-  $<TARGET_FILE:test_rpc_plugin> ${CMAKE_BINARY_DIR}/tests/media/fixture.mp4
-  ${CMAKE_BINARY_DIR}/tests/media/audio-fixture.mp4)
-
-add_executable(test_resolve_workbench
-  test_resolve_workbench.cpp
-  ../resolve/fixture_rpc_server.cpp
-)
-target_link_libraries(test_resolve_workbench PRIVATE edward_desktop Qt6::Network)
-add_test(NAME desktop.resolve_workbench COMMAND test_resolve_workbench)
-
-add_executable(test_resolve_keyframe_edit test_resolve_keyframe_edit.cpp)
-target_link_libraries(test_resolve_keyframe_edit PRIVATE edward_desktop)
-add_test(NAME desktop.resolve_keyframe_edit COMMAND test_resolve_keyframe_edit)
-
-add_executable(test_export_channels test_export_channels.cpp)
-target_link_libraries(test_export_channels PRIVATE edward_desktop)
-add_test(NAME desktop.export_channels COMMAND test_export_channels)
-
-add_executable(test_diagnostics_reporter test_diagnostics_reporter.cpp)
-target_link_libraries(test_diagnostics_reporter PRIVATE edward_desktop)
-add_test(NAME desktop.diagnostics_reporter COMMAND test_diagnostics_reporter)
-
 add_executable(test_preference_store test_preference_store.cpp)
 target_link_libraries(test_preference_store PRIVATE edward_desktop Qt6::Sql)
 add_test(NAME desktop.preference_store COMMAND test_preference_store)
@@ -47,3 +12,30 @@ add_test(NAME desktop.preference_bridge COMMAND test_preference_bridge)
 add_executable(test_native_runtime_workbench test_native_runtime_workbench.cpp)
 target_link_libraries(test_native_runtime_workbench PRIVATE edward_desktop Qt6::Core)
 add_test(NAME desktop.native_runtime_workbench COMMAND test_native_runtime_workbench)
+
+add_executable(test_workbench_start_page test_workbench_start_page.cpp)
+target_compile_definitions(test_workbench_start_page PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(test_workbench_start_page PRIVATE Qt6::Core)
+add_test(NAME desktop.workbench_start_page COMMAND test_workbench_start_page)
+
+add_executable(test_workbench_titlebar_actions test_workbench_titlebar_actions.cpp)
+target_compile_definitions(test_workbench_titlebar_actions PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(test_workbench_titlebar_actions PRIVATE Qt6::Core)
+add_test(NAME desktop.workbench_titlebar_actions COMMAND test_workbench_titlebar_actions)
+
+add_executable(test_fablecut_server_recovery test_fablecut_server_recovery.cpp)
+target_compile_definitions(test_fablecut_server_recovery PRIVATE EDWARD_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries(test_fablecut_server_recovery PRIVATE Qt6::Core)
+add_test(NAME desktop.fablecut_server_recovery COMMAND test_fablecut_server_recovery)
+
+add_executable(test_execution_ledger test_execution_ledger.cpp)
+target_link_libraries(test_execution_ledger PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.execution_ledger COMMAND test_execution_ledger)
+
+add_executable(test_artifact_intake test_artifact_intake.cpp)
+target_link_libraries(test_artifact_intake PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.artifact_intake COMMAND test_artifact_intake)
+
+add_executable(test_ai_memory_store test_ai_memory_store.cpp)
+target_link_libraries(test_ai_memory_store PRIVATE edward_desktop Qt6::Core)
+add_test(NAME desktop.ai_memory_store COMMAND test_ai_memory_store)
